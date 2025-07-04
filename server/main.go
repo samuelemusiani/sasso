@@ -5,6 +5,7 @@ import (
 	"os"
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
+	"samuelemusiani/sasso/server/db"
 )
 
 const DEFAULT_LOG_LEVEL = slog.LevelDebug
@@ -21,9 +22,22 @@ func main() {
 		}
 	}
 
-	apiLogger := slog.With("module", "api")
+	c := config.Get()
+
+	// Database
+	dbLogger := slog.With("module", "db")
+	err := db.Init(dbLogger, c.Database)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize database")
+		os.Exit(1)
+	}
 
 	// API
+	apiLogger := slog.With("module", "api")
 	api.Init(apiLogger)
-	api.ListenAndServe(config.Get().Server)
+	err = api.ListenAndServe(c.Server)
+	if err != nil {
+		slog.With("error", err).Error("Failed to start API server")
+		os.Exit(1)
+	}
 }
