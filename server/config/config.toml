@@ -1,0 +1,10 @@
+# Example of a server configuration
+
+[server]
+bind = ":8080"
+
+[database]
+user = "user"
+password = "password"
+host = "localhost"
+port = 5432
