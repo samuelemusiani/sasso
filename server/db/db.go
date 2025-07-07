@@ -2,11 +2,15 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
+	"os"
 	"samuelemusiani/sasso/server/config"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gorm_logger "gorm.io/gorm/logger"
 )
 
 var db *gorm.DB = nil
@@ -19,22 +23,43 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=sasso port=%d sslmode=disable", c.Host, c.User, c.Password, c.Port)
 
-	db, err = gorm.Open(postgres.Open(url), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
+		Logger: gorm_logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			gorm_logger.Config{
+				SlowThreshold:             time.Second,
+				LogLevel:                  gorm_logger.Error,
+				IgnoreRecordNotFoundError: true,
+				Colorful:                  true,
+			},
+		),
+	})
 	if err != nil {
 		logger.With("error", err).Error("Failed to connect to database")
 		return err
 	}
 
-	err = setGlobals()
+	err = initGlobals()
 	if err != nil {
 		logger.With("error", err).Error("Failed to set globals in database")
+		return err
+	}
+
+	err = initUsers()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize users in database")
 		return err
 	}
 
 	return nil
 }
 
-func setGlobals() error {
+type Globals struct {
+	gorm.Model
+	Version string
+}
+
+func initGlobals() error {
 	db.AutoMigrate(&Globals{})
 	var globals Globals
 	db.First(&globals)
@@ -54,9 +79,4 @@ func setGlobals() error {
 	}
 
 	return nil
-}
-
-type Globals struct {
-	gorm.Model
-	Version string
 }

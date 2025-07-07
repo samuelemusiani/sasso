@@ -23,10 +23,17 @@ func Init(apiLogger *slog.Logger) {
 	// Middleware
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Heartbeat("/ping"))
+	router.Use(middleware.CleanPath)
+
+	apiRouter := chi.NewRouter()
+
+	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
 	// Routes
-	router.Get("/", routeRoot)
+	apiRouter.Get("/", routeRoot)
+	apiRouter.Get("/login", login)
+
+	router.Mount("/api", apiRouter)
 }
 
 func ListenAndServe(c config.Server) error {
