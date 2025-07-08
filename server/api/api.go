@@ -46,6 +46,7 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Use(jwtauth.Authenticator(tokenAuth))
 
 		r.Get("/test", test)
+		r.Get("/vm", vms)
 	})
 
 	router.Mount("/api", apiRouter)
