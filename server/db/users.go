@@ -8,12 +8,39 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserRole string
+
+const (
+	RoleAdmin      UserRole = "admin"
+	RoleUser       UserRole = "user"
+	RoleMaintainer UserRole = "mantainer"
+)
+
+var ErrInvalidUserRole = errors.New("invalid user role")
+
 type User struct {
 	gorm.Model
-	Username string `gorm:"uniqueIndex;not null"`
-	Password []byte `gorm:"not null"`
-	Email    string `gorm:"uniqueIndex;not null"`
-	Realm    string `gorm:"default:'local'"`
+	Username string   `gorm:"uniqueIndex;not null"`
+	Password []byte   `gorm:"not null"`
+	Email    string   `gorm:"uniqueIndex;not null"`
+	Realm    string   `gorm:"default:'local'"`
+	Role     UserRole `gorm:"type:enum('admin','user','mantainer');not null"`
+}
+
+func (r UserRole) IsValid() bool {
+	switch r {
+	case RoleAdmin, RoleUser, RoleMaintainer:
+		return true
+	default:
+		return false
+	}
+}
+
+func (u *User) BeforeSave(tx *gorm.DB) error {
+	if !u.Role.IsValid() {
+		return ErrInvalidUserRole
+	}
+	return nil
 }
 
 func initUsers() error {
@@ -38,6 +65,7 @@ func initUsers() error {
 		Username: "admin",
 		Email:    "admin@local",
 		Realm:    "local",
+		Role:     RoleAdmin,
 	}
 
 	passwd := rand.Text()
