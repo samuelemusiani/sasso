@@ -8,3 +8,14 @@ user = "user"
 password = "password"
 host = "localhost"
 port = 5432
+
+[secrets]
+# The server needs a secret key for signing tokens
+# One can provide the key in the following variable,
+# or provide a path to a file containing the key.
+# If the file does not exist, it will be created.
+
+# The key must be in base64 format.
+#key = "c2VjcmV0"
+path = "./secrets.key"
+

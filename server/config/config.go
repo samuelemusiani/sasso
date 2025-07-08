@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Server   Server   `toml:"server"`
 	Database Database `toml:"database"`
+	Secrets  Secrets  `toml:"secrets"`
 }
 
 type Server struct {
@@ -20,6 +21,11 @@ type Database struct {
 	Port     uint16 `toml:"port"`
 }
 
+type Secrets struct {
+	Key  string `toml:"key"`
+	Path string `toml:"path"`
+}
+
 var config Config = Config{
 	Server: Server{
 		Bind: ":8080",
@@ -29,6 +35,10 @@ var config Config = Config{
 		Password: "password",
 		Host:     "localhost",
 		Port:     5432,
+	},
+	Secrets: Secrets{
+		Key:  "",
+		Path: "./secrets.key",
 	},
 }
 

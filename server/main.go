@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
 	"os"
+
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
@@ -24,9 +28,50 @@ func main() {
 
 	c := config.Get()
 
+	if c.Secrets.Key != "" {
+		slog.Info("Using secrets key provided in config file")
+	} else if c.Secrets.Path != "" {
+		slog.With("path", c.Secrets.Path).Debug("Trying to load secrets key from file")
+		base64key, err := os.ReadFile(c.Secrets.Path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				slog.With("error", err).Error("Failed to read secrets key file")
+				os.Exit(1)
+			}
+
+			_, key, err := ed25519.GenerateKey(rand.Reader)
+			if err != nil {
+				slog.With("error", err).Error("Failed to generate new secrets key")
+				os.Exit(1)
+			}
+
+			base64key = []byte(base64.StdEncoding.EncodeToString(key))
+
+			slog.With("path", c.Secrets.Path).Info("Saving key to file")
+			err = os.WriteFile(c.Secrets.Path, base64key, 0600)
+			if err != nil {
+				slog.With("error", err).Error("Failed to write secrets key to file")
+				os.Exit(1)
+			}
+
+			c.Secrets.Key = string(base64key)
+		}
+		c.Secrets.Key = string(base64key)
+	} else {
+		slog.Error("No secrets key provided in config file or file path")
+		slog.Error("Please provide a secrets key in the config file or a path to a file containing the key")
+		os.Exit(1)
+	}
+
+	real_key, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
+	if err != nil {
+		slog.With("error", err).Error("Failed to decode secrets key")
+		os.Exit(1)
+	}
+
 	// Database
 	dbLogger := slog.With("module", "db")
-	err := db.Init(dbLogger, c.Database)
+	err = db.Init(dbLogger, c.Database)
 	if err != nil {
 		slog.With("error", err).Error("Failed to initialize database")
 		os.Exit(1)
@@ -34,7 +79,7 @@ func main() {
 
 	// API
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger)
+	api.Init(apiLogger, real_key)
 	err = api.ListenAndServe(c.Server)
 	if err != nil {
 		slog.With("error", err).Error("Failed to start API server")

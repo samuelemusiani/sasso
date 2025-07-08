@@ -8,12 +8,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/jwtauth/v5"
 )
 
 var router *chi.Mux = nil
 var logger *slog.Logger = nil
 
-func Init(apiLogger *slog.Logger) {
+var tokenAuth *jwtauth.JWTAuth = nil
+
+func Init(apiLogger *slog.Logger, key []byte) {
 	// Logger
 	logger = apiLogger
 
@@ -29,9 +32,21 @@ func Init(apiLogger *slog.Logger) {
 
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
-	// Routes
-	apiRouter.Get("/", routeRoot)
-	apiRouter.Get("/login", login)
+	tokenAuth = jwtauth.New("HS256", key, nil)
+
+	// No auth routes
+	apiRouter.Group(func(r chi.Router) {
+		r.Get("/", routeRoot)
+		r.Get("/login", login)
+	})
+
+	// Auth routes
+	apiRouter.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator(tokenAuth))
+
+		r.Get("/test", test)
+	})
 
 	router.Mount("/api", apiRouter)
 }
