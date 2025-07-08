@@ -24,7 +24,7 @@ type User struct {
 	Password []byte   `gorm:"not null"`
 	Email    string   `gorm:"uniqueIndex;not null"`
 	Realm    string   `gorm:"default:'local'"`
-	Role     UserRole `gorm:"type:enum('admin','user','mantainer');not null"`
+	Role     UserRole `gorm:"type:varchar(20);not null;check:role IN ('admin','user','mantainer')"`
 }
 
 func (r UserRole) IsValid() bool {
