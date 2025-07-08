@@ -19,3 +19,10 @@ port = 5432
 #key = "c2VjcmV0"
 path = "./secrets.key"
 
+[proxmox]
+# Proxmox URL
+url = "https://localhost:8006"
+insecure_skip_verify = true
+
+token_id = "root@pam!sasso"
+secret = "super-iper-secret-token"

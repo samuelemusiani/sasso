@@ -10,6 +10,7 @@ import (
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/proxmox"
 )
 
 const DEFAULT_LOG_LEVEL = slog.LevelDebug
@@ -76,6 +77,15 @@ func main() {
 		slog.With("error", err).Error("Failed to initialize database")
 		os.Exit(1)
 	}
+
+	proxmoxLogger := slog.With("module", "proxmox")
+	err = proxmox.Init(proxmoxLogger, c.Proxmox)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize Proxmox client")
+		os.Exit(1)
+	}
+
+	go proxmox.TestEndpointVersion()
 
 	// API
 	apiLogger := slog.With("module", "api")
