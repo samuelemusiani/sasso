@@ -37,7 +37,7 @@ func Init(apiLogger *slog.Logger, key []byte) {
 	// No auth routes
 	apiRouter.Group(func(r chi.Router) {
 		r.Get("/", routeRoot)
-		r.Get("/login", login)
+		r.Post("/login", login)
 	})
 
 	// Auth routes

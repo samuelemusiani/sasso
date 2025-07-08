@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Users struct {
+type User struct {
 	gorm.Model
 	Username string `gorm:"uniqueIndex;not null"`
 	Password []byte `gorm:"not null"`
@@ -17,13 +17,13 @@ type Users struct {
 }
 
 func initUsers() error {
-	err := db.AutoMigrate(&Users{})
+	err := db.AutoMigrate(&User{})
 	if err != nil {
 		logger.With("error", err).Error("Failed to migrate Users table")
 		return err
 	}
 
-	var adminUser Users
+	var adminUser User
 	result := db.First(&adminUser, "username = ?", "admin")
 	if result.Error == nil {
 		logger.Debug("Admin user already exists")
@@ -34,7 +34,7 @@ func initUsers() error {
 		return result.Error
 	}
 
-	adminUser = Users{
+	adminUser = User{
 		Username: "admin",
 		Email:    "admin@local",
 		Realm:    "local",
@@ -54,4 +54,19 @@ func initUsers() error {
 
 	logger.With("password", passwd).Info("Admin user created successfully")
 	return nil
+}
+
+func GetUserByUsername(username string) (User, error) {
+	var user User
+	result := db.First(&user, "username = ?", username)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return User{}, ErrNotFound
+		} else {
+			logger.With("error", result.Error).Error("Failed to retrieve user by username")
+			return User{}, result.Error
+		}
+	}
+
+	return user, nil
 }

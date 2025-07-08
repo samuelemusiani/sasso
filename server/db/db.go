@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -13,8 +14,12 @@ import (
 	gorm_logger "gorm.io/gorm/logger"
 )
 
-var db *gorm.DB = nil
-var logger *slog.Logger = nil
+var (
+	db     *gorm.DB     = nil
+	logger *slog.Logger = nil
+
+	ErrNotFound = errors.New("record not found")
+)
 
 func Init(dbLogger *slog.Logger, c config.Database) error {
 	logger = dbLogger
