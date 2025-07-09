@@ -3,6 +3,7 @@ package proxmox
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -16,6 +17,11 @@ import (
 var (
 	client *proxmox.Client = nil
 	logger *slog.Logger    = nil
+
+	cTemplate *config.ProxmoxTemplate = nil
+	cClone    *config.ProxmoxClone    = nil
+
+	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
 )
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
@@ -41,6 +47,25 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 		proxmox.WithHTTPClient(&http_client),
 		proxmox.WithAPIToken(config.TokenID, config.Secret))
 
+	cTemplate = &config.Template
+	cClone = &config.Clone
+
+	idTemplate := strings.TrimSpace(cClone.IDTemplate)
+	if !strings.Contains(idTemplate, "{{vmid}}") {
+		logger.Error("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'", "template", idTemplate)
+		return ErrInvalidCloneIDTemplate
+	}
+
+	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + cClone.VMIDUserDigits + cClone.VMIDVMDigits
+	if tmp < 3 || tmp > 9 {
+		logger.Error("Invalid Proxmox clone ID template. The total length must be between 3 and 9 characters", "template", idTemplate, "length", tmp)
+		return ErrInvalidCloneIDTemplate
+	}
+
+	if cClone.VMIDUserDigits < 1 || cClone.VMIDVMDigits < 1 {
+		logger.Error("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1", "user_digits", cClone.VMIDUserDigits, "vm_digits", cClone.VMIDVMDigits)
+	}
+
 	return nil
 }
 
@@ -62,6 +87,38 @@ func TestEndpointVersion() {
 			first = false
 		} else if wasError {
 			logger.Info("Proxmox version endpoint is back online", "version", version.Version)
+			wasError = false
+		}
+
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func TestEndpointClone() {
+	first := true
+	wasError := false
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		node, err := client.Node(ctx, cTemplate.Node)
+		cancel() // Cancel immediately after the call
+
+		if err != nil {
+			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
+			time.Sleep(10 * time.Second)
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		vm, err := node.VirtualMachine(ctx, cTemplate.VMID)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
+			wasError = true
+		} else if first {
+			logger.Info("Proxmox VM is ready for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
+			first = false
+		} else if wasError {
+			logger.Info("Proxmox VM is back online for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
 			wasError = false
 		}
 

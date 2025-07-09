@@ -26,3 +26,22 @@ insecure_skip_verify = true
 
 token_id = "root@pam!sasso"
 secret = "super-iper-secret-token"
+
+[proxmox.template]
+node = "pve3"
+vmid = 900900000
+
+[proxmox.clone]
+# The node where the clone will be created
+target_node = "pve4"
+# This string is used to generate the new VM ID for the clone.
+# It is a template string where {{vmid}} will be replaced with the VM ID
+# used inside sasso.
+id_template = "600{{vmid}}"
+
+# How many digits of the VM ID to use for the user and the internal VM ID.
+vmid_user_digits = 4
+vmid_vm_digits = 2
+
+# Do a full clone or a linked clone
+full = true

@@ -1,6 +1,11 @@
 package proxmox
 
-import "samuelemusiani/sasso/server/db"
+import (
+	"fmt"
+	"samuelemusiani/sasso/server/db"
+	"strconv"
+	"strings"
+)
 
 type VMStatus string
 
@@ -12,7 +17,7 @@ var (
 )
 
 type VM struct {
-	ID     uint   `json:"id"`
+	ID     uint64 `json:"id"`
 	Status string `json:"status"`
 }
 
@@ -28,8 +33,50 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	for i := range vms {
 		vms[i].ID = db_vms[i].ID
 		// Status needs to be checked against the acctual Proxmox VM status
-		vms[i].Status = string(vms[i].Status)
+		vms[i].Status = string(db_vms[i].Status)
 	}
 
 	return vms, nil
+}
+
+// Generate a full VM ID based on the user ID and VM user ID.
+func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
+	svmid := fmt.Sprintf("%0*d%0*d", cClone.VMIDUserDigits, userID, cClone.VMIDVMDigits, vmUserID)
+
+	svmid = strings.Replace(cClone.IDTemplate, "{{vmid}}", svmid, 1)
+
+	if len(svmid) < 3 || len(svmid) > 9 {
+		return 0, fmt.Errorf("invalid clone ID template length: %d", len(svmid))
+	}
+
+	vmid, err := strconv.ParseUint(svmid, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid clone ID template: %s", svmid)
+	}
+
+	return vmid, nil
+}
+
+func NewVM(userID uint) (*VM, error) {
+	vmUserID, err := db.GetLastVMUserIDByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get last VM user ID", "userID", userID, "error", err)
+		return nil, err
+	}
+
+	vmUserID++ // Increment the VM user ID for the new VM
+	VMID, err := generateFullVMID(userID, vmUserID)
+
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusUnknown))
+	if err != nil {
+		logger.Error("Failed to create new VM in database", "userID", userID, "vmUserID", vmUserID, "error", err)
+		return nil, err
+	}
+
+	vm := &VM{
+		ID:     db_vm.ID,
+		Status: string(db_vm.Status),
+	}
+
+	return vm, nil
 }

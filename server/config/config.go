@@ -18,7 +18,7 @@ type Server struct {
 type Database struct {
 	User     string `toml:"user"`
 	Password string `toml:"password"`
-	Host     string `toml:"address"`
+	Host     string `toml:"host"`
 	Port     uint16 `toml:"port"`
 }
 
@@ -28,33 +28,28 @@ type Secrets struct {
 }
 
 type Proxmox struct {
-	Url                string `toml:"url"`
-	TokenID            string `toml:"token_id"`
-	Secret             string `toml:"secret"`
-	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
+	Url                string          `toml:"url"`
+	TokenID            string          `toml:"token_id"`
+	Secret             string          `toml:"secret"`
+	InsecureSkipVerify bool            `toml:"insecure_skip_verify"`
+	Template           ProxmoxTemplate `toml:"template"`
+	Clone              ProxmoxClone    `toml:"clone"`
 }
 
-var config Config = Config{
-	Server: Server{
-		Bind: ":8080",
-	},
-	Database: Database{
-		User:     "user",
-		Password: "password",
-		Host:     "localhost",
-		Port:     5432,
-	},
-	Secrets: Secrets{
-		Key:  "",
-		Path: "./secrets.key",
-	},
-	Proxmox: Proxmox{
-		Url:                "https://proxmox.local:8006",
-		InsecureSkipVerify: true,
-		TokenID:            "root@pam!sasso",
-		Secret:             "super-iper-secret-token",
-	},
+type ProxmoxTemplate struct {
+	Node string `toml:"node"`
+	VMID int    `toml:"vmid"`
 }
+
+type ProxmoxClone struct {
+	TargetNode     string `toml:"target_node"`
+	IDTemplate     string `toml:"id_template"`
+	VMIDUserDigits int    `toml:"vmid_user_digits"`
+	VMIDVMDigits   int    `toml:"vmid_vm_digits"`
+	Full           bool   `toml:"full"`
+}
+
+var config Config = Config{}
 
 func Get() *Config {
 	return &config
