@@ -24,8 +24,8 @@ path = "./secrets.key"
 url = "https://localhost:8006"
 insecure_skip_verify = true
 
-token_id = "root@pam!sasso"
-secret = "super-iper-secret-token"
+token_id = "root@pam!provolone"
+secret = "2630dda0-b730-4dc7-be14-0b3582c97224"
 
 [proxmox.template]
 node = "pve3"

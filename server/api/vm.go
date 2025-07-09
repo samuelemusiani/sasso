@@ -11,14 +11,14 @@ func vms(w http.ResponseWriter, r *http.Request) {
 
 	vms, err := proxmox.GetVMsByUserID(userID)
 	if err != nil {
-		logger.Error("Failed to get VMs", "userID", userID, "error", err)
+		logger.With("userID", userID, "error", err).Error("Failed to get VMs")
 		http.Error(w, "Failed to get VMs", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(vms); err != nil {
-		logger.Error("Failed to encode VMs to JSON", "error", err)
+		logger.With("error", err).Error("Failed to encode VMs to JSON")
 		http.Error(w, "Failed to encode VMs to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -31,14 +31,14 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 
 	vm, err := proxmox.NewVM(userID)
 	if err != nil {
-		logger.Error("Failed to create new VM", "userID", userID, "error", err)
+		logger.With("userID", userID, "error", err).Error("Failed to create new VM")
 		http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(vm); err != nil {
-		logger.Error("Failed to encode new VM to JSON", "error", err)
+		logger.With("error", err).Error("Failed to encode new VM to JSON")
 		http.Error(w, "Failed to encode new VM to JSON", http.StatusInternalServerError)
 		return
 	}

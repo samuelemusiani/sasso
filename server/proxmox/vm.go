@@ -24,7 +24,8 @@ type VM struct {
 func GetVMsByUserID(userID uint) ([]VM, error) {
 	db_vms, err := db.GetVMsByUserID(userID)
 	if err != nil {
-		logger.Error("Failed to get VMs by user ID", "userID", userID, "error", err)
+		logger.With("userID", userID, "error", err).
+			Error("Failed to get VMs by user ID")
 		return nil, err
 	}
 
@@ -60,7 +61,8 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 func NewVM(userID uint) (*VM, error) {
 	vmUserID, err := db.GetLastVMUserIDByUserID(userID)
 	if err != nil {
-		logger.Error("Failed to get last VM user ID", "userID", userID, "error", err)
+		logger.With("userID", userID, "error", err).
+			Error("Failed to get last VM user ID from database")
 		return nil, err
 	}
 
@@ -69,7 +71,8 @@ func NewVM(userID uint) (*VM, error) {
 
 	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusUnknown))
 	if err != nil {
-		logger.Error("Failed to create new VM in database", "userID", userID, "vmUserID", vmUserID, "error", err)
+		logger.With("userID", userID, "vmUserID", vmUserID, "error", err).
+			Error("Failed to create new VM in database")
 		return nil, err
 	}
 
