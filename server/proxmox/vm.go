@@ -1,6 +1,7 @@
 package proxmox
 
 import (
+	"errors"
 	"fmt"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
@@ -10,10 +11,14 @@ import (
 type VMStatus string
 
 var (
-	VMStatusRunning   VMStatus = "running"
-	VMStatusStopped   VMStatus = "stopped"
-	VMStatusSuspended VMStatus = "suspended"
-	VMStatusUnknown   VMStatus = "unknown"
+	VMStatusRunning     VMStatus = "running"
+	VMStatusStopped     VMStatus = "stopped"
+	VMStatusSuspended   VMStatus = "suspended"
+	VMStatusUnknown     VMStatus = "unknown"
+	VMStatusPreCreation VMStatus = "creating"
+	VMStatusPreDeletion VMStatus = "deleting"
+
+	ErrVMNotFound error = errors.New("VM not found")
 )
 
 type VM struct {
@@ -69,7 +74,7 @@ func NewVM(userID uint) (*VM, error) {
 	vmUserID++ // Increment the VM user ID for the new VM
 	VMID, err := generateFullVMID(userID, vmUserID)
 
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusUnknown))
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreation))
 	if err != nil {
 		logger.With("userID", userID, "vmUserID", vmUserID, "error", err).
 			Error("Failed to create new VM in database")
@@ -82,4 +87,30 @@ func NewVM(userID uint) (*VM, error) {
 	}
 
 	return vm, nil
+}
+
+func DeleteVM(userID uint, vmID uint64) error {
+	_, err := db.GetVMByUserIDAndVMID(userID, vmID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			logger.With("userID", userID, "vmID", vmID).
+				Warn("VM not found for deletion")
+			return ErrVMNotFound
+		} else {
+			logger.With("userID", userID, "vmID", vmID, "error", err).
+				Error("Failed to get VM from database for deletion")
+			return err
+		}
+	}
+
+	if err := db.UpdateVMStatus(vmID, string(VMStatusPreDeletion)); err != nil {
+		logger.With("userID", userID, "vmID", vmID, "error", err).
+			Error("Failed to update VM status from database")
+		return err
+	}
+
+	logger.With("userID", userID, "vmID", vmID).
+		Info("VM set to 'deleting' successfully")
+
+	return nil
 }

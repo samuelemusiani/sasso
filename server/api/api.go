@@ -48,6 +48,8 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Get("/test", test)
 		r.Get("/vm", vms)
 		r.Post("/vm", newVM)
+
+		r.Delete("/vm/{id}", deleteVM)
 	})
 
 	router.Mount("/api", apiRouter)

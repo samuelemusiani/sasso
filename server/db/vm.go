@@ -15,7 +15,7 @@ type VM struct {
 	UserID uint `gorm:"not null;uniqueIndex:idx_user_vm"`
 	// VMUserID is an integer that counts the number of the VM for a specific user
 	VMUserID uint   `gorm:"not null;default:0;uniqueIndex:idx_user_vm"`
-	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown')"`
+	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating')"`
 }
 
 func initVMs() error {
@@ -60,4 +60,51 @@ func GetLastVMUserIDByUserID(userID uint) (uint, error) {
 		return 0, result.Error
 	}
 	return vm.VMUserID, nil
+}
+
+func GetVMByID(vmID uint64) (*VM, error) {
+	var vm VM
+	result := db.First(&vm, vmID)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, gorm.ErrRecordNotFound // VM not found
+		}
+		return nil, result.Error
+	}
+	return &vm, nil
+}
+
+func DeleteVMByID(vmID uint64) error {
+	result := db.Delete(&VM{}, vmID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func UpdateVMStatus(vmID uint64, status string) error {
+	result := db.Model(&VM{}).Where("id = ?", vmID).Update("status", status)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return ErrNotFound
+		}
+		return result.Error
+	}
+
+	return nil
+}
+
+func GetVMByUserIDAndVMID(userID uint, vmID uint64) (*VM, error) {
+	var vm VM
+	result := db.Where("user_id = ? AND id = ?", userID, vmID).First(&vm)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, result.Error
+	}
+	return &vm, nil
 }

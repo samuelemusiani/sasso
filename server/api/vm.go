@@ -2,8 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"samuelemusiani/sasso/server/proxmox"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func vms(w http.ResponseWriter, r *http.Request) {
@@ -44,4 +48,28 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func deleteVM(w http.ResponseWriter, r *http.Request) {
+	userID := getUserIDFromContext(r)
+	svmID := chi.URLParam(r, "id")
+
+	vmID, err := strconv.ParseUint(svmID, 10, 64)
+	if err != nil {
+		logger.With("userID", userID, "vmID", svmID, "error", err).Error("Invalid VM ID format")
+		http.Error(w, "Invalid VM ID format", http.StatusBadRequest)
+		return
+	}
+
+	if err := proxmox.DeleteVM(userID, vmID); err != nil {
+		logger.With("userID", userID, "vmID", vmID, "error", err).Error("Failed to delete VM")
+		if errors.Is(err, proxmox.ErrVMNotFound) {
+			http.Error(w, "Failed to delete VM", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
