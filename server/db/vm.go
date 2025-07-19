@@ -108,3 +108,12 @@ func GetVMByUserIDAndVMID(userID uint, vmID uint64) (*VM, error) {
 	}
 	return &vm, nil
 }
+
+func GetVMsWithStatus(status string) ([]VM, error) {
+	var vms []VM
+	result := db.Where("status = ?", status).Find(&vms)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vms, nil
+}
