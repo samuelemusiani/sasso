@@ -106,6 +106,7 @@ func TestEndpointClone() {
 		if err != nil {
 			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
 			time.Sleep(10 * time.Second)
+			continue
 		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
