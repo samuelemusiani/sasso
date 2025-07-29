@@ -11,12 +11,20 @@ import (
 type VMStatus string
 
 var (
-	VMStatusRunning     VMStatus = "running"
-	VMStatusStopped     VMStatus = "stopped"
-	VMStatusSuspended   VMStatus = "suspended"
-	VMStatusUnknown     VMStatus = "unknown"
-	VMStatusPreCreation VMStatus = "creating"
-	VMStatusPreDeletion VMStatus = "deleting"
+	VMStatusRunning   VMStatus = "running"
+	VMStatusStopped   VMStatus = "stopped"
+	VMStatusSuspended VMStatus = "suspended"
+	VMStatusUnknown   VMStatus = "unknown"
+
+	// The pre-status is before the main worker has acknowledged the creation or
+	// deletion
+	VMStatusPreCreating VMStatus = "pre-creating"
+	VMStatusPreDeleting VMStatus = "pre-deleting"
+
+	// This status is then the main worker has taken an action, but the vm
+	// is not yet fully cloned or deleted.
+	VMStatusCreating VMStatus = "creating"
+	VMStatusDeleting VMStatus = "deleting"
 
 	ErrVMNotFound error = errors.New("VM not found")
 )
@@ -74,7 +82,7 @@ func NewVM(userID uint) (*VM, error) {
 	vmUserID++ // Increment the VM user ID for the new VM
 	VMID, err := generateFullVMID(userID, vmUserID)
 
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreation))
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating))
 	if err != nil {
 		logger.With("userID", userID, "vmUserID", vmUserID, "error", err).
 			Error("Failed to create new VM in database")
@@ -103,7 +111,7 @@ func DeleteVM(userID uint, vmID uint64) error {
 		}
 	}
 
-	if err := db.UpdateVMStatus(vmID, string(VMStatusPreDeletion)); err != nil {
+	if err := db.UpdateVMStatus(vmID, string(VMStatusPreDeleting)); err != nil {
 		logger.With("userID", userID, "vmID", vmID, "error", err).
 			Error("Failed to update VM status from database")
 		return err
