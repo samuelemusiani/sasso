@@ -92,13 +92,72 @@ func deleteVMs() {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cluster, err := client.Cluster(ctx)
+	cancel()
+
+	if err != nil {
+		logger.With("err", err).Error("Can't get cluster")
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
+	resources, err := cluster.Resources(ctx, "vm")
+	cancel()
+
+	if err != nil {
+		logger.With("err", err).Error("Can't get cluster resources")
+		return
+	}
+
+	VMLocation := make(map[uint64]string)
+	for i := range resources {
+		if resources[i].Type != "qemu" {
+			continue
+		}
+		VMLocation[resources[i].VMID] = resources[i].Node
+	}
+
 	for _, v := range vms {
 		if v.Status != string(VMStatusPreDeleting) {
 			continue
 		}
 		logger.With("vmid", v.ID).Info("Deleting VM")
-		// Delete the VM in Proxmox
-		// Wait for its deletion
-		// Repeat
+
+		nodeName, ok := VMLocation[v.ID]
+		if !ok {
+			logger.With("vmid", v.ID).Error("Can't delete VM. Not found on cluster resources")
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		node, err := client.Node(ctx, nodeName)
+		cancel()
+		if err != nil {
+			logger.With("err", err, "vmid", v.ID).Error("Can't get node. Can't delete VM")
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		vm, err := node.VirtualMachine(ctx, int(v.ID))
+		cancel()
+		if err != nil {
+			logger.With("err", err, "vmid", v.ID).Error("Can't get VM. Can't delete VM")
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		task, err := vm.Delete(ctx)
+		cancel()
+		if err != nil {
+			logger.With("err", err, "vmid", v.ID).Error("Can't delete VM")
+			continue
+		}
+		db.UpdateVMStatus(v.ID, string(VMStatusDeleting))
+
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		status, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
+		cancel()
+		logger.With("status", status, "completed", completed).Info("Task finished")
 	}
 }
