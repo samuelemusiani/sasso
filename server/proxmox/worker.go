@@ -61,6 +61,7 @@ func createVMs() {
 		return
 	}
 
+	// https://github.com/luthermonson/go-proxmox/issues/102
 	var optionFull uint8
 	if cClone.Full {
 		optionFull = 1
@@ -192,9 +193,26 @@ func deleteVMs() {
 		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		status, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
+		isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
 		cancel()
-		logger.With("status", status, "completed", completed).Info("Task finished")
+		logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
+
+		if completed {
+			if isSuccessful {
+				err = db.DeleteVMByID(v.ID)
+				if err != nil {
+					logger.With("vmid", v.ID, "err", err).Error("Failed to delete VM")
+				}
+			} else {
+				// We could set the status as pre-creating to trigger a recreation, but
+				// for now we just set it to unknown
+				err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
+				if err != nil {
+					logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
+				}
+			}
+		}
+
 	}
 }
 
