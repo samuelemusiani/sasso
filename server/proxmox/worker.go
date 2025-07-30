@@ -6,6 +6,7 @@ package proxmox
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"samuelemusiani/sasso/server/db"
@@ -27,11 +28,15 @@ func Worker() {
 		deleteVMs()
 		createVMs()
 
+		updateVMs()
+
 		time.Sleep(10 * time.Second)
 	}
 }
 
 func createVMs() {
+	logger.Debug("Creating VMs in worker")
+
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreCreating))
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VMs with 'creating' status")
@@ -112,6 +117,8 @@ func createVMs() {
 }
 
 func deleteVMs() {
+	logger.Debug("Deleting VMs in worker")
+
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VMs with 'deleting' status")
@@ -188,5 +195,87 @@ func deleteVMs() {
 		status, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
 		cancel()
 		logger.With("status", status, "completed", completed).Info("Task finished")
+	}
+}
+
+func updateVMs() {
+	logger.Debug("Updating VMs in worker")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cluster, err := client.Cluster(ctx)
+	cancel()
+
+	if err != nil {
+		logger.With("err", err).Error("Can't get cluster")
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
+	resources, err := cluster.Resources(ctx, "vm")
+	cancel()
+
+	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+
+	activeVMs, err := db.GetAllActiveVMs()
+	if err != nil {
+		logger.With("err", err).Error("Can't get active VMs from DB")
+		return
+	}
+
+	// Map all vms to a map
+	vmMap := make(map[uint64]*db.VM)
+	for i := range activeVMs {
+		vmMap[activeVMs[i].ID] = &activeVMs[i]
+	}
+
+	// Updates all DB VM's status
+	for _, r := range resources {
+		if r.Type != "qemu" {
+			continue
+		}
+
+		// Check if the vm is managed by sasso, if not ignore
+		vm, ok := vmMap[r.VMID]
+		if !ok {
+			continue
+		}
+
+		if !slices.Contains(allVMStatus, r.Status) {
+			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Error("VM status unrecognised, setting status to unknown")
+
+			err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
+			if err != nil {
+				logger.With("vmid", r.VMID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
+			}
+		} else {
+			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Warn("VM changed status on proxmox unexpectedly")
+
+			err := db.UpdateVMStatus(r.VMID, r.Status)
+			if err != nil {
+				logger.With("vmid", r.VMID, "new_status", r.Status, "err", err).Error("Failed to update status of VM")
+			}
+		}
+	}
+
+	// Check if some VM that should be in proxmox is not present
+	proxmoxVmsIDs := make([]uint64, len(resources))
+	for i := range resources {
+		proxmoxVmsIDs = append(proxmoxVmsIDs, resources[i].VMID)
+	}
+
+	slices.Sort(proxmoxVmsIDs)
+
+	for i := range activeVMs {
+		vmid := activeVMs[i].ID
+		_, found := slices.BinarySearch(proxmoxVmsIDs, vmid)
+		if found {
+			continue
+		}
+
+		logger.With("vmid", vmid, "status", activeVMs[i].Status).Error("VM not found on proxmox but is on sasso. Setting status to unknown")
+
+		err := db.UpdateVMStatus(vmid, string(VMStatusUnknown))
+		if err != nil {
+			logger.With("vmid", vmid, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
+		}
 	}
 }
