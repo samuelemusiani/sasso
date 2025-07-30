@@ -76,12 +76,30 @@ func createVMs() {
 			logger.With("vmid", v.ID, "error", err).Error("Failed to clone VM")
 			continue
 		}
-		db.UpdateVMStatus(v.ID, string(VMStatusCreating))
+		err = db.UpdateVMStatus(v.ID, string(VMStatusCreating))
+		if err != nil {
+			logger.With("vmid", v.ID, "new_status", VMStatusCreating, "err", err).Error("Failed to update status of VM")
+		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
-		status, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
+		isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
 		cancel()
-		logger.With("status", status, "completed", completed).Info("Task finished")
+		logger.With("status", isSuccessful, "completed", completed).Info("Task finished")
+		if completed {
+			if isSuccessful {
+				err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
+				if err != nil {
+					logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
+				}
+			} else {
+				// We could set the status as pre-creating to trigger a recreation, but
+				// for now we just set it to unknown
+				err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
+				if err != nil {
+					logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
+				}
+			}
+		}
 	}
 }
 
@@ -153,7 +171,10 @@ func deleteVMs() {
 			logger.With("err", err, "vmid", v.ID).Error("Can't delete VM")
 			continue
 		}
-		db.UpdateVMStatus(v.ID, string(VMStatusDeleting))
+		err = db.UpdateVMStatus(v.ID, string(VMStatusDeleting))
+		if err != nil {
+			logger.With("vmid", v.ID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
+		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		status, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
