@@ -11,4 +11,4 @@ check-format:
   cd frontend && npx prettier --check ./src
 
 frontend-lint:
-  cd frontend && npm run lint
+  cd frontend && npx eslint .
