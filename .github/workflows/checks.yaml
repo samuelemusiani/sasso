@@ -1,0 +1,34 @@
+name: Build and tests
+
+on:
+  push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup go
+        uses: actions/setup-go@v5
+
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Install run-all
+        run: npm i npm-run-all --save-dev
+
+      - name: Install just
+        run: sudo apt install just
+
+      - name: Check formatting
+        run: just check-format
+
+      - name: Check lint
+        run: just frontend-lint
+
+      - name: Build application
+        run: just build
