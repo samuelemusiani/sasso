@@ -14,10 +14,18 @@ import (
 )
 
 func Worker() {
+	time.Sleep(10 * time.Second)
+	logger.Info("Starting Proxmox worker")
+
 	for {
 		// For all VMs we must check the status and take the necessary actions
-		createVMs()
+		if !isProxmoxReachable {
+			time.Sleep(20 * time.Second)
+			continue
+		}
+
 		deleteVMs()
+		createVMs()
 
 		time.Sleep(10 * time.Second)
 	}

@@ -22,6 +22,8 @@ var (
 	cClone    *config.ProxmoxClone    = nil
 
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
+
+	isProxmoxReachable = true
 )
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
@@ -82,12 +84,15 @@ func TestEndpointVersion() {
 		if err != nil {
 			logger.Error("Failed to get Proxmox version", "error", err)
 			wasError = true
+			isProxmoxReachable = false
 		} else if first {
 			logger.Info("Proxmox version", "version", version.Version)
 			first = false
+			isProxmoxReachable = true
 		} else if wasError {
 			logger.Info("Proxmox version endpoint is back online", "version", version.Version)
 			wasError = false
+			isProxmoxReachable = true
 		}
 
 		time.Sleep(10 * time.Second)
@@ -95,10 +100,16 @@ func TestEndpointVersion() {
 }
 
 func TestEndpointClone() {
+	time.Sleep(5 * time.Second)
 	first := true
 	wasError := false
 
 	for {
+		if !isProxmoxReachable {
+			time.Sleep(20 * time.Second)
+			continue
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		node, err := client.Node(ctx, cTemplate.Node)
 		cancel() // Cancel immediately after the call
