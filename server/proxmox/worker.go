@@ -61,6 +61,7 @@ func createVMs() {
 		return
 	}
 
+	// https://github.com/luthermonson/go-proxmox/issues/102
 	var optionFull uint8
 	if cClone.Full {
 		optionFull = 1
