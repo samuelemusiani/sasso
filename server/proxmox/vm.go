@@ -1,11 +1,14 @@
 package proxmox
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"samuelemusiani/sasso/server/db"
 	"strconv"
 	"strings"
+	"time"
+
+	"samuelemusiani/sasso/server/db"
 )
 
 type VMStatus string
@@ -121,4 +124,43 @@ func DeleteVM(userID uint, vmID uint64) error {
 		Info("VM set to 'deleting' successfully")
 
 	return nil
+}
+
+func TestEndpointClone() {
+	time.Sleep(5 * time.Second)
+	first := true
+	wasError := false
+
+	for {
+		if !isProxmoxReachable {
+			time.Sleep(20 * time.Second)
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		node, err := client.Node(ctx, cTemplate.Node)
+		cancel() // Cancel immediately after the call
+
+		if err != nil {
+			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		vm, err := node.VirtualMachine(ctx, cTemplate.VMID)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
+			wasError = true
+		} else if first {
+			logger.Info("Proxmox VM is ready for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
+			first = false
+		} else if wasError {
+			logger.Info("Proxmox VM is back online for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
+			wasError = false
+		}
+
+		time.Sleep(10 * time.Second)
+	}
 }
