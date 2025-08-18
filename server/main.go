@@ -98,6 +98,7 @@ func main() {
 	slog.Debug("Starting background proxmox tasks")
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
+	go proxmox.TestEndpointNetZone()
 	go proxmox.Worker()
 
 	// API
