@@ -25,6 +25,8 @@ func Worker() {
 			continue
 		}
 
+		createVNets()
+
 		deleteVMs()
 		createVMs()
 
@@ -34,6 +36,89 @@ func Worker() {
 	}
 }
 
+func createVNets() {
+	logger.Debug("Creating VNets in worker")
+
+	vnets, err := db.GetVNetsWithStatus(string(VMStatusPreCreating))
+	if err != nil {
+		logger.With("error", err).Error("Failed to get VNets with 'pre-creating' status")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cluster, err := client.Cluster(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return
+	}
+
+	if len(vnets) == 0 {
+		return
+	}
+
+	for _, v := range vnets {
+		options := &gprox.VNetOptions{
+			Name:      v.Name,
+			Zone:      cNetwork.SDNZone,
+			Tag:       v.Tag,
+			VlanAware: v.VlanAware,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := cluster.NewSDNVNet(ctx, options)
+		cancel()
+		if err != nil {
+			logger.With("vnet", v.Name, "error", err).Error("Failed to create VNet in Proxmox")
+			continue
+		}
+
+		err = db.UpdateVNetStatus(v.ID, string(VNetStatusCreating))
+		if err != nil {
+			logger.With("vnet", v.Name, "new_status", VNetStatusCreating, "err", err).Error("Failed to update status of VNet")
+			continue
+		}
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	task, err := cluster.SDNApply(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to apply SDN changes in Proxmox")
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
+	isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
+	cancel()
+	logger.With("status", isSuccessful, "completed", completed).Info("SDN apply task finished")
+	if !completed {
+		logger.Error("SDN apply task did not complete")
+		return
+	}
+
+	if isSuccessful {
+		logger.Info("SDN changes applied successfully")
+		// Update all VNets status to 'created'
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusReady, "err", err).Error("Failed to update status of VNet")
+			}
+		}
+	} else {
+		logger.Error("Failed to apply SDN changes in Proxmox")
+		// Set all VNets status to 'unknown'
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusUnknown, "err", err).Error("Failed to update status of VNet")
+			}
+		}
+	}
+}
+
+// createVMs creates VMs from proxmox that are in the 'pre-creating' status.
 func createVMs() {
 	logger.Debug("Creating VMs in worker")
 
@@ -98,25 +183,28 @@ func createVMs() {
 		ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
 		isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
 		cancel()
-		logger.With("status", isSuccessful, "completed", completed).Info("Task finished")
-		if completed {
-			if isSuccessful {
-				err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
-				if err != nil {
-					logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
-				}
-			} else {
-				// We could set the status as pre-creating to trigger a recreation, but
-				// for now we just set it to unknown
-				err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
-				if err != nil {
-					logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
-				}
+		logger.With("status", isSuccessful, "completed", completed).Info("VM Clone task finished")
+		if !completed {
+			logger.Error("VM Clone task did not complete")
+			return
+		}
+		if isSuccessful {
+			err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
+			if err != nil {
+				logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
+			}
+		} else {
+			// We could set the status as pre-creating to trigger a recreation, but
+			// for now we just set it to unknown
+			err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
+			if err != nil {
+				logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
 			}
 		}
 	}
 }
 
+// deleteVMs deletes VMs from proxmox that are in the 'pre-deleting' status.
 func deleteVMs() {
 	logger.Debug("Deleting VMs in worker")
 
@@ -216,6 +304,7 @@ func deleteVMs() {
 	}
 }
 
+// updateVMs updates the status of VMs in the database based on their current status in Proxmox.
 func updateVMs() {
 	logger.Debug("Updating VMs in worker")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -2,7 +2,26 @@ package proxmox
 
 import (
 	"context"
+	"errors"
 	"time"
+)
+
+var (
+	VNetStatusUnknown VMStatus = "unknown"
+	VNetStatusPending VMStatus = "pending"
+	VNetStatusReady   VMStatus = "ready"
+
+	// The pre-status is before the main worker has acknowledged the creation or
+	// deletion
+	VNetStatusPreCreating VMStatus = "pre-creating"
+	VNetStatusPreDeleting VMStatus = "pre-deleting"
+
+	// This status is then the main worker has taken an action, but the vm
+	// is not yet fully cloned or deleted.
+	VNetStatusCreating VMStatus = "creating"
+	VNetStatusDeleting VMStatus = "deleting"
+
+	ErrVNetNotFound error = errors.New("VNet not found")
 )
 
 func TestEndpointNetZone() {
@@ -35,7 +54,7 @@ func TestEndpointNetZone() {
 			continue
 		}
 
-		if zone.Name != "sasso" {
+		if zone.Name != cNetwork.SDNZone {
 			logger.Error("Proxmox SDN cluster zone name mismatch", "expected", "sasso", "got", zone.Name)
 			wasError = true
 			time.Sleep(10 * time.Second)

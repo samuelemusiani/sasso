@@ -34,6 +34,7 @@ type Proxmox struct {
 	InsecureSkipVerify bool            `toml:"insecure_skip_verify"`
 	Template           ProxmoxTemplate `toml:"template"`
 	Clone              ProxmoxClone    `toml:"clone"`
+	Network            ProxmoxNetwork  `toml:"network"`
 }
 
 type ProxmoxTemplate struct {
@@ -47,6 +48,12 @@ type ProxmoxClone struct {
 	VMIDUserDigits int    `toml:"vmid_user_digits"`
 	VMIDVMDigits   int    `toml:"vmid_vm_digits"`
 	Full           bool   `toml:"full"`
+}
+
+type ProxmoxNetwork struct {
+	SDNZone      string `toml:"sdn_zone"`
+	VXLANIDStart uint32 `toml:"vxlan_id_start"`
+	VXLANIDEnd   uint32 `toml:"vxlan_id_end"`
 }
 
 var config Config = Config{}

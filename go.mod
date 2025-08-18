@@ -39,4 +39,4 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.1
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.2

@@ -45,3 +45,8 @@ vmid_vm_digits = 2
 
 # Do a full clone or a linked clone
 full = true
+
+[proxmox.network]
+sdn_zone = "sasso"
+vxlan_id_start = 1000
+vxlan_id_end = 2000

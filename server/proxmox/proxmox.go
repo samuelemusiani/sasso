@@ -20,8 +20,11 @@ var (
 
 	cTemplate *config.ProxmoxTemplate = nil
 	cClone    *config.ProxmoxClone    = nil
+	cNetwork  *config.ProxmoxNetwork  = nil
 
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
+	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
+	ErrInvalidVXLANRange      = errors.New("invalid_vxlan_range")
 
 	isProxmoxReachable = true
 )
@@ -51,7 +54,12 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 
 	cTemplate = &config.Template
 	cClone = &config.Clone
+	cNetwork = &config.Network
 
+	return nil
+}
+
+func configChecks(config config.Proxmox) error {
 	idTemplate := strings.TrimSpace(cClone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
 		logger.Error("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'", "template", idTemplate)
@@ -66,6 +74,27 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 
 	if cClone.VMIDUserDigits < 1 || cClone.VMIDVMDigits < 1 {
 		logger.Error("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1", "user_digits", cClone.VMIDUserDigits, "vm_digits", cClone.VMIDVMDigits)
+		return ErrInvalidCloneIDTemplate
+	}
+
+	if config.Network.SDNZone == "" {
+		logger.Error("Proxmox SDN zone is not configured", "zone", config.Network.SDNZone)
+		return ErrInvalidSDNZone
+	}
+
+	if config.Network.VXLANIDStart <= 0 {
+		logger.Error("Proxmox VXLAN ID start must be greater than 0", "vxlan_id_start", config.Network.VXLANIDStart)
+		return ErrInvalidVXLANRange
+	}
+
+	if config.Network.VXLANIDEnd <= config.Network.VXLANIDStart {
+		logger.Error("Proxmox VXLAN ID end must be greater than VXLAN ID start", "vxlan_id_start", config.Network.VXLANIDStart, "vxlan_id_end", config.Network.VXLANIDEnd)
+		return ErrInvalidVXLANRange
+	}
+
+	if config.Network.VXLANIDEnd >= 1<<24 {
+		logger.Error("Proxmox VXLAN ID end must be less than 16777216 (2^24)", "vxlan_id_end", config.Network.VXLANIDEnd)
+		return ErrInvalidVXLANRange
 	}
 
 	return nil

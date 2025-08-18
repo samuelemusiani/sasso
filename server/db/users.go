@@ -26,7 +26,8 @@ type User struct {
 	Realm    string   `gorm:"default:'local'"`
 	Role     UserRole `gorm:"type:varchar(20);not null;check:role IN ('admin','user','mantainer')"`
 
-	VMs []VM `gorm:"foreignKey:UserID"`
+	VMs  []VM  `gorm:"foreignKey:UserID"`
+	Nets []Net `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {
