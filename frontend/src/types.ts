@@ -9,3 +9,10 @@ export interface User {
   realm: string
   role: string
 }
+
+export interface Realm {
+  id: number
+  name: string
+  description: string
+  type: string
+}

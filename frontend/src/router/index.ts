@@ -5,6 +5,7 @@ import LoginView from '../view/LoginView.vue'
 import VMView from '../view/VMView.vue'
 import AdminView from '../view/AdminView.vue'
 import AdminUsersView from '../view/admin/UsersView.vue'
+import AdminRealmsView from '../view/admin/RealmsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +18,7 @@ const router = createRouter({
       children: [
         { path: '', component: AdminView },
         { path: 'users', component: AdminUsersView },
+        { path: 'realms', component: AdminRealmsView },
       ],
     },
   ],

@@ -52,6 +52,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initRealms()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize realms in database")
+		return err
+	}
+
 	err = initUsers()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize users in database")

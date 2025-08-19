@@ -59,6 +59,7 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Use(AdminAuthenticator(tokenAuth))
 
 		r.Get("/admin/users", listUsers)
+		r.Get("/admin/realms", listRealms)
 	})
 
 	router.Mount("/api", apiRouter)
