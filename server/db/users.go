@@ -24,7 +24,7 @@ type User struct {
 	Password []byte   `gorm:"not null"`
 	Email    string   `gorm:"uniqueIndex;not null"`
 	Realm    string   `gorm:"default:'local'"`
-	Role     UserRole `gorm:"type:varchar(20);not null;check:role IN ('admin','user','mantainer')"`
+	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','mantainer')"`
 
 	VMs  []VM  `gorm:"foreignKey:UserID"`
 	Nets []Net `gorm:"foreignKey:UserID"`
@@ -95,6 +95,21 @@ func GetUserByUsername(username string) (User, error) {
 			return User{}, ErrNotFound
 		} else {
 			logger.With("error", result.Error).Error("Failed to retrieve user by username")
+			return User{}, result.Error
+		}
+	}
+
+	return user, nil
+}
+
+func GetUserByID(id uint) (User, error) {
+	var user User
+	result := db.First(&user, id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return User{}, ErrNotFound
+		} else {
+			logger.With("error", result.Error).Error("Failed to retrieve user by ID")
 			return User{}, result.Error
 		}
 	}

@@ -45,7 +45,8 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(jwtauth.Authenticator(tokenAuth))
 
-		r.Get("/test", test)
+		r.Get("/whoami", whoami)
+
 		r.Get("/vm", vms)
 		r.Post("/vm", newVM)
 

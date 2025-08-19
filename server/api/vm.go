@@ -11,7 +11,7 @@ import (
 )
 
 func vms(w http.ResponseWriter, r *http.Request) {
-	userID := getUserIDFromContext(r)
+	userID := mustGetUserIDFromContext(r)
 
 	vms, err := proxmox.GetVMsByUserID(userID)
 	if err != nil {
@@ -31,7 +31,7 @@ func vms(w http.ResponseWriter, r *http.Request) {
 }
 
 func newVM(w http.ResponseWriter, r *http.Request) {
-	userID := getUserIDFromContext(r)
+	userID := mustGetUserIDFromContext(r)
 
 	vm, err := proxmox.NewVM(userID)
 	if err != nil {
@@ -51,7 +51,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {
-	userID := getUserIDFromContext(r)
+	userID := mustGetUserIDFromContext(r)
 	svmID := chi.URLParam(r, "id")
 
 	vmID, err := strconv.ParseUint(svmID, 10, 64)

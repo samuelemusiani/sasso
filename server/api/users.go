@@ -3,12 +3,10 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 
-	"github.com/go-chi/jwtauth/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -69,8 +67,45 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Login successful!"))
 }
 
-func test(w http.ResponseWriter, r *http.Request) {
-	// Placeholder for login logic
-	_, claims, _ := jwtauth.FromContext(r.Context())
-	w.Write(fmt.Appendf([]byte{}, "protected area. hi %v", claims[CLAIM_USER_ID]))
+func whoami(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		logger.Error("failed to get user ID from context", "error", err)
+		w.Write([]byte("unauthenticated"))
+		return
+	}
+
+	user, err := db.GetUserByID(userID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		logger.Error("failed to get user by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	returnUser := struct {
+		ID       uint        `json:"id"`
+		Username string      `json:"username"`
+		Email    string      `json:"email"`
+		Realm    string      `json:"realm"`
+		Role     db.UserRole `json:"role"`
+	}{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Realm:    user.Realm,
+		Role:     user.Role,
+	}
+
+	err = json.NewEncoder(w).Encode(returnUser)
+	if err != nil {
+		logger.Error("failed to encode user to JSON", "error", err)
+		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
