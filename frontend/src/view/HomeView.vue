@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
-import type { Whoami } from '@/types'
+import type { User } from '@/types'
 import { api } from '@/lib/api'
 
-const whoami = ref<Whoami | null>(null)
+const whoami = ref<User | null>(null)
 
 function fetchWhoami() {
   api
     .get('/whoami')
     .then((res) => {
       console.log('Whoami response:', res.data)
-      whoami.value = res.data as Whoami
+      whoami.value = res.data as User
     })
     .catch((err) => {
       console.error('Failed to fetch whoami:', err)
@@ -18,7 +18,8 @@ function fetchWhoami() {
 }
 
 const showAdminPanel = computed(() => {
-  return whoami.value?.role == 'admin' ?? false
+  if (!whoami.value) return false
+  return whoami.value.role === 'admin'
 })
 
 onMounted(() => {
