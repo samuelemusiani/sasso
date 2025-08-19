@@ -11,7 +11,7 @@ const password = ref('')
 async function login() {
   try {
     await _login(username.value, password.value)
-    router.push('/vm')
+    router.push('/')
   } catch (error) {
     console.error('Login failed:', error)
   }

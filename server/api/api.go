@@ -53,6 +53,14 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Delete("/vm/{id}", deleteVM)
 	})
 
+	// Admin Auth routes
+	apiRouter.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(AdminAuthenticator(tokenAuth))
+
+		r.Get("/admin/users", listUsers)
+	})
+
 	router.Mount("/api", apiRouter)
 }
 

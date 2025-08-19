@@ -116,3 +116,14 @@ func GetUserByID(id uint) (User, error) {
 
 	return user, nil
 }
+
+func GetAllUsers() ([]User, error) {
+	var users []User
+	result := db.Find(&users)
+	if result.Error != nil {
+		logger.With("error", result.Error).Error("Failed to retrieve all users")
+		return nil, result.Error
+	}
+
+	return users, nil
+}

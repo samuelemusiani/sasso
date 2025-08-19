@@ -18,6 +18,14 @@ type loginRequest struct {
 	Realm    string `json:"realm"`
 }
 
+type returnUser struct {
+	ID       uint        `json:"id"`
+	Username string      `json:"username"`
+	Email    string      `json:"email"`
+	Realm    string      `json:"realm"`
+	Role     db.UserRole `json:"role"`
+}
+
 func login(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
@@ -87,13 +95,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	returnUser := struct {
-		ID       uint        `json:"id"`
-		Username string      `json:"username"`
-		Email    string      `json:"email"`
-		Realm    string      `json:"realm"`
-		Role     db.UserRole `json:"role"`
-	}{
+	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
@@ -105,6 +107,34 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to encode user to JSON", "error", err)
 		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func listUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := db.GetAllUsers()
+	if err != nil {
+		logger.Error("failed to get all users", "error", err)
+		http.Error(w, "Failed to get users", http.StatusInternalServerError)
+		return
+	}
+
+	returnUsers := make([]returnUser, len(users))
+	for i, user := range users {
+		returnUsers[i] = returnUser{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+			Realm:    user.Realm,
+			Role:     user.Role,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(returnUsers); err != nil {
+		logger.Error("failed to encode users to JSON", "error", err)
+		http.Error(w, "Failed to encode users to JSON", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
