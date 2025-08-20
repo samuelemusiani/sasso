@@ -5,11 +5,12 @@ const api = axios.create({
 })
 
 // Login function
-async function login(username: string, password: string): Promise<string> {
+async function login(username: string, password: string, realm: string): Promise<string> {
   try {
     const response = await api.post('/login', {
       username: username,
       password: password,
+      realm: realm,
     })
 
     // Extract token from Authorization header

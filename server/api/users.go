@@ -42,30 +42,39 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := db.GetUserByUsername(loginReq.Username)
-	if err != nil {
-		if err == db.ErrNotFound {
-			logger.Info("user not found", "username", loginReq.Username)
-			http.Error(w, "User not found", http.StatusUnauthorized)
-			return
-		} else {
-			logger.Error("failed to get user by username", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-	}
+	var user db.User
 
-	err = bcrypt.CompareHashAndPassword(user.Password, []byte(loginReq.Password))
-	if err != nil {
-		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-			logger.Info("password mismatch", "username", loginReq.Username)
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return
-		} else {
-			logger.Error("failed to compare password", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
+	switch loginReq.Realm {
+	case "Local":
+		user, err = db.GetUserByUsername(loginReq.Username)
+		if err != nil {
+			if err == db.ErrNotFound {
+				logger.Info("user not found", "username", loginReq.Username)
+				http.Error(w, "User not found", http.StatusUnauthorized)
+				return
+			} else {
+				logger.Error("failed to get user by username", "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
 		}
+
+		err = bcrypt.CompareHashAndPassword(user.Password, []byte(loginReq.Password))
+		if err != nil {
+			if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+				logger.Info("password mismatch", "username", loginReq.Username)
+				http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+				return
+			} else {
+				logger.Error("failed to compare password", "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+		}
+	default:
+		logger.Error("unsupported realm", "realm", loginReq.Realm)
+		http.Error(w, "Unsupported realm", http.StatusBadRequest)
+		return
 	}
 
 	// Password matches, create JWT token

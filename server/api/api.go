@@ -38,6 +38,7 @@ func Init(apiLogger *slog.Logger, key []byte) {
 	apiRouter.Group(func(r chi.Router) {
 		r.Get("/", routeRoot)
 		r.Post("/login", login)
+		r.Get("/login/realms", listRealms) // This is a duplicate of the admin route, but it's necessary for the login.
 	})
 
 	// Auth routes
