@@ -16,3 +16,10 @@ export interface Realm {
   description: string
   type: string
 }
+
+export interface LDAPRealm extends Realm {
+  url: string
+  base_dn: string
+  bind_dn: string
+  password: string
+}

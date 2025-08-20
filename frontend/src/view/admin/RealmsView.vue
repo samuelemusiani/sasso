@@ -2,11 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { Realm } from '@/types'
-import LDAPForm from '@/components/realms/LDAPForm.vue'
+import RealmsMultiplexer from '@/components/realms/RealmsMultiplexer.vue'
 
 const realms = ref<Realm[]>([])
 
 const addingRealm = ref(false)
+const addingType = ref('ldap')
 
 function fetchRealms() {
   api
@@ -22,6 +23,21 @@ function fetchRealms() {
 function realmAdded() {
   addingRealm.value = false
   fetchRealms()
+}
+
+function deleteRealm(id: number) {
+  if (!confirm('Are you sure you want to delete this realm?')) {
+    return
+  }
+  api
+    .delete(`/admin/realms/${id}`)
+    .then(() => {
+      console.log(`Realm ${id} deleted successfully`)
+      fetchRealms()
+    })
+    .catch((err) => {
+      console.error(`Failed to delete realm ${id}:`, err)
+    })
 }
 
 onMounted(() => {
@@ -69,14 +85,27 @@ onMounted(() => {
           <td class="p-2 text-center border-y border-black">{{ realm.description }}</td>
           <td class="p-2 text-center border-y border-black">{{ realm.type }}</td>
           <td class="p-2 text-center border-y border-black border-r">
-            <RouterLink class="text-blue-500 hover:underline" :to="`/admin/realms/${realm.id}`"
-              >Edit</RouterLink
-            >
+            <div class="flex justify-evenly" v-show="realm.type != 'local'">
+              <RouterLink class="text-blue-500 hover:underline" :to="`/admin/realms/${realm.id}`"
+                >Edit</RouterLink
+              >
+              <button class="text-red-500 hover:underline" @click="deleteRealm(realm.id)">
+                Delete
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <LDAPForm class="mt-4" v-show="addingRealm" @realm-added="realmAdded" />
+    <RealmsMultiplexer
+      class="mt-4"
+      v-show="addingRealm"
+      :adding="addingRealm"
+      :type="addingType"
+      @realm-added="realmAdded"
+    />
+
+    <router-view class="mt-4" />
   </div>
 </template>

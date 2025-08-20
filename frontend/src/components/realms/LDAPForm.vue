@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { api } from '@/lib/api'
-import { defineEmits } from 'vue'
+import type { LDAPRealm } from '@/types'
 
-const emit = defineEmits(['realmAdded'])
+const $emit = defineEmits(['realmAdded'])
+const $props = defineProps<{
+  realm?: LDAPRealm
+}>()
 
-const name = ref('')
-const description = ref('')
-const url = ref('')
-const baseDN = ref('')
-const bindDN = ref('')
+const name = ref($props.realm ? $props.realm.name : '')
+const description = ref($props.realm ? $props.realm.description : '')
+const url = ref($props.realm ? $props.realm.url : '')
+const baseDN = ref($props.realm ? $props.realm.base_dn : '')
+const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
+
+const editing = ref(!!$props.realm)
 
 function addRealm() {
   const realmData = {
@@ -23,16 +28,36 @@ function addRealm() {
     password: bindPassword.value,
   }
 
-  // Here you would typically send the data to your backend API
-  // For example:
   api
     .post('/admin/realms', realmData)
     .then((response) => {
       console.log('Realm created:', response.data)
-      emit('realmAdded')
+      $emit('realmAdded')
     })
     .catch((error) => {
       console.error('Error creating realm:', error)
+    })
+}
+
+function updateRealm() {
+  const realmData = {
+    name: name.value,
+    description: description.value,
+    url: url.value,
+    baseDN: baseDN.value,
+    bindDN: bindDN.value,
+    type: 'ldap',
+    password: bindPassword.value,
+  }
+
+  api
+    .put(`/admin/realms/${$props.realm?.id}`, realmData)
+    .then((response) => {
+      console.log('Realm updated:', response.data)
+      $emit('realmAdded')
+    })
+    .catch((error) => {
+      console.error('Error updating realm:', error)
     })
 }
 </script>
@@ -40,6 +65,7 @@ function addRealm() {
 <template>
   <div>
     <div class="text-lg font-bold">LDAP Realm</div>
+    {{ $props.realm ? 'Edit LDAP Realm' : 'Add LDAP Realm' }}
     <form class="max-w-96">
       <label class="block mb-2 text-gray-800">Name</label>
       <input
@@ -85,16 +111,31 @@ function addRealm() {
       <input
         v-model="bindPassword"
         type="password"
-        placeholder="Your bind password"
+        :placeholder="$props.realm ? 'Unchanged' : 'Pour bind password'"
         class="border p-2 rounded w-full mb-2"
       />
 
       <button
         @click.prevent="addRealm()"
+        v-if="!editing"
         class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded w-full"
       >
         Create Realm
       </button>
+      <div v-else class="flex gap-2">
+        <RouterLink
+          to="/admin/realms"
+          class="bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-4 rounded w-full text-center"
+        >
+          Cancel
+        </RouterLink>
+        <button
+          @click.prevent="updateRealm()"
+          class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded w-full text-center"
+        >
+          Update Realm
+        </button>
+      </div>
     </form>
   </div>
 </template>
