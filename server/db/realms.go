@@ -55,3 +55,20 @@ func GetAllRealms() ([]Realm, error) {
 	}
 	return realms, nil
 }
+
+func AddLDAPRealm(realm LDAPRealm) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&realm.Realm).Error; err != nil {
+			logger.With("error", err).Error("Failed to create associated Realm for LDAP realm")
+			return err
+		}
+
+		if err := tx.Create(&realm).Error; err != nil {
+			logger.With("error", err).Error("Failed to add LDAP realm")
+			return err
+		}
+
+		logger.Info("LDAP realm added successfully")
+		return nil
+	})
+}

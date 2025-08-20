@@ -60,6 +60,7 @@ func Init(apiLogger *slog.Logger, key []byte) {
 
 		r.Get("/admin/users", listUsers)
 		r.Get("/admin/realms", listRealms)
+		r.Post("/admin/realms", addRealm)
 	})
 
 	router.Mount("/api", apiRouter)
