@@ -48,12 +48,6 @@ onMounted(() => {
         VM
       </RouterLink>
       <RouterLink
-        class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg min-w-32 block text-center"
-        to="/login"
-      >
-        Login
-      </RouterLink>
-      <RouterLink
         v-if="showAdminPanel"
         class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg min-w-32 block text-center"
         to="/admin"
