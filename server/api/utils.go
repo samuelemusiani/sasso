@@ -263,4 +263,3 @@ func authenticator(username, password string, realm uint) (*db.User, error) {
 
 	return user, nil
 }
-

@@ -21,7 +21,7 @@ var ErrPasswordRequired = errors.New("password is required for local realm")
 
 type User struct {
 	gorm.Model
-	Username string   `gorm:"uniqueIndex;not null"`
+	Username string `gorm:"uniqueIndex;not null"`
 	Password []byte
 	Email    string   `gorm:"uniqueIndex;not null"`
 	Realm    string   `gorm:"default:'local'"`
