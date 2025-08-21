@@ -23,3 +23,11 @@ export interface LDAPRealm extends Realm {
   bind_dn: string
   password: string
 }
+
+export interface Net {
+  id: number
+  name: string
+  vlanaware: boolean
+  userid: number
+  status: string
+}

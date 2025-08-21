@@ -52,6 +52,10 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Post("/vm", newVM)
 
 		r.Delete("/vm/{id}", deleteVM)
+
+		r.Post("/net", createNet)
+		r.Get("/net", listNets)
+		r.Delete("/net/{id}", deleteNet)
 	})
 
 	// Admin Auth routes

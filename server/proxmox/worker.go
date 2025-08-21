@@ -26,6 +26,7 @@ func Worker() {
 		}
 
 		createVNets()
+		deleteVNets()
 
 		deleteVMs()
 		createVMs()
@@ -109,6 +110,79 @@ func createVNets() {
 	} else {
 		logger.Error("Failed to apply SDN changes in Proxmox")
 		// Set all VNets status to 'unknown'
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusUnknown, "err", err).Error("Failed to update status of VNet")
+			}
+		}
+	}
+}
+
+func deleteVNets() {
+	logger.Debug("Deleting VNets in worker")
+
+	vnets, err := db.GetVNetsWithStatus(string(VNetStatusPreDeleting))
+	if err != nil {
+		logger.With("error", err).Error("Failed to get VNets with 'pre-deleting' status")
+		return
+	}
+
+	if len(vnets) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cluster, err := client.Cluster(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return
+	}
+
+	for _, v := range vnets {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := cluster.DeleteSDNVNet(ctx, v.Name)
+		cancel()
+		if err != nil {
+			logger.With("vnet", v.Name, "error", err).Error("Failed to delete VNet from Proxmox")
+			continue
+		}
+
+		err = db.UpdateVNetStatus(v.ID, string(VNetStatusDeleting))
+		if err != nil {
+			logger.With("vnet", v.Name, "new_status", VNetStatusDeleting, "err", err).Error("Failed to update status of VNet")
+			continue
+		}
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	task, err := cluster.SDNApply(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to apply SDN changes in Proxmox")
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
+	isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
+	cancel()
+	logger.With("status", isSuccessful, "completed", completed).Info("SDN apply task finished")
+	if !completed {
+		logger.Error("SDN apply task did not complete")
+		return
+	}
+
+	if isSuccessful {
+		logger.Info("SDN changes applied successfully")
+		for _, v := range vnets {
+			err = db.DeleteNetByID(v.ID)
+			if err != nil {
+				logger.With("vnet", v.Name, "err", err).Error("Failed to delete VNet from DB")
+			}
+		}
+	} else {
+		logger.Error("Failed to apply SDN changes in Proxmox")
 		for _, v := range vnets {
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
 			if err != nil {

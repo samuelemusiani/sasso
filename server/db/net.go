@@ -1,15 +1,13 @@
 package db
 
 import (
-	"crypto/sha256"
-	"fmt"
-
 	"gorm.io/gorm"
 )
 
 type Net struct {
 	gorm.Model
 	Name      string `gorm:"uniqueIndex;not null"`
+	Alias     string `gorm:"not null"`             // For users
 	Zone      string `gorm:"not null"`             // Should be "sasso"
 	Tag       uint32 `gorm:"not null;uniqueIndex"` // Unique tag for the network
 	VlanAware bool   `gorm:"not null;default:false"`
@@ -57,33 +55,35 @@ func GetLastUsedTagByZone(zone string) (uint32, error) {
 	return net.Tag, nil
 }
 
-func CreateNetForUser(ID uint, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
+func GetNetsByUserID(userID uint) ([]Net, error) {
+	var nets []Net
+	if err := db.Where("user_id = ?", userID).Find(&nets).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get nets for user")
+		return nil, err
+	}
+	return nets, nil
+}
+
+func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	// This function only creates a network for a user in the DB. It does
 	// not create the network in Proxmox
 
-	var user User
-	if err := db.First(&user, ID).Error; err != nil {
-		logger.With("userID", ID, "error", err).Error("Failed to find user for creating default network")
-		return nil, err
-	}
-
-	name := sha256.Sum256(fmt.Appendf([]byte{}, "%s-%s-%d", user.Username, zone, tag))
-
 	net := &Net{
 		Name:      string(name[:]),
+		Alias:     alias,
 		Zone:      zone,
 		Tag:       tag,
 		VlanAware: vlanAware,
-		UserID:    ID,
+		UserID:    userID,
 		Status:    status,
 	}
 
 	if err := db.Create(net).Error; err != nil {
-		logger.With("userID", ID, "error", err).Error("Failed to create network for user")
+		logger.With("userID", userID, "error", err).Error("Failed to create network for user")
 		return nil, err
 	}
 
-	logger.With("userID", ID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware).Info("Created network for user")
+	logger.With("userID", userID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware).Info("Created network for user")
 
 	return net, nil
 }
@@ -103,5 +103,14 @@ func UpdateVNetStatus(ID uint, status string) error {
 		return err
 	}
 	logger.With("netID", ID, "status", status).Info("Updated VNet status")
+	return nil
+}
+
+func DeleteNetByID(ID uint) error {
+	if err := db.Delete(&Net{}, ID).Error; err != nil {
+		logger.With("netID", ID, "error", err).Error("Failed to delete network")
+		return err
+	}
+	logger.With("netID", ID).Info("Deleted network")
 	return nil
 }
