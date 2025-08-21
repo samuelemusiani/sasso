@@ -2,6 +2,11 @@ package db
 
 import "gorm.io/gorm"
 
+var (
+	LocalRealmType = "local"
+	LDAPRealmType  = "ldap"
+)
+
 type Realm struct {
 	gorm.Model
 	Name        string `gorm:"uniqueIndex;not null"`

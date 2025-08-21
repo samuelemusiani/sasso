@@ -28,7 +28,16 @@ function fetchRealms() {
 
 async function login() {
   try {
-    await _login(username.value, password.value, realm.value)
+    if (!username.value || !password.value) {
+      console.error('Username and password are required')
+      return
+    }
+    const realmID = realms.value.find((r) => r.name === realm.value)?.id
+    if (!realmID) {
+      console.error('Selected realm not found')
+      return
+    }
+    await _login(username.value, password.value, realmID)
     router.push('/')
   } catch (error) {
     console.error('Login failed:', error)

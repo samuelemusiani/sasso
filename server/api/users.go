@@ -2,12 +2,9 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 const CLAIM_USER_ID = "user_id"
@@ -15,7 +12,7 @@ const CLAIM_USER_ID = "user_id"
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Realm    string `json:"realm"`
+	Realm    uint   `json:"realm"`
 }
 
 type returnUser struct {
@@ -42,40 +39,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user db.User
-
-	switch loginReq.Realm {
-	case "Local":
-		user, err = db.GetUserByUsername(loginReq.Username)
-		if err != nil {
-			if err == db.ErrNotFound {
-				logger.Info("user not found", "username", loginReq.Username)
-				http.Error(w, "User not found", http.StatusUnauthorized)
-				return
-			} else {
-				logger.Error("failed to get user by username", "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
+	user, err := authenticator(loginReq.Username, loginReq.Password, loginReq.Realm)
+	if err != nil {
+		if err == ErrUserNotFound {
+			http.Error(w, "User not found", http.StatusUnauthorized)
+			return
+		} else if err == ErrPasswordMismatch {
+			http.Error(w, "Password mismatch", http.StatusUnauthorized)
+			return
+		} else {
+			logger.Error("failed to authenticate user", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
-
-		err = bcrypt.CompareHashAndPassword(user.Password, []byte(loginReq.Password))
-		if err != nil {
-			if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-				logger.Info("password mismatch", "username", loginReq.Username)
-				http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-				return
-			} else {
-				logger.Error("failed to compare password", "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-		}
-	default:
-		logger.Error("unsupported realm", "realm", loginReq.Realm)
-		http.Error(w, "Unsupported realm", http.StatusBadRequest)
-		return
 	}
+	logger.Info("User authenticated successfully", "userID", user.ID)
 
 	// Password matches, create JWT token
 	_, tokenString, _ := tokenAuth.Encode(map[string]any{CLAIM_USER_ID: user.ID})

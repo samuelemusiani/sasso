@@ -17,11 +17,12 @@ const (
 )
 
 var ErrInvalidUserRole = errors.New("invalid user role")
+var ErrPasswordRequired = errors.New("password is required for local realm")
 
 type User struct {
 	gorm.Model
 	Username string   `gorm:"uniqueIndex;not null"`
-	Password []byte   `gorm:"not null"`
+	Password []byte
 	Email    string   `gorm:"uniqueIndex;not null"`
 	Realm    string   `gorm:"default:'local'"`
 	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','mantainer')"`
@@ -42,6 +43,10 @@ func (r UserRole) IsValid() bool {
 func (u *User) BeforeSave(tx *gorm.DB) error {
 	if !u.Role.IsValid() {
 		return ErrInvalidUserRole
+	}
+
+	if u.Realm == "local" && len(u.Password) == 0 {
+		return ErrPasswordRequired
 	}
 	return nil
 }
@@ -126,4 +131,22 @@ func GetAllUsers() ([]User, error) {
 	}
 
 	return users, nil
+}
+
+func CreateUser(user *User) error {
+	result := db.Create(user)
+	if result.Error != nil {
+		logger.With("error", result.Error).Error("Failed to create user")
+		return result.Error
+	}
+	return nil
+}
+
+func UpdateUser(user *User) error {
+	result := db.Save(user)
+	if result.Error != nil {
+		logger.With("error", result.Error).Error("Failed to update user")
+		return result.Error
+	}
+	return nil
 }
