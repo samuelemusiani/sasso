@@ -2,8 +2,10 @@
 import { onMounted, ref, computed } from 'vue'
 import type { User } from '@/types'
 import { api } from '@/lib/api'
+import { useRouter } from 'vue-router'
 
 const whoami = ref<User | null>(null)
+const router = useRouter()
 
 function fetchWhoami() {
   api
@@ -21,6 +23,11 @@ const showAdminPanel = computed(() => {
   if (!whoami.value) return false
   return whoami.value.role === 'admin'
 })
+
+function logout() {
+  localStorage.removeItem('jwt_token')
+  router.push('/login')
+}
 
 onMounted(() => {
   fetchWhoami()
@@ -53,6 +60,12 @@ onMounted(() => {
       >
         Admin pannel
       </RouterLink>
+      <button
+        @click="logout"
+        class="bg-red-400 hover:bg-red-300 p-2 rounded-lg min-w-32 block text-center"
+      >
+        Logout
+      </button>
     </div>
   </div>
 </template>

@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"time"
+
+	"github.com/go-chi/jwtauth/v5"
 )
 
 const CLAIM_USER_ID = "user_id"
@@ -56,7 +59,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 	logger.Info("User authenticated successfully", "userID", user.ID)
 
 	// Password matches, create JWT token
-	_, tokenString, _ := tokenAuth.Encode(map[string]any{CLAIM_USER_ID: user.ID})
+	claims := map[string]any{CLAIM_USER_ID: user.ID}
+	jwtauth.SetIssuedNow(claims)
+	jwtauth.SetExpiryIn(claims, time.Hour*12) // Set token expiry to 24 hours
+
+	_, tokenString, err := tokenAuth.Encode(claims)
+	if err != nil {
+		logger.Error("failed to create JWT token", "error", err)
+		http.Error(w, "Failed to create JWT token", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Authorization", "Bearer "+tokenString)
 	w.Write([]byte("Login successful!"))
