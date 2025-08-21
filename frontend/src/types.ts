@@ -8,6 +8,10 @@ export interface User {
   email: string
   realm: string
   role: string
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
 }
 
 export interface Realm {

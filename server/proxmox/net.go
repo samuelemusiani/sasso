@@ -88,6 +88,22 @@ func TestEndpointNetZone() {
 
 // This Function only creates a network in the database.
 func AssignNewNetToUser(userID uint, name string) (*db.Net, error) {
+	user, err := db.GetUserByID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get user by ID")
+		return nil, err
+	}
+
+	nets, err := db.GetNetsByUserID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get nets by user ID")
+		return nil, err
+	}
+
+	if len(nets) >= int(user.MaxNets) {
+		return nil, ErrInsufficientResources
+	}
+
 	lastTag, err := db.GetLastUsedTagByZone(cNetwork.SDNZone)
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get last used tag for creating network")
@@ -98,12 +114,6 @@ func AssignNewNetToUser(userID uint, name string) (*db.Net, error) {
 	if newTag > cNetwork.VXLANIDEnd {
 		logger.With("userID", userID, "lastTag", lastTag).Error("No more tags available for creating network")
 		return nil, errors.New("no more tags available for creating network")
-	}
-
-	user, err := db.GetUserByID(userID)
-	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get user by ID")
-		return nil, err
 	}
 
 	sha256NetName := sha256.Sum256(fmt.Appendf([]byte{}, "%s-%s-%d", user.Username, cNetwork.SDNZone, newTag))

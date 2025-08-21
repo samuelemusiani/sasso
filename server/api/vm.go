@@ -30,13 +30,29 @@ func vms(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+type newVMRequest struct {
+	Cores uint `json:"cores"`
+	RAM   uint `json:"ram"`
+	Disk  uint `json:"disk"`
+}
+
 func newVM(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
-	vm, err := proxmox.NewVM(userID)
+	var req newVMRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	vm, err := proxmox.NewVM(userID, req.Cores, req.RAM, req.Disk)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to create new VM")
-		http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
+		if errors.Is(err, proxmox.ErrInsufficientResources) {
+			http.Error(w, "Insufficient resources", http.StatusForbidden)
+		} else {
+			logger.With("userID", userID, "error", err).Error("Failed to create new VM")
+			http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
+		}
 		return
 	}
 

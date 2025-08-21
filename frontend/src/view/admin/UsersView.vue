@@ -38,6 +38,7 @@ onMounted(() => {
           <th class="p-2 border-y border-black">Email</th>
           <th class="p-2 border-y border-black">Role</th>
           <th class="p-2 border-y border-black border-r">Realm</th>
+          <th class="p-2 border-y border-black border-r">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -46,7 +47,12 @@ onMounted(() => {
           <td class="p-2 text-center border-y border-black">{{ user.username }}</td>
           <td class="p-2 text-center border-y border-black">{{ user.email }}</td>
           <td class="p-2 text-center border-y border-black">{{ user.role }}</td>
-          <td class="p-2 text-center border-y border-black border-r">{{ user.realm }}</td>
+          <td class="p-2 text-center border-y border-black">{{ user.realm }}</td>
+          <td class="p-2 text-center border-y border-black border-r">
+            <RouterLink :to="`/admin/users/${user.id}`" class="text-blue-600 hover:underline">
+              Edit
+            </RouterLink>
+          </td>
         </tr>
       </tbody>
     </table>

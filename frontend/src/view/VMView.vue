@@ -5,6 +5,9 @@ import { api } from '@/lib/api'
 
 const vms = ref()
 const vmid = ref(0)
+const cores = ref(1)
+const ram = ref(1024)
+const disk = ref(2048)
 
 function fetchVMs() {
   api
@@ -23,7 +26,11 @@ setInterval(() => {
 
 function createVM() {
   api
-    .post('/vm')
+    .post('/vm', {
+      cores: cores.value,
+      ram: ram.value,
+      disk: disk.value,
+    })
     .then(() => {
       fetchVMs()
     })
@@ -54,7 +61,13 @@ onMounted(() => {
     <div>
       {{ vms }}
     </div>
-    <div>
+    <div class="flex gap-2 items-center">
+      <label for="cores">Cores:</label>
+      <input type="number" id="cores" v-model="cores" class="border p-2 rounded-lg w-24" />
+      <label for="ram">RAM (MB):</label>
+      <input type="number" id="ram" v-model="ram" class="border p-2 rounded-lg w-24" />
+      <label for="disk">Disk (MB):</label>
+      <input type="number" id="disk" v-model="disk" class="border p-2 rounded-lg w-24" />
       <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="createVM()">
         Create VM
       </button>

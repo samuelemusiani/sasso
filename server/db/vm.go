@@ -16,6 +16,10 @@ type VM struct {
 	// VMUserID is an integer that counts the number of the VM for a specific user
 	VMUserID uint   `gorm:"not null;default:0;uniqueIndex:idx_user_vm"`
 	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating')"`
+
+	Cores uint `gorm:"not null;default:1"`
+	RAM   uint `gorm:"not null;default:1024"`
+	Disk  uint `gorm:"not null;default:2048"`
 }
 
 func initVMs() error {
@@ -36,12 +40,15 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	return vms, nil
 }
 
-func NewVM(ID uint64, userID uint, vmUserID uint, status string) (*VM, error) {
+func NewVM(ID uint64, userID uint, vmUserID uint, status string, cores uint, ram uint, disk uint) (*VM, error) {
 	vm := &VM{
 		ID:       ID,
 		UserID:   userID,
 		VMUserID: vmUserID,
 		Status:   status,
+		Cores:    cores,
+		RAM:      ram,
+		Disk:     disk,
 	}
 	result := db.Create(vm)
 	if result.Error != nil {

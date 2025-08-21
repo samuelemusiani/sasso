@@ -42,7 +42,11 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 
 	net, err := proxmox.AssignNewNetToUser(userID, req.Name)
 	if err != nil {
-		http.Error(w, "Failed to create network", http.StatusInternalServerError)
+		if err == proxmox.ErrInsufficientResources {
+			http.Error(w, "Insufficient resources", http.StatusForbidden)
+		} else {
+			http.Error(w, "Failed to create network", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -108,4 +112,3 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 }
-

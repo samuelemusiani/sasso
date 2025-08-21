@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
 )
 
@@ -24,6 +26,10 @@ type returnUser struct {
 	Email    string      `json:"email"`
 	Realm    string      `json:"realm"`
 	Role     db.UserRole `json:"role"`
+	MaxCores uint        `json:"max_cores"`
+	MaxRAM   uint        `json:"max_ram"`
+	MaxDisk  uint        `json:"max_disk"`
+	MaxNets  uint        `json:"max_nets"`
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +133,10 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 			Email:    user.Email,
 			Realm:    user.Realm,
 			Role:     user.Role,
+			MaxCores: user.MaxCores,
+			MaxRAM:   user.MaxRAM,
+			MaxDisk:  user.MaxDisk,
+			MaxNets:  user.MaxNets,
 		}
 	}
 
@@ -136,5 +146,70 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode users to JSON", http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func getUser(w http.ResponseWriter, r *http.Request) {
+	suserID := chi.URLParam(r, "id")
+	userID, err := strconv.ParseUint(suserID, 10, 64)
+	if err != nil {
+		logger.Error("failed to parse user ID", "error", err)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := db.GetUserByID(uint(userID))
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		logger.Error("failed to get user by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	returnUser := returnUser{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Realm:    user.Realm,
+		Role:     user.Role,
+		MaxCores: user.MaxCores,
+		MaxRAM:   user.MaxRAM,
+		MaxDisk:  user.MaxDisk,
+		MaxNets:  user.MaxNets,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(returnUser); err != nil {
+		logger.Error("failed to encode user to JSON", "error", err)
+		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+type updateUserLimitsRequest struct {
+	UserID   uint `json:"user_id"`
+	MaxCores uint `json:"max_cores"`
+	MaxRAM   uint `json:"max_ram"`
+	MaxDisk  uint `json:"max_disk"`
+	MaxNets  uint `json:"max_nets"`
+}
+
+func updateUserLimits(w http.ResponseWriter, r *http.Request) {
+	var req updateUserLimitsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.UpdateUserLimits(req.UserID, req.MaxCores, req.MaxRAM, req.MaxDisk, req.MaxNets); err != nil {
+		http.Error(w, "Failed to update user limits", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }

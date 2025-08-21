@@ -27,6 +27,11 @@ type User struct {
 	Realm    string   `gorm:"default:'local'"`
 	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','mantainer')"`
 
+	MaxCores uint `gorm:"not null;default:2"`
+	MaxRAM   uint `gorm:"not null;default:2048"`
+	MaxDisk  uint `gorm:"not null;default:4096"`
+	MaxNets  uint `gorm:"not null;default:1"`
+
 	VMs  []VM  `gorm:"foreignKey:UserID"`
 	Nets []Net `gorm:"foreignKey:UserID"`
 }
@@ -146,6 +151,28 @@ func UpdateUser(user *User) error {
 	result := db.Save(user)
 	if result.Error != nil {
 		logger.With("error", result.Error).Error("Failed to update user")
+		return result.Error
+	}
+	return nil
+}
+
+func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, maxNets uint) error {
+	var user User
+	if err := db.First(&user, userID).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to find user by ID")
+		return err
+	}
+
+	result := db.Model(&user).
+		Select("max_cores", "max_ram", "max_disk", "max_nets").
+		Updates(&User{
+			MaxCores: maxCores,
+			MaxRAM:   maxRAM,
+			MaxDisk:  maxDisk,
+			MaxNets:  maxNets,
+		})
+	if result.Error != nil {
+		logger.With("error", result.Error).Error("Failed to update user limits")
 		return result.Error
 	}
 	return nil
