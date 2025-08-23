@@ -20,6 +20,7 @@ services:
 
   lldap:
     image: lldap/lldap:stable
+    restart: always
     ports:
       # For LDAP, not recommended to expose, see Usage section.
       - "3890:3890"
