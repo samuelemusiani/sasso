@@ -15,7 +15,7 @@ to keep the VMs from differente users isolated from each other.
 At the moment Sasso is in an very early stage of development and is not
 fully functional.
 
-This service was developed to be used in ADMStaff (https://students.cs.unibo.it).
+This service was developed to be used by [ADMStaff](https://students.cs.unibo.it).
 
 ## Proxmox Setup
 
