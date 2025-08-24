@@ -3,6 +3,9 @@
 [server]
 bind = ":8081"
 
+[api]
+secret = "supersegreto"
+
 [database]
 user = "user"
 password = "password"

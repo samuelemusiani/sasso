@@ -4,11 +4,16 @@ import "github.com/BurntSushi/toml"
 
 type Config struct {
 	Server   Server   `toml:"server"`
+	Api      Api      `toml:"api"`
 	Database Database `toml:"database"`
 }
 
 type Server struct {
 	Bind string `toml:"bind"`
+}
+
+type Api struct {
+	Secret string `toml:"secret"`
 }
 
 type Database struct {

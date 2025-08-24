@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"samuelemusiani/sasso/router/config"
@@ -12,11 +13,18 @@ import (
 var (
 	router *chi.Mux     = nil
 	logger *slog.Logger = nil
+
+	secret string
 )
 
-func Init(apiLogger *slog.Logger) {
+func Init(apiLogger *slog.Logger, apiSecret string) error {
 	// Logger
 	logger = apiLogger
+
+	if len(apiSecret) < 8 {
+		return errors.New("API secret must be at least 8 characters long")
+	}
+	secret = apiSecret
 
 	// Router
 	router = chi.NewRouter()
@@ -34,7 +42,15 @@ func Init(apiLogger *slog.Logger) {
 		r.Get("/", routeRoot)
 	})
 
+	// Auth routes
+	apiRouter.Group(func(r chi.Router) {
+		r.Use(authMiddleware)
+		r.Post("/net", newNet)
+	})
+
 	router.Mount("/api", apiRouter)
+
+	return nil
 }
 
 func ListenAndServe(c config.Server) error {

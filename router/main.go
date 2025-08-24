@@ -42,7 +42,11 @@ func main() {
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger)
+	err = api.Init(apiLogger, c.Api.Secret)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize API server")
+		os.Exit(1)
+	}
 	err = api.ListenAndServe(c.Server)
 	if err != nil {
 		slog.With("error", err).Error("Failed to start API server")
