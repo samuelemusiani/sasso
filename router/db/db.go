@@ -46,11 +46,11 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
-	// err = initNetworks()
-	// if err != nil {
-	// 	logger.With("error", err).Error("Failed to initialize networks in database")
-	// 	return err
-	// }
+	err = initTickets()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize tickets in database")
+		return err
+	}
 
 	return nil
 }
