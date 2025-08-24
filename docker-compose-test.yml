@@ -3,7 +3,7 @@ volumes:
     driver: local
 
 services:
-  db:
+  db-sasso:
     image: postgres
     restart: always
     environment:
@@ -12,6 +12,21 @@ services:
       - POSTGRES_PASSWORD=password
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-sasso-router:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_DB=sasso-router
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD", "pg_isready"]
       interval: 10s

@@ -42,7 +42,7 @@ authenticate with an external LDAP server.
 
 To run the server with the default config:
 ```bash
-go run ./... ./server/config/config.toml  
+go run ./server ./server/config/config.toml  
 ```
 In the default config the Proxmox server is hosted on `localhost:8006`. You
 can forward the Proxmox API to your localhost with:
@@ -53,4 +53,9 @@ ssh -L 8006:localhost:8006 <user>@<proxmox-ip>
 To run the frontend you must enter the `frontend` directory and run:
 ```bash
 npm run dev
+```
+
+To run the `sasso-router` service you can use:
+```bash
+go run ./router ./router/config/config.toml  
 ```

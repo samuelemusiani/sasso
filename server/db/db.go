@@ -6,8 +6,9 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"samuelemusiani/sasso/server/config"
 	"time"
+
+	"samuelemusiani/sasso/server/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

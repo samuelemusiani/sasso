@@ -1,0 +1,11 @@
+# Example of a configuration
+
+[server]
+bind = ":8081"
+
+[database]
+user = "user"
+password = "password"
+database = "sasso-router"
+host = "localhost"
+port = 5433

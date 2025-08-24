@@ -11,10 +11,12 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 )
 
-var router *chi.Mux = nil
-var logger *slog.Logger = nil
+var (
+	router *chi.Mux     = nil
+	logger *slog.Logger = nil
 
-var tokenAuth *jwtauth.JWTAuth = nil
+	tokenAuth *jwtauth.JWTAuth = nil
+)
 
 func Init(apiLogger *slog.Logger, key []byte) {
 	// Logger

@@ -12,7 +12,7 @@ type Config struct {
 }
 
 type Server struct {
-	Bind string
+	Bind string `toml:"bind"`
 }
 
 type Database struct {
