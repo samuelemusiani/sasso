@@ -2,10 +2,8 @@ package proxmox
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"fmt"
+
 	"samuelemusiani/sasso/server/db"
 	"time"
 )
@@ -104,22 +102,20 @@ func AssignNewNetToUser(userID uint, name string) (*db.Net, error) {
 		return nil, ErrInsufficientResources
 	}
 
-	lastTag, err := db.GetLastUsedTagByZone(cNetwork.SDNZone)
+	tag, err := db.GetRandomAvailableTagByZone(cNetwork.SDNZone, cNetwork.VXLANIDStart, cNetwork.VXLANIDEnd)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get last used tag for creating network")
+		logger.With("userID", userID, "error", err).Error("Failed to get available tag for creating network")
 		return nil, err
 	}
 
-	newTag := lastTag + 1
-	if newTag > cNetwork.VXLANIDEnd {
-		logger.With("userID", userID, "lastTag", lastTag).Error("No more tags available for creating network")
-		return nil, errors.New("no more tags available for creating network")
+	if tag < cNetwork.VXLANIDStart || tag > cNetwork.VXLANIDEnd {
+		logger.With("userID", userID, "tag", tag).Error("Tag is out of range")
+		return nil, errors.New("Tag is out of range")
 	}
 
-	sha256NetName := sha256.Sum256(fmt.Appendf([]byte{}, "%s-%s-%d", user.Username, cNetwork.SDNZone, newTag))
-	netName := hex.EncodeToString(sha256NetName[:])
+	netName := cNetwork.SDNZone[0:3] + EncodeBase62(uint32(tag))
 
-	net, err := db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, newTag, false, string(VNetStatusPreCreating))
+	net, err := db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, tag, false, string(VNetStatusPreCreating))
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to create network for user")
 		return nil, err

@@ -1,19 +1,18 @@
 package db
 
-import (
-	"gorm.io/gorm"
-)
-
 type Net struct {
-	gorm.Model
+	ID        uint  `gorm:"primaryKey"`
+	CreatedAt int64 `gorm:"autoCreateTime"`
+	UpdatedAt int64 `gorm:"autoUpdateTime"`
+
 	Name      string `gorm:"uniqueIndex;not null"`
 	Alias     string `gorm:"not null"`             // For users
 	Zone      string `gorm:"not null"`             // Should be "sasso"
 	Tag       uint32 `gorm:"not null;uniqueIndex"` // Unique tag for the network
 	VlanAware bool   `gorm:"not null;default:false"`
 
-	UserID uint   `gorm:"not null;uniqueIndex:idx_user_net"`
-	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','creating','deleting','pre-creating','pre-deleting')"`
+	UserID uint   `gorm:"not null"`
+	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
 }
 
 func initNetworks() error {
@@ -43,16 +42,21 @@ func GetNetByName(name string) (*Net, error) {
 	return &net, nil
 }
 
-func GetLastUsedTagByZone(zone string) (uint32, error) {
-	var net Net
-	if err := db.Where("zone = ?", zone).Order("tag DESC").First(&net).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0, nil // No networks found for this zone
-		}
-		logger.With("zone", zone, "error", err).Error("Failed to get last used tag by zone")
+func GetRandomAvailableTagByZone(zone string, start, end uint32) (uint32, error) {
+	var tag int
+	query := `
+		SELECT n FROM generate_series(?::integer, ?::integer) AS n
+		LEFT JOIN nets a ON a.tag = n AND a.zone = ?
+		WHERE a.tag IS NULL
+		ORDER BY RANDOM()
+		LIMIT 1;
+	`
+	err := db.Raw(query, start, end, zone).Scan(&tag).Error
+	if err != nil {
+		logger.With("zone", zone, "error", err).Error("Failed to get random available tag by zone")
 		return 0, err
 	}
-	return net.Tag, nil
+	return uint32(tag), nil
 }
 
 func GetNetsByUserID(userID uint) ([]Net, error) {
