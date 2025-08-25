@@ -37,8 +37,10 @@ start a test database.
 ```bash
 docker compose -f docker-compose-test.yml up -d
 ```
-This docker compose also brings up a lldap instace as Sasso allows users to only
-authenticate with an external LDAP server.
+This docker compose also brings up a second databse for the router and an instace
+of `lldap` as Sasso allows users to only authenticate with an external LDAP server.
+To connect to to the UI of `lldap` navigate to `localhost:17170`. For the admin
+password look inside the docker compose file.
 
 To run the server with the default config:
 ```bash
