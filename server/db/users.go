@@ -29,7 +29,7 @@ type User struct {
 
 	MaxCores uint `gorm:"not null;default:2"`
 	MaxRAM   uint `gorm:"not null;default:2048"`
-	MaxDisk  uint `gorm:"not null;default:4096"`
+	MaxDisk  uint `gorm:"not null;default:4"`
 	MaxNets  uint `gorm:"not null;default:1"`
 
 	VMs  []VM  `gorm:"foreignKey:UserID"`

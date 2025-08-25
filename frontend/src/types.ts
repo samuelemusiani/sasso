@@ -1,5 +1,9 @@
 export interface VM {
   id: number
+  cores: number
+  ram: number
+  disk: number
+  status: string
 }
 
 export interface User {

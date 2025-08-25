@@ -15,11 +15,11 @@ type VM struct {
 	UserID uint `gorm:"not null;uniqueIndex:idx_user_vm"`
 	// VMUserID is an integer that counts the number of the VM for a specific user
 	VMUserID uint   `gorm:"not null;default:0;uniqueIndex:idx_user_vm"`
-	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating')"`
+	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
 	Cores uint `gorm:"not null;default:1"`
 	RAM   uint `gorm:"not null;default:1024"`
-	Disk  uint `gorm:"not null;default:2048"`
+	Disk  uint `gorm:"not null;default:4"`
 }
 
 func initVMs() error {

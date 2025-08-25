@@ -29,12 +29,18 @@ var (
 	VMStatusCreating VMStatus = "creating"
 	VMStatusDeleting VMStatus = "deleting"
 
+	VMStatusPreConfiguring VMStatus = "pre-configuring"
+	VMStatusConfiguring    VMStatus = "configuring"
+
 	ErrVMNotFound error = errors.New("VM not found")
 )
 
 type VM struct {
 	ID     uint64 `json:"id"`
 	Status string `json:"status"`
+	Cores  uint   `json:"cores"`
+	RAM    uint   `json:"ram"`
+	Disk   uint   `json:"disk"`
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -51,6 +57,9 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		vms[i].ID = db_vms[i].ID
 		// Status needs to be checked against the acctual Proxmox VM status
 		vms[i].Status = string(db_vms[i].Status)
+		vms[i].Cores = db_vms[i].Cores
+		vms[i].RAM = db_vms[i].RAM
+		vms[i].Disk = db_vms[i].Disk
 	}
 
 	return vms, nil
