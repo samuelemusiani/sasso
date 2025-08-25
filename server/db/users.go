@@ -32,8 +32,9 @@ type User struct {
 	MaxDisk  uint `gorm:"not null;default:4"`
 	MaxNets  uint `gorm:"not null;default:1"`
 
-	VMs  []VM  `gorm:"foreignKey:UserID"`
-	Nets []Net `gorm:"foreignKey:UserID"`
+	VMs     []VM     `gorm:"foreignKey:UserID"`
+	Nets    []Net    `gorm:"foreignKey:UserID"`
+	SSHKeys []SSHKey `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {

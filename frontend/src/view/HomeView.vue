@@ -54,6 +54,12 @@ onMounted(() => {
         Nets
       </RouterLink>
       <RouterLink
+        class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg min-w-32 block text-center"
+        to="/ssh-keys"
+      >
+        SSH Keys
+      </RouterLink>
+      <RouterLink
         v-if="showAdminPanel"
         class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg min-w-32 block text-center"
         to="/admin"

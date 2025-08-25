@@ -39,3 +39,9 @@ export interface Net {
   userid: number
   status: string
 }
+
+export interface SSHKey {
+  id: number
+  name: string
+  key: string
+}

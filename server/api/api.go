@@ -58,6 +58,10 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Post("/net", createNet)
 		r.Get("/net", listNets)
 		r.Delete("/net/{id}", deleteNet)
+
+		r.Get("/ssh-keys", getSSHKeys)
+		r.Post("/ssh-keys", addSSHKey)
+		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 	})
 
 	// Admin Auth routes
