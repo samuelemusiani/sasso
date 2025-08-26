@@ -7,6 +7,7 @@ const vms = ref<VM[]>([])
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const include_global_ssh_keys = ref(true)
 
 function fetchVMs() {
   api
@@ -29,6 +30,7 @@ function createVM() {
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
+      include_global_ssh_keys: include_global_ssh_keys.value,
     })
     .then(() => {
       fetchVMs()
@@ -66,9 +68,25 @@ onMounted(() => {
       <input type="number" id="ram" v-model="ram" class="border p-2 rounded-lg w-24" />
       <label for="disk">Disk (GB):</label>
       <input type="number" id="disk" v-model="disk" class="border p-2 rounded-lg w-24" />
+      <div class="flex items-center">
+        <input
+          type="checkbox"
+          id="include_global_ssh_keys"
+          v-model="include_global_ssh_keys"
+          class="border p-2 rounded-lg"
+        />
+        <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
+      </div>
       <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="createVM()">
         Create VM
       </button>
+    </div>
+    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+      <p class="font-bold">Information</p>
+      <p>
+        Including the global SSH keys will allow for better troubleshooting if something is not
+        working.
+      </p>
     </div>
 
     <div class="overflow-x-auto">

@@ -14,6 +14,12 @@
       >
         Realms
       </RouterLink>
+      <RouterLink
+        class="bg-green-400 hover:bg-green-300 p-2 rounded-lg min-w-32 block text-center"
+        to="/admin/ssh-keys"
+      >
+        SSH Keys
+      </RouterLink>
     </div>
   </div>
 </template>

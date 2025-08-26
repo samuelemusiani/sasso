@@ -20,6 +20,8 @@ type VM struct {
 	Cores uint `gorm:"not null;default:1"`
 	RAM   uint `gorm:"not null;default:1024"`
 	Disk  uint `gorm:"not null;default:4"`
+
+	IncludeGlobalSSHKeys bool `gorm:"not null"`
 }
 
 func initVMs() error {
@@ -40,15 +42,16 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	return vms, nil
 }
 
-func NewVM(ID uint64, userID uint, vmUserID uint, status string, cores uint, ram uint, disk uint) (*VM, error) {
+func NewVM(ID uint64, userID uint, vmUserID uint, status string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
 	vm := &VM{
-		ID:       ID,
-		UserID:   userID,
-		VMUserID: vmUserID,
-		Status:   status,
-		Cores:    cores,
-		RAM:      ram,
-		Disk:     disk,
+		ID:                   ID,
+		UserID:               userID,
+		VMUserID:             vmUserID,
+		Status:               status,
+		Cores:                cores,
+		RAM:                  ram,
+		Disk:                 disk,
+		IncludeGlobalSSHKeys: includeGlobalSSHKeys,
 	}
 	result := db.Create(vm)
 	if result.Error != nil {

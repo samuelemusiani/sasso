@@ -83,7 +83,7 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 	return vmid, nil
 }
 
-func NewVM(userID uint, cores uint, ram uint, disk uint) (*VM, error) {
+func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
 	user, err := db.GetUserByID(userID)
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get user from database")
@@ -128,7 +128,7 @@ func NewVM(userID uint, cores uint, ram uint, disk uint) (*VM, error) {
 	vmUserID++ // Increment the VM user ID for the new VM
 	VMID, err := generateFullVMID(userID, vmUserID)
 
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), cores, ram, disk)
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), cores, ram, disk, includeGlobalSSHKeys)
 	if err != nil {
 		logger.With("userID", userID, "vmUserID", vmUserID, "error", err).
 			Error("Failed to create new VM in database")

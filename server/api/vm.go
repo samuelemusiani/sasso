@@ -31,9 +31,10 @@ func vms(w http.ResponseWriter, r *http.Request) {
 }
 
 type newVMRequest struct {
-	Cores uint `json:"cores"`
-	RAM   uint `json:"ram"`
-	Disk  uint `json:"disk"`
+	Cores                uint `json:"cores"`
+	RAM                  uint `json:"ram"`
+	Disk                 uint `json:"disk"`
+	IncludeGlobalSSHKeys bool `json:"include_global_ssh_keys"`
 }
 
 func newVM(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +46,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vm, err := proxmox.NewVM(userID, req.Cores, req.RAM, req.Disk)
+	vm, err := proxmox.NewVM(userID, req.Cores, req.RAM, req.Disk, req.IncludeGlobalSSHKeys)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)

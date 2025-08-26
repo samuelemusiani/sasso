@@ -4,6 +4,7 @@ export interface VM {
   ram: number
   disk: number
   status: string
+  include_global_ssh_keys: boolean
 }
 
 export interface User {

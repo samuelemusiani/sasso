@@ -78,6 +78,10 @@ func Init(apiLogger *slog.Logger, key []byte) {
 
 		r.Post("/admin/realms", addRealm)
 		r.Put("/admin/users/limits", updateUserLimits)
+
+		r.Get("/admin/ssh-keys/global", getGlobalSSHKeys)
+		r.Post("/admin/ssh-keys/global", addGlobalSSHKey)
+		r.Delete("/admin/ssh-keys/global/{id}", deleteGlobalSSHKey)
 	})
 
 	router.Mount("/api", apiRouter)

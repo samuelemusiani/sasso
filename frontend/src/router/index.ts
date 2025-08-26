@@ -27,6 +27,7 @@ const router = createRouter({
         { path: 'users/:id', component: UserDetailView },
         { path: 'realms', component: AdminRealmsView },
         { path: 'realms/:id', component: RealmsMultiplexer },
+        { path: 'ssh-keys', component: () => import('../view/admin/GlobalSSHKeysView.vue') },
       ],
     },
   ],

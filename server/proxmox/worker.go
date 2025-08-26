@@ -512,6 +512,17 @@ func configureVMs() {
 			logger.With("vmid", v.ID, "userid", v.UserID, "err", err).Error("Failed to get SSH keys for user")
 			continue
 		}
+
+		if v.IncludeGlobalSSHKeys {
+			globalKeys, err := db.GetGlobalSSHKeys()
+			if err != nil {
+				logger.With("vmid", v.ID, "userid", v.UserID, "err ", err).Error("Failed to get global SSH keys")
+				continue
+			}
+
+			sshKeys = append(sshKeys, globalKeys...)
+		}
+
 		var keys strings.Builder
 		for i := range sshKeys {
 			keys.WriteString(sshKeys[i].Key)
