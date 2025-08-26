@@ -57,6 +57,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	go worker()
+
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")

@@ -63,6 +63,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		logger.With("error", err).Error("Failed to get next available subnet")
 		nr.Success = false
 		nr.Error = err.Error()
+		nr.Status = "failed"
 		return err
 	}
 	nr.Subnet = s
@@ -72,6 +73,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		logger.With("error", err).Error("Failed to get gateway address from subnet")
 		nr.Success = false
 		nr.Error = err.Error()
+		nr.Status = "failed"
 		return err
 	}
 	nr.RouterIP = gt
@@ -81,6 +83,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		logger.With("error", err).Error("Failed to get broadcast address from subnet")
 		nr.Success = false
 		nr.Error = err.Error()
+		nr.Status = "failed"
 		return err
 	}
 	nr.Broadcast = br
@@ -90,6 +93,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		logger.With("error", err).Error("Failed to create new interface on gateway")
 		nr.Success = false
 		nr.Error = err.Error()
+		nr.Status = "failed"
 		return err
 	}
 
@@ -98,10 +102,26 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		logger.With("error", err).Error("Failed to save interface to database")
 		nr.Success = false
 		nr.Error = err.Error()
+		nr.Status = "failed"
 		return err
 	}
 
+	nr.Status = "completed"
+	nr.Success = true
 	return nil
+}
+
+func NetworkRequestFromDB(r *db.NetworkRequest) NetworkRequest {
+	return NetworkRequest{
+		VNet:      r.VNet,
+		VNetID:    r.VNetID,
+		Status:    r.Status,
+		Success:   r.Success,
+		Error:     r.Error,
+		Subnet:    r.Subnet,
+		RouterIP:  r.RouterIP,
+		Broadcast: r.Broadcast,
+	}
 }
 
 func NewNetworkRequest(vnet string, vnetID uint) NetworkRequest {
@@ -118,8 +138,13 @@ func (nr *NetworkRequest) SaveToDB(ticketID string) error {
 			UUID:        ticketID,
 			RequestType: string(nr.GetType()),
 		},
-		VNet:   nr.VNet,
-		VNetID: nr.VNetID,
-		Status: nr.Status,
+		VNet:      nr.VNet,
+		VNetID:    nr.VNetID,
+		Status:    nr.Status,
+		Success:   nr.Success,
+		Error:     nr.Error,
+		Subnet:    nr.Subnet,
+		RouterIP:  nr.RouterIP,
+		Broadcast: nr.Broadcast,
 	})
 }

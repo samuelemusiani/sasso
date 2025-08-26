@@ -47,6 +47,10 @@ func Init(l *slog.Logger, c config.Gateway) error {
 	return nil
 }
 
+func Get() Gateway {
+	return globalGateway
+}
+
 type Gateway interface {
 	Init(c config.Gateway) error
 	NewInterface(vnet string, vnetID uint, routerIP string) (*Interface, error)

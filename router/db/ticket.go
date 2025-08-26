@@ -51,18 +51,44 @@ func GetNetworkRequestByTicket(t *Ticket) (*NetworkRequest, error) {
 	return &req, nil
 }
 
+func GetPendingNetworkRequests() ([]NetworkRequest, error) {
+	var reqs []NetworkRequest
+	if err := db.Where("status = ?", "pending").Find(&reqs).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return []NetworkRequest{}, nil
+		}
+		logger.With("error", err).Error("Failed to retrieve pending network requests")
+		return nil, err
+	}
+	return reqs, nil
+}
+
+func UpdateNetworkRequest(req *NetworkRequest) error {
+	return db.Save(req).Error
+}
+
 func SaveNetworkRequest(req NetworkRequest) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&req.Ticket).Error; err != nil {
+		if err := tx.Save(&req.Ticket).Error; err != nil {
 			logger.With("error", err).Error("Failed to create network request")
 			return err
 		}
 
-		if err := tx.Create(&req).Error; err != nil {
+		if err := tx.Save(&req).Error; err != nil {
 			logger.With("error", err).Error("Failed to create network request details")
 			return err
 		}
 
 		return nil
 	})
+}
+
+func GetTicketsWithStatus(status string) ([]Ticket, error) {
+	var tickets []Ticket
+	err := db.Raw(`SELECT * FROM tickets WHERE uuid IN ( SELECT uuid FROM network_requests WHERE status = ?)`, status).Scan(&tickets).Error
+	if err != nil {
+		logger.With("error", err).Error("Failed to retrieve tickets with status", "status", status)
+		return nil, err
+	}
+	return tickets, nil
 }

@@ -61,10 +61,11 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, routerIP string
 	var snet = make([]string, len(mnets))
 	var i int = 0
 	for k := range mnets {
-		snet[i] = mnets[k]
+		snet[i] = k
 		i++
 	}
 	slices.Sort(snet)
+	logger.With("mnets", mnets, "snet", snet).Debug("Current network interfaces on Proxmox VM")
 	var firstEmptyIndex int = -1
 	for i := range snet {
 		if !strings.HasSuffix(snet[i], strconv.Itoa(i)) {
@@ -86,6 +87,24 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, routerIP string
 	cancel()
 	if err != nil {
 		logger.With("error", err).Error("Failed to add network interface to Proxmox VM")
+		return nil, err
+	}
+	_, _, err = waitForTaskCompletion(t)
+	if err != nil {
+		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		return nil, err
+	}
+
+	o2 := proxmox.VirtualMachineOption{
+		Name:  "ipconfig" + strconv.Itoa(firstEmptyIndex),
+		Value: fmt.Sprintf("ip=%s", routerIP),
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	t, err = vm.Config(ctx, o2)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to configure network interface on Proxmox VM")
 		return nil, err
 	}
 	_, _, err = waitForTaskCompletion(t)
