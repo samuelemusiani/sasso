@@ -7,6 +7,7 @@ type Config struct {
 	Api      Api      `toml:"api"`
 	Database Database `toml:"database"`
 	Network  Network  `toml:"network"`
+	Gateway  Gateway  `toml:"gateway"`
 }
 
 type Server struct {
@@ -20,6 +21,19 @@ type Api struct {
 type Network struct {
 	UsableSubnet    string `toml:"usable_subnet"`
 	NewSubnetPrefix int    `toml:"new_subnet_prefix"`
+}
+
+type Gateway struct {
+	Type    string               `toml:"type"`
+	Proxmox ProxmoxGatewayConfig `toml:"proxmox"`
+}
+
+type ProxmoxGatewayConfig struct {
+	Url                string `toml:"url"`
+	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
+	TokenID            string `toml:"token_id"`
+	Secret             string `toml:"secret"`
+	VMID               uint   `toml:"vmid"`
 }
 
 type Database struct {

@@ -6,6 +6,7 @@ import (
 	"samuelemusiani/sasso/router/api"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/ticket"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -43,6 +44,9 @@ func main() {
 	// Ticketing
 	ticketLogger := slog.With("module", "ticket")
 	ticket.Init(ticketLogger)
+
+	gatewayLogger := slog.With("module", "gateway")
+	err = gateway.Init(gatewayLogger, c.Gateway)
 
 	// Database
 	slog.Debug("Initializing database")

@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
 
@@ -13,7 +14,7 @@ var (
 
 type Request interface {
 	GetType() RequestType
-	Execute() error                 // Execute the request, performing the necessary actions
+	Execute(gateway.Gateway) error  // Execute the request, performing the necessary actions
 	SaveToDB(ticketID string) error // Save the request to the database. Ticket ID is used to link the request to a ticket
 }
 
@@ -56,7 +57,7 @@ func (nr *NetworkRequest) GetType() RequestType {
 	return TypeNewNetworkRequest
 }
 
-func (nr *NetworkRequest) Execute() error {
+func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 	s, err := utils.NextAvailableSubnet()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get next available subnet")
@@ -84,9 +85,21 @@ func (nr *NetworkRequest) Execute() error {
 	}
 	nr.Broadcast = br
 
-	// TODO: Create a new interface on the router based on the VNet
-	// configure it with the Gateway IP
-	// Update the firewall
+	inter, err := gtw.NewInterface(nr.VNet, nr.VNetID, nr.RouterIP)
+	if err != nil {
+		logger.With("error", err).Error("Failed to create new interface on gateway")
+		nr.Success = false
+		nr.Error = err.Error()
+		return err
+	}
+
+	err = inter.SaveToDB()
+	if err != nil {
+		logger.With("error", err).Error("Failed to save interface to database")
+		nr.Success = false
+		nr.Error = err.Error()
+		return err
+	}
 
 	return nil
 }
