@@ -1,6 +1,9 @@
 package ticket
 
-import "samuelemusiani/sasso/router/db"
+import (
+	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/utils"
+)
 
 type RequestType string
 
@@ -21,7 +24,7 @@ func requestFromDBByTicket(t *db.Ticket) (Request, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NetworkRequest{
+		return &NetworkRequest{
 			VNet:      r.VNet,
 			VNetID:    r.VNetID,
 			Status:    r.Status,
@@ -49,14 +52,42 @@ type NetworkRequest struct {
 	Broadcast string // Broadcast address of the new VNet
 }
 
-func (nr NetworkRequest) GetType() RequestType {
+func (nr *NetworkRequest) GetType() RequestType {
 	return TypeNewNetworkRequest
 }
 
-func (nr NetworkRequest) Execute() error {
-	// Implement the logic to execute the network request
-	// This could involve creating a new network, configuring it, etc.
-	// For now, we'll just return nil to indicate success
+func (nr *NetworkRequest) Execute() error {
+	s, err := utils.NextAvailableSubnet()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get next available subnet")
+		nr.Success = false
+		nr.Error = err.Error()
+		return err
+	}
+	nr.Subnet = s
+
+	gt, err := utils.GatewayAddressFromSubnet(s)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get gateway address from subnet")
+		nr.Success = false
+		nr.Error = err.Error()
+		return err
+	}
+	nr.RouterIP = gt
+
+	br, err := utils.GetBroadcastAddressFromSubnet(s)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get broadcast address from subnet")
+		nr.Success = false
+		nr.Error = err.Error()
+		return err
+	}
+	nr.Broadcast = br
+
+	// TODO: Create a new interface on the router based on the VNet
+	// configure it with the Gateway IP
+	// Update the firewall
+
 	return nil
 }
 
@@ -68,7 +99,7 @@ func NewNetworkRequest(vnet string, vnetID uint) NetworkRequest {
 	}
 }
 
-func (nr NetworkRequest) SaveToDB(ticketID string) error {
+func (nr *NetworkRequest) SaveToDB(ticketID string) error {
 	return db.SaveNetworkRequest(db.NetworkRequest{
 		Ticket: db.Ticket{
 			UUID:        ticketID,

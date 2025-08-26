@@ -29,7 +29,8 @@ func newNet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := ticket.NewTicketWithRequest(ticket.NewNetworkRequest(req.VNet, req.VNetID))
+	netRequest := ticket.NewNetworkRequest(req.VNet, req.VNetID)
+	t := ticket.NewTicketWithRequest(&netRequest)
 	err := t.SaveToDB()
 	if err != nil {
 		http.Error(w, "Failed to save ticket to database", http.StatusInternalServerError)

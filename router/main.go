@@ -6,6 +6,8 @@ import (
 	"samuelemusiani/sasso/router/api"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/ticket"
+	"samuelemusiani/sasso/router/utils"
 )
 
 const DEFAULT_LOG_LEVEL = slog.LevelDebug
@@ -29,6 +31,18 @@ func main() {
 
 	c := config.Get()
 	slog.Debug("Config file parsed successfully", "config", c)
+
+	slog.Debug("Initializing utilities")
+	utilsLogger := slog.With("module", "utils")
+	err = utils.Init(utilsLogger, c.Network)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize utilities")
+		os.Exit(1)
+	}
+
+	// Ticketing
+	ticketLogger := slog.With("module", "ticket")
+	ticket.Init(ticketLogger)
 
 	// Database
 	slog.Debug("Initializing database")

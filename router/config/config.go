@@ -6,6 +6,7 @@ type Config struct {
 	Server   Server   `toml:"server"`
 	Api      Api      `toml:"api"`
 	Database Database `toml:"database"`
+	Network  Network  `toml:"network"`
 }
 
 type Server struct {
@@ -14,6 +15,11 @@ type Server struct {
 
 type Api struct {
 	Secret string `toml:"secret"`
+}
+
+type Network struct {
+	UsableSubnet    string `toml:"usable_subnet"`
+	NewSubnetPrefix int    `toml:"new_subnet_prefix"`
 }
 
 type Database struct {

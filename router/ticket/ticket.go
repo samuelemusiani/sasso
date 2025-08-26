@@ -7,9 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	logger *slog.Logger
+)
+
 type Ticket struct {
 	id      uuid.UUID
 	request Request
+}
+
+func Init(l *slog.Logger) {
+	logger = l
 }
 
 func NewTicket() *Ticket {

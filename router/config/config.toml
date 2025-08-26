@@ -4,6 +4,7 @@
 bind = ":8081"
 
 [api]
+# To interact with the API, you need to set this secret in the "Authorization" header
 secret = "supersegreto"
 
 [database]
@@ -12,3 +13,7 @@ password = "password"
 database = "sasso-router"
 host = "localhost"
 port = 5433
+
+[network]
+usable_subnet = "10.254.0.0/16"
+new_subnet_prefix = 29
