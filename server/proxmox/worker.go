@@ -7,7 +7,9 @@ package proxmox
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"samuelemusiani/sasso/server/db"
@@ -458,8 +460,6 @@ func configureVMs() {
 			}
 		}
 
-		logger.Info("here 0")
-
 		if uint(vm.VirtualMachineConfig.Memory) != v.RAM {
 			ramOption := gprox.VirtualMachineOption{
 				Name:  "memory",
@@ -482,36 +482,64 @@ func configureVMs() {
 			}
 		}
 
-		logger.Info("here 1")
-
 		st, err := parseStorageFromString(vm.VirtualMachineConfig.SCSI0)
 		if err != nil {
-			logger.Info("here 2")
 			logger.With("vmid", v.ID, "scsi0", vm.VirtualMachineConfig.SCSI0).Error("Failed to parse storage on SCSI0")
 			continue
 		}
 
-		logger.With("st", st, "string", vm.VirtualMachineConfig.SCSI0, "vm.Disk", vm.Disk).Info("here 3")
 		if st.Size < uint(v.Disk) {
-			logger.Info("here 4")
 			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 			diff := uint(v.Disk) - st.Size
 			t, err := vm.ResizeDisk(ctx, "scsi0", fmt.Sprintf("+%dG", diff))
 			cancel()
 			if err != nil {
-				logger.Info("here 5")
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set resize disk on VM")
 				continue
 			}
 
-			logger.Info("here 6")
 			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
 			cancel()
 			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
 			if !completed || !isSuccessful {
-				logger.Info("here 7")
 				logger.With("vmid", v.ID).Error("Failed to resize disk on VM")
+			}
+		}
+
+		sshKeys, err := db.GetSSHKeysByUserID(v.UserID)
+		if err != nil {
+			logger.With("vmid", v.ID, "userid", v.UserID, "err", err).Error("Failed to get SSH keys for user")
+			continue
+		}
+		var keys strings.Builder
+		for i := range sshKeys {
+			keys.WriteString(sshKeys[i].Key)
+			keys.WriteString("\n")
+		}
+		cloudInitKeys := strings.ReplaceAll(url.QueryEscape(keys.String()), "+", "%20")
+
+		sshOption := gprox.VirtualMachineOption{
+			Name:  "sshkeys",
+			Value: cloudInitKeys,
+		}
+
+		if vm.VirtualMachineConfig.SSHKeys != cloudInitKeys {
+			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			t, err := vm.Config(ctx, sshOption)
+			cancel()
+			if err != nil {
+				logger.With("vmid", v.ID, "err", err).Error("Failed to set ssh keys on VM")
+				continue
+			}
+
+			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
+			cancel()
+			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
+			if !completed || !isSuccessful {
+				logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
+				continue
 			}
 		}
 
@@ -519,6 +547,8 @@ func configureVMs() {
 		if err != nil {
 			logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
 		}
+
+		logger.With("vm", vm, "vm.VirtualMachineConfig", vm.VirtualMachineConfig).Info("VM configured")
 	}
 }
 
