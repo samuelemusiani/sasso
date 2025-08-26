@@ -31,6 +31,11 @@ var (
 )
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
+	err := configChecks(config)
+	if err != nil {
+		return err
+	}
+
 	logger = proxmoxLogger
 
 	url := config.Url
@@ -61,20 +66,20 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 }
 
 func configChecks(config config.Proxmox) error {
-	idTemplate := strings.TrimSpace(cClone.IDTemplate)
+	idTemplate := strings.TrimSpace(config.Clone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
 		logger.Error("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'", "template", idTemplate)
 		return ErrInvalidCloneIDTemplate
 	}
 
-	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + cClone.VMIDUserDigits + cClone.VMIDVMDigits
+	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + config.Clone.VMIDUserDigits + config.Clone.VMIDVMDigits
 	if tmp < 3 || tmp > 9 {
 		logger.Error("Invalid Proxmox clone ID template. The total length must be between 3 and 9 characters", "template", idTemplate, "length", tmp)
 		return ErrInvalidCloneIDTemplate
 	}
 
-	if cClone.VMIDUserDigits < 1 || cClone.VMIDVMDigits < 1 {
-		logger.Error("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1", "user_digits", cClone.VMIDUserDigits, "vm_digits", cClone.VMIDVMDigits)
+	if config.Clone.VMIDUserDigits < 1 || config.Clone.VMIDVMDigits < 1 {
+		logger.Error("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1", "user_digits", config.Clone.VMIDUserDigits, "vm_digits", config.Clone.VMIDVMDigits)
 		return ErrInvalidCloneIDTemplate
 	}
 
