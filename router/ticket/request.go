@@ -88,7 +88,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 	}
 	nr.Broadcast = br
 
-	inter, err := gtw.NewInterface(nr.VNet, nr.VNetID, nr.RouterIP)
+	inter, err := gtw.NewInterface(nr.VNet, nr.VNetID, nr.Subnet, nr.RouterIP, nr.Broadcast)
 	if err != nil {
 		logger.With("error", err).Error("Failed to create new interface on gateway")
 		nr.Success = false

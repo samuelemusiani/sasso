@@ -52,12 +52,6 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
-	err = initNets()
-	if err != nil {
-		logger.With("error", err).Error("Failed to initialize nets in database")
-		return err
-	}
-
 	err = initInterfaces()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize subnets in database")

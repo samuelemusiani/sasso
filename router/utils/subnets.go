@@ -71,7 +71,8 @@ func NextAvailableSubnet() (string, error) {
 		lastModified = time.Now()
 	}
 
-	usedSubnets, err := db.GetAllSubnets()
+	usedSubnets, err := db.GetAllUsedSubnets()
+	logger.With("used_subnets", usedSubnets).Debug("Used subnets from database")
 	if err != nil {
 		logger.With("error", err).Error("Failed to get all used subnets from database")
 		return "", err

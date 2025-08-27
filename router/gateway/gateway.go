@@ -25,6 +25,10 @@ type Interface struct {
 	LocalID uint
 	VNet    string
 	VNetID  uint
+
+	Subnet    string
+	RouterIP  string
+	Broadcast string
 }
 
 func Init(l *slog.Logger, c config.Gateway) error {
@@ -53,7 +57,7 @@ func Get() Gateway {
 
 type Gateway interface {
 	Init(c config.Gateway) error
-	NewInterface(vnet string, vnetID uint, routerIP string) (*Interface, error)
+	NewInterface(vnet string, vnetID uint, subnet, routerIP, broadcast string) (*Interface, error)
 	RemoveInterface(id uint) error
 }
 
@@ -62,5 +66,9 @@ func (i *Interface) SaveToDB() error {
 		LocalID: i.LocalID,
 		VNet:    i.VNet,
 		VNetID:  i.VNetID,
+
+		Subnet:    i.Subnet,
+		RouterIP:  i.RouterIP,
+		Broadcast: i.Broadcast,
 	})
 }
