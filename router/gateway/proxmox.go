@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"samuelemusiani/sasso/router/config"
+	"samuelemusiani/sasso/router/utils"
 
 	"github.com/luthermonson/go-proxmox"
+	"github.com/vishvananda/netlink"
 )
 
 type ProxmoxGateway struct {
@@ -110,6 +112,60 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, routerIP string
 	_, _, err = waitForTaskCompletion(t)
 	if err != nil {
 		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		return nil, err
+	}
+
+	newVM, err := pg.getVM()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox VM")
+		return nil, err
+	}
+
+	// Just adding the interface on Proxmox and configuring the IP on cloud-init is not enough
+	// If the router is running the interface will not be configured until the next reboot
+	// So we need to get the MAC address of the new interface and configure it manually
+	// This implies that the router service is running on the Proxmox VM itself
+	newNets := newVM.VirtualMachineConfig.MergeNets()
+	newInterface := newNets["net"+strconv.Itoa(firstEmptyIndex)]
+	mac, err := extractMacFromInterfaceString(newInterface)
+	if err != nil {
+		logger.With("error", err).Error("Failed to extract MAC address from interface string")
+		return nil, err
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		logger.With("error", err).Error("Failed to list network interfaces on router")
+		return nil, err
+	}
+
+	var localIface *netlink.Link = nil
+	for i := range links {
+		if utils.AreMACsEqual(links[i].Attrs().HardwareAddr.String(), mac) {
+			localIface = &links[i]
+			break
+		}
+	}
+	if localIface == nil {
+		logger.With("mac", mac).Error("Failed to find network interface with given MAC address on router")
+		return nil, errors.New("Interface not found on router")
+	}
+
+	ipAddress, err := netlink.ParseAddr(routerIP)
+	if err != nil {
+		logger.With("error", err, "routerIP", routerIP).Error("Failed to parse router IP address")
+		return nil, err
+	}
+
+	err = netlink.AddrAdd(*localIface, ipAddress)
+	if err != nil {
+		logger.With("error", err, "ipAddress", ipAddress, "iface", (*localIface).Attrs().Name).Error("Failed to add IP address to network interface on router")
+		return nil, err
+	}
+
+	err = netlink.LinkSetUp(*localIface)
+	if err != nil {
+		logger.With("error", err, "iface", (*localIface).Attrs().Name).Error("Failed to bring up network interface on router")
 		return nil, err
 	}
 
@@ -212,4 +268,14 @@ func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
 	}
 
 	return true, true, nil
+}
+
+func extractMacFromInterfaceString(iface string) (string, error) {
+	parts := strings.SplitSeq(iface, ",")
+	for p := range parts {
+		if strings.HasPrefix(p, "virtio=") {
+			return strings.TrimPrefix(p, "virtio="), nil
+		}
+	}
+	return "", errors.New("mac_not_found")
 }

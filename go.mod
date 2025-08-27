@@ -40,8 +40,10 @@ require (
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/seancfoley/bintree v1.3.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/vishvananda/netlink v1.3.1 // indirect
+	github.com/vishvananda/netns v0.0.5 // indirect
 	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 )
 
