@@ -23,8 +23,8 @@ type NetworkRequest struct {
 
 type DeleteNetworkRequest struct {
 	Ticket
-	VNet    string
-	VNetID  uint
+	VNet   string
+	VNetID uint
 
 	Status  string `gorm:"not null;default:'pending'"`
 	Success bool   `gorm:"not null;default:false"`

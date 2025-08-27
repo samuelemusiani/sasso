@@ -163,8 +163,8 @@ func (nr *NetworkRequest) SaveToDB(ticketID string) error {
 }
 
 type DeleteNetworkRequest struct {
-	VNet    string `json:"vnet"`    // Name of the VNet to delete
-	VNetID  uint   `json:"vnet_id"` // ID of the VNet to delete
+	VNet   string `json:"vnet"`    // Name of the VNet to delete
+	VNetID uint   `json:"vnet_id"` // ID of the VNet to delete
 
 	Status  string // Status of the request
 	Success bool   // True if the request was successful
