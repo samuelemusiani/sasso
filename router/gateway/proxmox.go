@@ -50,6 +50,16 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 		proxmox.WithAPIToken(c.Proxmox.TokenID, c.Proxmox.Secret))
 
 	pg.vmid = c.Proxmox.VMID
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	version, err := pg.client.Version(ctx)
+	cancel()
+	if err != nil {
+		logger.With("err", err).Error("Reading Proxmox API version endpoint")
+		return err
+	}
+	logger.Info("Proxmox version", "version", version.Version)
+
 	return nil
 }
 
