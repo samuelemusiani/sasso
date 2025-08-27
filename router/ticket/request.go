@@ -9,7 +9,8 @@ import (
 type RequestType string
 
 var (
-	TypeNewNetworkRequest RequestType = "new-network"
+	TypeNewNetworkRequest    RequestType = "new-network"
+	TypeDeleteNetworkRequest RequestType = "delete-network"
 )
 
 type Request interface {
@@ -34,6 +35,18 @@ func requestFromDBByTicket(t *db.Ticket) (Request, error) {
 			Subnet:    r.Subnet,
 			RouterIP:  r.RouterIP,
 			Broadcast: r.Broadcast,
+		}, nil
+	case string(TypeDeleteNetworkRequest):
+		r, err := db.GetDeleteNetworkRequestByTicket(t)
+		if err != nil {
+			return nil, err
+		}
+		return &DeleteNetworkRequest{
+			VNet:    r.VNet,
+			VNetID:  r.VNetID,
+			Status:  r.Status,
+			Success: r.Success,
+			Error:   r.Error,
 		}, nil
 	default:
 		return nil, db.ErrNotFound
@@ -147,4 +160,80 @@ func (nr *NetworkRequest) SaveToDB(ticketID string) error {
 		RouterIP:  nr.RouterIP,
 		Broadcast: nr.Broadcast,
 	})
+}
+
+type DeleteNetworkRequest struct {
+	VNet    string `json:"vnet"`    // Name of the VNet to delete
+	VNetID  uint   `json:"vnet_id"` // ID of the VNet to delete
+
+	Status  string // Status of the request
+	Success bool   // True if the request was successful
+	Error   string // Error message if the request failed
+}
+
+func (dr *DeleteNetworkRequest) GetType() RequestType {
+	return TypeDeleteNetworkRequest
+}
+
+func (dr *DeleteNetworkRequest) Execute(gtw gateway.Gateway) error {
+	var iface *db.Interface
+	var err error
+
+	if dr.VNet != "" {
+		iface, err = db.GetInterfaceByVNet(dr.VNet)
+	} else {
+		iface, err = db.GetInterfaceByVNetID(dr.VNetID)
+	}
+
+	if err != nil {
+		logger.With("error", err, "vnet", dr.VNet, "vnet_id", dr.VNetID).Error("Failed to get interface from database")
+		dr.Success = false
+		dr.Error = err.Error()
+		dr.Status = "failed"
+		return err
+	}
+
+	err = gtw.RemoveInterface(iface.LocalID)
+	if err != nil {
+		logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway")
+		dr.Success = false
+		dr.Error = err.Error()
+		dr.Status = "failed"
+		return err
+	}
+
+	err = db.DeleteInterface(iface.ID)
+	if err != nil {
+		logger.With("error", err, "interface_id", iface.ID).Error("Failed to delete interface from database")
+		dr.Success = false
+		dr.Error = err.Error()
+		dr.Status = "failed"
+		return err
+	}
+
+	dr.Status = "completed"
+	dr.Success = true
+	return nil
+}
+
+func (dr *DeleteNetworkRequest) SaveToDB(ticketID string) error {
+	return db.SaveDeleteNetworkRequest(db.DeleteNetworkRequest{
+		Ticket: db.Ticket{
+			UUID:        ticketID,
+			RequestType: string(dr.GetType()),
+		},
+		VNet:    dr.VNet,
+		VNetID:  dr.VNetID,
+		Status:  dr.Status,
+		Success: dr.Success,
+		Error:   dr.Error,
+	})
+}
+
+func NewDeleteNetworkRequest(vnet string, vnetID uint) DeleteNetworkRequest {
+	return DeleteNetworkRequest{
+		VNet:   vnet,
+		VNetID: vnetID,
+		Status: "pending",
+	}
 }

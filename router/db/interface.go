@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Interface struct {
 	ID        uint `gorm:"primaryKey;autoIncrement"`
@@ -30,4 +34,32 @@ func GetAllUsedSubnets() ([]string, error) {
 		return nil, err
 	}
 	return subnets, nil
+}
+
+func GetInterfaceByVNet(vnet string) (*Interface, error) {
+	var iface Interface
+	if err := db.Where("v_net = ?", vnet).First(&iface).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		logger.With("error", err).Error("Failed to retrieve interface by VNet")
+		return nil, err
+	}
+	return &iface, nil
+}
+
+func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
+	var iface Interface
+	if err := db.Where("v_net_id = ?", vnetID).First(&iface).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		logger.With("error", err).Error("Failed to retrieve interface by VNet ID")
+		return nil, err
+	}
+	return &iface, nil
+}
+
+func DeleteInterface(id uint) error {
+	return db.Delete(&Interface{}, id).Error
 }

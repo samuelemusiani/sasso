@@ -46,6 +46,7 @@ func Init(apiLogger *slog.Logger, apiSecret string) error {
 	apiRouter.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
 		r.Post("/net", newNet)
+		r.Delete("/net/{id}", deleteNet)
 
 		r.Get("/ticket/{ticketID}", requestByTicket)
 	})

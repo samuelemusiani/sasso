@@ -133,22 +133,10 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, subnet, routerI
 		return nil, err
 	}
 
-	links, err := netlink.LinkList()
+	localIface, err := getLinkByMAC(mac)
 	if err != nil {
-		logger.With("error", err).Error("Failed to list network interfaces on router")
+		logger.With("err", err).Error("Failed to get link by mac address")
 		return nil, err
-	}
-
-	var localIface *netlink.Link = nil
-	for i := range links {
-		if utils.AreMACsEqual(links[i].Attrs().HardwareAddr.String(), mac) {
-			localIface = &links[i]
-			break
-		}
-	}
-	if localIface == nil {
-		logger.With("mac", mac).Error("Failed to find network interface with given MAC address on router")
-		return nil, errors.New("Interface not found on router")
 	}
 
 	ipAddress, err := netlink.ParseAddr(routerIP)
@@ -277,9 +265,25 @@ func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
 func extractMacFromInterfaceString(iface string) (string, error) {
 	parts := strings.SplitSeq(iface, ",")
 	for p := range parts {
-		if strings.HasPrefix(p, "virtio=") {
-			return strings.TrimPrefix(p, "virtio="), nil
+		tmps, found := strings.CutPrefix(p, "virtio=")
+		if found {
+			return tmps, nil
 		}
 	}
 	return "", errors.New("mac_not_found")
+}
+
+func getLinkByMAC(mac string) (*netlink.Link, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		logger.With("error", err).Error("Failed to list network interfaces on router")
+		return nil, err
+	}
+
+	for i := range links {
+		if utils.AreMACsEqual(links[i].Attrs().HardwareAddr.String(), mac) {
+			return &links[i], nil
+		}
+	}
+	return nil, errors.New("Interface not found on router")
 }
