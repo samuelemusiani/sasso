@@ -21,6 +21,14 @@ func AddInterface(inter *gateway.Interface) error {
 		return err
 	}
 
+	if err := shorewall.AddSnat(shorewall.Snat{
+		Action:      "MASQUERADE",
+		Source:      inter.Subnet,
+		Destination: inter.FirewallInterfaceName,
+	}); err != nil {
+		return err
+	}
+
 	if err := shorewall.AddPolicy(shorewall.Policy{
 		Source:      inter.VNet,
 		Destination: "out",
@@ -53,6 +61,14 @@ func DeleteInterface(inter *gateway.Interface) error {
 		Source:      inter.VNet,
 		Destination: "out",
 		Policy:      "ACCEPT",
+	}); err != nil {
+		return err
+	}
+
+	if err := shorewall.RemoveSnat(shorewall.Snat{
+		Action:      "MASQUERADE",
+		Source:      inter.Subnet,
+		Destination: inter.FirewallInterfaceName,
 	}); err != nil {
 		return err
 	}

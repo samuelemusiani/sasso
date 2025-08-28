@@ -120,7 +120,7 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		return err
 	}
 
-	err = fw.NewInterface(inter)
+	err = fw.AddInterface(inter)
 	if err != nil {
 		logger.With("error", err).Error("Failed to create new interface on firewall")
 		nr.Success = false
@@ -207,7 +207,8 @@ func (dr *DeleteNetworkRequest) Execute(gtw gateway.Gateway) error {
 
 	err = gtw.RemoveInterface(iface.LocalID)
 	if err != nil {
-		logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway") dr.Success = false
+		logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway")
+		dr.Success = false
 		dr.Error = err.Error()
 		dr.Status = "failed"
 		return err
