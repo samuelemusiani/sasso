@@ -175,6 +175,8 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, subnet, routerI
 		Subnet:    subnet,
 		RouterIP:  routerIP,
 		Broadcast: broadcast,
+
+		FirewallInterfaceName: (*localIface).Attrs().Name,
 	}, nil
 }
 

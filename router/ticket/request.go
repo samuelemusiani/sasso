@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -119,6 +120,15 @@ func (nr *NetworkRequest) Execute(gtw gateway.Gateway) error {
 		return err
 	}
 
+	err = fw.NewInterface(inter)
+	if err != nil {
+		logger.With("error", err).Error("Failed to create new interface on firewall")
+		nr.Success = false
+		nr.Error = err.Error()
+		nr.Status = "failed"
+		return err
+	}
+
 	nr.Status = "completed"
 	nr.Success = true
 	return nil
@@ -176,14 +186,16 @@ func (dr *DeleteNetworkRequest) GetType() RequestType {
 }
 
 func (dr *DeleteNetworkRequest) Execute(gtw gateway.Gateway) error {
-	var iface *db.Interface
+	var dbIface *db.Interface
 	var err error
 
 	if dr.VNet != "" {
-		iface, err = db.GetInterfaceByVNet(dr.VNet)
+		dbIface, err = db.GetInterfaceByVNet(dr.VNet)
 	} else {
-		iface, err = db.GetInterfaceByVNetID(dr.VNetID)
+		dbIface, err = db.GetInterfaceByVNetID(dr.VNetID)
 	}
+
+	iface := gateway.InterfaceFromDB(dbIface)
 
 	if err != nil {
 		logger.With("error", err, "vnet", dr.VNet, "vnet_id", dr.VNetID).Error("Failed to get interface from database")
@@ -195,8 +207,7 @@ func (dr *DeleteNetworkRequest) Execute(gtw gateway.Gateway) error {
 
 	err = gtw.RemoveInterface(iface.LocalID)
 	if err != nil {
-		logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway")
-		dr.Success = false
+		logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway") dr.Success = false
 		dr.Error = err.Error()
 		dr.Status = "failed"
 		return err
@@ -205,6 +216,15 @@ func (dr *DeleteNetworkRequest) Execute(gtw gateway.Gateway) error {
 	err = db.DeleteInterface(iface.ID)
 	if err != nil {
 		logger.With("error", err, "interface_id", iface.ID).Error("Failed to delete interface from database")
+		dr.Success = false
+		dr.Error = err.Error()
+		dr.Status = "failed"
+		return err
+	}
+
+	err = fw.DeleteInterface(iface)
+	if err != nil {
+		logger.With("error", err, "interface_id", iface.ID).Error("Failed to delete interface from firewall")
 		dr.Success = false
 		dr.Error = err.Error()
 		dr.Status = "failed"

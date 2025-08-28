@@ -21,7 +21,7 @@ var (
 type Interface struct {
 	// Global unique ID for this interface
 	ID uint
-	// Local ID on the gateway (e.g., if the gateway is Proxmox this is the ID of the interface on Proxmox)
+	// Local ID on the gateway (e.g., if the gateway is Proxmox this is the ID of the interface on Proxmox net0, net1, etc)
 	LocalID uint
 	VNet    string
 	VNetID  uint
@@ -29,6 +29,9 @@ type Interface struct {
 	Subnet    string
 	RouterIP  string
 	Broadcast string
+
+	// Name of the interface on the gateway. enpXsY or ethX or similar
+	FirewallInterfaceName string
 }
 
 func Init(l *slog.Logger, c config.Gateway) error {
@@ -70,5 +73,24 @@ func (i *Interface) SaveToDB() error {
 		Subnet:    i.Subnet,
 		RouterIP:  i.RouterIP,
 		Broadcast: i.Broadcast,
+
+		FirewallInterfaceName: i.FirewallInterfaceName,
 	})
+}
+
+func InterfaceFromDB(dbIface *db.Interface) *Interface {
+	if dbIface == nil {
+		return nil
+	}
+
+	return &Interface{
+		ID:                    dbIface.ID,
+		LocalID:               dbIface.LocalID,
+		VNet:                  dbIface.VNet,
+		VNetID:                dbIface.VNetID,
+		Subnet:                dbIface.Subnet,
+		RouterIP:              dbIface.RouterIP,
+		Broadcast:             dbIface.Broadcast,
+		FirewallInterfaceName: dbIface.FirewallInterfaceName,
+	}
 }

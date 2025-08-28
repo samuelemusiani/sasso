@@ -18,6 +18,8 @@ type Interface struct {
 	Subnet    string `gorm:"not null;unique"` // Subnet of the VNet
 	RouterIP  string `gorm:"not null;unique"` // Router IP of the VNet
 	Broadcast string `gorm:"not null"`        // Broadcast address of the VNet
+
+	FirewallInterfaceName string `gorm:"not null"` // Name of the interface on the firewall
 }
 
 func initInterfaces() error {
