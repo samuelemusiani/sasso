@@ -2,6 +2,9 @@ volumes:
   lldap_data:
     driver: local
 
+  db_sasso_data:
+    driver: local
+
 services:
   db-sasso:
     image: postgres
@@ -17,6 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    volumes:
+      - db_sasso_data:/var/lib/postgresql/data
 
   db-sasso-router:
     image: postgres
