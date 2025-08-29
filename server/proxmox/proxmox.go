@@ -21,6 +21,7 @@ var (
 	cTemplate *config.ProxmoxTemplate = nil
 	cClone    *config.ProxmoxClone    = nil
 	cNetwork  *config.ProxmoxNetwork  = nil
+	cGateway  *config.Gateway         = nil
 
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
 	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
@@ -30,7 +31,7 @@ var (
 	isProxmoxReachable = true
 )
 
-func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
+func Init(proxmoxLogger *slog.Logger, config config.Proxmox, gtwConfig config.Gateway) error {
 	err := configChecks(config)
 	if err != nil {
 		return err
@@ -61,6 +62,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	cTemplate = &config.Template
 	cClone = &config.Clone
 	cNetwork = &config.Network
+	cGateway = &gtwConfig
 
 	return nil
 }

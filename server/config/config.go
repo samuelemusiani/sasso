@@ -9,6 +9,7 @@ type Config struct {
 	Database Database `toml:"database"`
 	Secrets  Secrets  `toml:"secrets"`
 	Proxmox  Proxmox  `toml:"proxmox"`
+	Gateway  Gateway  `toml:"gateway"`
 }
 
 type Server struct {
@@ -54,6 +55,11 @@ type ProxmoxNetwork struct {
 	SDNZone      string `toml:"sdn_zone"`
 	VXLANIDStart uint32 `toml:"vxlan_id_start"`
 	VXLANIDEnd   uint32 `toml:"vxlan_id_end"`
+}
+
+type Gateway struct {
+	Server string `toml:"server"`
+	Secret string `toml:"secret"`
 }
 
 var config Config = Config{}

@@ -50,3 +50,8 @@ full = true
 sdn_zone = "sasso"
 vxlan_id_start = 1000
 vxlan_id_end = 2000
+
+[gateway]
+# Gateway service address
+server = "http://localhost:9000"
+secret = "supersegreto"

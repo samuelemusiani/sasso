@@ -89,7 +89,7 @@ func main() {
 	// Proxmox
 	slog.Debug("Initializing proxmox module")
 	proxmoxLogger := slog.With("module", "proxmox")
-	err = proxmox.Init(proxmoxLogger, c.Proxmox)
+	err = proxmox.Init(proxmoxLogger, c.Proxmox, c.Gateway)
 	if err != nil {
 		slog.With("error", err).Error("Failed to initialize Proxmox client")
 		os.Exit(1)
