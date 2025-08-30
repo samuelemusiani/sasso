@@ -150,10 +150,80 @@ func createVNets() {
 
 		logger.With("vnet", v.Name, "status_code", res.StatusCode).Debug("Net request sent")
 
-		// Update all VNets status to 'created'
-		err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+		ticketResponse := struct {
+			TicketID string `json:"ticket_id"`
+		}{}
+		err = json.NewDecoder(res.Body).Decode(&ticketResponse)
 		if err != nil {
-			logger.With("vnet", v.Name, "new_status", VNetStatusReady, "err", err).Error("Failed to update status of VNet")
+			logger.With("vnet", v.Name, "err", err).Error("Failed to decode net request response")
+			continue
+		}
+
+		logger.With("vnet", v.Name, "ticket_id", ticketResponse.TicketID).Info("Net request ticket created")
+
+		netResponse := struct {
+			ID          uint   `json:"id"`           // ID of the request
+			RequestType string `json:"request_type"` // Type of the request (e.g., "new_network", "delete_network")
+			Request     struct {
+				VNet   string `json:"vnet"`    // Name of the new VNet
+				VNetID uint   `json:"vnet_id"` // ID of the new VNet (VXLAN ID)
+
+				Status  string `json:"status"`  // Status of the request
+				Success bool   `json:"success"` // True if the request was successful
+				Error   string `json:"error"`   // Error message if the request failed
+
+				Subnet    string `json:"Subnet"`    // Subnet of the new VNet
+				RouterIP  string `json:"router_ip"` // Router IP of the new VNet
+				Broadcast string `json:"broadcast"` // Broadcast address of the new VNet
+			} `json:"request"`
+		}{}
+
+		for {
+			req, err := http.NewRequest("GET", cGateway.Server+"/api/ticket/"+ticketResponse.TicketID, nil)
+			if err != nil {
+				logger.With("vnet", v.Name, "err", err).Error("Failed to create ticket status request")
+				break
+			}
+
+			req.Header.Set("Authorization", cGateway.Secret)
+			res, err := client.Do(req)
+			if err != nil {
+				logger.With("vnet", v.Name, "err", err).Error("Failed to send ticket status request")
+				break
+			}
+
+			err = json.NewDecoder(res.Body).Decode(&netResponse)
+			if err != nil {
+				logger.With("vnet", v.Name, "err", err).Error("Failed to decode ticket status response")
+				break
+			}
+			logger.With("vnet", v.Name, "net_response", netResponse).Debug("Ticket status response")
+
+			if netResponse.Request.Status == "completed" {
+				break
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+
+		if netResponse.Request.Status != "completed" {
+			continue
+		}
+
+		net, err := db.GetNetByID(v.ID)
+		if err != nil {
+			logger.With("vnet", v.Name, "err", err).Error("Failed to get net by ID")
+			continue
+		}
+
+		net.Status = string(VNetStatusReady)
+		net.Subnet = netResponse.Request.Subnet
+		net.Gateway = netResponse.Request.RouterIP
+		net.Broadcast = netResponse.Request.Broadcast
+
+		err = db.UpdateVNet(net)
+		if err != nil {
+			logger.With("vnet", net).Error("Failed to update status of VNet")
 		}
 	}
 }

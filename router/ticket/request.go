@@ -55,16 +55,16 @@ func requestFromDBByTicket(t *db.Ticket) (Request, error) {
 }
 
 type NetworkRequest struct {
-	VNet   string // Name of the new VNet
-	VNetID uint   // ID of the new VNet (VXLAN ID)
+	VNet   string `json:"vnet"`    // Name of the new VNet
+	VNetID uint   `json:"vnet_id"` // ID of the new VNet (VXLAN ID)
 
-	Status  string // Status of the request
-	Success bool   // True if the request was successful
-	Error   string // Error message if the request failed
+	Status  string `json:"status"`  // Status of the request
+	Success bool   `json:"success"` // True if the request was successful
+	Error   string `json:"error"`   // Error message if the request failed
 
-	Subnet    string // Subnet of the new VNet
-	RouterIP  string // Router IP of the new VNet
-	Broadcast string // Broadcast address of the new VNet
+	Subnet    string `json:"Subnet"`    // Subnet of the new VNet
+	RouterIP  string `json:"router_ip"` // Router IP of the new VNet
+	Broadcast string `json:"broadcast"` // Broadcast address of the new VNet
 }
 
 func (nr *NetworkRequest) GetType() RequestType {

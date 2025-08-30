@@ -11,6 +11,10 @@ type Net struct {
 	Tag       uint32 `gorm:"not null;uniqueIndex"` // Unique tag for the network
 	VlanAware bool   `gorm:"not null;default:false"`
 
+	Subnet    string `gorm:"not null"`
+	Gateway   string `gorm:"not null"`
+	Broadcast string `gorm:"not null"`
+
 	UserID uint   `gorm:"not null"`
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
 }
@@ -116,5 +120,14 @@ func DeleteNetByID(ID uint) error {
 		return err
 	}
 	logger.With("netID", ID).Info("Deleted network")
+	return nil
+}
+
+func UpdateVNet(net *Net) error {
+	if err := db.Save(net).Error; err != nil {
+		logger.With("netID", net.ID, "error", err).Error("Failed to update network")
+		return err
+	}
+	logger.With("netID", net.ID).Info("Updated network")
 	return nil
 }
