@@ -12,8 +12,9 @@ Sasso provides resource management for each user through a web interface.
 It creates every virtual machine in a separate Proxmox VNet using a VXLAN Zone
 to keep the VMs from differente users isolated from each other.
 
-At the moment Sasso is in an very early stage of development and is not
-fully functional.
+> [!WARNING]
+> At the moment Sasso is in an very early stage of development and is not
+> fully functional. Expect bugs, missing features and breaking changes.
 
 This service was developed to be used by [ADMStaff](https://students.cs.unibo.it).
 
