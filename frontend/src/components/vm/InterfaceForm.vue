@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
 
@@ -27,9 +27,20 @@ const currentSubnet = computed(() => {
 
 const currentGateway = computed(() => {
   const net = nets.value.find((n) => n.id === form.value.vnet_id)
-  form.value.gateway = net ? net.gateway : ''
   return net ? net.gateway : ''
 })
+
+watch(
+  () => form.value.vnet_id,
+  (newVnetId) => {
+    const net = nets.value.find((n) => n.id === newVnetId)
+    if (net) {
+      form.value.gateway = net.gateway
+    } else {
+      form.value.gateway = ''
+    }
+  },
+)
 
 function fetchNets() {
   api
