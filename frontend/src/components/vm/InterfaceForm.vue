@@ -1,0 +1,139 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { api } from '@/lib/api'
+import type { Interface, Net } from '@/types'
+
+const $props = defineProps<{
+  vmid: number
+  interface?: Interface
+}>()
+
+const $emit = defineEmits(['interfaceAdded', 'interfaceUpdated', 'cancel'])
+
+const nets = ref<Net[]>([])
+const editing = ref(!!$props.interface)
+
+const form = ref({
+  vnet_id: $props.interface?.vnet_id || 0,
+  vlan_tag: $props.interface?.vlan_tag || 0,
+  ip_add: $props.interface?.ip_add || '',
+  gateway: $props.interface?.gateway || '',
+})
+
+const currentSubnet = computed(() => {
+  const net = nets.value.find((n) => n.id === form.value.vnet_id)
+  return net ? net.subnet : ''
+})
+
+const currentGateway = computed(() => {
+  const net = nets.value.find((n) => n.id === form.value.vnet_id)
+  form.value.gateway = net ? net.gateway : ''
+  return net ? net.gateway : ''
+})
+
+function fetchNets() {
+  api
+    .get('/net')
+    .then((res) => {
+      nets.value = res.data as Net[]
+      if (!$props.interface && nets.value.length > 0) {
+        form.value.vnet_id = nets.value[0].id
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to fetch nets:', err)
+    })
+}
+
+function handleSubmit() {
+  if (editing.value) {
+    updateInterface()
+  } else {
+    addInterface()
+  }
+}
+
+function addInterface() {
+  api
+    .post(`/vm/${$props.vmid}/interface`, form.value)
+    .then(() => {
+      $emit('interfaceAdded')
+    })
+    .catch((err) => {
+      console.error('Failed to add interface:', err)
+    })
+}
+
+function updateInterface() {
+  if (!$props.interface) return
+  api
+    .put(`/vm/${$props.vmid}/interface/${$props.interface.id}`, form.value)
+    .then(() => {
+      $emit('interfaceUpdated')
+    })
+    .catch((err) => {
+      console.error('Failed to update interface:', err)
+    })
+}
+
+onMounted(() => {
+  fetchNets()
+})
+</script>
+
+<template>
+  <div class="p-4 border rounded-lg">
+    <h2 class="text-xl mb-4">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
+    <form @submit.prevent="handleSubmit" class="space-y-4">
+      <div>
+        <label for="net" class="block text-sm font-medium text-gray-700">Network:</label>
+        <select id="net" v-model="form.vnet_id" class="border p-2 rounded-lg w-full">
+          <option v-for="net in nets" :key="net.id" :value="net.id">
+            {{ net.name }}
+          </option>
+        </select>
+      </div>
+      <div>
+        <div>Subnet: {{ currentSubnet }}</div>
+        <div>Gateway: {{ currentGateway }}</div>
+      </div>
+      <div>
+        <label for="vlan_tag" class="block text-sm font-medium text-gray-700">VLAN Tag:</label>
+        <input
+          type="number"
+          id="vlan_tag"
+          v-model.number="form.vlan_tag"
+          class="border p-2 rounded-lg w-full"
+        />
+      </div>
+      <div>
+        <label for="ip_add" class="block text-sm font-medium text-gray-700">IP Address:</label>
+        <input type="text" id="ip_add" v-model="form.ip_add" class="border p-2 rounded-lg w-full" />
+      </div>
+      <div>
+        <label for="gateway" class="block text-sm font-medium text-gray-700">Gateway:</label>
+        <input
+          type="text"
+          id="gateway"
+          v-model="form.gateway"
+          class="border p-2 rounded-lg w-full"
+        />
+      </div>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded"
+        >
+          {{ editing ? 'Update' : 'Add' }}
+        </button>
+        <button
+          @click="$emit('cancel')"
+          type="button"
+          class="bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</template>

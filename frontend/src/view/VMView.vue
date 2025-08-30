@@ -136,6 +136,11 @@ onMounted(() => {
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <RouterLink
+                :to="`/vm/${vm.id}/interfaces`"
+                class="text-indigo-600 hover:text-indigo-900 mr-4"
+                >Interfaces</RouterLink
+              >
               <button @click="deleteVM(vm.id)" class="bg-red-400 p-2 rounded-lg hover:bg-red-300">
                 Delete
               </button>

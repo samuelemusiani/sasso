@@ -22,6 +22,8 @@ type VM struct {
 	Disk  uint `gorm:"not null;default:4"`
 
 	IncludeGlobalSSHKeys bool `gorm:"not null"`
+
+	Interfaces []Interface `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
 }
 
 func initVMs() error {

@@ -1,10 +1,14 @@
 package proxmox
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/luthermonson/go-proxmox"
 )
 
 const base62Alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -111,4 +115,46 @@ func parseStorageFromString(s string) (*Storage, error) {
 	}
 
 	return &st, nil
+}
+
+func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	resources, err := cluster.Resources(ctx, "vm")
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	// Map VMID to Node
+	vmNodes := make(map[uint64]string)
+	for _, r := range resources {
+		if r.Type != "qemu" {
+			continue
+		}
+		vmNodes[r.VMID] = r.Node
+	}
+
+	return vmNodes, nil
+}
+
+func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 120, 1)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		return false, false, err
+	}
+
+	if !completed {
+		logger.Error("Proxmox task did not complete in time")
+		return false, false, errors.New("task_timeout")
+	}
+
+	if !isSuccessful {
+		logger.Error("Proxmox task failed")
+		return false, true, errors.New("task_failed")
+	}
+
+	return true, true, nil
 }

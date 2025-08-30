@@ -53,7 +53,24 @@ func Init(apiLogger *slog.Logger, key []byte) {
 		r.Get("/vm", vms)
 		r.Post("/vm", newVM)
 
-		r.Delete("/vm/{id}", deleteVM)
+		// Group VM-specific endpoints with additional middleware
+		r.Route("/vm/{vmid}", func(r chi.Router) {
+			// Add VM-specific middleware here (e.g., VM ownership validation)
+			r.Use(validateVMOwnership())
+
+			r.Delete("/", deleteVM)
+
+			r.Get("/interface", getInterfaces)
+			r.Post("/interface", addInterface)
+
+			r.Route("/interface/{ifaceid}", func(r chi.Router) {
+				// Add Interface-specific middleware here (e.g., Interface ownership validation)
+				r.Use(validateInterfaceOwnership())
+
+				r.Put("/", updateInterface)
+				r.Delete("/", deleteInterface)
+			})
+		})
 
 		r.Post("/net", createNet)
 		r.Get("/net", listNets)

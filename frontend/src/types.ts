@@ -39,10 +39,21 @@ export interface Net {
   vlanaware: boolean
   userid: number
   status: string
+  subnet: string
+  gateway: string
 }
 
 export interface SSHKey {
   id: number
   name: string
   key: string
+}
+
+export interface Interface {
+  id: number
+  vnet_id: number
+  vlan_tag: number
+  ip_add: string
+  gateway: string
+  status: string
 }

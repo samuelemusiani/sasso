@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/bcrypt"
@@ -262,4 +265,100 @@ func authenticator(username, password string, realm uint) (*db.User, error) {
 	}
 
 	return user, nil
+}
+
+func validateVMOwnership() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hfn := func(w http.ResponseWriter, r *http.Request) {
+			userID, err := getUserIDFromContext(r)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			svmID := chi.URLParam(r, "vmid")
+			vmID, err := strconv.ParseUint(svmID, 10, 64)
+			if err != nil {
+				http.Error(w, "invalid vm id", http.StatusBadRequest)
+				return
+			}
+
+			vm, err := db.GetVMByID(vmID)
+			if err != nil {
+				http.Error(w, "vm not found", http.StatusBadRequest)
+				return
+			}
+
+			if vm.UserID != userID {
+				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+				return
+			}
+
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "vm_id", vm)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+
+		return http.HandlerFunc(hfn)
+	}
+}
+
+func getVMFromContext(r *http.Request) *db.VM {
+	vm, ok := r.Context().Value("vm_id").(*db.VM)
+	if !ok {
+		panic("getVMFromContext: vm_id not found in context")
+	}
+	return vm
+}
+
+func validateInterfaceOwnership() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hfn := func(w http.ResponseWriter, r *http.Request) {
+			userID, err := getUserIDFromContext(r)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			sifaceID := chi.URLParam(r, "ifaceid")
+			ifaceID, err := strconv.ParseUint(sifaceID, 10, 32)
+			if err != nil {
+				http.Error(w, "invalid interface id", http.StatusBadRequest)
+				return
+			}
+
+			iface, err := db.GetInterfaceByID(uint(ifaceID))
+			if err != nil {
+				http.Error(w, "interface not found", http.StatusBadRequest)
+				return
+			}
+
+			n, err := db.GetNetByID(iface.VNetID)
+			if err != nil {
+				http.Error(w, "vnet not found", http.StatusBadRequest)
+				return
+			}
+
+			if n.UserID != userID {
+				http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+				return
+			}
+
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "interface_id", iface)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+
+		return http.HandlerFunc(hfn)
+	}
+}
+
+func getInterfaceFromContext(r *http.Request) *db.Interface {
+	iface, ok := r.Context().Value("interface_id").(*db.Interface)
+	if !ok {
+		panic("getInterfaceFromContext: interface_id not found in context")
+	}
+	return iface
 }

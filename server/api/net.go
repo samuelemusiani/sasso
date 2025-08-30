@@ -20,6 +20,9 @@ type returnNet struct {
 	Name      string `json:"name"`
 	Status    string `json:"status"`
 	VlanAware bool   `json:"vlanaware"`
+
+	Subnet  string `json:"subnet"`
+	Gateway string `json:"gateway"`
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +83,8 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			Name:      net.Alias,
 			Status:    net.Status,
 			VlanAware: net.VlanAware,
+			Subnet:    net.Subnet,
+			Gateway:   net.Gateway,
 		}
 	}
 
