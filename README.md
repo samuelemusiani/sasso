@@ -28,7 +28,8 @@ certain wa:
   you could add an `IPSet` with all the proxmox nodes in the cluster and then
   add a cluster firewall rule from the IPSet to the same IPSet, protocol `udp`
   and destination port `4789`.
-* Have a template for a VM to clone.
+* Have a template for a VM to clone. The template must have the
+  `cloud-init` option enabled and should be without any network interface.
 * Generate an API token with all the necessary permissions.
 
 ## Development
