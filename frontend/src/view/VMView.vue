@@ -53,6 +53,39 @@ function deleteVM(vmid: number) {
   }
 }
 
+function startVM(vmid: number) {
+  api
+    .post(`/vm/${vmid}/start`)
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to start VM:', err)
+    })
+}
+
+function stopVM(vmid: number) {
+  api
+    .post(`/vm/${vmid}/stop`)
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to stop VM:', err)
+    })
+}
+
+function restartVM(vmid: number) {
+  api
+    .post(`/vm/${vmid}/restart`)
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to restart VM:', err)
+    })
+}
+
 onMounted(() => {
   fetchVMs()
 })
@@ -86,6 +119,13 @@ onMounted(() => {
       <p>
         Including the global SSH keys will allow for better troubleshooting if something is not
         working.
+      </p>
+    </div>
+    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+      <p class="font-bold">Warning</p>
+      <p>
+        Stopping and restarting VMs is like pulling the power cord, it is not a graceful shutdown.
+        Use with caution and only if necessary (like when the VM is not responding).
       </p>
     </div>
 
@@ -141,6 +181,27 @@ onMounted(() => {
                 class="text-indigo-600 hover:text-indigo-900 mr-4"
                 >Interfaces</RouterLink
               >
+              <button
+                v-if="vm.status === 'stopped'"
+                @click="startVM(vm.id)"
+                class="bg-green-400 p-2 rounded-lg hover:bg-green-300 mr-2"
+              >
+                Start
+              </button>
+              <button
+                v-if="vm.status === 'running'"
+                @click="stopVM(vm.id)"
+                class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 mr-2"
+              >
+                Stop
+              </button>
+              <button
+                v-if="vm.status === 'running'"
+                @click="restartVM(vm.id)"
+                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 mr-2"
+              >
+                Restart
+              </button>
               <button @click="deleteVM(vm.id)" class="bg-red-400 p-2 rounded-lg hover:bg-red-300">
                 Delete
               </button>

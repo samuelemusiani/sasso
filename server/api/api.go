@@ -58,7 +58,12 @@ func Init(apiLogger *slog.Logger, key []byte) {
 			// Add VM-specific middleware here (e.g., VM ownership validation)
 			r.Use(validateVMOwnership())
 
+			r.Get("/", getVM)
 			r.Delete("/", deleteVM)
+
+			r.Post("/start", changeVMState("start"))
+			r.Post("/stop", changeVMState("stop"))
+			r.Post("/restart", changeVMState("restart"))
 
 			r.Get("/interface", getInterfaces)
 			r.Post("/interface", addInterface)

@@ -869,9 +869,14 @@ func createInterfaces() {
 			logger.With("error", err).Error("Failed to add network interface to Proxmox VM")
 			continue
 		}
-		_, _, err = waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			continue
+		}
+
+		if !isSuccessful {
+			logger.Error("Failed to add network interface to Proxmox VM")
 			continue
 		}
 
@@ -892,9 +897,13 @@ func createInterfaces() {
 			logger.With("error", err).Error("Failed to configure network interface on Proxmox VM")
 			continue
 		}
-		_, _, err = waitForProxmoxTaskCompletion(t)
+		isSuccessful, err = waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			continue
+		}
+		if !isSuccessful {
+			logger.Error("Failed to configure network interface on Proxmox VM")
 			continue
 		}
 
@@ -970,9 +979,13 @@ func deleteInterfaces() {
 			continue
 		}
 
-		_, _, err = waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			continue
+		}
+		if !isSuccessful {
+			logger.Error("Failed to remove network interface from Proxmox VM")
 			continue
 		}
 

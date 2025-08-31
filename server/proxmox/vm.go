@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"samuelemusiani/sasso/server/db"
+
+	goprox "github.com/luthermonson/go-proxmox"
 )
 
 type VMStatus string
@@ -32,7 +34,8 @@ var (
 	VMStatusPreConfiguring VMStatus = "pre-configuring"
 	VMStatusConfiguring    VMStatus = "configuring"
 
-	ErrVMNotFound error = errors.New("VM not found")
+	ErrVMNotFound     error = errors.New("VM not found")
+	ErrInvalidVMState error = errors.New("invalid VM state for this action")
 )
 
 type VM struct {
@@ -165,6 +168,134 @@ func DeleteVM(userID uint, vmID uint64) error {
 
 	logger.With("userID", userID, "vmID", vmID).
 		Info("VM set to 'deleting' successfully")
+
+	return nil
+}
+
+func ChangeVMStatus(userID uint, vmID uint64, action string) error {
+	vm, err := db.GetVMByUserIDAndVMID(userID, vmID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			logger.With("userID", userID, "vmID", vmID).
+				Warn("VM not found for changing status")
+			return ErrVMNotFound
+		} else {
+			logger.With("userID", userID, "vmID", vmID, "error", err).
+				Error("Failed to get VM from database for changing status")
+			return err
+		}
+	}
+
+	switch action {
+	case "start":
+		if vm.Status != string(VMStatusStopped) {
+			logger.With("userID", userID, "vmID", vmID, "status", vm.Status).
+				Warn("VM is not in 'stopped' state, cannot start")
+			return nil
+		}
+	case "stop", "restart":
+		if vm.Status != string(VMStatusRunning) {
+			logger.With("userID", userID, "vmID", vmID, "status", vm.Status).
+				Warn("VM is not in 'running' state, cannot stop or restart")
+			return nil
+		}
+	default:
+		return ErrInvalidVMState
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	clustr, err := client.Cluster(ctx)
+	cancel()
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "error", err).
+			Error("Failed to get Proxmox cluster for changing VM status")
+	}
+
+	vmNodes, err := mapVMIDToProxmoxNodes(clustr)
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "error", err).
+			Error("Failed to map VM IDs to Proxmox nodes for changing VM status")
+	}
+
+	nodeName, exists := vmNodes[vmID]
+	if !exists {
+		logger.With("userID", userID, "vmID", vmID).
+			Error("VM ID not found in Proxmox cluster for changing VM status")
+		return ErrVMNotFound
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	node, err := client.Node(ctx, nodeName)
+	cancel()
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "node", nodeName, "error", err).
+			Error("Failed to get Proxmox node for changing VM status")
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	vmr, err := node.VirtualMachine(ctx, int(vmID))
+	cancel()
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "node", nodeName, "error", err).
+			Error("Failed to get Proxmox VM for changing VM status")
+		return ErrVMNotFound
+	}
+
+	switch action {
+	case "start":
+		if vmr.Status != "stopped" {
+			logger.With("userID", userID, "vmID", vmID, "node", nodeName, "status", vmr.Status).
+				Warn("VM is not in 'stopped' state in Proxmox, cannot start")
+			return ErrInvalidVMState
+		}
+	case "stop", "restart":
+		if vmr.Status != "running" {
+			logger.With("userID", userID, "vmID", vmID, "node", nodeName, "status", vmr.Status).
+				Warn("VM is not in 'running' state in Proxmox, cannot stop or restart")
+			return ErrInvalidVMState
+		}
+	default:
+		return ErrInvalidVMState
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	var task *goprox.Task
+	switch action {
+	case "start":
+		task, err = vmr.Start(ctx)
+	case "stop":
+		task, err = vmr.Stop(ctx)
+	case "restart":
+		task, err = vmr.Reset(ctx)
+	}
+	cancel()
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "node", nodeName, "error", err).
+			Error(fmt.Sprintf("Failed to %s VM in Proxmox", action))
+		return err
+	}
+
+	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	if err != nil {
+		logger.With("userID", userID, "vmID", vmID, "node", nodeName, "error", err).
+			Error(fmt.Sprintf("Failed to wait for Proxmox task completion when trying to %s VM", action))
+		return err
+	}
+
+	if !isSuccessful {
+		logger.With("userID", userID, "vmID", vmID, "node", nodeName).
+			Error("Proxmox task to start VM was not successful")
+		return ErrTaskFailed
+	}
+
+	if err := db.UpdateVMStatus(vmID, string(VMStatusRunning)); err != nil {
+		logger.With("userID", userID, "vmID", vmID, "error", err).
+			Error("Failed to update VM status from database")
+		return err
+	}
+
+	logger.With("userID", userID, "vmID", vmID).Info(fmt.Sprintf("VM %sed successfully", action))
 
 	return nil
 }

@@ -114,6 +114,24 @@ onMounted(() => {
         @cancel="handleCancel"
       />
     </div>
+    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+      <p class="font-bold">Warning</p>
+      <p>
+        Adding interfaces while the VM is running is possible. The VM will see the interface, but it
+        will not be configured inside the VM. To have the interface configured, you will need to
+        restart the VM.
+      </p>
+    </div>
+    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+      <p class="font-bold">Information</p>
+      <p>
+        The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
+        used to separate different VMs at layer 2. Interfaces with the same VLAN tag can communicate
+        with each other but not with interfaces with different VLAN tags. The gateway is on the
+        untagged vlan (vlan 0). If you want to reach the internet with a VM, it needs to have at
+        least one interface with vlan tag 0.
+      </p>
+    </div>
 
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">

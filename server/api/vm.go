@@ -64,6 +64,19 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func getVM(w http.ResponseWriter, r *http.Request) {
+	vm := getVMFromContext(r)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(vm); err != nil {
+		logger.With("vmID", vm.ID, "error", err).Error("Failed to encode VM to JSON")
+		http.Error(w, "Failed to encode VM to JSON", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func deleteVM(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vmID := getVMFromContext(r).ID
@@ -79,4 +92,34 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func changeVMState(action string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := mustGetUserIDFromContext(r)
+		vmID := getVMFromContext(r).ID
+
+		var err error
+		switch action {
+		case "start", "stop", "restart":
+			err = proxmox.ChangeVMStatus(userID, vmID, action)
+		default:
+			http.Error(w, "Invalid action", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			logger.With("userID", userID, "vmID", vmID, "action", action, "error", err).Error("Failed to change VM state")
+			if errors.Is(err, proxmox.ErrVMNotFound) {
+				http.Error(w, "Failed to change VM state", http.StatusNotFound)
+			} else if errors.Is(err, proxmox.ErrInvalidVMState) {
+				http.Error(w, "Invalid VM state for this action", http.StatusConflict)
+			} else {
+				http.Error(w, "Failed to change VM state", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

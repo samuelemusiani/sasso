@@ -137,24 +137,23 @@ func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) 
 	return vmNodes, nil
 }
 
-func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 120, 1)
+func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 240, 1)
 	cancel()
 	if err != nil {
 		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
-		return false, false, err
+		return false, err
 	}
 
 	if !completed {
-		logger.Error("Proxmox task did not complete in time")
-		return false, false, errors.New("task_timeout")
+		return waitForProxmoxTaskCompletion(t)
 	}
 
 	if !isSuccessful {
 		logger.Error("Proxmox task failed")
-		return false, true, errors.New("task_failed")
+		return false, errors.New("task_failed")
 	}
 
-	return true, true, nil
+	return true, nil
 }

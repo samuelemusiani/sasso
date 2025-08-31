@@ -27,6 +27,7 @@ var (
 	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
 	ErrInvalidVXLANRange      = errors.New("invalid_vxlan_range")
 	ErrInsufficientResources  = errors.New("insufficient_resources")
+	ErrTaskFailed             = errors.New("task_failed")
 
 	isProxmoxReachable = true
 )
