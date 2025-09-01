@@ -94,8 +94,8 @@ func parseStorageFromString(s string) (*Storage, error) {
 		return &st, nil
 	}
 
-	options := strings.Split(parts[1], ",")
-	for _, opt := range options {
+	options := strings.SplitSeq(parts[1], ",")
+	for opt := range options {
 		kv := strings.SplitN(opt, "=", 2)
 		if len(kv) != 2 {
 			continue
