@@ -58,11 +58,8 @@ func createVNets() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
 		return
 	}
 
@@ -93,7 +90,7 @@ func createVNets() {
 		}
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
 	cancel()
 	if err != nil {
@@ -101,12 +98,8 @@ func createVNets() {
 		return
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
-	isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
-	cancel()
-	logger.With("status", isSuccessful, "completed", completed).Info("SDN apply task finished")
-	if !completed {
-		logger.Error("SDN apply task did not complete")
+	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	if err != nil {
 		return
 	}
 
@@ -246,11 +239,8 @@ func deleteVNets() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
 		return
 	}
 
@@ -306,7 +296,7 @@ func deleteVNets() {
 
 	time.Sleep(10 * time.Second) //TODO: We should wait for the last ticket to finish
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
 	cancel()
 	if err != nil {
@@ -314,15 +304,7 @@ func deleteVNets() {
 		return
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
-	isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
-	cancel()
-	logger.With("status", isSuccessful, "completed", completed).Info("SDN apply task finished")
-	if !completed {
-		logger.Error("SDN apply task did not complete")
-		return
-	}
-
+	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if isSuccessful {
 		logger.Info("SDN changes applied successfully")
 		for _, v := range vnets {
@@ -352,21 +334,13 @@ func createVMs() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	node, err := client.Node(ctx, cTemplate.Node)
-	cancel()
-
+	node, err := getProxmoxNode(client, cTemplate.Node)
 	if err != nil {
-		logger.With("node", cTemplate.Node, "error", err).Error("Failed to get Proxmox node")
 		return
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	templateVm, err := node.VirtualMachine(ctx, cTemplate.VMID)
-	cancel()
-
+	templateVm, err := getProxmoxVM(node, cTemplate.VMID)
 	if err != nil {
-		logger.With("node", node.Name, "vmid", cTemplate.VMID, "error", err).Error("Failed to get template VM")
 		return
 	}
 
@@ -392,7 +366,7 @@ func createVMs() {
 		// Create the VM in Proxmox
 		// Creation implies cloning a template
 		cloningOptions.NewID = int(v.ID)
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_, task, err := templateVm.Clone(ctx, &cloningOptions)
 		cancel()
 		if err != nil {
@@ -404,14 +378,7 @@ func createVMs() {
 			logger.With("vmid", v.ID, "new_status", VMStatusCreating, "err", err).Error("Failed to update status of VM")
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 120*time.Second)
-		isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 120, 1)
-		cancel()
-		logger.With("status", isSuccessful, "completed", completed).Info("VM Clone task finished")
-		if !completed {
-			logger.Error("VM Clone task did not complete")
-			return
-		}
+		isSuccessful, err := waitForProxmoxTaskCompletion(task)
 		if isSuccessful {
 			err = db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
 			if err != nil {
@@ -438,36 +405,17 @@ func deleteVMs() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
-
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.With("err", err).Error("Can't get cluster")
 		return
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
-	resources, err := cluster.Resources(ctx, "vm")
-	cancel()
-
+	VMLocation, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
-		logger.With("err", err).Error("Can't get cluster resources")
 		return
-	}
-
-	VMLocation := make(map[uint64]string)
-	for i := range resources {
-		if resources[i].Type != "qemu" {
-			continue
-		}
-		VMLocation[resources[i].VMID] = resources[i].Node
 	}
 
 	for _, v := range vms {
-		if v.Status != string(VMStatusPreDeleting) {
-			continue
-		}
 		logger.With("vmid", v.ID).Info("Deleting VM")
 
 		nodeName, ok := VMLocation[v.ID]
@@ -476,23 +424,17 @@ func deleteVMs() {
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		node, err := client.Node(ctx, nodeName)
-		cancel()
+		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
-			logger.With("err", err, "vmid", v.ID).Error("Can't get node. Can't delete VM")
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		vm, err := node.VirtualMachine(ctx, int(v.ID))
-		cancel()
+		vm, err := getProxmoxVM(node, int(v.ID))
 		if err != nil {
-			logger.With("err", err, "vmid", v.ID).Error("Can't get VM. Can't delete VM")
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		task, err := vm.Delete(ctx)
 		cancel()
 		if err != nil {
@@ -504,27 +446,21 @@ func deleteVMs() {
 			logger.With("vmid", v.ID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		isSuccessful, completed, err := task.WaitForCompleteStatus(ctx, 30, 1)
+		isSuccessful, err := waitForProxmoxTaskCompletion(task)
 		cancel()
-		logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
-
-		if completed {
-			if isSuccessful {
-				err = db.DeleteVMByID(v.ID)
-				if err != nil {
-					logger.With("vmid", v.ID, "err", err).Error("Failed to delete VM")
-				}
-			} else {
-				// We could set the status as pre-creating to trigger a recreation, but
-				// for now we just set it to unknown
-				err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
-				if err != nil {
-					logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
-				}
+		if isSuccessful {
+			err = db.DeleteVMByID(v.ID)
+			if err != nil {
+				logger.With("vmid", v.ID, "err", err).Error("Failed to delete VM")
+			}
+		} else {
+			// We could set the status as pre-creating to trigger a recreation, but
+			// for now we just set it to unknown
+			err = db.UpdateVMStatus(v.ID, string(VMStatusUnknown))
+			if err != nil {
+				logger.With("vmid", v.ID, "new_status", VMStatusUnknown, "err", err).Error("Failed to update status of VM")
 			}
 		}
-
 	}
 }
 
@@ -533,17 +469,13 @@ func deleteVMs() {
 func configureVMs() {
 	logger.Debug("Configuring VMs in worker")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.With("err", err).Error("Can't get cluster")
 		return
 	}
 
 	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
-		logger.With("err", err).Error("Can't map VMID to Proxmox nodes")
 		return
 	}
 
@@ -559,19 +491,13 @@ func configureVMs() {
 			logger.With("vmid", v.ID).Error("Can't configure VM. Not found on cluster resources")
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		node, err := client.Node(ctx, nodeName)
-		cancel()
+		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
-			logger.With("err", err, "vmid", v.ID).Error("Can't get node. Can't configure VM")
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		vm, err := node.VirtualMachine(ctx, int(v.ID))
-		cancel()
+		vm, err := getProxmoxVM(node, int(v.ID))
 		if err != nil {
-			logger.With("err", err, "vmid", v.ID).Error("Can't get VM. Can't configure VM")
 			continue
 		}
 		logger.With("vmid", v.ID).Info("Configuring VM")
@@ -581,19 +507,13 @@ func configureVMs() {
 				Name:  "cores",
 				Value: v.Cores,
 			}
-
-			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-			t, err := vm.Config(ctx, coresOption)
-			cancel()
+			isSuccessful, err := configureVM(vm, coresOption)
 			if err != nil {
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set cores on VM")
-				continue
+				return
 			}
-			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
-			cancel()
-			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
-			if !completed || !isSuccessful {
+			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to set cores on VM")
 			}
 		}
@@ -603,19 +523,13 @@ func configureVMs() {
 				Name:  "memory",
 				Value: v.RAM,
 			}
-
-			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-			t, err := vm.Config(ctx, ramOption)
-			cancel()
+			isSuccessful, err := configureVM(vm, ramOption)
 			if err != nil {
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set ram on VM")
 				continue
 			}
-			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
-			cancel()
-			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
-			if !completed || !isSuccessful {
+			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to set ram on VM")
 			}
 		}
@@ -627,7 +541,7 @@ func configureVMs() {
 		}
 
 		if st.Size < uint(v.Disk) {
-			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			diff := uint(v.Disk) - st.Size
 			t, err := vm.ResizeDisk(ctx, "scsi0", fmt.Sprintf("+%dG", diff))
 			cancel()
@@ -636,11 +550,9 @@ func configureVMs() {
 				continue
 			}
 
-			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
-			cancel()
-			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
-			if !completed || !isSuccessful {
+			isSuccessful, err := waitForProxmoxTaskCompletion(t)
+			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to resize disk on VM")
 			}
 		}
@@ -668,25 +580,18 @@ func configureVMs() {
 		}
 		cloudInitKeys := strings.ReplaceAll(url.QueryEscape(keys.String()), "+", "%20")
 
-		sshOption := gprox.VirtualMachineOption{
-			Name:  "sshkeys",
-			Value: cloudInitKeys,
-		}
-
 		if vm.VirtualMachineConfig.SSHKeys != cloudInitKeys {
-			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-			t, err := vm.Config(ctx, sshOption)
-			cancel()
+			sshOption := gprox.VirtualMachineOption{
+				Name:  "sshkeys",
+				Value: cloudInitKeys,
+			}
+			isSuccessful, err := configureVM(vm, sshOption)
 			if err != nil {
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set ssh keys on VM")
-				continue
+				return
 			}
-
-			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-			isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 30, 1)
-			cancel()
-			logger.With("isSuccessful", isSuccessful, "completed", completed).Info("Task finished")
-			if !completed || !isSuccessful {
+			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
 				continue
 			}
@@ -704,18 +609,13 @@ func configureVMs() {
 // updateVMs updates the status of VMs in the database based on their current status in Proxmox.
 func updateVMs() {
 	logger.Debug("Updating VMs in worker")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
+
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.With("err", err).Error("Can't get cluster")
 		return
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
-	resources, err := cluster.Resources(ctx, "vm")
-	cancel()
-
+	resources, err := getProxmoxResources(cluster, "vm")
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 
 	activeVMs, err := db.GetAllActiveVMs()

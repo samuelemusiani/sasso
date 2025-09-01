@@ -118,9 +118,7 @@ func parseStorageFromString(s string) (*Storage, error) {
 }
 
 func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	resources, err := cluster.Resources(ctx, "vm")
-	cancel()
+	resources, err := getProxmoxResources(cluster, "vm")
 	if err != nil {
 		return nil, err
 	}
@@ -156,4 +154,60 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func getProxmoxCluster(client *proxmox.Client) (*proxmox.Cluster, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cluster, err := client.Cluster(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return nil, err
+	}
+	return cluster, nil
+}
+
+func getProxmoxNode(client *proxmox.Client, nodeName string) (*proxmox.Node, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	node, err := client.Node(ctx, nodeName)
+	cancel()
+	if err != nil {
+		logger.With("error", err).With("node", nodeName).Error("Failed to get Proxmox node")
+		return nil, err
+	}
+	return node, nil
+}
+
+func getProxmoxVM(node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	vm, err := node.VirtualMachine(ctx, vmid)
+	cancel()
+	if err != nil {
+		logger.With("error", err).With("node", node.Name).With("vmid", vmid).Error("Failed to get Proxmox VM")
+		return nil, err
+	}
+	return vm, nil
+}
+
+func getProxmoxResources(cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	resources, err := cluster.Resources(ctx, filters...)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox resources")
+		return nil, err
+	}
+	return resources, nil
+}
+
+func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	task, err := vm.Config(ctx, config)
+	cancel()
+	if err != nil {
+		logger.With("error", err).With("vmid", vm.VMID).Error("Failed to set VM config")
+		return false, err
+	}
+
+	return waitForProxmoxTaskCompletion(task)
 }
