@@ -12,3 +12,10 @@ port = 5432
 public_key = "qjYzM9d9hoaw1L5sDk7DjjdNcfX0UVrkoF7Vuztzajw="
 endpoint = "130.136.201.124:51820"
 subnet = "10.253.0.0/24"
+
+[firewall]
+vpn = "vpn"
+sasso = "vms"
+
+[wb_interface_name]
+sasso = "sasso"
