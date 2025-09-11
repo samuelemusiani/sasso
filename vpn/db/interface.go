@@ -1,7 +1,5 @@
 package db
 
-import ()
-
 type Interface struct {
 	ID         uint   `gorm:"primaryKey"`
 	PrivateKey string `gorm:"not null"`
@@ -14,7 +12,7 @@ func initInterfaces() error {
 	return db.AutoMigrate(&Interface{})
 }
 
-func NewInterface(privateKey, publicKey, subnet, address string) (*Interface, error) {
+func NewInterface(privateKey, publicKey, subnet, address string) error {
 	iface := &Interface{
 		PrivateKey: privateKey,
 		PublicKey:  publicKey,
@@ -22,9 +20,9 @@ func NewInterface(privateKey, publicKey, subnet, address string) (*Interface, er
 		Address:    address,
 	}
 	if err := db.Create(iface).Error; err != nil {
-		return nil, err
+		return err
 	}
-	return iface, nil
+	return nil
 }
 
 func GetInterfaceByID(id uint) (*Interface, error) {
@@ -41,4 +39,12 @@ func GetAllAddresses() ([]string, error) {
 		return nil, err
 	}
 	return addresses, nil
+}
+
+func CheckSubnetExists(subnet string) (bool, error) {
+	var count int64
+	if err := db.Model(&Interface{}).Where("subnet = ?", subnet).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

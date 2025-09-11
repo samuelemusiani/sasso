@@ -20,20 +20,33 @@ PrivateKey = %s
 PublicKey = %s
 Endpoint = %s
 AllowedIps = %s, %s`
+	interfaceName string
 )
 
-func Init(config *config.Wireguard) {
+func Init(config *config.Wireguard, configIN *config.WBInterfaceName) {
 	c = config
+	interfaceName = configIN.InterfaceName
 }
 
-func NewWGConfig(address, subnet string) (string, error) {
+type WGInterface struct {
+	Address    string
+	PrivateKey string
+	PublicKey  string
+	Subnet     string
+}
+
+func NewWGConfig(address, subnet string) (*WGInterface, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		slog.Error("Error generating keys:", err)
-		return "", err
+		return nil, err
 	}
 	slog.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
-	return fmt.Sprintf(fileTemplate, address, privateKey, c.PublicKey, c.Endpoint, subnet, c.Subnet), nil
+	return &WGInterface{address, privateKey, publicKey, subnet}, nil
+}
+
+func (WG *WGInterface) String() string {
+	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, WG.Subnet, c.Subnet)
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {
@@ -55,6 +68,16 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 	cmd.Stdin = stdin
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+func CreateInterface(i *WGInterface) error {
+	stdout, stderr, err := executeCommand("wg", "set", "sasso", "peer", c.PublicKey, "allowed-ips", i.Address)
+	if err != nil {
+		slog.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
+		return err
+	}
+	slog.Info("WireGuard interface created", "stdout", stdout, "stderr", stderr)
+	return nil
 }
 
 func genKeys() (string, string, error) {

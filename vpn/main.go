@@ -21,13 +21,13 @@ func main() {
 		os.Exit(1)
 	}
 	c := config.Get()
-	wg.Init(&c.Wireguard)
+	wg.Init(&c.Wireguard, &c.WBInterfaceName)
 	if err = db.Init(&c.Database); err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
 		os.Exit(1)
 	}
 
-	api.Init()
+	api.Init(&c.Firewall)
 	if err = api.ListenAndServe(c.Server.Bind); err != nil {
 		fmt.Printf("Error starting server: %v\n", err)
 		os.Exit(1)
