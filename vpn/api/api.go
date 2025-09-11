@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"io"
-	"net/http"
 )
 
 var (
@@ -51,6 +53,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Api, hello!"))
 }
 
-func ListenAndServe(addr string) error {
-	return http.ListenAndServe(addr, router)
+func ListenAndServe(bind string) error {
+	slog.Info("Listening on: ", "bind", bind)
+	return http.ListenAndServe(bind, router)
 }

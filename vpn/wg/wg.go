@@ -6,15 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
+	"samuelemusiani/sasso/vpn/config"
 	"strings"
 )
 
 var (
-	pubKey    string = "qjYzM9d9hoaw1L5sDk7DjjdNcfX0UVrkoF7Vuztzajw="
-	endpoint  string = "130.136.201.124:51820"
-	vpnSubnet string = "10.253.0.0/24"
-
-	fileTemplate string = `[Interface]
+	c            *config.Wireguard = nil
+	fileTemplate string            = `[Interface]
 Address = %s
 PrivateKey = %s
 
@@ -24,6 +22,10 @@ Endpoint = %s
 AllowedIps = %s, %s`
 )
 
+func Init(config *config.Wireguard) {
+	c = config
+}
+
 func NewWGConfig(address, subnet string) (string, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
@@ -31,7 +33,7 @@ func NewWGConfig(address, subnet string) (string, error) {
 		return "", err
 	}
 	slog.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
-	return fmt.Sprintf(fileTemplate, address, privateKey, pubKey, endpoint, subnet, vpnSubnet), nil
+	return fmt.Sprintf(fileTemplate, address, privateKey, c.PublicKey, c.Endpoint, subnet, c.Subnet), nil
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {
