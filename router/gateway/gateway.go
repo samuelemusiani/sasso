@@ -80,7 +80,7 @@ func (i *Interface) SaveToDB() error {
 		inter.Broadcast = i.Broadcast
 		inter.FirewallInterfaceName = i.FirewallInterfaceName
 
-		err = db.SaveInterface(*inter)
+		err = db.UpdateInterface(*inter)
 	} else {
 		err = db.SaveInterface(db.Interface{
 			LocalID: i.LocalID,
