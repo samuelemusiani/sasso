@@ -48,19 +48,14 @@ func Init(l *slog.Logger, config *config.Firewall) {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.CleanPath)
 
-	router.Get("/api/health", helthHandler)
+	router.Use(middleware.Heartbeat("/api/ping"))
 	router.Post("/api/vpn", vpnHandler)
 
 	vpnZone = config.VPNZone
 	sassoZone = config.SassoZone
 }
 
-func helthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-}
-
 func vpnHandler(w http.ResponseWriter, r *http.Request) {
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
