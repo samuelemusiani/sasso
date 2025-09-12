@@ -1,8 +1,11 @@
 package api
 
 import (
+	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"path"
 
 	"samuelemusiani/sasso/server/config"
 
@@ -18,7 +21,7 @@ var (
 	tokenAuth *jwtauth.JWTAuth = nil
 )
 
-func Init(apiLogger *slog.Logger, key []byte) {
+func Init(apiLogger *slog.Logger, key []byte, frontFS fs.FS) {
 	// Logger
 	logger = apiLogger
 
@@ -107,6 +110,8 @@ func Init(apiLogger *slog.Logger, key []byte) {
 	})
 
 	router.Mount("/api", apiRouter)
+
+	router.Get("/*", frontHandler(frontFS))
 }
 
 func ListenAndServe(c config.Server) error {
@@ -120,4 +125,46 @@ func ListenAndServe(c config.Server) error {
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Welcome to the Sasso API!"))
+}
+
+func frontHandler(ui_fs fs.FS) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path[1:]
+		if p == "" || p == "static" || p == "static/" {
+			p = "index.html"
+		}
+
+		f, err := fs.ReadFile(ui_fs, p)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				// If the file does not exists it could be a route that the SPA router
+				// would catch. We serve the index.html instead
+
+				f, err = fs.ReadFile(ui_fs, "index.html")
+				if err != nil {
+					if errors.Is(err, fs.ErrNotExist) {
+						http.Error(w, "", http.StatusNotFound)
+					} else {
+						slog.With("err", err).Error("Reading index.html")
+						http.Error(w, "", http.StatusInternalServerError)
+					}
+					return
+				}
+				w.Header().Set("Content-Type", "text/html")
+				w.Write(f)
+				return
+			}
+			slog.With("path", p, "err", err).Error("Reading file")
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
+		switch path.Ext(p) {
+		case ".js":
+			w.Header().Set("Content-Type", "text/javascript")
+		case ".css":
+			w.Header().Set("Content-Type", "text/css")
+		}
+		w.Write(f)
+	}
 }

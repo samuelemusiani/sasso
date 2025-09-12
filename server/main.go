@@ -3,15 +3,20 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"embed"
 	"encoding/base64"
+	"io/fs"
 	"log/slog"
 	"os"
 
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/proxmox"
+	// "samuelemusiani/sasso/server/db"
+	// "samuelemusiani/sasso/server/proxmox"
 )
+
+//go:embed all:_front
+var frontFS embed.FS
 
 const DEFAULT_LOG_LEVEL = slog.LevelDebug
 
@@ -77,36 +82,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Database
-	slog.Debug("Initializing database")
-	dbLogger := slog.With("module", "db")
-	err = db.Init(dbLogger, c.Database)
+	frontFS, err := fs.Sub(frontFS, "_front")
 	if err != nil {
-		slog.With("error", err).Error("Failed to initialize database")
+		slog.With("err", err).Error("Initializing change base path for front fs")
 		os.Exit(1)
 	}
 
-	// Proxmox
-	slog.Debug("Initializing proxmox module")
-	proxmoxLogger := slog.With("module", "proxmox")
-	err = proxmox.Init(proxmoxLogger, c.Proxmox, c.Gateway, c.VPN)
-	if err != nil {
-		slog.With("error", err).Error("Failed to initialize Proxmox client")
-		os.Exit(1)
-	}
-
-	slog.Debug("Starting background proxmox tasks")
-	go proxmox.TestEndpointVersion()
-	go proxmox.TestEndpointClone()
-	go proxmox.TestEndpointNetZone()
-	go proxmox.TestEndpointGateway()
-	go proxmox.TestEndpointVPN()
-	go proxmox.Worker()
+	// // Database
+	// slog.Debug("Initializing database")
+	// dbLogger := slog.With("module", "db")
+	// err = db.Init(dbLogger, c.Database)
+	// if err != nil {
+	// 	slog.With("error", err).Error("Failed to initialize database")
+	// 	os.Exit(1)
+	// }
+	//
+	// // Proxmox
+	// slog.Debug("Initializing proxmox module")
+	// proxmoxLogger := slog.With("module", "proxmox")
+	// err = proxmox.Init(proxmoxLogger, c.Proxmox, c.Gateway, c.VPN)
+	// if err != nil {
+	// 	slog.With("error", err).Error("Failed to initialize Proxmox client")
+	// 	os.Exit(1)
+	// }
+	//
+	// slog.Debug("Starting background proxmox tasks")
+	// go proxmox.TestEndpointVersion()
+	// go proxmox.TestEndpointClone()
+	// go proxmox.TestEndpointNetZone()
+	// go proxmox.TestEndpointGateway()
+	// go proxmox.TestEndpointVPN()
+	// go proxmox.Worker()
 
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key)
+	api.Init(apiLogger, real_key, frontFS)
 	err = api.ListenAndServe(c.Server)
 	if err != nil {
 		slog.With("error", err).Error("Failed to start API server")
