@@ -50,7 +50,7 @@ func main() {
 
 	slog.Debug("Initializing API")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, &c.Firewall)
+	api.Init(apiLogger, &c.Firewall, c.Api.Secret)
 
 	if err = api.ListenAndServe(c.Server.Bind); err != nil {
 		fmt.Printf("Error starting server: %v\n", err)

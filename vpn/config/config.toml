@@ -2,6 +2,10 @@
 [server]
 bind = ":8080"
 
+[api]
+# To interact with the API, you need to set this secret in the "Authorization" header
+secret = "supersegreto"
+
 [database]
 user = "user"
 password = "password"

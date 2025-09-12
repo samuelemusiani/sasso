@@ -20,6 +20,8 @@ import (
 var (
 	router *chi.Mux
 	logger *slog.Logger = nil
+
+	secret string
 )
 
 type NewNet struct {
@@ -40,8 +42,13 @@ var (
 	sassoZone string
 )
 
-func Init(l *slog.Logger, config *config.Firewall) {
+func Init(l *slog.Logger, config *config.Firewall, apiSecret string) {
 	logger = l
+	secret = apiSecret
+
+	vpnZone = config.VPNZone
+	sassoZone = config.SassoZone
+
 	router = chi.NewRouter()
 
 	router.Use(middleware.Logger)
@@ -49,10 +56,14 @@ func Init(l *slog.Logger, config *config.Firewall) {
 	router.Use(middleware.CleanPath)
 
 	router.Use(middleware.Heartbeat("/api/ping"))
-	router.Post("/api/vpn", vpnHandler)
 
-	vpnZone = config.VPNZone
-	sassoZone = config.SassoZone
+	apiRouter := chi.NewRouter()
+	apiRouter.Group(func(r chi.Router) {
+		r.Use(authMiddleware)
+		r.Post("/vpn", vpnHandler)
+	})
+
+	router.Mount("/api", apiRouter)
 }
 
 func vpnHandler(w http.ResponseWriter, r *http.Request) {

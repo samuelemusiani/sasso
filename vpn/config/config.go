@@ -5,9 +5,9 @@ import (
 )
 
 type Config struct {
-	Server   Server   `toml:"server"`
-	Database Database `toml:"database"`
-	// Secrets   Secrets   `toml:"secrets"`
+	Server          Server          `toml:"server"`
+	Database        Database        `toml:"database"`
+	Api             Api             `toml:"api"`
 	Wireguard       Wireguard       `toml:"wireguard"`
 	Firewall        Firewall        `toml:"firewall"`
 	WBInterfaceName WBInterfaceName `toml:"wb_interface_name"`
@@ -15,6 +15,10 @@ type Config struct {
 
 type Server struct {
 	Bind string `toml:"bind"`
+}
+
+type Api struct {
+	Secret string `toml:"secret"`
 }
 
 type Database struct {
