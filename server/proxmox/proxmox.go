@@ -22,6 +22,7 @@ var (
 	cClone    *config.ProxmoxClone    = nil
 	cNetwork  *config.ProxmoxNetwork  = nil
 	cGateway  *config.Gateway         = nil
+	cVPN      *config.VPN             = nil
 
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
 	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
@@ -29,10 +30,12 @@ var (
 	ErrInsufficientResources  = errors.New("insufficient_resources")
 	ErrTaskFailed             = errors.New("task_failed")
 
-	isProxmoxReachable = true
+	xmoxReachable      = true
+	isGatewayReachable = true
+	isVPNReachable     = true
 )
 
-func Init(proxmoxLogger *slog.Logger, config config.Proxmox, gtwConfig config.Gateway) error {
+func Init(proxmoxLogger *slog.Logger, config config.Proxmox, gtwConfig config.Gateway, vpnConfig config.VPN) error {
 	err := configChecks(config)
 	if err != nil {
 		return err
@@ -64,6 +67,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox, gtwConfig config.Ga
 	cClone = &config.Clone
 	cNetwork = &config.Network
 	cGateway = &gtwConfig
+	cVPN = &vpnConfig
 
 	return nil
 }
@@ -122,17 +126,103 @@ func TestEndpointVersion() {
 		if err != nil {
 			logger.Error("Failed to get Proxmox version", "error", err)
 			wasError = true
-			isProxmoxReachable = false
+			xmoxReachable = false
 		} else if first {
 			logger.Info("Proxmox version", "version", version.Version)
 			first = false
-			isProxmoxReachable = true
+			xmoxReachable = true
 		} else if wasError {
 			logger.Info("Proxmox version endpoint is back online", "version", version.Version)
 			wasError = false
-			isProxmoxReachable = true
+			xmoxReachable = true
 		}
 
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func TestEndpointGateway() {
+	first := true
+	wasError := false
+
+	for {
+		req, err := http.NewRequest("GET", cGateway.Server+"/api/ping", nil)
+		if err != nil {
+			logger.Error("Failed to create request to Sasso gateway", "error", err)
+			wasError = true
+			isGatewayReachable = false
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		req.Header.Set("Authorization", "Bearer "+cGateway.Secret)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		req = req.WithContext(ctx)
+		resp, err := http.DefaultClient.Do(req)
+		cancel()
+
+		if err != nil {
+			logger.Error("Failed to reach Sasso gateway", "error", err)
+			wasError = true
+			isGatewayReachable = false
+		} else {
+			if resp.StatusCode != http.StatusOK {
+				logger.With("status", resp.StatusCode).Error("Sasso gateway returned non-OK status")
+				wasError = true
+				isGatewayReachable = false
+			} else if first {
+				logger.Info("Sasso gateway is reachable", "status", resp.StatusCode)
+				first = false
+				isGatewayReachable = true
+			} else if wasError {
+				logger.Info("Sasso gateway is back online", "status", resp.StatusCode)
+				wasError = false
+				isGatewayReachable = true
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func TestEndpointVPN() {
+	first := true
+	wasError := false
+
+	for {
+		req, err := http.NewRequest("GET", cVPN.Server+"/api/ping", nil)
+		if err != nil {
+			logger.Error("Failed to create request to Sasso VPN", "error", err)
+			wasError = true
+			isVPNReachable = false
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		req.Header.Set("Authorization", "Bearer "+cVPN.Secret)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		req = req.WithContext(ctx)
+		resp, err := http.DefaultClient.Do(req)
+		cancel()
+
+		if err != nil {
+			logger.Error("Failed to reach Sasso VPN", "error", err)
+			wasError = true
+			isVPNReachable = false
+		} else {
+			if resp.StatusCode != http.StatusOK {
+				logger.With("status", resp.StatusCode).Error("Sasso VPN returned non-OK status")
+				wasError = true
+				isVPNReachable = false
+			} else if first {
+				logger.Info("Sasso VPN is reachable", "status", resp.StatusCode)
+				first = false
+				isVPNReachable = true
+			} else if wasError {
+				logger.Info("Sasso VPN is back online", "status", resp.StatusCode)
+				wasError = false
+				isVPNReachable = true
+			}
+		}
 		time.Sleep(10 * time.Second)
 	}
 }

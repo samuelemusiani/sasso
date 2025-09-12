@@ -10,6 +10,7 @@ type Config struct {
 	Secrets  Secrets  `toml:"secrets"`
 	Proxmox  Proxmox  `toml:"proxmox"`
 	Gateway  Gateway  `toml:"gateway"`
+	VPN      VPN      `toml:"vpn"`
 }
 
 type Server struct {
@@ -58,6 +59,11 @@ type ProxmoxNetwork struct {
 }
 
 type Gateway struct {
+	Server string `toml:"server"`
+	Secret string `toml:"secret"`
+}
+
+type VPN struct {
 	Server string `toml:"server"`
 	Secret string `toml:"secret"`
 }

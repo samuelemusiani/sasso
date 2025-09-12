@@ -55,3 +55,8 @@ vxlan_id_end = 2000
 # Gateway service address
 server = "http://localhost:9000"
 secret = "supersegreto"
+
+[vpn]
+# VPN service address
+server = "http://localhost:9001"
+secret = "supersegreto2"
