@@ -65,17 +65,37 @@ type Gateway interface {
 }
 
 func (i *Interface) SaveToDB() error {
-	return db.SaveInterface(db.Interface{
-		LocalID: i.LocalID,
-		VNet:    i.VNet,
-		VNetID:  i.VNetID,
 
-		Subnet:    i.Subnet,
-		RouterIP:  i.RouterIP,
-		Broadcast: i.Broadcast,
+	var err error
+	inter, err := db.GetInterfaceByVNet(i.VNet)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		logger.With("error", err, "vnet", i.VNet).Error("Failed to get interface from database")
+	} else if inter != nil {
+		logger.With("vnet", i.VNet).Debug("Interface already exists in database")
 
-		FirewallInterfaceName: i.FirewallInterfaceName,
-	})
+		inter.LocalID = i.LocalID
+		inter.VNetID = i.VNetID
+		inter.Subnet = i.Subnet
+		inter.RouterIP = i.RouterIP
+		inter.Broadcast = i.Broadcast
+		inter.FirewallInterfaceName = i.FirewallInterfaceName
+
+		err = db.SaveInterface(*inter)
+	} else {
+		err = db.SaveInterface(db.Interface{
+			LocalID: i.LocalID,
+			VNet:    i.VNet,
+			VNetID:  i.VNetID,
+
+			Subnet:    i.Subnet,
+			RouterIP:  i.RouterIP,
+			Broadcast: i.Broadcast,
+
+			FirewallInterfaceName: i.FirewallInterfaceName,
+		})
+	}
+
+	return err
 }
 
 func InterfaceFromDB(dbIface *db.Interface) *Interface {

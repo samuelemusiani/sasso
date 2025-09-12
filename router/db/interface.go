@@ -65,3 +65,7 @@ func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
 func DeleteInterface(id uint) error {
 	return db.Delete(&Interface{}, id).Error
 }
+
+func UpdateInterface(iface Interface) error {
+	return db.Save(&iface).Error
+}
