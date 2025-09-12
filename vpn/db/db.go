@@ -15,10 +15,12 @@ import (
 )
 
 var (
-	db *gorm.DB = nil
+	db     *gorm.DB     = nil
+	logger *slog.Logger = nil
 )
 
-func Init(c *config.Database) error {
+func Init(l *slog.Logger, c *config.Database) error {
+	logger = l
 	var err error
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=sasso port=%d sslmode=disable", c.Host, c.User, c.Password, c.Port)
@@ -35,12 +37,12 @@ func Init(c *config.Database) error {
 		),
 	})
 	if err != nil {
-		slog.With("error", err).Error("Failed to connect to database")
+		logger.With("error", err).Error("Failed to connect to database")
 		return err
 	}
 
 	if err := initInterfaces(); err != nil {
-		slog.With("error", err).Error("Failed to initialize interfaces in database")
+		logger.With("error", err).Error("Failed to initialize interfaces in database")
 		return err
 	}
 	return nil

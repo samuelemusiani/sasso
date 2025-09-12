@@ -24,8 +24,8 @@ func Init(l *slog.Logger, s string) error {
 	}
 	return nil
 }
-func NextAvailableAddress() (string, error) {
 
+func NextAvailableAddress() (string, error) {
 	usedAddresses, err := db.GetAllAddresses()
 	slog.With("used_addresses", usedAddresses).Debug("Used addresses from database")
 	if err != nil {

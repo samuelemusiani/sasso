@@ -19,6 +19,7 @@ import (
 
 var (
 	router *chi.Mux
+	logger *slog.Logger = nil
 )
 
 type NewNet struct {
@@ -39,22 +40,18 @@ var (
 	sassoZone string
 )
 
-func Init(config *config.Firewall) {
+func Init(l *slog.Logger, config *config.Firewall) {
+	logger = l
 	router = chi.NewRouter()
 
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.CleanPath)
 
-	router.Get("/", helloHandler)
 	router.Post("/api", apiHandler)
 
 	vpnZone = config.VPNZone
 	sassoZone = config.SassoZone
-}
-
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, World!"))
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +84,6 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	// genero indirizzo
 	var newAddress NewAddress
-	util.Init(slog.Default(), newNet.Subnet)
 	newAddress.Address, err = util.NextAvailableAddress()
 	if err != nil {
 		http.Error(w, "Error generating address", http.StatusInternalServerError)
@@ -141,6 +137,6 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListenAndServe(bind string) error {
-	slog.Info("Listening on: ", "bind", bind)
+	logger.Info("Listening on: ", "bind", bind)
 	return http.ListenAndServe(bind, router)
 }

@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	c            *config.Wireguard = nil
-	fileTemplate string            = `[Interface]
+	c      *config.Wireguard = nil
+	logger *slog.Logger      = nil
+
+	fileTemplate string = `[Interface]
 Address = %s
 PrivateKey = %s
 
@@ -23,7 +25,8 @@ AllowedIps = %s, %s`
 	interfaceName string
 )
 
-func Init(config *config.Wireguard, configIN *config.WBInterfaceName) {
+func Init(l *slog.Logger, config *config.Wireguard, configIN *config.WBInterfaceName) {
+	logger = l
 	c = config
 	interfaceName = configIN.InterfaceName
 }
@@ -38,10 +41,10 @@ type WGInterface struct {
 func NewWGConfig(address, subnet string) (*WGInterface, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
-		slog.Error("Error generating keys:", err)
+		logger.Error("Error generating keys:", err)
 		return nil, err
 	}
-	slog.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
+	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
 	return &WGInterface{address, privateKey, publicKey, subnet}, nil
 }
 
@@ -73,22 +76,22 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 func CreateInterface(i *WGInterface) error {
 	stdout, stderr, err := executeCommand("wg", "set", "sasso", "peer", c.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
-		slog.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
+		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
 		return err
 	}
-	slog.Info("WireGuard interface created", "stdout", stdout, "stderr", stderr)
+	logger.Info("WireGuard interface created", "stdout", stdout, "stderr", stderr)
 	return nil
 }
 
 func genKeys() (string, string, error) {
 	privateKey, stderr, err := executeCommand("wg", "genkey")
 	if err != nil {
-		slog.With("err", err, "stderr", stderr).Error("Error generating private key")
+		logger.With("err", err, "stderr", stderr).Error("Error generating private key")
 		return "", "", err
 	}
 	publicKey, stderr, err := executeCommandWithStdin(strings.NewReader(privateKey), "wg", "pubkey")
 	if err != nil {
-		slog.With("err", err, "stderr", stderr).Error("Error generating public key")
+		logger.With("err", err, "stderr", stderr).Error("Error generating public key")
 		return "", "", err
 	}
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
