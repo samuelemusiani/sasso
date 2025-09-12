@@ -29,6 +29,7 @@ func Init(apiLogger *slog.Logger, key []byte, frontFS fs.FS) {
 	router = chi.NewRouter()
 
 	// Middleware
+	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.CleanPath)
