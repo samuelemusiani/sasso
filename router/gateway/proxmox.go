@@ -70,6 +70,9 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, subnet, routerI
 	// https://github.com/luthermonson/go-proxmox/issues/211
 	// This is a temporary workaround
 	mnets := vm.VirtualMachineConfig.MergeNets()
+	// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
+
+	// snet := ["eth0", "eth1", "eth2", ...]
 	var snet = make([]string, len(mnets))
 	var i int = 0
 	for k := range mnets {
@@ -93,11 +96,20 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, subnet, routerI
 	interfaceIndex := firstEmptyIndex
 	needToAddInterfaceOnProxmox := true
 
-	for i := range snet {
-		if strings.Contains(snet[i], fmt.Sprintf("bridge=%s", vnet)) {
-			logger.With("vnet", vnet, "bridge", snet[i]).Warn("Network interface already exists on Proxmox VM")
+	for i := range mnets {
+		if strings.Contains(mnets[i], fmt.Sprintf("bridge=%s", vnet)) {
+			logger.With("vnet", vnet, "bridge", mnets[i]).Warn("Network interface already exists on Proxmox VM")
 			needToAddInterfaceOnProxmox = false
-			interfaceIndex = i
+
+			// Extract the index from the interface name
+			tmps, found := strings.CutPrefix(i, "net")
+			if found {
+				idx, err := strconv.Atoi(tmps)
+				if err == nil {
+					interfaceIndex = idx
+				}
+			}
+			break
 		}
 	}
 
