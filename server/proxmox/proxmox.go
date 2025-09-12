@@ -30,7 +30,7 @@ var (
 	ErrInsufficientResources  = errors.New("insufficient_resources")
 	ErrTaskFailed             = errors.New("task_failed")
 
-	xmoxReachable      = true
+	isProxmoxReachable = true
 	isGatewayReachable = true
 	isVPNReachable     = true
 )
@@ -126,15 +126,15 @@ func TestEndpointVersion() {
 		if err != nil {
 			logger.Error("Failed to get Proxmox version", "error", err)
 			wasError = true
-			xmoxReachable = false
+			isProxmoxReachable = false
 		} else if first {
 			logger.Info("Proxmox version", "version", version.Version)
 			first = false
-			xmoxReachable = true
+			isProxmoxReachable = true
 		} else if wasError {
 			logger.Info("Proxmox version endpoint is back online", "version", version.Version)
 			wasError = false
-			xmoxReachable = true
+			isProxmoxReachable = true
 		}
 
 		time.Sleep(10 * time.Second)

@@ -41,7 +41,7 @@ type WGInterface struct {
 func NewWGConfig(address, subnet string) (*WGInterface, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
-		logger.Error("Error generating keys:", err)
+		logger.With("err", err).Error("Error generating keys")
 		return nil, err
 	}
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
