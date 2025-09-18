@@ -10,4 +10,6 @@ type Net struct {
 	Subnet    string `gorm:"not null"` // CIDR notation of the subnet
 	Gateway   string `gorm:"not null"` // IP address of the gateway
 	Broadcast string `gorm:"not null"` // Broadcast address of the subnet
+
+	UserID uint `json:"user_id"` // ID of the user who owns this net
 }

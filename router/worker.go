@@ -58,35 +58,12 @@ func worker(logger *slog.Logger, conf config.Server) {
 
 // Fetch the main sasso server for the status of the nets
 func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, error) {
-	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", conf.Endpoint+"/internal/net", nil)
+	nets, err := internal.FetchNets(conf.Endpoint, conf.Secret)
 	if err != nil {
-		logger.With("error", err).Error("Failed to create request to fetch nets status")
+		logger.With("error", err).Error("Failed to fetch nets status from main server")
 		return nil, err
 	}
-	auth.AddAuthToRequest(req, conf.Secret)
-
-	res, err := client.Do(req)
-	if err != nil {
-		logger.With("error", err).Error("Failed to fetch nets status")
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		logger.With("status", res.StatusCode).Error("Failed to fetch nets status")
-		return nil, err
-	}
-
-	var nets []internal.Net
-	err = json.NewDecoder(res.Body).Decode(&nets)
-	if err != nil {
-		logger.With("error", err).Error("Failed to decode nets status")
-		return nil, err
-	}
-
-	logger.With("nets", nets).Debug("Fetched nets from server")
-
+	logger.Info("Fetched nets status from main server", "nets", nets)
 	return nets, nil
 }
 

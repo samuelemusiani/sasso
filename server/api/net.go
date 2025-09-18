@@ -138,6 +138,7 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 			Subnet:    n.Subnet,
 			Gateway:   n.Gateway,
 			Broadcast: n.Broadcast,
+			UserID:    n.UserID,
 		})
 	}
 
