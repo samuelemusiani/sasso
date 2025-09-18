@@ -1,10 +1,8 @@
 # Example of a configuration
 
 [server]
-bind = ":8081"
-
-[api]
-# To interact with the API, you need to set this secret in the "Authorization" header
+# To interact with the server API
+endpoint = "sasso.server:8080"
 secret = "supersegreto"
 
 [database]

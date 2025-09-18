@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 
+	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/server/config"
 
 	"github.com/go-chi/chi/v5"
@@ -21,7 +22,7 @@ var (
 	tokenAuth *jwtauth.JWTAuth = nil
 )
 
-func Init(apiLogger *slog.Logger, key []byte, frontFS fs.FS) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 	// Logger
 	logger = apiLogger
 
@@ -110,7 +111,17 @@ func Init(apiLogger *slog.Logger, key []byte, frontFS fs.FS) {
 		r.Delete("/admin/ssh-keys/global/{id}", deleteGlobalSSHKey)
 	})
 
+	// Internal routes
+	internalRouter := chi.NewRouter()
+	internalRouter.Group(func(r chi.Router) {
+		r.Use(auth.AuthMiddleware(secret))
+
+		r.Get("/net", internalListNets)
+		r.Put("/net/{id}", internalUpdateNet)
+	})
+
 	router.Mount("/api", apiRouter)
+	router.Mount("/internal", internalRouter)
 
 	router.Get("/*", frontHandler(frontFS))
 }

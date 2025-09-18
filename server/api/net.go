@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
 	"strconv"
@@ -116,4 +118,70 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func internalListNets(w http.ResponseWriter, r *http.Request) {
+	nets, err := db.GetAllNets()
+	if err != nil {
+		slog.With("err", err).Error("Failed to get all nets")
+		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+		return
+	}
+
+	var returnNets []internal.Net
+	for _, n := range nets {
+		returnNets = append(returnNets, internal.Net{
+			ID:        n.ID,
+			Zone:      n.Zone,
+			Name:      n.Name,
+			Tag:       n.Tag,
+			Subnet:    n.Subnet,
+			Gateway:   n.Gateway,
+			Broadcast: n.Broadcast,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(returnNets)
+	if err != nil {
+		slog.With("err", err).Error("Failed to encode nets")
+		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		slog.With("err", err).Error("Invalid net ID")
+		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+		return
+	}
+
+	var n internal.Net
+	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
+		slog.With("err", err).Error("Failed to decode net")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	dbNet, err := db.GetNetByID(uint(id))
+	if err != nil {
+		slog.With("netID", id, "err", err).Error("Failed to get net by ID")
+		http.Error(w, "Net not found", http.StatusNotFound)
+		return
+	}
+
+	dbNet.Subnet = n.Subnet
+	dbNet.Gateway = n.Gateway
+	dbNet.Broadcast = n.Broadcast
+
+	if err := db.UpdateVNet(dbNet); err != nil {
+		slog.With("netID", id, "err", err).Error("Failed to update net")
+		http.Error(w, "Failed to update net", http.StatusInternalServerError)
+		return
+	}
 }

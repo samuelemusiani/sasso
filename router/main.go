@@ -3,11 +3,9 @@ package main
 import (
 	"log/slog"
 	"os"
-	"samuelemusiani/sasso/router/api"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/gateway"
-	"samuelemusiani/sasso/router/ticket"
 	"samuelemusiani/sasso/router/utils"
 )
 
@@ -41,10 +39,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Ticketing
-	ticketLogger := slog.With("module", "ticket")
-	ticket.Init(ticketLogger)
-
 	gatewayLogger := slog.With("module", "gateway")
 	err = gateway.Init(gatewayLogger, c.Gateway)
 
@@ -57,19 +51,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	go worker()
-
-	// API
-	slog.Debug("Initializing API server")
-	apiLogger := slog.With("module", "api")
-	err = api.Init(apiLogger, c.Api.Secret)
-	if err != nil {
-		slog.With("error", err).Error("Failed to initialize API server")
-		os.Exit(1)
-	}
-	err = api.ListenAndServe(c.Server)
-	if err != nil {
-		slog.With("error", err).Error("Failed to start API server")
-		os.Exit(1)
-	}
+	workerLogger := slog.With("module", "worker")
+	worker(workerLogger, c.Server)
 }

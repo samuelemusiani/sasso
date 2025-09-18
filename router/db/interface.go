@@ -13,7 +13,7 @@ type Interface struct {
 	UpdatedAt time.Time
 
 	VNet   string `gorm:"not null;unique"` // Name of the VNet
-	VNetID uint   `gorm:"not null;unique"` // ID of the VNet (VXLAN ID)
+	VNetID uint32 `gorm:"not null;unique"` // ID of the VNet (VXLAN ID)
 
 	Subnet    string `gorm:"not null;unique"` // Subnet of the VNet
 	RouterIP  string `gorm:"not null;unique"` // Router IP of the VNet

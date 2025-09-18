@@ -5,11 +5,8 @@
 package proxmox
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
@@ -35,7 +32,6 @@ func Worker() {
 
 		createVNets()
 		deleteVNets()
-		updateVNets()
 
 		deleteVMs()
 		createVMs()
@@ -101,6 +97,7 @@ func createVNets() {
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if err != nil {
+		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
 		return
 	}
 
@@ -114,59 +111,14 @@ func createVNets() {
 			}
 		}
 		return
-	}
-
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-
-	logger.Info("SDN changes applied successfully")
-	for _, v := range vnets {
-		netRequest := struct {
-			VNet   string `json:"vnet"`
-			VNetID uint32 `json:"vnet_id"`
-		}{
-			VNet:   v.Name,
-			VNetID: v.Tag,
+	} else {
+		logger.Info("SDN changes applied successfully")
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusReady, "err", err).Error("Failed to update status of VNet")
+			}
 		}
-
-		netMarshal, err := json.Marshal(netRequest)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to marshal net request")
-			continue
-		}
-
-		req, err := http.NewRequest("POST", cGateway.Server+"/api/net", bytes.NewReader(netMarshal))
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to create net request")
-			continue
-		}
-
-		req.Header.Set("Authorization", cGateway.Secret)
-		res, err := httpClient.Do(req)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to send net request")
-			continue
-		}
-
-		logger.With("vnet", v.Name, "status_code", res.StatusCode).Debug("Net request sent")
-
-		ticketResponse := struct {
-			TicketID string `json:"ticket_id"`
-		}{}
-		err = json.NewDecoder(res.Body).Decode(&ticketResponse)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to decode net request response")
-			continue
-		}
-
-		logger.With("vnet", v.Name, "ticket_id", ticketResponse.TicketID).Info("Net request ticket created")
-
-		err = db.AddTicketToNetByID(v.ID, ticketResponse.TicketID)
-		if err != nil {
-			logger.With("vnet", v.Name, "ticket_id", ticketResponse.TicketID, "err", err).Error("Failed to add ticket to VNet")
-			continue
-		}
-
-		// From now the updateVNet function will take care of updating the status
 	}
 }
 
@@ -203,42 +155,6 @@ func deleteVNets() {
 			continue
 		}
 	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	logger.Info("SDN changes applied successfully")
-	for _, v := range vnets {
-		netRequest := struct {
-			VNet   string `json:"vnet"`
-			VNetID uint32 `json:"vnet_id"`
-		}{
-			VNet:   v.Name,
-			VNetID: v.Tag,
-		}
-
-		netMarshal, err := json.Marshal(netRequest)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to marshal net request")
-			continue
-		}
-
-		req, err := http.NewRequest("DELETE", cGateway.Server+"/api/net", bytes.NewReader(netMarshal))
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to create net request")
-			continue
-		}
-
-		req.Header.Set("Authorization", cGateway.Secret)
-		res, err := client.Do(req)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to send net request")
-			continue
-		}
-
-		logger.With("vnet", v.Name, "status_code", res.StatusCode).Debug("Net request sent")
-	}
-
-	time.Sleep(10 * time.Second) //TODO: We should wait for the last ticket to finish
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
@@ -858,75 +774,4 @@ type routerNetResponse struct {
 	ID          uint             `json:"id"`           // ID of the request
 	RequestType string           `json:"request_type"` // Type of the request (e.g., "new_network", "delete_network")
 	Request     routerNetRequest `json:"request"`
-}
-
-func updateVNets() {
-	// createVNets() send a request to the gateway to create the VNet. The ticket
-	// is stored in the DB. Here we check the status of the ticket and update the
-	// VNet status accordingly
-
-	vnets, err := db.GetVNetsWithStatus(string(VNetStatusCreating))
-	if err != nil {
-		logger.With("error", err).Error("Failed to get VNets with 'creating' status")
-		return
-	}
-
-	for _, v := range vnets {
-		if v.RouterTiket == nil {
-			continue
-		}
-
-		ticketID := *v.RouterTiket
-		httpClient := &http.Client{Timeout: 10 * time.Second}
-		var netResponse routerNetResponse
-
-		// TODO: Add a limit to avoid infinite loops on same VNet
-		for {
-			req, err := http.NewRequest("GET", cGateway.Server+"/api/ticket/"+ticketID, nil)
-			if err != nil {
-				logger.With("vnet", v.Name, "err", err).Error("Failed to create ticket status request")
-				break
-			}
-
-			req.Header.Set("Authorization", cGateway.Secret)
-			res, err := httpClient.Do(req)
-			if err != nil {
-				logger.With("vnet", v.Name, "err", err).Error("Failed to send ticket status request")
-				break
-			}
-
-			err = json.NewDecoder(res.Body).Decode(&netResponse)
-			if err != nil {
-				logger.With("vnet", v.Name, "err", err).Error("Failed to decode ticket status response")
-				break
-			}
-			logger.With("vnet", v.Name, "net_response", netResponse).Debug("Ticket status response")
-
-			if netResponse.Request.Status == "completed" {
-				break
-			}
-
-			time.Sleep(1 * time.Second)
-		}
-
-		if netResponse.Request.Status != "completed" {
-			continue
-		}
-
-		net, err := db.GetNetByID(v.ID)
-		if err != nil {
-			logger.With("vnet", v.Name, "err", err).Error("Failed to get net by ID")
-			continue
-		}
-
-		net.Status = string(VNetStatusReady)
-		net.Subnet = netResponse.Request.Subnet
-		net.Gateway = netResponse.Request.RouterIP
-		net.Broadcast = netResponse.Request.Broadcast
-
-		err = db.UpdateVNet(net)
-		if err != nil {
-			logger.With("vnet", net).Error("Failed to update status of VNet")
-		}
-	}
 }

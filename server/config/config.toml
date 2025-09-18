@@ -19,6 +19,10 @@ port = 5432
 #key = "c2VjcmV0"
 path = "./secrets.key"
 
+# In order for the gateway and vpn service to retrieve information, they
+# need to share a secret with the server.
+internal_secret = "supersegreto"
+
 [proxmox]
 # Proxmox URL
 url = "https://localhost:8006"
@@ -50,13 +54,3 @@ full = true
 sdn_zone = "sasso"
 vxlan_id_start = 1000
 vxlan_id_end = 2000
-
-[gateway]
-# Gateway service address
-server = "http://localhost:9000"
-secret = "supersegreto"
-
-[vpn]
-# VPN service address
-server = "http://localhost:9001"
-secret = "supersegreto2"
