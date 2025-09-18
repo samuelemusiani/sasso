@@ -25,10 +25,10 @@ AllowedIps = %s, %s`
 	interfaceName string
 )
 
-func Init(l *slog.Logger, config *config.Wireguard, configIN *config.WBInterfaceName) {
+func Init(l *slog.Logger, config *config.Wireguard, iface string) {
 	logger = l
 	c = config
-	interfaceName = configIN.InterfaceName
+	interfaceName = iface
 }
 
 type WGInterface struct {

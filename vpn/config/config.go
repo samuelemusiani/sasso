@@ -5,20 +5,15 @@ import (
 )
 
 type Config struct {
-	Server          Server          `toml:"server"`
-	Database        Database        `toml:"database"`
-	Api             Api             `toml:"api"`
-	Wireguard       Wireguard       `toml:"wireguard"`
-	Firewall        Firewall        `toml:"firewall"`
-	WBInterfaceName WBInterfaceName `toml:"wb_interface_name"`
+	Server    Server    `toml:"server"`
+	Database  Database  `toml:"database"`
+	Wireguard Wireguard `toml:"wireguard"`
+	Firewall  Firewall  `toml:"firewall"`
 }
 
 type Server struct {
-	Bind string `toml:"bind"`
-}
-
-type Api struct {
-	Secret string `toml:"secret"`
+	Endpoint string `toml:"endpoint"`
+	Secret   string `toml:"secret"`
 }
 
 type Database struct {
@@ -32,15 +27,12 @@ type Wireguard struct {
 	PublicKey string `toml:"public_key"`
 	Endpoint  string `toml:"endpoint"`
 	Subnet    string `toml:"subnet"`
+	Interface string `toml:"interface_name"`
 }
 
 type Firewall struct {
 	VPNZone   string `toml:"vpn"`
 	SassoZone string `toml:"sasso"`
-}
-
-type WBInterfaceName struct {
-	InterfaceName string `toml:"sasso"`
 }
 
 var config Config = Config{}
