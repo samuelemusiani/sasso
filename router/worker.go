@@ -127,6 +127,14 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 // but are present on the nets slice
 func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
 	for _, n := range nets {
+		_, err := db.GetInterfaceByVNet(n.Name)
+		if err == nil {
+			continue
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.With("error", err, "vnet", n.Name).Error("Failed to get interface from database")
+			continue
+		}
+
 		s, err := utils.NextAvailableSubnet()
 		if err != nil {
 			logger.With("error", err).Error("Failed to get next available subnet")
