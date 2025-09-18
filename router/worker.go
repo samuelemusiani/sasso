@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -92,13 +93,30 @@ func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, err
 // This function takes care of deleting the nets that are present on the DB
 // but not on the nets slice anymore
 func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
-	for _, n := range nets {
-		dbIface, err := db.GetInterfaceByVNet(n.Name)
+
+	dbInterfaces, err := db.GetAllInterfaces()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all interfaces from database")
+		return err
+	}
+
+	var toDelete []db.Interface
+
+	for _, dbIface := range dbInterfaces {
+		if slices.IndexFunc(nets, func(n internal.Net) bool {
+			return n.Name == dbIface.VNet
+		}) == -1 {
+			toDelete = append(toDelete, dbIface)
+		}
+	}
+
+	for _, n := range toDelete {
+		dbIface, err := db.GetInterfaceByVNet(n.VNet)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				continue
 			}
-			logger.With("error", err, "vnet", n.Name).Error("Failed to get interface from database")
+			logger.With("error", err, "vnet", n.VNet).Error("Failed to get interface from database")
 			return err
 		}
 

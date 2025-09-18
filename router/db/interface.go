@@ -38,6 +38,14 @@ func GetAllUsedSubnets() ([]string, error) {
 	return subnets, nil
 }
 
+func GetAllInterfaces() ([]Interface, error) {
+	var ifaces []Interface
+	if err := db.Find(&ifaces).Error; err != nil {
+		return nil, err
+	}
+	return ifaces, nil
+}
+
 func GetInterfaceByVNet(vnet string) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net = ?", vnet).First(&iface).Error; err != nil {
