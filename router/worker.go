@@ -96,7 +96,7 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 	for _, n := range nets {
 		dbIface, err := db.GetInterfaceByVNet(n.Name)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				continue
 			}
 			logger.With("error", err, "vnet", n.Name).Error("Failed to get interface from database")
@@ -130,7 +130,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 		_, err := db.GetInterfaceByVNet(n.Name)
 		if err == nil {
 			continue
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		} else if !errors.Is(err, db.ErrNotFound) {
 			logger.With("error", err, "vnet", n.Name).Error("Failed to get interface from database")
 			continue
 		}
