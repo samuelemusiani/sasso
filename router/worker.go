@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
+
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/router/config"
@@ -14,9 +16,6 @@ import (
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
-	"time"
-
-	"gorm.io/gorm"
 )
 
 func worker(logger *slog.Logger, conf config.Server) {
