@@ -59,7 +59,7 @@ func worker(logger *slog.Logger, conf config.Server) {
 // Fetch the main sasso server for the status of the nets
 func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, error) {
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", conf.Endpoint, nil)
+	req, err := http.NewRequest("GET", conf.Endpoint+"/internal/net", nil)
 	if err != nil {
 		logger.With("error", err).Error("Failed to create request to fetch nets status")
 		return nil, err
@@ -195,7 +195,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		}
 
 		client := http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("PUT", fmt.Sprintf("%s/%d", conf.Endpoint, n.ID), bytes.NewBuffer(data))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("%s/internal/net/%d", conf.Endpoint, n.ID), bytes.NewBuffer(data))
 		if err != nil {
 			logger.With("error", err, "vnet", n.Name).Error("Failed to create request to update net")
 			continue
