@@ -2,7 +2,7 @@
 
 [server]
 # To interact with the server API
-endpoint = "sasso.server:8080"
+endpoint = "http://10.0.0.1:8080"
 secret = "supersegreto"
 
 [database]
