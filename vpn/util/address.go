@@ -42,8 +42,10 @@ func NextAvailableAddress() (string, error) {
 	iterator := ipaddr.NewIPAddressString(subnet).GetAddress().PrefixIterator()
 	for iterator.HasNext() {
 		n := iterator.Next()
-		if !dbTrie.ElementContains(n) /* && !trieNewSubnets.ElementContains(n) */ {
-			// trieNewSubnets.Add(n)
+		if n.IsZero() || n.IsMax() {
+			continue
+		}
+		if !dbTrie.ElementContains(n) {
 			logger.Debug("Found available address", "address", n.String())
 			return n.String(), nil
 		}
