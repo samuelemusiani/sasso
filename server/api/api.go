@@ -89,6 +89,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/ssh-keys", getSSHKeys)
 		r.Post("/ssh-keys", addSSHKey)
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
+
+		r.Get("/vpn", getUserVPNConfig)
 	})
 
 	// Admin Auth routes

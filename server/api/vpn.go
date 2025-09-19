@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"samuelemusiani/sasso/internal"
@@ -55,4 +56,26 @@ func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	user, err := db.GetUserByID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get user from DB")
+		http.Error(w, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
+	if user.VPNConfig == nil {
+		http.Error(w, "No VPN config found for user", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "plain/text")
+
+	config, err := base64.StdEncoding.DecodeString(*user.VPNConfig)
+
+	w.Write([]byte(config))
 }
