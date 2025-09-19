@@ -2,7 +2,7 @@
 import { api } from '@/lib/api'
 import { onMounted, ref } from 'vue'
 
-let vpnConfig = ref('')
+const vpnConfig = ref('')
 
 function fetchVPNConfig() {
   api
