@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -129,6 +130,21 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 	}
 
 	logger.With("vpns", vpns).Info("Fetched VPN configs from main server")
+
+	localInterfaces, err := db.GetAllInterfaces()
+	if err != nil {
+		logger.With("error", err).Error("Failed to fetch local interfaces from DB")
+		return err
+	}
+
+	for _, i := range localInterfaces {
+		if slices.IndexFunc(vpns, func(v internal.VPNUpdate) bool { return v.UserID == i.UserID }) == -1 {
+			vpns = append(vpns, internal.VPNUpdate{
+				UserID:    i.UserID,
+				VPNConfig: "",
+			})
+		}
+	}
 
 	for _, v := range vpns {
 		iface, err := db.GetInterfaceByUserID(v.UserID)

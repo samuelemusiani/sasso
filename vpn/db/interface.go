@@ -59,3 +59,11 @@ func CheckSubnetExists(subnet string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func GetAllInterfaces() ([]Interface, error) {
+	var ifaces []Interface
+	if err := db.Find(&ifaces).Error; err != nil {
+		return nil, err
+	}
+	return ifaces, nil
+}
