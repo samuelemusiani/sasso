@@ -183,8 +183,16 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 
 func UpdateVPNConfig(config string, userID uint) error {
 	var user User
-	user.ID = userID
-	if err := db.Model(&user).Select("vpn_config").Updates(User{VPNConfig: &config}).Error; err != nil {
+	if err := db.First(&user, userID).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to find user by ID")
+		return err
+	}
+
+	if err := db.Model(&user).
+		Select("vpn_config").
+		Updates(&User{
+			VPNConfig: &config,
+		}).Error; err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to update VPN config")
 		return err
 	}
