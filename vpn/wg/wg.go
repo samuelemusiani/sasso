@@ -77,7 +77,7 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreateInterface(i *WGInterface) error {
-	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", c.PublicKey, "allowed-ips", i.Address)
+	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
 		return err
