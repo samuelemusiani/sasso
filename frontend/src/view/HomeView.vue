@@ -59,6 +59,14 @@ onMounted(() => {
       >
         SSH Keys
       </RouterLink>
+
+      <RouterLink
+        class="bg-purple-400 hover:bg-purple-300 p-2 rounded-lg min-w-32 block text-center"
+        to="/vpn"
+      >
+        VPN
+      </RouterLink>
+
       <RouterLink
         v-if="showAdminPanel"
         class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg min-w-32 block text-center"

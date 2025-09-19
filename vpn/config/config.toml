@@ -1,9 +1,8 @@
+# Example of a configuration
 
 [server]
-bind = ":8080"
-
-[api]
-# To interact with the API, you need to set this secret in the "Authorization" header
+# To interact with the server API
+endpoint = "http://10.0.0.1:8080"
 secret = "supersegreto"
 
 [database]
@@ -13,13 +12,17 @@ host = "localhost"
 port = 5432
 
 [wireguard]
+# The server's WireGuard public key
 public_key = "qjYzM9d9hoaw1L5sDk7DjjdNcfX0UVrkoF7Vuztzajw="
+# The server's public endpoint for clients to connect to
 endpoint = "130.136.201.124:51820"
+# The subnet used for the WireGuard VPN
 subnet = "10.253.0.0/24"
 
+# Name of the interface used for the WireGuard VPN
+interface_name = "sasso"
+
 [firewall]
+# Zones used in the firewall configuration
 vpn = "vpn"
 sasso = "vms"
-
-[wb_interface_name]
-sasso = "sasso"

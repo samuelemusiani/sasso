@@ -15,9 +15,8 @@ type Net struct {
 	Gateway   string `gorm:"not null"`
 	Broadcast string `gorm:"not null"`
 
-	UserID      uint    `gorm:"not null"`
-	Status      string  `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
-	RouterTiket *string `gorm:"default:null"` // Ticket ID on the router side
+	UserID uint   `gorm:"not null"`
+	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
 }
 
 func initNetworks() error {
@@ -133,19 +132,11 @@ func UpdateVNet(net *Net) error {
 	return nil
 }
 
-func AddTicketToNetByID(netID uint, ticketID string) error {
-	if err := db.Model(&Net{}).Where("id = ?", netID).Update("router_tiket", ticketID).Error; err != nil {
-		logger.With("netID", netID, "ticketID", ticketID, "error", err).Error("Failed to add ticket to network")
-		return err
-	}
-	return nil
-}
-
-func GetTicketFromNetByID(netID uint) (*string, error) {
-	var net Net
-	if err := db.Select("router_tiket").First(&net, netID).Error; err != nil {
-		logger.With("netID", netID, "error", err).Error("Failed to get ticket from network")
+func GetAllNets() ([]Net, error) {
+	var nets []Net
+	if err := db.Find(&nets).Error; err != nil {
+		logger.With("error", err).Error("Failed to get all VNets")
 		return nil, err
 	}
-	return net.RouterTiket, nil
+	return nets, nil
 }

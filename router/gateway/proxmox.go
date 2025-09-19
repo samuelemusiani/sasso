@@ -63,7 +63,7 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 	return nil
 }
 
-func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint, subnet, routerIP, broadcast string) (*Interface, error) {
+func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
 	vm, err := pg.getVM()
 
 	// TODO: Check if in the future the APIs will acctually support Nets maps

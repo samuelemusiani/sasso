@@ -10,6 +10,7 @@ import UserDetailView from '../view/admin/UserDetailView.vue'
 import RealmsMultiplexer from '../components/realms/RealmsMultiplexer.vue'
 import NetsView from '../view/NetsView.vue'
 import SSHKeysView from '../view/SSHKeysView.vue'
+import VPNView from '../view/VPNView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 
 const router = createRouter({
@@ -21,6 +22,7 @@ const router = createRouter({
     { path: '/vm/:vmid/interfaces', component: InterfacesView },
     { path: '/net', component: NetsView },
     { path: '/ssh-keys', component: SSHKeysView },
+    { path: '/vpn', component: VPNView },
     {
       path: '/admin',
       children: [

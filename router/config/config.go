@@ -4,18 +4,14 @@ import "github.com/BurntSushi/toml"
 
 type Config struct {
 	Server   Server   `toml:"server"`
-	Api      Api      `toml:"api"`
 	Database Database `toml:"database"`
 	Network  Network  `toml:"network"`
 	Gateway  Gateway  `toml:"gateway"`
 }
 
 type Server struct {
-	Bind string `toml:"bind"`
-}
-
-type Api struct {
-	Secret string `toml:"secret"`
+	Endpoint string `toml:"endpoint"`
+	Secret   string `toml:"secret"`
 }
 
 type Network struct {

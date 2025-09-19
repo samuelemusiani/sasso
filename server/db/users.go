@@ -32,6 +32,8 @@ type User struct {
 	MaxDisk  uint `gorm:"not null;default:4"`
 	MaxNets  uint `gorm:"not null;default:1"`
 
+	VPNConfig *string `gorm:"default:null"`
+
 	VMs     []VM     `gorm:"foreignKey:UserID"`
 	Nets    []Net    `gorm:"foreignKey:UserID"`
 	SSHKeys []SSHKey `gorm:"foreignKey:UserID"`
@@ -177,4 +179,32 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 		return result.Error
 	}
 	return nil
+}
+
+func UpdateVPNConfig(config string, userID uint) error {
+	var user User
+	if err := db.First(&user, userID).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to find user by ID")
+		return err
+	}
+
+	if err := db.Model(&user).
+		Select("vpn_config").
+		Updates(&User{
+			VPNConfig: &config,
+		}).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to update VPN config")
+		return err
+	}
+
+	return nil
+}
+
+func GetAllVPNConfigs() ([]User, error) {
+	var users []User
+	if err := db.Model(&User{}).Where("vpn_config IS NOT NULL").Select("id", "vpn_config").Find(&users).Error; err != nil {
+		logger.With("error", err).Error("Failed to retrieve VPN configs")
+		return nil, err
+	}
+	return users, nil
 }

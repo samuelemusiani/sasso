@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 
-	"samuelemusiani/sasso/vpn/api"
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/util"
@@ -35,7 +34,7 @@ func main() {
 
 	slog.Debug("Initializing Wireguard")
 	wireguardLogger := slog.With("module", "wireguard")
-	wg.Init(wireguardLogger, &c.Wireguard, &c.WBInterfaceName)
+	wg.Init(wireguardLogger, &c.Wireguard, c.Wireguard.Interface)
 
 	slog.Debug("Initializing database")
 	dbLogger := slog.With("module", "db")
@@ -48,12 +47,6 @@ func main() {
 	utilLogger := slog.With("module", "utils")
 	util.Init(utilLogger, c.Wireguard.Subnet)
 
-	slog.Debug("Initializing API")
-	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, &c.Firewall, c.Api.Secret)
-
-	if err = api.ListenAndServe(c.Server.Bind); err != nil {
-		fmt.Printf("Error starting server: %v\n", err)
-		os.Exit(1)
-	}
+	workerLogger := slog.With("module", "worker")
+	worker(workerLogger, c.Server, c.Firewall)
 }

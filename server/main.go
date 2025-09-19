@@ -100,7 +100,7 @@ func main() {
 	// Proxmox
 	slog.Debug("Initializing proxmox module")
 	proxmoxLogger := slog.With("module", "proxmox")
-	err = proxmox.Init(proxmoxLogger, c.Proxmox, c.Gateway, c.VPN)
+	err = proxmox.Init(proxmoxLogger, c.Proxmox)
 	if err != nil {
 		slog.With("error", err).Error("Failed to initialize Proxmox client")
 		os.Exit(1)
@@ -110,14 +110,12 @@ func main() {
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
 	go proxmox.TestEndpointNetZone()
-	go proxmox.TestEndpointGateway()
-	go proxmox.TestEndpointVPN()
 	go proxmox.Worker()
 
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, frontFS)
+	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS)
 	err = api.ListenAndServe(c.Server)
 	if err != nil {
 		slog.With("error", err).Error("Failed to start API server")

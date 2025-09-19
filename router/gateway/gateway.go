@@ -24,7 +24,7 @@ type Interface struct {
 	// Local ID on the gateway (e.g., if the gateway is Proxmox this is the ID of the interface on Proxmox net0, net1, etc)
 	LocalID uint
 	VNet    string
-	VNetID  uint
+	VNetID  uint32
 
 	Subnet    string
 	RouterIP  string
@@ -60,7 +60,7 @@ func Get() Gateway {
 
 type Gateway interface {
 	Init(c config.Gateway) error
-	NewInterface(vnet string, vnetID uint, subnet, routerIP, broadcast string) (*Interface, error)
+	NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error)
 	RemoveInterface(id uint) error
 }
 

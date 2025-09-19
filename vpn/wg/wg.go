@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"samuelemusiani/sasso/vpn/config"
+	"samuelemusiani/sasso/vpn/db"
 	"strings"
 )
 
@@ -25,10 +26,10 @@ AllowedIps = %s, %s`
 	interfaceName string
 )
 
-func Init(l *slog.Logger, config *config.Wireguard, configIN *config.WBInterfaceName) {
+func Init(l *slog.Logger, config *config.Wireguard, iface string) {
 	logger = l
 	c = config
-	interfaceName = configIN.InterfaceName
+	interfaceName = iface
 }
 
 type WGInterface struct {
@@ -53,6 +54,7 @@ func (WG *WGInterface) String() string {
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {
+	logger.Debug("Executing command", "command", command, "args", args)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(command, args...)
@@ -63,6 +65,7 @@ func executeCommand(command string, args ...string) (string, string, error) {
 }
 
 func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (string, string, error) {
+	logger.Debug("Executing command with stdin", "command", command, "args", args)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(command, args...)
@@ -74,7 +77,7 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreateInterface(i *WGInterface) error {
-	stdout, stderr, err := executeCommand("wg", "set", "sasso", "peer", c.PublicKey, "allowed-ips", i.Address)
+	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
 		return err
@@ -95,4 +98,13 @@ func genKeys() (string, string, error) {
 		return "", "", err
 	}
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
+}
+
+func InterfaceFromDB(iface *db.Interface) WGInterface {
+	return WGInterface{
+		Address:    iface.Address,
+		PrivateKey: iface.PrivateKey,
+		PublicKey:  iface.PublicKey,
+		Subnet:     iface.Subnet,
+	}
 }
