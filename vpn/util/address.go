@@ -39,16 +39,23 @@ func NextAvailableAddress() (string, error) {
 		dbTrie.Add(addr)
 	}
 
-	iterator := ipaddr.NewIPAddressString(subnet).GetAddress().PrefixIterator()
+	iSubnet := ipaddr.NewIPAddressString(subnet).GetAddress()
+	iterator := iSubnet.SetPrefixLen(32).PrefixIterator()
 	for iterator.HasNext() {
-		n := iterator.Next()
-		if n.IsZero() || n.IsMax() {
+		addr := iterator.Next()
+
+		tmpAddr := addr.SetPrefixLen(24)
+		if tmpAddr.IsMaxHost() || tmpAddr.IsZeroHost() ||
+			iSubnet.GetUpper().Increment(-1).Equal(tmpAddr) {
 			continue
 		}
-		if !dbTrie.ElementContains(n) {
-			logger.Debug("Found available address", "address", n.String())
-			return n.String(), nil
+
+		if !dbTrie.ElementContains(addr) {
+			logger.Debug("Found available address", "address", addr.String())
+			return addr.String(), nil
 		}
+
+		println(addr.String())
 	}
 
 	return "", err
