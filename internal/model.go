@@ -13,3 +13,8 @@ type Net struct {
 
 	UserID uint `json:"user_id"` // ID of the user who owns this net
 }
+
+type VPNUpdate struct {
+	UserID    uint   `json:"user_id"`
+	VPNConfig string `json:"vpn_config"`
+}

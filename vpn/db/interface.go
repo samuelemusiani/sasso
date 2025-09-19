@@ -6,18 +6,21 @@ type Interface struct {
 	PublicKey  string `gorm:"not null"`
 	Subnet     string `gorm:"not null;unique"`
 	Address    string `gorm:"not null;unique"`
+
+	UserID uint `gorm:"index"`
 }
 
 func initInterfaces() error {
 	return db.AutoMigrate(&Interface{})
 }
 
-func NewInterface(privateKey, publicKey, subnet, address string) error {
+func NewInterface(privateKey, publicKey, subnet, address string, userID uint) error {
 	iface := &Interface{
 		PrivateKey: privateKey,
 		PublicKey:  publicKey,
 		Subnet:     subnet,
 		Address:    address,
+		UserID:     userID,
 	}
 	if err := db.Create(iface).Error; err != nil {
 		return err
@@ -28,6 +31,14 @@ func NewInterface(privateKey, publicKey, subnet, address string) error {
 func GetInterfaceByID(id uint) (*Interface, error) {
 	var iface Interface
 	if err := db.First(&iface, id).Error; err != nil {
+		return nil, err
+	}
+	return &iface, nil
+}
+
+func GetInterfaceByUserID(userID uint) (*Interface, error) {
+	var iface Interface
+	if err := db.Where("user_id = ?", userID).First(&iface).Error; err != nil {
 		return nil, err
 	}
 	return &iface, nil

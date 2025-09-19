@@ -83,7 +83,7 @@ func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		err = db.NewInterface(wgInterface.PrivateKey, wgInterface.PublicKey, n.Subnet, newAddr)
+		err = db.NewInterface(wgInterface.PrivateKey, wgInterface.PublicKey, n.Subnet, newAddr, n.UserID)
 		if err != nil {
 			logger.With("error", err).Error("Failed to save interface to database")
 			continue
@@ -110,10 +110,6 @@ func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			logger.With("error", err).Error("Failed to create WireGuard interface")
 			continue
 		}
-
-		// TODO: Decide if to send the config to the main server or enable the
-		// server to fetch it
-		wgInterface.String()
 	}
 
 	return nil

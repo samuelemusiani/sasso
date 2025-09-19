@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"samuelemusiani/sasso/vpn/config"
+	"samuelemusiani/sasso/vpn/db"
 	"strings"
 )
 
@@ -95,4 +96,13 @@ func genKeys() (string, string, error) {
 		return "", "", err
 	}
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
+}
+
+func InterfaceFromDB(iface *db.Interface) WGInterface {
+	return WGInterface{
+		Address:    iface.Address,
+		PrivateKey: iface.PrivateKey,
+		PublicKey:  iface.PublicKey,
+		Subnet:     iface.Subnet,
+	}
 }
