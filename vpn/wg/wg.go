@@ -54,6 +54,7 @@ func (WG *WGInterface) String() string {
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {
+	logger.Debug("Executing command", "command", command, "args", args)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(command, args...)
@@ -64,6 +65,7 @@ func executeCommand(command string, args ...string) (string, string, error) {
 }
 
 func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (string, string, error) {
+	logger.Debug("Executing command with stdin", "command", command, "args", args)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(command, args...)
@@ -75,7 +77,7 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreateInterface(i *WGInterface) error {
-	stdout, stderr, err := executeCommand("wg", "set", "sasso", "peer", c.PublicKey, "allowed-ips", i.Address)
+	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", c.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
 		return err
