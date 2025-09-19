@@ -128,6 +128,8 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		return err
 	}
 
+	logger.With("vpns", vpns).Info("Fetched VPN configs from main server")
+
 	for _, v := range vpns {
 		iface, err := db.GetInterfaceByUserID(v.UserID)
 		if err != nil {
@@ -141,6 +143,7 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 			continue
 		}
 
+		logger.With("user_id", v.UserID).Info("Updating VPN config on main server")
 		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNUpdate{
 			UserID:    v.UserID,
 			VPNConfig: base64Conf,
