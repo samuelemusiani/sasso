@@ -77,5 +77,5 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	config, err := base64.StdEncoding.DecodeString(*user.VPNConfig)
 
-	w.Write([]byte(config))
+	w.Write(config)
 }
