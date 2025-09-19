@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"time"
@@ -33,6 +34,11 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		err = createNets(logger, nets, fwConfig)
 		if err != nil {
 			logger.With("error", err).Error("Failed to create VNets")
+		}
+
+		err = updateNetsOnServer(logger, serverConfig.Endpoint, serverConfig.Secret)
+		if err != nil {
+			logger.With("error", err).Error("Failed to update nets on main server")
 		}
 
 		time.Sleep(5 * time.Second)
@@ -110,6 +116,35 @@ func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			logger.With("error", err).Error("Failed to create WireGuard interface")
 			continue
 		}
+	}
+
+	return nil
+}
+
+func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
+	vpns, err := internal.FetchVPNConfigs(endpoint, secret)
+	if err != nil {
+		logger.With("error", err).Error("Failed to fetch VPN configs from main server")
+		return err
+	}
+
+	for _, v := range vpns {
+		iface, err := db.GetInterfaceByUserID(v.UserID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get interface from DB")
+			continue
+		}
+
+		wgIface := wg.InterfaceFromDB(iface)
+		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
+		if base64Conf == v.VPNConfig {
+			continue
+		}
+
+		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNUpdate{
+			UserID:    v.UserID,
+			VPNConfig: base64Conf,
+		})
 	}
 
 	return nil

@@ -189,3 +189,12 @@ func UpdateVPNConfig(config string, userID uint) error {
 
 	return nil
 }
+
+func GetAllVPNConfigs() ([]User, error) {
+	var users []User
+	if err := db.Model(&User{}).Where("vpn_config IS NOT NULL").Select("id", "vpn_config").Find(&users).Error; err != nil {
+		logger.With("error", err).Error("Failed to retrieve VPN configs")
+		return nil, err
+	}
+	return users, nil
+}

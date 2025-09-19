@@ -30,3 +30,29 @@ func updateVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
+	vpnConfigs, err := db.GetAllVPNConfigs()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get VPN configs from DB")
+		http.Error(w, "Failed to get VPN configs", http.StatusInternalServerError)
+		return
+	}
+
+	var vpns []internal.VPNUpdate
+	for i := range vpnConfigs {
+		vpns = append(vpns, internal.VPNUpdate{
+			UserID:    vpnConfigs[i].ID,
+			VPNConfig: *vpnConfigs[i].VPNConfig,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(vpns); err != nil {
+		logger.With("error", err).Error("Failed to encode VPN configs")
+		http.Error(w, "Failed to encode VPN configs", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

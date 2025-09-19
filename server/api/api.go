@@ -119,6 +119,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/net", internalListNets)
 		r.Put("/net/{id}", internalUpdateNet)
 
+		r.Get("/vpn", getVPNConfigs)
 		r.Put("/vpn", updateVPNConfig)
 	})
 
