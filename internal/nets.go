@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,8 +66,14 @@ func FetchVPNConfigs(endpoint, secret string) ([]VPNUpdate, error) {
 }
 
 func UpdateVPNConfig(endpoint, secret string, vpn VPNUpdate) error {
+
+	body, err := json.Marshal(vpn)
+	if err != nil {
+		return errors.Join(err, errors.New("failed to marshal vpn update"))
+	}
+
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("PUT", endpoint+"/internal/vpn", nil)
+	req, err := http.NewRequest("PUT", endpoint+"/internal/vpn", bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}
