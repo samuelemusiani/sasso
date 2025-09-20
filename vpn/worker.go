@@ -87,19 +87,20 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 				logger.With("error", err).Error("Failed to delete firewall rule")
 				continue
 			}
-		}
 
-		if err = shorewall.Reload(); err != nil {
-			logger.With("error", err).Error("Failed to reload firewall")
-			continue
-		}
+			if err = shorewall.Reload(); err != nil {
+				logger.With("error", err).Error("Failed to reload firewall")
+				continue
+			}
 
-		err = db.RemoveSubnet(ln.Subnet)
-		if err != nil {
-			logger.With("error", err).Error("Failed to remove subnet from DB")
-			continue
+			err = db.RemoveSubnet(ln.Subnet)
+			if err != nil {
+				logger.With("error", err).Error("Failed to remove subnet from DB")
+				continue
+			}
+
+			logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
 		}
-		logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
 	}
 	return nil
 }
