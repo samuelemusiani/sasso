@@ -146,6 +146,11 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 
 func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
 	for _, n := range nets {
+		if n.Subnet == "" {
+			// When just created, the net has no subnet assigned yet
+			continue
+		}
+
 		// Check if the subnet associated to the net already exists in the DB
 		exist, err := db.CheckSubnetExists(n.Subnet)
 		if err != nil {
