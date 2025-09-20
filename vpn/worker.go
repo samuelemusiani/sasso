@@ -83,7 +83,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 				Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
 				Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
 			})
-			if err != nil {
+			if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
 				logger.With("error", err).Error("Failed to delete firewall rule")
 				continue
 			}
@@ -170,7 +170,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, n.Subnet),
 		})
 
-		if err != nil {
+		if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
 			logger.With("error", err).Error("Failed to add firewall rule")
 			continue
 		}
