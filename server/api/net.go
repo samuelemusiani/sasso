@@ -121,7 +121,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 }
 
 func internalListNets(w http.ResponseWriter, r *http.Request) {
-	nets, err := db.GetAllNets()
+	nets, err := db.GetVNetsWithStatus(string(proxmox.VNetStatusReady))
 	if err != nil {
 		slog.With("err", err).Error("Failed to get all nets")
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
