@@ -1,13 +1,13 @@
 package db
 
 type Interface struct {
-	ID         uint     `gorm:"primaryKey"`
-	PrivateKey string   `gorm:"not null"`
-	PublicKey  string   `gorm:"not null"`
-	Subnet     []Subnet `gorm:"not null;unique"`
-	Address    string   `gorm:"not null;unique"`
+	ID         uint   `gorm:"primaryKey"`
+	PrivateKey string `gorm:"not null"`
+	PublicKey  string `gorm:"not null"`
+	Address    string `gorm:"not null;unique"`
+	UserID     uint   `gorm:"index"`
 
-	UserID uint `gorm:"index"`
+	Subnet []Subnet
 }
 
 func initInterfaces() error {
