@@ -145,11 +145,15 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 }
 
 func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
+	logger.Info("Enabling nets", "nets", nets)
+
 	for _, n := range nets {
 		if n.Subnet == "" {
 			// When just created, the net has no subnet assigned yet
 			continue
 		}
+
+		logger.Info("Processing net", "net", n)
 
 		// Check if the subnet associated to the net already exists in the DB
 		exist, err := db.CheckSubnetExists(n.Subnet)
@@ -198,6 +202,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			logger.With("error", err).Error("Failed to save subnet to database")
 			continue
 		}
+		logger.Info("Successfully enabled net", "net", n)
 	}
 
 	return nil
