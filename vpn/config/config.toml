@@ -17,7 +17,11 @@ public_key = "qjYzM9d9hoaw1L5sDk7DjjdNcfX0UVrkoF7Vuztzajw="
 # The server's public endpoint for clients to connect to
 endpoint = "130.136.201.124:51820"
 # The subnet used for the WireGuard VPN
-subnet = "10.253.0.0/24"
+vpn_subnet = "10.253.0.0/24"
+
+# The subnet used for the VMs. This must match the subnet configured in the
+# router
+vms_subnet = "10.254.0.0/16"
 
 # Name of the interface used for the WireGuard VPN
 interface_name = "sasso"

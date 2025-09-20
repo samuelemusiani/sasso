@@ -36,21 +36,20 @@ type WGInterface struct {
 	Address    string
 	PrivateKey string
 	PublicKey  string
-	Subnet     string
 }
 
-func NewWGConfig(address, subnet string) (*WGInterface, error) {
+func NewWGConfig(address string) (*WGInterface, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		logger.With("err", err).Error("Error generating keys")
 		return nil, err
 	}
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
-	return &WGInterface{address, privateKey, publicKey, subnet}, nil
+	return &WGInterface{address, privateKey, publicKey}, nil
 }
 
 func (WG *WGInterface) String() string {
-	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, WG.Subnet, c.Subnet)
+	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {
@@ -105,6 +104,5 @@ func InterfaceFromDB(iface *db.Interface) WGInterface {
 		Address:    iface.Address,
 		PrivateKey: iface.PrivateKey,
 		PublicKey:  iface.PublicKey,
-		Subnet:     iface.Subnet,
 	}
 }

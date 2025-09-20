@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"samuelemusiani/sasso/vpn/wg"
 
 	shorewall "github.com/samuelemusiani/go-shorewall"
+	"gorm.io/gorm"
 )
 
 func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall) {
@@ -27,14 +29,26 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			continue
 		}
 
-		err = deleteNets(logger, nets, fwConfig)
+		users, err := internal.FetchUsers(serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
-			logger.With("error", err).Error("Failed to delete VNets")
+			logger.With("error", err).Error("Failed to fetch users from main server")
+			time.Sleep(10 * time.Second)
+			continue
 		}
 
-		err = createNets(logger, nets, fwConfig)
+		err = createInterfaces(logger, users)
 		if err != nil {
 			logger.With("error", err).Error("Failed to create VNets")
+		}
+
+		err = enableNets(logger, nets, fwConfig)
+		if err != nil {
+			logger.With("error", err).Error("Failed to enable VNets")
+		}
+
+		err = disableNets(logger, nets, fwConfig)
+		if err != nil {
+			logger.With("error", err).Error("Failed to delete VNets")
 		}
 
 		err = updateNetsOnServer(logger, serverConfig.Endpoint, serverConfig.Secret)
@@ -46,25 +60,91 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 	}
 }
 
-// This function takes care of deleting the nets that are present on the DB
-// but not present on the main server
-func deleteNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
+func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
 	logger.Info("Deleting nets", "nets", nets)
-	// TODO: Implement this function
-	return nil
-}
+	localNets, err := db.GetAllSubnets()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all subnets from DB")
+		return err
+	}
 
-// This function takes care of creating the nets that are present on the main
-// server but not present on the DB
-func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	logger.Info("Creating nets", "nets", nets)
+	for _, ln := range localNets {
+		f := func(n internal.Net) bool { return n.Subnet == ln.Subnet }
+		if slices.IndexFunc(nets, f) == -1 {
+			logger.Info("Deleting net", "subnet", ln.Subnet)
 
-	for _, n := range nets {
-		if n.Subnet == "" {
-			logger.Info("Skipping net with empty subnet", "net", n)
+			iface, err := db.GetInterfaceByID(ln.InterfaceID)
+			if err != nil {
+				logger.With("error", err).Error("Failed to get interface from DB")
+				continue
+			}
+			err = shorewall.RemoveRule(shorewall.Rule{
+				Action:      "ACCEPT",
+				Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
+				Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
+			})
+			if err != nil {
+				logger.With("error", err).Error("Failed to delete firewall rule")
+				continue
+			}
+		}
+
+		if err = shorewall.Reload(); err != nil {
+			logger.With("error", err).Error("Failed to reload firewall")
 			continue
 		}
 
+		err = db.RemoveSubnet(ln.Subnet)
+		if err != nil {
+			logger.With("error", err).Error("Failed to remove subnet from DB")
+			continue
+		}
+		logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
+	}
+	return nil
+}
+
+func createInterfaces(logger *slog.Logger, users []internal.User) error {
+	logger.Info("Creating interfaces", "users", users)
+
+	for _, u := range users {
+		_, err := db.GetInterfaceByUserID(u.ID)
+		logger.Info("Checking interface for user", "user_id", u.ID)
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.With("error", err).Error("Failed to get interface from DB")
+			continue
+		} else if err == nil {
+			// Interface already exists, skip
+			continue
+		}
+
+		newAddr, err := util.NextAvailableAddress()
+		if err != nil {
+			logger.With("error", err).Error("Failed to generate new address")
+			continue
+		}
+
+		wgInterface, err := wg.NewWGConfig(newAddr)
+		if err != nil {
+			logger.With("error", err).Error("Failed to generate WireGuard config")
+			continue
+		}
+
+		err = db.NewInterface(wgInterface.PrivateKey, wgInterface.PublicKey, newAddr, u.ID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to save interface to database")
+			continue
+		}
+
+		logger.Info("Successfully created new interface", "user_id", u.ID, "address", newAddr)
+	}
+
+	return nil
+}
+
+func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
+	for _, n := range nets {
 		// Check if the subnet associated to the net already exists in the DB
 		exist, err := db.CheckSubnetExists(n.Subnet)
 		if err != nil {
@@ -78,27 +158,15 @@ func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		newAddr, err := util.NextAvailableAddress()
+		iface, err := db.GetInterfaceByUserID(n.UserID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to generate new address")
-			continue
-		}
-
-		wgInterface, err := wg.NewWGConfig(newAddr, n.Subnet)
-		if err != nil {
-			logger.With("error", err).Error("Failed to generate WireGuard config")
-			continue
-		}
-
-		err = db.NewInterface(wgInterface.PrivateKey, wgInterface.PublicKey, n.Subnet, newAddr, n.UserID)
-		if err != nil {
-			logger.With("error", err).Error("Failed to save interface to database")
+			logger.With("error", err).Error("Failed to get interface from DB")
 			continue
 		}
 
 		err = shorewall.AddRule(shorewall.Rule{
 			Action:      "ACCEPT",
-			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, newAddr),
+			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
 			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, n.Subnet),
 		})
 
@@ -112,9 +180,16 @@ func createNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		err = wg.CreateInterface(wgInterface)
+		wgIface := wg.InterfaceFromDB(iface)
+		err = wg.CreateInterface(&wgIface)
 		if err != nil {
 			logger.With("error", err).Error("Failed to create WireGuard interface")
+			continue
+		}
+
+		err = db.NewSubnet(n.Subnet, iface.ID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to save subnet to database")
 			continue
 		}
 	}

@@ -1,11 +1,11 @@
 package db
 
 type Interface struct {
-	ID         uint   `gorm:"primaryKey"`
-	PrivateKey string `gorm:"not null"`
-	PublicKey  string `gorm:"not null"`
-	Subnet     string `gorm:"not null;unique"`
-	Address    string `gorm:"not null;unique"`
+	ID         uint     `gorm:"primaryKey"`
+	PrivateKey string   `gorm:"not null"`
+	PublicKey  string   `gorm:"not null"`
+	Subnet     []Subnet `gorm:"not null;unique"`
+	Address    string   `gorm:"not null;unique"`
 
 	UserID uint `gorm:"index"`
 }
@@ -14,11 +14,10 @@ func initInterfaces() error {
 	return db.AutoMigrate(&Interface{})
 }
 
-func NewInterface(privateKey, publicKey, subnet, address string, userID uint) error {
+func NewInterface(privateKey, publicKey, address string, userID uint) error {
 	iface := &Interface{
 		PrivateKey: privateKey,
 		PublicKey:  publicKey,
-		Subnet:     subnet,
 		Address:    address,
 		UserID:     userID,
 	}
@@ -50,14 +49,6 @@ func GetAllAddresses() ([]string, error) {
 		return nil, err
 	}
 	return addresses, nil
-}
-
-func CheckSubnetExists(subnet string) (bool, error) {
-	var count int64
-	if err := db.Model(&Interface{}).Where("subnet = ?", subnet).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 func GetAllInterfaces() ([]Interface, error) {

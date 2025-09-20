@@ -26,7 +26,8 @@ type Database struct {
 type Wireguard struct {
 	PublicKey string `toml:"public_key"`
 	Endpoint  string `toml:"endpoint"`
-	Subnet    string `toml:"subnet"`
+	VPNSubnet string `toml:"vpn_subnet"`
+	VMsSubnet string `toml:"vms_subnet"`
 	Interface string `toml:"interface_name"`
 }
 

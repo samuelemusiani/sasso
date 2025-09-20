@@ -1,7 +1,6 @@
 package db
 
 import (
-	// "gorm.io/driver/postgres"
 	"fmt"
 	"log"
 	"log/slog"
@@ -38,6 +37,11 @@ func Init(l *slog.Logger, c *config.Database) error {
 	})
 	if err != nil {
 		logger.With("error", err).Error("Failed to connect to database")
+		return err
+	}
+
+	if err := initSubnets(); err != nil {
+		logger.With("error", err).Error("Failed to initialize subnets in database")
 		return err
 	}
 

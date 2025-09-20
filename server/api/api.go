@@ -123,6 +123,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 		r.Get("/vpn", getVPNConfigs)
 		r.Put("/vpn", updateVPNConfig)
+
+		r.Get("/user", listUsers)
 	})
 
 	router.Mount("/api", apiRouter)

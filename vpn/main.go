@@ -45,7 +45,7 @@ func main() {
 
 	slog.Debug("Initializing utilities")
 	utilLogger := slog.With("module", "utils")
-	util.Init(utilLogger, c.Wireguard.Subnet)
+	util.Init(utilLogger, c.Wireguard.VPNSubnet)
 
 	workerLogger := slog.With("module", "worker")
 	worker(workerLogger, c.Server, c.Firewall)
