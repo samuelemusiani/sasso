@@ -598,17 +598,24 @@ func createInterfaces() {
 		// This is a temporary workaround.
 		// At the moment we are using the samuelemusiani/go-proxmox fork
 		mnets := vm.VirtualMachineConfig.Nets
-		var snet = make([]string, len(mnets))
+		// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
+
+		var snet = make([]int, len(mnets))
 		var i int = 0
 		for k := range mnets {
-			snet[i] = k
+			tmp := strings.TrimPrefix(k, "net")
+			tmpN, err := strconv.Atoi(tmp)
+			if err != nil {
+				continue
+			}
+			snet[i] = tmpN
 			i++
 		}
 		slices.Sort(snet)
 		logger.With("mnets", mnets, "snet", snet).Debug("Current network interfaces on Proxmox VM")
 		var firstEmptyIndex int = -1
 		for i := range snet {
-			if !strings.HasSuffix(snet[i], strconv.Itoa(i)) {
+			if snet[i] != i {
 				firstEmptyIndex = i
 				break
 			}
