@@ -48,4 +48,4 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.4
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.5
