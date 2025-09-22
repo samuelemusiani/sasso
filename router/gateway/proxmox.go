@@ -69,7 +69,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	// TODO: Check if in the future the APIs will acctually support Nets maps
 	// https://github.com/luthermonson/go-proxmox/issues/211
 	// This is a temporary workaround
-	mnets := vm.VirtualMachineConfig.MergeNets()
+	mnets := vm.VirtualMachineConfig.Nets
 	// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
 
 	// snet := ["eth0", "eth1", "eth2", ...]
@@ -133,7 +133,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 		}
 	}
 
-	ipConfigs := vm.VirtualMachineConfig.MergeIPConfigs()
+	ipConfigs := vm.VirtualMachineConfig.IPConfigs
 	needToConfigureInterfaceOnProxmox := true
 
 	for i := range ipConfigs {
@@ -173,8 +173,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	// If the router is running the interface will not be configured until the next reboot
 	// So we need to get the MAC address of the new interface and configure it manually
 	// This implies that the router service is running on the Proxmox VM itself
-	newNets := newVM.VirtualMachineConfig.MergeNets()
-	newInterface := newNets["net"+strconv.Itoa(interfaceIndex)]
+	newInterface := newVM.VirtualMachineConfig.Nets["net"+strconv.Itoa(interfaceIndex)]
 	mac, err := extractMacFromInterfaceString(newInterface)
 	if err != nil {
 		logger.With("error", err, "interface", newInterface).Error("Failed to extract MAC address from interface string")

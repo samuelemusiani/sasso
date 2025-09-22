@@ -394,9 +394,14 @@ func configureVMs() {
 			}
 		}
 
-		st, err := parseStorageFromString(vm.VirtualMachineConfig.SCSI0)
+		scsi0, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
+		if !ok {
+			logger.With("vmid", v.ID).Error("Failed to find SCSI0 on VM")
+			continue
+		}
+		st, err := parseStorageFromString(scsi0)
 		if err != nil {
-			logger.With("vmid", v.ID, "scsi0", vm.VirtualMachineConfig.SCSI0).Error("Failed to parse storage on SCSI0")
+			logger.With("vmid", v.ID, "scsi0", scsi0).Error("Failed to parse storage on SCSI0")
 			continue
 		}
 
@@ -590,8 +595,9 @@ func createInterfaces() {
 
 		// TODO: Check if in the future the APIs will acctually support Nets maps
 		// https://github.com/luthermonson/go-proxmox/issues/211
-		// This is a temporary workaround
-		mnets := vm.VirtualMachineConfig.MergeNets()
+		// This is a temporary workaround.
+		// At the moment we are using the samuelemusiani/go-proxmox fork
+		mnets := vm.VirtualMachineConfig.Nets
 		var snet = make([]string, len(mnets))
 		var i int = 0
 		for k := range mnets {

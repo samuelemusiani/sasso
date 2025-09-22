@@ -7,7 +7,6 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/jwtauth/v5 v5.3.3
 	github.com/go-ldap/ldap/v3 v3.4.11
-	github.com/google/uuid v1.6.0
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/samuelemusiani/go-shorewall v0.0.2
 	github.com/seancfoley/ipaddress-go v1.7.1
@@ -25,6 +24,7 @@ require (
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -48,4 +48,4 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.2
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.4
