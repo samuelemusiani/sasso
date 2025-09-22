@@ -48,6 +48,11 @@ func Init(l *slog.Logger, c config.Gateway) error {
 		globalGateway = pg
 	case "linux":
 		lg := NewLinuxGateway()
+		err := lg.Init(c)
+		if err != nil {
+			logger.With("error", err).Error("Failed to initialize Linux gateway")
+			return err
+		}
 		globalGateway = lg
 	default:
 		logger.With("type", c.Type).Error("Unsupported gateway type")
