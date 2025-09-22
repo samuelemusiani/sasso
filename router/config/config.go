@@ -22,6 +22,7 @@ type Network struct {
 type Gateway struct {
 	Type    string               `toml:"type"`
 	Proxmox ProxmoxGatewayConfig `toml:"proxmox"`
+	Linux   LinuxGatewayConfig   `toml:"linux"`
 }
 
 type ProxmoxGatewayConfig struct {
@@ -30,6 +31,11 @@ type ProxmoxGatewayConfig struct {
 	TokenID            string `toml:"token_id"`
 	Secret             string `toml:"secret"`
 	VMID               uint   `toml:"vmid"`
+}
+
+type LinuxGatewayConfig struct {
+	Port  uint16   `toml:"port"`
+	Peers []string `toml:"peers"`
 }
 
 type Database struct {

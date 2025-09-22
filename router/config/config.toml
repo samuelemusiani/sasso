@@ -17,11 +17,15 @@ usable_subnet = "10.254.0.0/16"
 new_subnet_prefix = 29
 
 [gateway]
-type = "proxmox"
+type = "linux"
 
-[gateway.proxmox]
-url = "https://localhost:8006"
-insecure_skip_verify = true
-token_id = "root@pam!mytokenid"
-secret = "2630dda0-b730-4dc7-be14-0b3582c97224"
-vmid = 9100
+# [gateway.proxmox]
+# url = "https://localhost:8006"
+# insecure_skip_verify = true
+# token_id = "root@pam!mytokenid"
+# secret = "2630dda0-b730-4dc7-be14-0b3582c97224"
+# vmid = 9100
+
+[gaeteway.linux]
+port = 4789
+peers = ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
