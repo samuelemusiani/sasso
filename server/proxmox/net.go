@@ -23,7 +23,8 @@ var (
 	VNetStatusCreating VMStatus = "creating"
 	VNetStatusDeleting VMStatus = "deleting"
 
-	ErrVNetNotFound error = errors.New("VNet not found")
+	ErrVNetNotFound            error = errors.New("VNet not found")
+	ErrVNetHasActiveInterfaces error = errors.New("VNet has active interfaces")
 )
 
 func TestEndpointNetZone() {
@@ -129,6 +130,16 @@ func DeleteNet(userID uint, netID uint) error {
 	if err != nil {
 		logger.With("userID", userID, "netID", netID, "error", err).Error("Failed to get net by ID")
 		return ErrVNetNotFound
+	}
+
+	interfaces, err := db.GetInterfacesByVNetID(netID)
+	if err != nil {
+		logger.With("userID", userID, "netID", netID, "error", err).Error("Failed to get interfaces by net ID")
+		return err
+	}
+	if len(interfaces) > 0 {
+		logger.With("userID", userID, "netID", netID).Error("Cannot delete net with active interfaces")
+		return ErrVNetHasActiveInterfaces
 	}
 
 	if net.UserID != userID {

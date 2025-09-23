@@ -82,3 +82,12 @@ func DeleteInterfaceByID(id uint) error {
 func DeleteInterface(iface *Interface) error {
 	return db.Delete(iface).Error
 }
+
+func GetInterfacesByVNetID(vnetID uint) ([]Interface, error) {
+	var ifaces []Interface
+	if err := db.Where("v_net_id = ?", vnetID).Find(&ifaces).Error; err != nil {
+		logger.With("vnetID", vnetID, "error", err).Error("Failed to get interfaces for VNet")
+		return nil, err
+	}
+	return ifaces, nil
+}
