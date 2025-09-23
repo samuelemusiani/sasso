@@ -14,7 +14,6 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
-	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -103,11 +102,6 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			logger.With("error", err, "local_id", iface.LocalID).Error("Failed to remove interface from gateway")
 		}
 
-		err = fw.DeleteInterface(iface)
-		if err != nil {
-			logger.With("error", err, "interface_id", iface.ID).Error("Failed to delete interface from firewall")
-		}
-
 		err = db.DeleteInterface(iface.ID)
 		if err != nil {
 			logger.With("error", err, "interface_id", iface.ID).Error("Failed to delete interface from database")
@@ -159,12 +153,6 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 		err = inter.SaveToDB()
 		if err != nil {
 			logger.With("error", err).Error("Failed to save interface to database")
-			return err
-		}
-
-		err = fw.AddInterface(inter)
-		if err != nil {
-			logger.With("error", err).Error("Failed to create new interface on firewall")
 			return err
 		}
 	}
