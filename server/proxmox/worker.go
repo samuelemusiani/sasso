@@ -281,6 +281,12 @@ func deleteVMs() {
 		nodeName, ok := VMLocation[v.ID]
 		if !ok {
 			logger.With("vmid", v.ID).Error("Can't delete VM. Not found on cluster resources")
+
+			// If the VM is not found on Proxmox, we just delete it from the DB
+			err = db.DeleteVMByID(v.ID)
+			if err != nil {
+				logger.With("vmid", v.ID, "err", err).Error("Failed to delete VM")
+			}
 			continue
 		}
 
