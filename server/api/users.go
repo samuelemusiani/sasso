@@ -106,6 +106,10 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 		Email:    user.Email,
 		Realm:    user.Realm,
 		Role:     user.Role,
+		MaxCores: user.MaxCores,
+		MaxRAM:   user.MaxRAM,
+		MaxDisk:  user.MaxDisk,
+		MaxNets:  user.MaxNets,
 	}
 
 	err = json.NewEncoder(w).Encode(returnUser)
