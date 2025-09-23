@@ -278,6 +278,11 @@ func deleteVMs() {
 	for _, v := range vms {
 		logger.With("vmid", v.ID).Info("Deleting VM")
 
+		err := db.DeleteAllInterfacesByVMID(v.ID)
+		if err != nil {
+			logger.With("vmid", v.ID, "err", err).Error("Failed to delete interfaces for VM")
+		}
+
 		nodeName, ok := VMLocation[v.ID]
 		if !ok {
 			logger.With("vmid", v.ID).Error("Can't delete VM. Not found on cluster resources")
@@ -298,6 +303,25 @@ func deleteVMs() {
 		vm, err := getProxmoxVM(node, int(v.ID))
 		if err != nil {
 			continue
+		}
+
+		if vm.Status == "running" {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			task, err := vm.Stop(ctx)
+			cancel()
+			if err != nil {
+				logger.With("err", err, "vmid", v.ID).Error("Can't stop VM before deletion")
+				continue
+			}
+			isSuccessful, err := waitForProxmoxTaskCompletion(task)
+			if err != nil {
+				logger.With("err", err, "vmid", v.ID).Error("Can't wait for stop VM task completion")
+				continue
+			}
+			if !isSuccessful {
+				logger.With("vmid", v.ID).Error("Can't stop VM before deletion")
+				continue
+			}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

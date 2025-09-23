@@ -91,3 +91,7 @@ func GetInterfacesByVNetID(vnetID uint) ([]Interface, error) {
 	}
 	return ifaces, nil
 }
+
+func DeleteAllInterfacesByVMID(vmID uint64) error {
+	return db.Where("vm_id = ?", vmID).Delete(&Interface{}).Error
+}
