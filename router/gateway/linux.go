@@ -83,9 +83,9 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	}
 
 	return &Interface{
-		ID:     uint(link.Index),
-		VNet:   vnet,
-		VNetID: vnetID,
+		LocalID: uint(link.Index),
+		VNet:    vnet,
+		VNetID:  vnetID,
 
 		Subnet:    subnet,
 		RouterIP:  routerIP,
