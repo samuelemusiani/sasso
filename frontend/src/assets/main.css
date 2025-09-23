@@ -1,1 +1,10 @@
 @import 'tailwindcss';
+@plugin "@iconify/tailwind4";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+	name: 'halloween';
+	default: true;
+	color-scheme: 'dark';
+	--color-base-content: '#ffffff';
+	--color-secondary: '#aba498';
+}
