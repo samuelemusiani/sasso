@@ -309,7 +309,7 @@ func deleteVMs() {
 		}
 		err = db.UpdateVMStatus(v.ID, string(VMStatusDeleting))
 		if err != nil {
-			logger.With("vmid", v.ID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
+			logger.With("vmid", v.ID, "new_status", VMStatusDeleting, "err", err).Warn("Failed to update status of VM")
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(task)
