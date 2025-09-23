@@ -123,26 +123,29 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			continue
 		}
 
-		s, err := utils.NextAvailableSubnet()
-		if err != nil {
-			logger.With("error", err).Error("Failed to get next available subnet")
-			return err
+		if n.Subnet == "" {
+			n.Subnet, err = utils.NextAvailableSubnet()
+			if err != nil {
+				logger.With("error", err).Error("Failed to get next available subnet")
+				return err
+			}
 		}
-		n.Subnet = s
 
-		gt, err := utils.GatewayAddressFromSubnet(s)
-		if err != nil {
-			logger.With("error", err).Error("Failed to get gateway address from subnet")
-			return err
+		if n.Gateway == "" {
+			n.Gateway, err = utils.GatewayAddressFromSubnet(n.Subnet)
+			if err != nil {
+				logger.With("error", err).Error("Failed to get gateway address from subnet")
+				return err
+			}
 		}
-		n.Gateway = gt
 
-		br, err := utils.GetBroadcastAddressFromSubnet(s)
-		if err != nil {
-			logger.With("error", err).Error("Failed to get broadcast address from subnet")
-			return err
+		if n.Broadcast == "" {
+			n.Broadcast, err = utils.GetBroadcastAddressFromSubnet(n.Subnet)
+			if err != nil {
+				logger.With("error", err).Error("Failed to get broadcast address from subnet")
+				return err
+			}
 		}
-		n.Broadcast = br
 
 		inter, err := gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
 		if err != nil {
