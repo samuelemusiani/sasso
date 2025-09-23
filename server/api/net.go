@@ -111,6 +111,8 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	if err := proxmox.DeleteNet(userID, uint(netID)); err != nil {
 		if err == proxmox.ErrVNetNotFound {
 			http.Error(w, "Net not found", http.StatusNotFound)
+		} else if err == proxmox.ErrVNetHasActiveInterfaces {
+			http.Error(w, "Net has active interfaces", http.StatusBadRequest)
 		} else {
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
 		}
