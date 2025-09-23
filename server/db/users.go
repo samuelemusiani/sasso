@@ -34,9 +34,10 @@ type User struct {
 
 	VPNConfig *string `gorm:"default:null"`
 
-	VMs     []VM     `gorm:"foreignKey:UserID"`
-	Nets    []Net    `gorm:"foreignKey:UserID"`
-	SSHKeys []SSHKey `gorm:"foreignKey:UserID"`
+	VMs          []VM          `gorm:"foreignKey:UserID"`
+	Nets         []Net         `gorm:"foreignKey:UserID"`
+	SSHKeys      []SSHKey      `gorm:"foreignKey:UserID"`
+	PortForwards []PortForward `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {

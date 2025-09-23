@@ -91,6 +91,10 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
 		r.Get("/vpn", getUserVPNConfig)
+
+		r.Get("/port-forwards", listPortForwards)
+		r.Post("/port-forwards", addPortForward)
+		r.Delete("/port-forwards/{id}", deletePortForward)
 	})
 
 	// Admin Auth routes
@@ -111,6 +115,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/admin/ssh-keys/global", getGlobalSSHKeys)
 		r.Post("/admin/ssh-keys/global", addGlobalSSHKey)
 		r.Delete("/admin/ssh-keys/global/{id}", deleteGlobalSSHKey)
+
+		r.Get("/admin/port-forwards", listAllPortForwards)
+		r.Put("/admin/port-forwards/{id}", approvePortForward)
 	})
 
 	// Internal routes
@@ -125,6 +132,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Put("/vpn", updateVPNConfig)
 
 		r.Get("/user", listUsers)
+
+		r.Get("/port-forwards", internalListProtForwards)
 	})
 
 	router.Mount("/api", apiRouter)

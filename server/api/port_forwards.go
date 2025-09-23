@@ -1,0 +1,171 @@
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+	"samuelemusiani/sasso/server/db"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/seancfoley/ipaddress-go/ipaddr"
+)
+
+type returnPortForward struct {
+	ID       uint   `json:"id"`
+	OutPort  uint16 `json:"out_port"`
+	DestPort uint16 `json:"dest_port"`
+	DestIP   string `json:"dest_ip"`
+	Approved bool   `json:"approved"`
+}
+
+func listPortForwards(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	pfs, err := db.GetPortForwardsByUserID(userID)
+	if err != nil {
+		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(pfs)
+	if err != nil {
+		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+type createPortForwardRequest struct {
+	DestPort uint16 `json:"dest_port"`
+	DestIP   string `json:"dest_ip"`
+}
+
+func addPortForward(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	var req createPortForwardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DestPort < 1 || req.DestPort > 65535 {
+		http.Error(w, "DestPort must be between 1 and 65535", http.StatusBadRequest)
+		return
+	}
+
+	subnets, err := db.GetSubnetsByUserID(userID)
+	if err != nil {
+		http.Error(w, "Failed to get user subnets", http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: There is a time of check/time of use problem here. There is the
+	// small possiblity that after checking that the DestIP is in one of the user's
+	// subnets, the user deletes that subnet and then adds a port forward to an
+	// IP that is no longer in any of their subnets.
+	found := false
+	for _, s := range subnets {
+		subnet := ipaddr.NewIPAddressString(s)
+		found = found || subnet.Contains(ipaddr.NewIPAddressString(req.DestIP))
+	}
+	if !found {
+		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: Make this values configurable
+	randPort, err := db.GetRandomAvailableOutPort(20000, 40000)
+	if err != nil {
+		http.Error(w, "Failed to get random available out port", http.StatusInternalServerError)
+		return
+	}
+
+	pf, err := db.AddPortForward(randPort, req.DestPort, req.DestIP, userID)
+	if err != nil {
+		http.Error(w, "Failed to add port forward", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(returnPortForward{
+		ID:       pf.ID,
+		OutPort:  pf.OutPort,
+		DestPort: pf.DestPort,
+		DestIP:   pf.DestIP,
+		Approved: pf.Approved,
+	})
+	w.WriteHeader(http.StatusCreated)
+}
+
+func deletePortForward(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	sportForwardID := chi.URLParam(r, "id")
+	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+		return
+	}
+
+	pf, err := db.GetPortForwardByID(uint(portForwardID))
+	if err != nil {
+		http.Error(w, "Port forward not found", http.StatusNotFound)
+		return
+	}
+
+	if pf.UserID != userID {
+		http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
+		return
+	}
+
+	if err := db.DeletePortForward(uint(portForwardID)); err != nil {
+		http.Error(w, "Failed to delete port forward", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type approvePortForwardRequest struct {
+	Approve bool `json:"approve"`
+}
+
+func approvePortForward(w http.ResponseWriter, r *http.Request) {
+	sportForwardID := chi.URLParam(r, "id")
+	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+		return
+	}
+
+	var req approvePortForwardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.UpdatePortForwardApproval(uint(portForwardID), req.Approve); err != nil {
+		http.Error(w, "Failed to approve port forward", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
+	portForwards, err := db.GetPortForwards()
+	if err != nil {
+		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(portForwards)
+	if err != nil {
+		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
+	listAllPortForwards(w, r)
+}

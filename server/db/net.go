@@ -72,6 +72,15 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 	return nets, nil
 }
 
+func GetSubnetsByUserID(userID uint) ([]string, error) {
+	var subnets []string
+	if err := db.Model(&Net{}).Where("user_id = ?", userID).Pluck("subnet", &subnets).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get subnets for user")
+		return nil, err
+	}
+	return subnets, nil
+}
+
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	// This function only creates a network for a user in the DB. It does
 	// not create the network in Proxmox
