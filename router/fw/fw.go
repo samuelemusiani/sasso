@@ -10,14 +10,14 @@ func AddInterface(inter *gateway.Interface) error {
 	if err := shorewall.AddZone(shorewall.Zone{
 		Name: inter.VNet,
 		Type: "ip",
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrZoneAlreadyExists {
 		return err
 	}
 
 	if err := shorewall.AddInterface(shorewall.Interface{
 		Zone: inter.VNet,
 		Name: inter.FirewallInterfaceName,
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrInterfaceAlreadyExists {
 		return err
 	}
 
@@ -25,7 +25,7 @@ func AddInterface(inter *gateway.Interface) error {
 		Source:      inter.VNet,
 		Destination: "out",
 		Policy:      "ACCEPT",
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrPolicyAlreadyExists {
 		return err
 	}
 
@@ -33,7 +33,7 @@ func AddInterface(inter *gateway.Interface) error {
 		Source:      inter.VNet,
 		Destination: "all",
 		Policy:      "DROP",
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrPolicyAlreadyExists {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func DeleteInterface(inter *gateway.Interface) error {
 		Source:      inter.VNet,
 		Destination: "all",
 		Policy:      "DROP",
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrPolicyNotFound {
 		return err
 	}
 
@@ -53,15 +53,15 @@ func DeleteInterface(inter *gateway.Interface) error {
 		Source:      inter.VNet,
 		Destination: "out",
 		Policy:      "ACCEPT",
-	}); err != nil {
+	}); err != nil && err != shorewall.ErrPolicyNotFound {
 		return err
 	}
 
-	if err := shorewall.RemoveInterfaceByZone(inter.VNet); err != nil {
+	if err := shorewall.RemoveInterfaceByZone(inter.VNet); err != nil && err != shorewall.ErrInterfaceNotFound {
 		return err
 	}
 
-	if err := shorewall.RemoveZone(inter.VNet); err != nil {
+	if err := shorewall.RemoveZone(inter.VNet); err != nil && err != shorewall.ErrZoneNotFound {
 		return err
 	}
 
