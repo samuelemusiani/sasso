@@ -18,7 +18,7 @@ type Net struct {
 	UserID uint   `gorm:"not null"`
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
 
-	PortForwards []PortForward `gorm:"constraint:OnDelete:CASCADE;"`
+	PortForwards []PortForward `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
 }
 
 func initNetworks() error {

@@ -28,6 +28,7 @@ type PortForwardWithUsername struct {
 	DestIP   string `gorm:"not null"`
 	UserID   uint   `gorm:"not null"`
 	Approved bool   `gorm:"not null;default:false"`
+	VNetID   uint   `gorm:"not null"`
 	Username string
 }
 
