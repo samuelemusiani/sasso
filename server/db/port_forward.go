@@ -2,8 +2,6 @@ package db
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type PortForward struct {
@@ -19,7 +17,9 @@ type PortForward struct {
 }
 
 type PortForwardWithUsername struct {
-	gorm.Model
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	OutPort  uint16 `gorm:"not null; uniqueIndex"`
 	DestPort uint16 `gorm:"not null"`
