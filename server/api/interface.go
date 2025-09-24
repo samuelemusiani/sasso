@@ -69,7 +69,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqIPAdd.GetNetworkPrefixLen() == nil {
+	if !reqIPAdd.IsPrefixed() {
 		http.Error(w, "ip_add must have a subnet mask", http.StatusBadRequest)
 		return
 	}
@@ -80,7 +80,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqGateway.GetNetworkPrefixLen() != nil {
+	if reqGateway.IsPrefixed() {
 		http.Error(w, "gateway must not have a subnet mask", http.StatusBadRequest)
 		return
 	}
