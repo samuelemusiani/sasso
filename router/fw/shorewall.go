@@ -18,7 +18,7 @@ func (s *ShorewallFirewall) AddPortForward(outPort, destPort uint16, destIP stri
 		Source:      s.ExternalZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, destIP, destPort),
 		Protocol:    "tcp,udp",
-		Sport:       fmt.Sprintf("%d", outPort),
+		Dport:       fmt.Sprintf("%d", outPort),
 	})
 	if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
 		return err
