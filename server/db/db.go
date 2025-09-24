@@ -71,6 +71,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initPortForwards()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize port forwards in database")
+		return err
+	}
+
 	err = initNetworks()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize networks in database")
@@ -86,12 +92,6 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	err = initSSHKeys()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize ssh keys in database")
-		return err
-	}
-
-	err = initPortForwards()
-	if err != nil {
-		logger.With("error", err).Error("Failed to initialize port forwards in database")
 		return err
 	}
 
