@@ -260,7 +260,6 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 			DestPort: pf.DestPort,
 			DestIP:   pf.DestIP,
 			UserID:   pf.UserID,
-			Approved: pf.Approved,
 		}
 	}
 
