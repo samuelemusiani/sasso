@@ -2,11 +2,8 @@ package fw
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"samuelemusiani/sasso/router/config"
-
-	"github.com/samuelemusiani/go-shorewall"
 )
 
 var (
