@@ -30,6 +30,15 @@ func GetPortForwards() ([]PortForward, error) {
 	return pfs, nil
 }
 
+func GetApprovedPortForwards() ([]PortForward, error) {
+	var pfs []PortForward
+	if err := db.Where("approved = ?", true).Find(&pfs).Error; err != nil {
+		logger.With("error", err).Error("Failed to get approved port forwards")
+		return nil, err
+	}
+	return pfs, nil
+}
+
 func GetPortForwardByID(ID uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, ID).Error; err != nil {

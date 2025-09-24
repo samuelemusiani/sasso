@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
 
@@ -18,6 +19,24 @@ type returnPortForward struct {
 	Approved bool   `json:"approved"`
 }
 
+func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {
+	return returnPortForward{
+		ID:       pf.ID,
+		OutPort:  pf.OutPort,
+		DestPort: pf.DestPort,
+		DestIP:   pf.DestIP,
+		Approved: pf.Approved,
+	}
+}
+
+func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
+	rpf := make([]returnPortForward, len(pfs))
+	for i, pf := range pfs {
+		rpf[i] = returnPortForwardFromDB(&pf)
+	}
+	return rpf
+}
+
 func listPortForwards(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
@@ -27,7 +46,7 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(pfs)
+	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(pfs))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
@@ -87,13 +106,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(returnPortForward{
-		ID:       pf.ID,
-		OutPort:  pf.OutPort,
-		DestPort: pf.DestPort,
-		DestIP:   pf.DestIP,
-		Approved: pf.Approved,
-	})
+	json.NewEncoder(w).Encode(returnPortForwardFromDB(pf))
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -158,7 +171,7 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(portForwards)
+	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(portForwards))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
@@ -167,5 +180,28 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 }
 
 func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
-	listAllPortForwards(w, r)
+	portForwards, err := db.GetApprovedPortForwards()
+	if err != nil {
+		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+		return
+	}
+
+	rpf := make([]internal.PortForward, len(portForwards))
+	for i, pf := range portForwards {
+		rpf[i] = internal.PortForward{
+			ID:       pf.ID,
+			OutPort:  pf.OutPort,
+			DestPort: pf.DestPort,
+			DestIP:   pf.DestIP,
+			UserID:   pf.UserID,
+			Approved: pf.Approved,
+		}
+	}
+
+	err = json.NewEncoder(w).Encode(rpf)
+	if err != nil {
+		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
