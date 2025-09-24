@@ -136,7 +136,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
 		ip := ipaddr.NewIPAddressString(req.DestIP)
-		if subnet.Contains(ip) || !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
+		if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
 			found = true
 			foundSubnet = s
 		}
