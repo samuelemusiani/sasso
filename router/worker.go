@@ -265,6 +265,12 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 			logger.With("error", err, "port_forward_id", localPF.ID).Error("Failed to remove port forward from firewall")
 			continue
 		}
+
+		err = db.RemovePortForward(localPF.ID)
+		if err != nil {
+			logger.With("error", err, "port_forward_id", localPF.ID).Error("Failed to remove port forward from database")
+			continue
+		}
 	}
 
 	return nil
