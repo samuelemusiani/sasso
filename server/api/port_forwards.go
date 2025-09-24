@@ -107,7 +107,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if addr.GetMask() != nil {
+	if addr.IsPrefixed() {
 		http.Error(w, "DestIP must be a single IP address, not a subnet", http.StatusBadRequest)
 		return
 	}
