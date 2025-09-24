@@ -272,7 +272,7 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 
 func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
 	for _, pf := range pfs {
-		_, err := db.GetPortForwardByID(pf.UserID)
+		_, err := db.GetPortForwardByID(pf.ID)
 		if err == nil {
 			continue
 		} else if !errors.Is(err, db.ErrNotFound) {
