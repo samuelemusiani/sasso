@@ -17,6 +17,8 @@ type Net struct {
 
 	UserID uint   `gorm:"not null"`
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
+
+	PortForwards []PortForward `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 func initNetworks() error {
@@ -74,7 +76,7 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 
 func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
-	if err := db.Model(&Net{}).Where("user_id = ?", userID).Pluck("subnet", &subnets).Error; err != nil {
+	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get subnets for user")
 		return nil, err
 	}

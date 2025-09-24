@@ -6,6 +6,7 @@ import (
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
@@ -87,6 +88,8 @@ type createPortForwardRequest struct {
 	DestIP   string `json:"dest_ip"`
 }
 
+var randomPortMutex = sync.Mutex{}
+
 func addPortForward(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
@@ -112,16 +115,22 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// There is a time of check/time of use problem here. There is the
+	// small possiblity that after checking that the DestIP is in one of the user's
+	// subnets, the user deletes that subnet and then adds a port forward to an
+	// IP that is no longer in any of their subnets.
+	// To avoid this we use a global mutex based on user ID.
+
+	m := getNetMutex(userID)
+	m.Lock()
+	defer m.Unlock()
+
 	subnets, err := db.GetSubnetsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get user subnets", http.StatusInternalServerError)
 		return
 	}
 
-	// TODO: There is a time of check/time of use problem here. There is the
-	// small possiblity that after checking that the DestIP is in one of the user's
-	// subnets, the user deletes that subnet and then adds a port forward to an
-	// IP that is no longer in any of their subnets.
 	found := false
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
@@ -141,6 +150,9 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DestIP cannot be a gateway or broadcast address", http.StatusBadRequest)
 		return
 	}
+
+	randomPortMutex.Lock()
+	defer randomPortMutex.Unlock()
 
 	// TODO: Make this values configurable
 	randPort, err := db.GetRandomAvailableOutPort(20000, 40000)

@@ -95,11 +95,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteNet(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Failed to get user ID from context", http.StatusUnauthorized)
-		return
-	}
+	userID := mustGetUserIDFromContext(r)
 
 	netIDStr := chi.URLParam(r, "id")
 	netID, err := strconv.ParseUint(netIDStr, 10, 32)
@@ -107,6 +103,10 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
 		return
 	}
+
+	m := getNetMutex(userID)
+	m.Lock()
+	defer m.Unlock()
 
 	if err := proxmox.DeleteNet(userID, uint(netID)); err != nil {
 		if err == proxmox.ErrVNetNotFound {
