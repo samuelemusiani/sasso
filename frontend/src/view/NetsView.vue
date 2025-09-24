@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import type { Net } from '@/types'
 import { api } from '@/lib/api'
-
 const nets = ref<Net[]>([])
 const newNetName = ref('')
 
@@ -109,6 +108,8 @@ onMounted(() => {
             <th class="px-4 py-2">Name</th>
             <th class="px-4 py-2">VlanAware</th>
             <th class="px-4 py-2">Status</th>
+            <th class="px-4 py-2">Subnet</th>
+            <th class="px-4 py-2">Gateway</th>
             <th class="px-4 py-2"></th>
           </tr>
         </thead>
@@ -118,6 +119,8 @@ onMounted(() => {
             <td class="border px-4 py-2">{{ net.name }}</td>
             <td class="border px-4 py-2">{{ net.vlanaware }}</td>
             <td class="border px-4 py-2">{{ net.status }}</td>
+            <td class="border px-4 py-2">{{ net.subnet }}</td>
+            <td class="border px-4 py-2">{{ net.gateway }}</td>
             <td class="border px-4 py-2">
               <button
                 v-if="net.status === 'ready'"
