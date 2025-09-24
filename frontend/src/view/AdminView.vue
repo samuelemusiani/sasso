@@ -20,6 +20,12 @@
       >
         SSH Keys
       </RouterLink>
+      <RouterLink
+        class="bg-orange-400 hover:bg-orange-300 p-2 rounded-lg min-w-32 block text-center"
+        to="/admin/port-forwards"
+      >
+        Port Forwards
+      </RouterLink>
     </div>
   </div>
 </template>
