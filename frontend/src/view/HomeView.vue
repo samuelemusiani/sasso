@@ -61,6 +61,13 @@ onMounted(() => {
       </RouterLink>
 
       <RouterLink
+        class="bg-orange-400 hover:bg-orange-300 p-2 rounded-lg min-w-32 block text-center"
+        to="/port-forwards"
+      >
+        Port forwards
+      </RouterLink>
+
+      <RouterLink
         class="bg-purple-400 hover:bg-purple-300 p-2 rounded-lg min-w-32 block text-center"
         to="/vpn"
       >

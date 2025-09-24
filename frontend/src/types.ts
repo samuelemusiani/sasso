@@ -57,3 +57,20 @@ export interface Interface {
   gateway: string
   status: string
 }
+
+export interface PortForward {
+  id: number
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+}
+
+export interface AdminPortForward {
+  id: number
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+  username: string
+}
