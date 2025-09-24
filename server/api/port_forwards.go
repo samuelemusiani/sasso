@@ -101,6 +101,17 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	addr := ipaddr.NewIPAddressString(req.DestIP)
+	if !addr.IsValid() {
+		http.Error(w, "DestIP is not a valid IP address", http.StatusBadRequest)
+		return
+	}
+
+	if addr.GetMask() != nil {
+		http.Error(w, "DestIP must be a single IP address, not a subnet", http.StatusBadRequest)
+		return
+	}
+
 	subnets, err := db.GetSubnetsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get user subnets", http.StatusInternalServerError)
@@ -118,6 +129,16 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
+		return
+	}
+
+	isGatewayOrBroadcast, err := db.IsAddressAGatewayOrBroadcast(req.DestIP)
+	if err != nil {
+		http.Error(w, "Failed to check if DestIP is a gateway or broadcast address", http.StatusInternalServerError)
+		return
+	}
+	if isGatewayOrBroadcast {
+		http.Error(w, "DestIP cannot be a gateway or broadcast address", http.StatusBadRequest)
 		return
 	}
 

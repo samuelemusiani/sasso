@@ -81,6 +81,15 @@ func GetSubnetsByUserID(userID uint) ([]string, error) {
 	return subnets, nil
 }
 
+func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
+	var count int64
+	if err := db.Model(&Net{}).Where("gateway = ? OR broadcast = ?", address, address).Count(&count).Error; err != nil {
+		logger.With("address", address, "error", err).Error("Failed to check if address is a gateway or broadcast")
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	// This function only creates a network for a user in the DB. It does
 	// not create the network in Proxmox
