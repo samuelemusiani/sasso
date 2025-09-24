@@ -85,7 +85,10 @@ func GetSubnetsByUserID(userID uint) ([]string, error) {
 
 func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 	var count int64
-	if err := db.Model(&Net{}).Where("gateway LIKE ?/% OR broadcast LIKE ?/%", address, address).Count(&count).Error; err != nil {
+
+	addressLike := address + "/%"
+
+	if err := db.Model(&Net{}).Where("gateway LIKE ? OR broadcast LIKE ?", addressLike, addressLike).Count(&count).Error; err != nil {
 		logger.With("address", address, "error", err).Error("Failed to check if address is a gateway or broadcast")
 		return false, err
 	}
