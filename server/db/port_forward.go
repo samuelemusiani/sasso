@@ -12,6 +12,17 @@ type PortForward struct {
 	Approved bool   `gorm:"not null;default:false"`
 }
 
+type PortForwardWithUsername struct {
+	gorm.Model
+
+	OutPort  uint16 `gorm:"not null; uniqueIndex"`
+	DestPort uint16 `gorm:"not null"`
+	DestIP   string `gorm:"not null"`
+	UserID   uint   `gorm:"not null"`
+	Approved bool   `gorm:"not null;default:false"`
+	Username string `gorm:"-:all"` // Ignore this field in GORM operations
+}
+
 func initPortForwards() error {
 	if err := db.AutoMigrate(&PortForward{}); err != nil {
 		logger.With("error", err).Error("Failed to migrate port forwards table")
@@ -25,6 +36,17 @@ func GetPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Find(&pfs).Error; err != nil {
 		logger.With("error", err).Error("Failed to get all port forwards")
+		return nil, err
+	}
+	return pfs, nil
+}
+
+func GetPortForwardsWithUsernames() ([]PortForwardWithUsername, error) {
+	var pfs []PortForwardWithUsername
+	if err := db.Table("port_forwards pf").Select("pf.*, u.username").
+		Joins("left join users u on pf.user_id = u.id").
+		Scan(&pfs).Error; err != nil {
+		logger.With("error", err).Error("Failed to get port forwards with usernames")
 		return nil, err
 	}
 	return pfs, nil

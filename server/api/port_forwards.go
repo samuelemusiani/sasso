@@ -19,6 +19,15 @@ type returnPortForward struct {
 	Approved bool   `json:"approved"`
 }
 
+type returnAdminPortForward struct {
+	ID       uint   `json:"id"`
+	OutPort  uint16 `json:"out_port"`
+	DestPort uint16 `json:"dest_port"`
+	DestIP   string `json:"dest_ip"`
+	Approved bool   `json:"approved"`
+	Username string `json:"username"`
+}
+
 func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {
 	return returnPortForward{
 		ID:       pf.ID,
@@ -33,6 +42,25 @@ func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	rpf := make([]returnPortForward, len(pfs))
 	for i, pf := range pfs {
 		rpf[i] = returnPortForwardFromDB(&pf)
+	}
+	return rpf
+}
+
+func returnAdminPortForwardFromDB(pf *db.PortForwardWithUsername) returnAdminPortForward {
+	return returnAdminPortForward{
+		ID:       pf.ID,
+		OutPort:  pf.OutPort,
+		DestPort: pf.DestPort,
+		DestIP:   pf.DestIP,
+		Approved: pf.Approved,
+		Username: pf.Username,
+	}
+}
+
+func returnAdminPortForwardsFromDB(pfs []db.PortForwardWithUsername) []returnAdminPortForward {
+	rpf := make([]returnAdminPortForward, len(pfs))
+	for i, pf := range pfs {
+		rpf[i] = returnAdminPortForwardFromDB(&pf)
 	}
 	return rpf
 }
@@ -165,13 +193,13 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 }
 
 func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
-	portForwards, err := db.GetPortForwards()
+	portForwards, err := db.GetPortForwardsWithUsernames()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(portForwards))
+	err = json.NewEncoder(w).Encode(returnAdminPortForwardsFromDB(portForwards))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
