@@ -7,6 +7,7 @@ type Config struct {
 	Database Database `toml:"database"`
 	Network  Network  `toml:"network"`
 	Gateway  Gateway  `toml:"gateway"`
+	Firewall Firewall `toml:"firewall"`
 }
 
 type Server struct {
@@ -44,6 +45,16 @@ type Database struct {
 	Database string `toml:"database"`
 	Host     string `toml:"host"`
 	Port     uint16 `toml:"port"`
+}
+
+type Firewall struct {
+	Type      string                  `toml:"type"`
+	Shorewall ShorewallFirewallConfig `toml:"shorewall"`
+}
+
+type ShorewallFirewallConfig struct {
+	ExternalZone string `toml:"external_zone"`
+	VMZone       string `toml:"vm_zone"`
 }
 
 var config Config = Config{}

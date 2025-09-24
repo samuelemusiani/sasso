@@ -14,6 +14,7 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -26,6 +27,11 @@ func worker(logger *slog.Logger, conf config.Server) {
 	gtw := gateway.Get()
 	if gtw == nil {
 		panic("Gateway not initialized")
+	}
+
+	fw := fw.Get()
+	if fw == nil {
+		panic("Firewall not initialized")
 	}
 
 	for {
@@ -49,6 +55,23 @@ func worker(logger *slog.Logger, conf config.Server) {
 		err = updateNets(logger, conf, nets)
 		if err != nil {
 			logger.With("error", err).Error("Failed to update VNets")
+		}
+
+		portForwards, err := getPortForwardsStatus(logger, conf)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get port forwards status")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		err = deletePortForwards(logger, fw, portForwards)
+		if err != nil {
+			logger.With("error", err).Error("Failed to delete port forwards")
+		}
+
+		err = createPortForwards(logger, fw, portForwards)
+		if err != nil {
+			logger.With("error", err).Error("Failed to create port forwards")
 		}
 
 		time.Sleep(5 * time.Second)
@@ -210,5 +233,70 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		logger.With("vnet", n.Name).Info("Updated net on main server")
 	}
 
+	return nil
+}
+
+func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.PortForward, error) {
+	pfs, err := internal.FetchPortForwards(conf.Endpoint, conf.Secret)
+	if err != nil {
+		logger.With("error", err).Error("Failed to fetch port forwards status from main server")
+		return nil, err
+	}
+	logger.Info("Fetched port forwards status from main server", "port_forwards", pfs)
+	return pfs, nil
+}
+
+func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+	localPortForwards, err := db.GetPortForwards()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all port forwards from database")
+		return err
+	}
+
+	for _, localPF := range localPortForwards {
+		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
+			return pf.ID == localPF.ID
+		}) != -1 {
+			continue
+		}
+
+		err = fw.RemovePortForward(localPF.OutPort, localPF.DestPort, localPF.DestIP)
+		if err != nil {
+			logger.With("error", err, "port_forward_id", localPF.ID).Error("Failed to remove port forward from firewall")
+			continue
+		}
+	}
+
+	return nil
+}
+
+func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+	for _, pf := range pfs {
+		_, err := db.GetPortForwardByID(pf.UserID)
+		if err == nil {
+			continue
+		} else if !errors.Is(err, db.ErrNotFound) {
+			logger.With("error", err, "port_forward_id", pf.ID).Error("Failed to get port forward from database")
+			continue
+		}
+
+		err = fw.AddPortForward(pf.OutPort, pf.DestPort, pf.DestIP)
+		if err != nil {
+			logger.With("error", err, "port_forward_id", pf.ID).Error("Failed to add port forward to firewall")
+			continue
+		}
+
+		err = db.AddPortForward(db.PortForward{
+			ID:       pf.ID,
+			OutPort:  pf.OutPort,
+			DestPort: pf.DestPort,
+			DestIP:   pf.DestIP,
+			UserID:   pf.UserID,
+		})
+		if err != nil {
+			logger.With("error", err, "port_forward_id", pf.ID).Error("Failed to save port forward to database")
+			continue
+		}
+	}
 	return nil
 }

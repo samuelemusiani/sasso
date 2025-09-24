@@ -5,6 +5,7 @@ import (
 	"os"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -41,6 +42,17 @@ func main() {
 
 	gatewayLogger := slog.With("module", "gateway")
 	err = gateway.Init(gatewayLogger, c.Gateway)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize gateway")
+		os.Exit(1)
+	}
+
+	fwLogger := slog.With("module", "firewall")
+	err = fw.Init(fwLogger, c.Firewall)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize firewall")
+		os.Exit(1)
+	}
 
 	// Database
 	slog.Debug("Initializing database")
