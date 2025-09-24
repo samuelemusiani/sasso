@@ -20,7 +20,7 @@ type PortForwardWithUsername struct {
 	DestIP   string `gorm:"not null"`
 	UserID   uint   `gorm:"not null"`
 	Approved bool   `gorm:"not null;default:false"`
-	Username string `gorm:"-:all"` // Ignore this field in GORM operations
+	Username string
 }
 
 func initPortForwards() error {
