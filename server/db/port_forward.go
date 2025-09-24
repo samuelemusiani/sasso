@@ -88,12 +88,21 @@ func GetPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	return pfs, nil
 }
 
-func AddPortForward(outPort uint16, destPort uint16, destIP string, userID uint) (*PortForward, error) {
+func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint) (*PortForward, error) {
+
+	net, err := GetVNetBySubnet(subnet)
+	if err != nil {
+		logger.With("subnet", subnet, "error", err).Error("Failed to find VNet by subnet")
+		return nil, err
+	}
+
 	pf := &PortForward{
 		OutPort:  outPort,
 		DestPort: destPort,
 		DestIP:   destIP,
 		UserID:   userID,
+		Approved: false,
+		VNetID:   net.ID,
 	}
 	if err := db.Create(pf).Error; err != nil {
 		logger.With("error", err).Error("Failed to create port forward")

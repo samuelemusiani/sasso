@@ -132,9 +132,13 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	}
 
 	found := false
+	foundSubnet := ""
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
-		found = found || subnet.Contains(ipaddr.NewIPAddressString(req.DestIP))
+		if subnet.Contains(ipaddr.NewIPAddressString(req.DestIP)) {
+			found = true
+			foundSubnet = s
+		}
 	}
 	if !found {
 		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
@@ -161,7 +165,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pf, err := db.AddPortForward(randPort, req.DestPort, req.DestIP, userID)
+	pf, err := db.AddPortForward(randPort, req.DestPort, req.DestIP, foundSubnet, userID)
 	if err != nil {
 		http.Error(w, "Failed to add port forward", http.StatusInternalServerError)
 		return

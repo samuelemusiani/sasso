@@ -160,3 +160,12 @@ func GetAllNets() ([]Net, error) {
 	}
 	return nets, nil
 }
+
+func GetVNetBySubnet(subnet string) (*Net, error) {
+	var net Net
+	if err := db.Where("subnet = ?", subnet).First(&net).Error; err != nil {
+		logger.With("subnet", subnet, "error", err).Error("Failed to find network by subnet")
+		return nil, err
+	}
+	return &net, nil
+}
