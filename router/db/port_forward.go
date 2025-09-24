@@ -1,5 +1,7 @@
 package db
 
+import "gorm.io/gorm"
+
 type PortForward struct {
 	ID       uint   `gorm:"primaryKey"`
 	OutPort  uint16 `gorm:"not null; uniqueIndex"`
@@ -23,6 +25,9 @@ func GetPortForwards() ([]PortForward, error) {
 func GetPortForwardByID(pfID uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, pfID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return &pf, nil
