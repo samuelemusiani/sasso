@@ -7,6 +7,7 @@ package proxmox
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"slices"
 	"strconv"
@@ -41,6 +42,10 @@ func Worker() {
 
 		createInterfaces()
 		deleteInterfaces()
+
+		deleteBackups()
+		restoreBackups()
+		createBackups()
 
 		time.Sleep(10 * time.Second)
 	}
@@ -800,21 +805,44 @@ func deleteInterfaces() {
 	}
 }
 
-type routerNetRequest struct {
-	VNet   string `json:"vnet"`    // Name of the new VNet
-	VNetID uint   `json:"vnet_id"` // ID of the new VNet (VXLAN ID)
+func deleteBackups() {
+	logger.Debug("Deleting backups in worker")
 
-	Status  string `json:"status"`  // Status of the request
-	Success bool   `json:"success"` // True if the request was successful
-	Error   string `json:"error"`   // Error message if the request failed
+	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeDelete)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeDelete)
+		return
+	}
 
-	Subnet    string `json:"Subnet"`    // Subnet of the new VNet
-	RouterIP  string `json:"router_ip"` // Router IP of the new VNet
-	Broadcast string `json:"broadcast"` // Broadcast address of the new VNet
+	for _, r := range bkr {
+		slog.Debug("Deleting backup", "id", r.ID)
+	}
 }
 
-type routerNetResponse struct {
-	ID          uint             `json:"id"`           // ID of the request
-	RequestType string           `json:"request_type"` // Type of the request (e.g., "new_network", "delete_network")
-	Request     routerNetRequest `json:"request"`
+func restoreBackups() {
+	logger.Debug("Restoring backups in worker")
+
+	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeRestore)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeRestore)
+		return
+	}
+
+	for _, r := range bkr {
+		slog.Debug("Restoring backup", "id", r.ID)
+	}
+}
+
+func createBackups() {
+	logger.Debug("Creating backups in worker")
+
+	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeCreate)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeCreate)
+		return
+	}
+
+	for _, r := range bkr {
+		slog.Debug("Creating backup", "id", r.ID)
+	}
 }

@@ -5,40 +5,181 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"samuelemusiani/sasso/server/db"
 	"time"
+
+	"github.com/luthermonson/go-proxmox"
 )
 
 type Backup struct {
 	// Name is the Volid hashed
 	Name  string    `json:"name"`
-	VMID  uint64    `json:"vmid"`
 	Ctime time.Time `json:"ctime"`
 }
 
-func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
+var (
+	BackupRequestStatusPending   = "pending"
+	BackupRequestStatusCompleted = "completed"
+	BackupRequestStatusFailed    = "failed"
 
+	BackupRequestTypeCreate  = "create"
+	BackupRequestTypeRestore = "restore"
+	BackupRequestTypeDelete  = "delete"
+
+	ErrBackupNotFound = errors.New("backup_not_found")
+)
+
+func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
+	_, _, _, mcontent, err := listBackups(vmID, since)
+	if err != nil {
+		return nil, err
+	}
+
+	var backups []Backup
+	for _, item := range mcontent {
+		h := hmac.New(sha256.New, nonce)
+		h.Write([]byte(item.Volid))
+
+		backups = append(backups, Backup{
+			Name:  hex.EncodeToString(h.Sum(nil)),
+			Ctime: time.Unix(int64(item.Ctime), 0),
+		})
+	}
+
+	return backups, nil
+}
+
+func CreateBackup(userID, vmID uint64) (uint, error) {
+	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID))
+	if err != nil {
+		logger.Error("failed to create backup request", "error", err)
+		return 0, err
+	}
+
+	return bkr.ID, nil
+}
+
+func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
+	_, _, _, mcontent, err := listBackups(vmID, since)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, item := range mcontent {
+		h := hmac.New(sha256.New, nonce)
+		h.Write([]byte(item.Volid))
+
+		if hex.EncodeToString(h.Sum(nil)) == backupid {
+			bkr, err := db.NewBackupRequest(BackupRequestTypeDelete, BackupRequestStatusPending, uint(vmID))
+			if err != nil {
+				logger.Error("failed to create backup request", "error", err)
+				return 0, err
+			}
+			return bkr.ID, nil
+		}
+	}
+
+	return 0, ErrBackupNotFound
+}
+
+func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
 	cluster, err := getProxmoxCluster(client)
 	if err != nil {
+		return 0, err
+	}
+
+	resources, err := getProxmoxResources(cluster, "vm")
+	if err != nil {
+		return 0, err
+	}
+
+	for _, r := range resources {
+		if r.VMID == vmID {
+			if r.Status != string(VMStatusStopped) {
+				return 0, ErrInvalidVMState
+			} else {
+				break
+			}
+		}
+	}
+
+	bkr, err := db.NewBackupRequest(BackupRequestTypeRestore, BackupRequestStatusPending, uint(vmID))
+	if err != nil {
+		logger.Error("failed to create backup request", "error", err)
+		return 0, err
+	}
+
+	return bkr.ID, nil
+
+	// _, node, _, mcontent, err := listBackups(vmID, since)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// found := false
+	// for _, item := range mcontent {
+	// 	if item.VMID != vmID || time.Unix(int64(item.Ctime), 0).Before(since) {
+	// 		continue
+	// 	}
+	//
+	// 	h := hmac.New(sha256.New, nonce)
+	// 	h.Write([]byte(item.Volid))
+	//
+	// 	if hex.EncodeToString(h.Sum(nil)) == backupid {
+	// 		found = true
+	// 		break
+	// 	}
+	// }
+	// if !found {
+	// 	return ErrBackupNotFound
+	// }
+	//
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// o1 := proxmox.VirtualMachineOption{
+	// 	Name:  "foce",
+	// 	Value: "1",
+	// }
+	// o2 := proxmox.VirtualMachineOption{
+	// 	Name:  "archive",
+	// 	Value: backupid,
+	// }
+	//
+	// t, err := node.NewVirtualMachine(ctx, int(vmID), o1, o2)
+	// defer cancel()
+	// if err != nil {
+	// 	logger.Error("failed to get VM for restore", "error", err)
+	// 	return err
+	// }
+	//
+	// isSuccessful, err := waitForProxmoxTaskCompletion(t)
+	// if err != nil {
+	// }
+}
+
+func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *proxmox.Node, vm *proxmox.VirtualMachine, scontent []*proxmox.StorageContent, err error) {
+	cluster, err = getProxmoxCluster(client)
+	if err != nil {
 		logger.Error("failed to get proxmox cluster", "error", err)
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	m, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
 		logger.Error("failed to map VMID to Proxmox nodes", "error", err)
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	nodeName, ok := m[vmID]
 	if !ok {
 		logger.Error("no Proxmox node found for VMID", "vmID", vmID)
-		return nil, ErrVMNotFound
+		return nil, nil, nil, nil, ErrVMNotFound
 	}
 
-	node, err := getProxmoxNode(client, nodeName)
+	node, err = getProxmoxNode(client, nodeName)
 	if err != nil {
 		logger.Error("failed to get proxmox node", "error", err)
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -46,7 +187,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	defer cancel()
 	if err != nil {
 		logger.Error("failed to get storage info", "error", err)
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
@@ -54,23 +195,15 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	defer cancel()
 	if err != nil {
 		logger.Error("failed to get storage content", "error", err)
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	var backups []Backup
+	nContent := make([]*proxmox.StorageContent, 0, len(mcontent))
 	for _, item := range mcontent {
-		if item.VMID != vmID || time.Unix(int64(item.Ctime), 0).Before(since) {
-			continue
+		if item.VMID == vmID && time.Unix(int64(item.Ctime), 0).After(since) {
+			nContent = append(nContent, item)
 		}
-
-		h := hmac.New(sha256.New, nonce)
-		h.Write([]byte(item.Volid))
-		backups = append(backups, Backup{
-			Name:  hex.EncodeToString(h.Sum(nil)),
-			VMID:  item.VMID,
-			Ctime: time.Unix(int64(item.Ctime), 0),
-		})
 	}
 
-	return backups, nil
+	return cluster, node, vm, nContent, nil
 }
