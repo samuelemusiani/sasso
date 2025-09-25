@@ -63,8 +63,10 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 			continue
 		}
 
+		h := hmac.New(sha256.New, nonce)
+		h.Write([]byte(item.Volid))
 		backups = append(backups, Backup{
-			Name:  hex.EncodeToString(hmac.New(sha256.New, nonce).Sum([]byte(item.Volid))),
+			Name:  hex.EncodeToString(h.Sum(nil)),
 			VMID:  item.VMID,
 			Ctime: time.Unix(int64(item.Ctime), 0),
 		})
