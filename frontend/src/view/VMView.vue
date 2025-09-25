@@ -21,6 +21,7 @@ function fetchVMs() {
 }
 
 setInterval(() => {
+  // FIXME: timer infinito
   fetchVMs()
 }, 5000)
 
@@ -96,32 +97,32 @@ onMounted(() => {
     <div>This is the VM view for <b>sasso</b>!</div>
     <div class="flex gap-2 items-center">
       <label for="cores">Cores:</label>
-      <input type="number" id="cores" v-model="cores" class="border p-2 rounded-lg w-24" />
+      <input type="number" id="cores" v-model="cores" class="input border p-2 rounded-lg w-24" />
       <label for="ram">RAM (MB):</label>
-      <input type="number" id="ram" v-model="ram" class="border p-2 rounded-lg w-24" />
+      <input type="number" id="ram" v-model="ram" class="input border p-2 rounded-lg w-24" />
       <label for="disk">Disk (GB):</label>
-      <input type="number" id="disk" v-model="disk" class="border p-2 rounded-lg w-24" />
+      <input type="number" id="disk" v-model="disk" class="input border  rounded-lg w-24" />
       <div class="flex items-center">
         <input
           type="checkbox"
           id="include_global_ssh_keys"
           v-model="include_global_ssh_keys"
-          class="border p-2 rounded-lg"
+          class="checkbox checkbox-primary"
         />
         <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
       </div>
-      <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="createVM()">
+      <button class="btn btn-success p-2 rounded-lg" @click="createVM()">
         Create VM
       </button>
     </div>
-    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+    <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
       <p>
         Including the global SSH keys will allow for better troubleshooting if something is not
         working.
       </p>
     </div>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+    <div class="alert alert-warning p-4" role="alert">
       <p class="font-bold">Warning</p>
       <p>
         Stopping and restarting VMs is like pulling the power cord, it is not a graceful shutdown.
@@ -130,8 +131,8 @@ onMounted(() => {
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="table min-w-full *:text-base-content">
+        <thead>
           <tr>
             <th
               scope="col"
@@ -168,41 +169,41 @@ onMounted(() => {
             </th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="vm in vms" :key="vm.id">
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.id }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.cores }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.ram }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2">
               <RouterLink
                 :to="`/vm/${vm.id}/interfaces`"
-                class="text-indigo-600 hover:text-indigo-900 mr-4"
+                class="btn btn-primary mr-4"
                 >Interfaces</RouterLink
               >
               <button
                 v-if="vm.status === 'stopped'"
                 @click="startVM(vm.id)"
-                class="bg-green-400 p-2 rounded-lg hover:bg-green-300 mr-2"
+                class="btn btn-success rounded-lg"
               >
                 Start
               </button>
               <button
                 v-if="vm.status === 'running'"
                 @click="stopVM(vm.id)"
-                class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 mr-2"
+                class="btn btn-warning rounded-lg"
               >
                 Stop
               </button>
               <button
                 v-if="vm.status === 'running'"
                 @click="restartVM(vm.id)"
-                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 mr-2"
+                class="btn btn-info rounded-lg mx-2"
               >
                 Restart
               </button>
-              <button @click="deleteVM(vm.id)" class="bg-red-400 p-2 rounded-lg hover:bg-red-300">
+              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg">
                 Delete
               </button>
             </td>

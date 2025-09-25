@@ -1,10 +1,24 @@
 @import 'tailwindcss';
-@plugin "@iconify/tailwind4";
-@plugin "daisyui";
+
+@plugin "daisyui" {
+	themes: false;
+}
+
 @plugin "daisyui/theme" {
-	name: 'halloween';
+	name: "dark";
 	default: true;
-	color-scheme: 'dark';
-	--color-base-content: '#ffffff';
-	--color-secondary: '#aba498';
+	color-scheme: dark;
+
+	--color-primary: #365fab;
+	--color-secondary: #B3AF8F;
+	--color-accent: #7EBDC3;
+	--color-neutral: #232323;
+	--color-base-100: #232323;
+	--color-base-200: #141414;
+	--color-base-300: #0a0a0a;
+	--color-base-content: #ffffff;
+	--color-info: #89D2DC;
+	--color-success: #A3F7B5;
+	--color-warning: #FFED65;
+	--color-error: #E87461;
 }

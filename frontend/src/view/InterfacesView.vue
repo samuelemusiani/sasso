@@ -96,7 +96,7 @@ onMounted(() => {
       <button
         v-if="!showAddForm && !editingInterface"
         @click="showAddForm = true"
-        class="bg-green-400 p-2 rounded-lg hover:bg-green-300"
+        class="bg-green-400 p-2 rounded-lg hover:bg-success"
       >
         Add New Interface
       </button>
@@ -114,7 +114,7 @@ onMounted(() => {
         @cancel="handleCancel"
       />
     </div>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+    <div class="alert alert-warning p-4" role="alert">
       <p class="font-bold">Warning</p>
       <p>
         Adding interfaces while the VM is running is possible. The VM will see the interface, but it
@@ -122,7 +122,7 @@ onMounted(() => {
         restart the VM.
       </p>
     </div>
-    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+    <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
       <p>
         The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
@@ -134,8 +134,8 @@ onMounted(() => {
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-base-content">
+        <thead class="bg-base-100">
           <tr>
             <th
               scope="col"
@@ -176,7 +176,7 @@ onMounted(() => {
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="iface in interfaces" :key="iface.id">
             <td class="px-6 py-4 whitespace-nowrap">{{ iface.id }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ netMap.get(iface.vnet_id) }}</td>
@@ -189,13 +189,13 @@ onMounted(() => {
             >
               <button
                 @click="showEditForm(iface)"
-                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
+                class="btn btn-primary p-2 rounded-lg"
               >
                 Edit
               </button>
               <button
                 @click="deleteInterface(iface.id)"
-                class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
+                class="btn btn-error p-2 rounded-lg"
               >
                 Delete
               </button>

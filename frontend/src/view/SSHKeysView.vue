@@ -60,30 +60,30 @@ onMounted(() => {
       <input type="text" id="name" v-model="name" class="border p-2 rounded-lg w-48" />
       <label for="key">Key:</label>
       <input type="text" id="key" v-model="key" class="border p-2 rounded-lg w-96" />
-      <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="addSSHKey()">
+      <button class="btn btn-success rounded-lg" @click="addSSHKey()">
         Add Key
       </button>
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="table min-w-full divide-y divide-gray-200">
+        <thead class="">
           <tr>
             <th
               scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
             >
               ID
             </th>
             <th
               scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
             >
               Name
             </th>
             <th
               scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
             >
               Key
             </th>
@@ -92,7 +92,7 @@ onMounted(() => {
             </th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="sshKey in keys" :key="sshKey.id">
             <td class="px-6 py-4 whitespace-nowrap">{{ sshKey.id }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ sshKey.name }}</td>

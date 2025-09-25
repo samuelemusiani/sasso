@@ -64,9 +64,9 @@ onMounted(() => {
           v-model="newNetName"
           type="text"
           placeholder="Network Name"
-          class="p-2 border rounded-lg"
+          class="p-2 border border-primary rounded-lg"
         />
-        <button @click="createNet" class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg">
+        <button @click="createNet" class="btn btn-info rounded-lg">
           Create
         </button>
       </div>

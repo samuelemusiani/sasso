@@ -73,7 +73,7 @@ onMounted(getKeys)
                       </th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-200 bg-white">
+                  <tbody class="divide-y">
                     <tr v-if="keys.length === 0">
                       <td
                         colspan="3"
@@ -107,7 +107,7 @@ onMounted(getKeys)
         </div>
       </div>
       <div class="lg:col-span-1">
-        <div class="bg-white shadow sm:rounded-lg">
+        <div class="shadow sm:rounded-lg">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg font-medium leading-6 text-gray-900">Add a new key</h3>
             <form @submit.prevent="addKey" class="mt-5 space-y-4">

@@ -1,6 +1,6 @@
 {
   "name": "sasso",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -24,7 +24,6 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@iconify/tailwind4": "^1.0.6",
     "@iconify/vue": "^5.0.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.16.5",
