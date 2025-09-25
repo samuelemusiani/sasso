@@ -2,6 +2,7 @@ package proxmox
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"log/slog"
@@ -23,12 +24,16 @@ var (
 	cNetwork  *config.ProxmoxNetwork  = nil
 	cBackup   *config.ProxmoxBackup   = nil
 
+	// nonce is used to generate backup names
+	nonce []byte = nil
+
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
 	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
 	ErrInvalidVXLANRange      = errors.New("invalid_vxlan_range")
 	ErrInsufficientResources  = errors.New("insufficient_resources")
 	ErrTaskFailed             = errors.New("task_failed")
 	ErrInvalidStorage         = errors.New("invalid_storage")
+	ErrCantGenerateNonce      = errors.New("cant_generate_nonce")
 
 	isProxmoxReachable = true
 	isGatewayReachable = true
@@ -41,6 +46,14 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	err := configChecks(config)
 	if err != nil {
 		return err
+	}
+
+	// Generate a nonce for backup names
+	nonce = make([]byte, 32)
+	n, err := rand.Read(nonce)
+	if err != nil && n != 32 {
+		logger.Error("Failed to generate random key for nonce", "error", err)
+		return ErrCantGenerateNonce
 	}
 
 	url := config.Url

@@ -2,11 +2,15 @@ package proxmox
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"time"
 )
 
 type Backup struct {
-	Volid string    `json:"volid"`
+	// Name is the Volid hashed
+	Name  string    `json:"name"`
 	VMID  uint64    `json:"vmid"`
 	Ctime time.Time `json:"ctime"`
 }
@@ -58,8 +62,9 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		if item.VMID != vmID || time.Unix(int64(item.Ctime), 0).Before(since) {
 			continue
 		}
+
 		backups = append(backups, Backup{
-			Volid: item.Volid,
+			Name:  hex.EncodeToString(hmac.New(sha256.New, nonce).Sum([]byte(item.Volid))),
 			VMID:  item.VMID,
 			Ctime: time.Unix(int64(item.Ctime), 0),
 		})
