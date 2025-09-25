@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"samuelemusiani/sasso/server/db"
+	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
@@ -70,7 +71,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
-		if hex.EncodeToString(h.Sum(nil)) == backupid {
+		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, "sasso-user-backup") {
 			bkr, err := db.NewBackupRequest(BackupRequestTypeDelete, BackupRequestStatusPending, uint(vmID))
 			if err != nil {
 				logger.Error("failed to create backup request", "error", err)
