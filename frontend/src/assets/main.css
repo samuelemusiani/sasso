@@ -22,3 +22,35 @@
 	--color-warning: #FFED65;
 	--color-error: #E87461;
 }
+
+/* Liquid Glass Effect */
+.liquid-glass-card {
+	@apply card shadow-2xl border border-white/30 
+         bg-gradient-to-br from-white/15 to-white/8 
+         backdrop-blur-2xl backdrop-saturate-200
+         hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_20px_rgba(255,255,255,0.1)]
+         hover:scale-[1.02] hover:border-white/40
+         transition-all duration-300 ease-out
+         hover:bg-gradient-to-br hover:from-white/20 hover:to-white/12
+         overflow-visible relative
+         before:absolute before:inset-0 before:bg-gradient-to-r 
+         before:from-transparent before:via-white/5 before:to-transparent
+         before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
+         before:pointer-events-none;
+}
+
+/* Liquid Glass senza scale per griglie strette */
+.liquid-glass-card-no-scale {
+	@apply card shadow-2xl border border-white/30 
+         bg-gradient-to-br from-white/15 to-white/8 
+         backdrop-blur-2xl backdrop-saturate-200
+         hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_20px_rgba(255,255,255,0.1)]
+         hover:border-white/40
+         transition-all duration-300 ease-out
+         hover:bg-gradient-to-br hover:from-white/20 hover:to-white/12
+         overflow-visible relative
+         before:absolute before:inset-0 before:bg-gradient-to-r 
+         before:from-transparent before:via-white/5 before:to-transparent
+         before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
+         before:pointer-events-none;
+}

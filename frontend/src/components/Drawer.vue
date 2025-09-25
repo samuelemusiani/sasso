@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { onMounted, computed, ref } from "vue";
 import type { User } from "@/types";
 import { api } from "@/lib/api";
+import { Icon } from "@iconify/vue";
 
 const collapsed = ref(false);
 const router = useRouter();
@@ -14,6 +15,8 @@ const menu = {
   Nets: { icon: "ph:network", to: "/net" },
   "SSH Keys": { icon: "icon-park-twotone:key", to: "/ssh-keys" },
   VPN: { icon: "cib:wireguard", to: "/vpn" },
+  Backup: { icon: "material-symbols:backup", to: "/backup" },
+  "Port Forward": { icon: "material-symbols:router", to: "/port-forward" },
 };
 
 function logout() {
@@ -25,7 +28,18 @@ const showAdminPanel = computed(() => {
   if (!whoami.value) return false;
   return whoami.value.role === "admin";
 });
+
+const userDisplayName = computed(() => {
+  if (!whoami.value?.username) return 'User';
+  return whoami.value.username.charAt(0).toUpperCase() + whoami.value.username.slice(1).toLowerCase();
+});
+
+const userInitial = computed(() => {
+  return whoami.value?.username ? whoami.value.username[0].toUpperCase() : 'U';
+});
+
 const whoami = ref<User | null>(null);
+const userAvatar = ref<string | null>(null);
 
 function fetchWhoami() {
   api
@@ -33,10 +47,34 @@ function fetchWhoami() {
     .then((res) => {
       console.log("Whoami response:", res.data);
       whoami.value = res.data as User;
+      
+      // Tenta di caricare l'avatar se l'utente ha un'immagine LDAP
+      if (res.data.avatar_url) {
+        userAvatar.value = res.data.avatar_url;
+      } else if (res.data.email) {
+        // Fallback: tenta di caricare da Gravatar usando l'email
+        tryLoadGravatar(res.data.email);
+      }
     })
     .catch((err) => {
       console.error("Failed to fetch whoami:", err);
     });
+}
+
+function tryLoadGravatar(email: string) {
+  // Crea hash MD5 dell'email per Gravatar (semplificato)
+  const emailHash = btoa(email.toLowerCase().trim()).replace(/[^a-zA-Z0-9]/g, '');
+  const gravatarUrl = `https://www.gravatar.com/avatar/${emailHash}?s=40&d=404`;
+  
+  // Testa se l'immagine Gravatar esiste
+  const img = new Image();
+  img.onload = () => {
+    userAvatar.value = gravatarUrl;
+  };
+  img.onerror = () => {
+    userAvatar.value = null; // Usa fallback con lettera
+  };
+  img.src = gravatarUrl;
 }
 
 onMounted(() => {
@@ -70,24 +108,74 @@ onMounted(() => {
         <li v-for="(item, name) in menu" :key="name">
           <DrawerLine :to="item.to" :icon="item.icon" :label="name" :collapsed="collapsed" />
         </li>
-        <!-- TODO: change showAdminPanel for testing -->
-        <div class="divider" v-if="!showAdminPanel"></div>
-        <li v-if="!showAdminPanel">
-          <DrawerLine  to="/admin" icon="material-symbols:admin-panel-settings"
-            label="Admin Panel"></DrawerLine>
+        <!-- Admin Panel - solo per utenti admin -->
+        <div class="divider" v-if="showAdminPanel"></div>
+        <li v-if="showAdminPanel">
+          <DrawerLine to="/admin" icon="material-symbols:admin-panel-settings"
+            label="Admin Panel" :collapsed="collapsed"></DrawerLine>
         </li>
       </ul>
 
       <!-- Footer actions -->
-      <!-- TODO: user avatar for user settings -->
       <div class="p-2 border-t border-base-300 w-full">
         <DrawerLine to="/settings" icon="material-symbols:settings" label="Settings" :collapsed="collapsed" />
-        <button @click="logout()"
-          class="flex items-center gap-2 p-2 hover:bg-primary/20 rounded-full w-full font-semibold"
-          :class="{ '!justify-center !rounded-2xl': collapsed }">
-          <Icon icon="material-symbols:logout" class="text-xl ml-5" />
-          <span v-if="!collapsed">Logout</span>
-        </button>
+        
+        <!-- User Profile Section -->
+        <div class="p-2 mt-2">
+          <div v-if="!collapsed" class="flex items-center justify-between bg-base-200/50 rounded-lg p-3">
+            <!-- User Info -->
+            <div class="flex items-center gap-3">
+              <!-- Avatar -->
+              <div class="avatar">
+                <div class="w-8 h-8 rounded-full overflow-hidden bg-primary flex items-center justify-center">
+                  <img v-if="userAvatar" :src="userAvatar" :alt="userDisplayName" 
+                       class="w-full h-full object-cover" 
+                       @error="userAvatar = null" />
+                  <span v-else class="text-primary-content text-lg font-bold leading-none flex items-center justify-center w-full h-full">
+                    {{ userInitial }}
+                  </span>
+                </div>
+              </div>
+              <!-- Name -->
+              <div class="flex flex-col">
+                <span class="text-sm font-medium text-base-content">
+                  {{ userDisplayName }}
+                </span>
+                <span class="text-xs text-base-content/60 capitalize">
+                  {{ whoami?.role || 'user' }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- Logout Button -->
+            <button @click="logout()"
+              class="btn btn-ghost btn-sm text-base-content/70 hover:text-error hover:bg-error/10"
+              title="Logout">
+              <Icon icon="material-symbols:logout" class="text-lg" />
+            </button>
+          </div>
+          
+          <!-- Collapsed version -->
+          <div v-else class="flex flex-col gap-2 items-center">
+            <!-- Avatar -->
+            <div class="avatar">
+              <div class="w-8 h-8 rounded-full overflow-hidden bg-primary flex items-center justify-center">
+                <img v-if="userAvatar" :src="userAvatar" :alt="userDisplayName" 
+                     class="w-full h-full object-cover" 
+                     @error="userAvatar = null" />
+                <span v-else class="text-primary-content text-base font-bold leading-none flex items-center justify-center w-full h-full">
+                  {{ userInitial }}
+                </span>
+              </div>
+            </div>
+            <!-- Logout Button -->
+            <button @click="logout()"
+              class="btn btn-ghost btn-sm text-base-content/70 hover:text-error hover:bg-error/10"
+              title="Logout">
+              <Icon icon="material-symbols:logout" class="text-lg" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

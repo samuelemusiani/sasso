@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
+import { globalNotifications } from '@/lib/notifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,12 +42,12 @@ function updateLimits() {
       max_nets: maxNets.value,
     })
     .then(() => {
-      alert('User limits updated successfully!')
+      globalNotifications.showSuccess('User limits updated successfully!')
       router.push('/admin/users') // Redirect back to the user list
     })
     .catch((err) => {
       console.error('Failed to update user limits:', err)
-      alert('Failed to update user limits.')
+      globalNotifications.showError('Failed to update user limits.')
     })
 }
 
