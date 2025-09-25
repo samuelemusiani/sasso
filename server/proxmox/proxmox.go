@@ -36,12 +36,12 @@ var (
 )
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
+	logger = proxmoxLogger
+
 	err := configChecks(config)
 	if err != nil {
 		return err
 	}
-
-	logger = proxmoxLogger
 
 	url := config.Url
 	if !strings.Contains(config.Url, "api2/json") {
@@ -110,7 +110,7 @@ func configChecks(config config.Proxmox) error {
 	}
 
 	if config.Backup.Storage == "" {
-		logger.Error("Proxmox backup storage is not configured", "storage", config.Backup.Storage)
+		logger.Error("Proxmox backup storage is not configured")
 		return ErrInvalidStorage
 	}
 	return nil
