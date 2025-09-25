@@ -814,8 +814,72 @@ func deleteBackups() {
 		return
 	}
 
+	cluster, err := getProxmoxCluster(client)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return
+	}
+
+	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
+	if err != nil {
+		logger.With("error", err).Error("Failed to map VMID to content")
+		return
+	}
+
 	for _, r := range bkr {
 		slog.Debug("Deleting backup", "id", r.ID)
+
+		if r.Volid == nil {
+			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
+			continue
+		}
+
+		nodeName, ok := mapVMContent[uint64(r.VMID)]
+		if !ok {
+			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+			continue
+		}
+
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			logger.Error("Failed to get Proxmox node", "node", nodeName, "error", err)
+			continue
+		}
+
+		storage, err := getProxmoxStorage(node, cBackup.Storage)
+		if err != nil {
+			logger.Error("Failed to get Proxmox storage", "storage", cBackup.Storage, "error", err)
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := storage.DeleteContent(ctx, *r.Volid)
+		defer cancel()
+		if err != nil {
+			logger.Error("failed to delete content", "error", err)
+			continue
+		}
+
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.With("error", err).Error("Failed to update backup request status to failed", "id", r.ID)
+			}
+			continue
+		}
+
+		var status string
+		if isSuccessful {
+			status = BackupRequestStatusCompleted
+		} else {
+			status = BackupRequestStatusFailed
+		}
+		err = db.UpdateBackupRequestStatus(r.ID, status)
+		if err != nil {
+			logger.With("error", err).Error("Failed to update backup request status", "status", status, "id", r.ID)
+		}
 	}
 }
 
@@ -828,8 +892,75 @@ func restoreBackups() {
 		return
 	}
 
+	cluster, err := getProxmoxCluster(client)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return
+	}
+
+	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
+	if err != nil {
+		logger.With("error", err).Error("Failed to map VMID to content")
+		return
+	}
+
 	for _, r := range bkr {
 		slog.Debug("Restoring backup", "id", r.ID)
+
+		if r.Volid == nil {
+			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
+			continue
+		}
+
+		nodeName, ok := mapVMContent[uint64(r.VMID)]
+		if !ok {
+			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+			continue
+		}
+
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			logger.Error("Failed to get Proxmox node", "node", nodeName, "error", err)
+			continue
+		}
+
+		o1 := gprox.VirtualMachineOption{
+			Name:  "force",
+			Value: "1",
+		}
+		o2 := gprox.VirtualMachineOption{
+			Name:  "archive",
+			Value: r.Volid,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := node.NewVirtualMachine(ctx, int(r.VMID), o1, o2)
+		defer cancel()
+		if err != nil {
+			logger.Error("failed to create new vm", "error", err)
+			continue
+		}
+
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.With("error", err).Error("Failed to update backup request status to failed", "id", r.ID)
+			}
+			continue
+		}
+
+		var status string
+		if isSuccessful {
+			status = BackupRequestStatusCompleted
+		} else {
+			status = BackupRequestStatusFailed
+		}
+		err = db.UpdateBackupRequestStatus(r.ID, status)
+		if err != nil {
+			logger.With("error", err).Error("Failed to update backup request status", "status", status, "id", r.ID)
+		}
 	}
 }
 
@@ -842,7 +973,72 @@ func createBackups() {
 		return
 	}
 
+	cluster, err := getProxmoxCluster(client)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		return
+	}
+
+	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
+	if err != nil {
+		logger.With("error", err).Error("Failed to map VMID to content")
+		return
+	}
+
 	for _, r := range bkr {
 		slog.Debug("Creating backup", "id", r.ID)
+
+		if r.Volid == nil {
+			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
+			continue
+		}
+
+		nodeName, ok := mapVMContent[uint64(r.VMID)]
+		if !ok {
+			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+			continue
+		}
+
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			logger.Error("Failed to get Proxmox node", "node", nodeName, "error", err)
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := node.Vzdump(ctx, &gprox.VirtualMachineBackupOptions{
+			Storage:       cBackup.Storage,
+			VMID:          uint64(r.VMID),
+			Mode:          "snapshot",
+			Remove:        false,
+			Compress:      "zstd",
+			NotesTemplate: "{{guestname}}",
+		})
+		cancel()
+		if err != nil {
+			slog.Error("failed to create vzdump", "error", err)
+			continue
+		}
+
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.With("error", err).Error("Failed to update backup request status to failed", "id", r.ID)
+			}
+			continue
+		}
+
+		var status string
+		if isSuccessful {
+			status = BackupRequestStatusCompleted
+		} else {
+			status = BackupRequestStatusFailed
+		}
+		err = db.UpdateBackupRequestStatus(r.ID, status)
+		if err != nil {
+			logger.With("error", err).Error("Failed to update backup request status", "status", status, "id", r.ID)
+		}
 	}
 }

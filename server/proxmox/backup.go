@@ -112,50 +112,6 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 	}
 
 	return bkr.ID, nil
-
-	// _, node, _, mcontent, err := listBackups(vmID, since)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// found := false
-	// for _, item := range mcontent {
-	// 	if item.VMID != vmID || time.Unix(int64(item.Ctime), 0).Before(since) {
-	// 		continue
-	// 	}
-	//
-	// 	h := hmac.New(sha256.New, nonce)
-	// 	h.Write([]byte(item.Volid))
-	//
-	// 	if hex.EncodeToString(h.Sum(nil)) == backupid {
-	// 		found = true
-	// 		break
-	// 	}
-	// }
-	// if !found {
-	// 	return ErrBackupNotFound
-	// }
-	//
-	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	// o1 := proxmox.VirtualMachineOption{
-	// 	Name:  "foce",
-	// 	Value: "1",
-	// }
-	// o2 := proxmox.VirtualMachineOption{
-	// 	Name:  "archive",
-	// 	Value: backupid,
-	// }
-	//
-	// t, err := node.NewVirtualMachine(ctx, int(vmID), o1, o2)
-	// defer cancel()
-	// if err != nil {
-	// 	logger.Error("failed to get VM for restore", "error", err)
-	// 	return err
-	// }
-	//
-	// isSuccessful, err := waitForProxmoxTaskCompletion(t)
-	// if err != nil {
-	// }
 }
 
 func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *proxmox.Node, vm *proxmox.VirtualMachine, scontent []*proxmox.StorageContent, err error) {
