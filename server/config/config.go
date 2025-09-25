@@ -37,6 +37,7 @@ type Proxmox struct {
 	Template           ProxmoxTemplate `toml:"template"`
 	Clone              ProxmoxClone    `toml:"clone"`
 	Network            ProxmoxNetwork  `toml:"network"`
+	Backup             ProxmoxBackup   `toml:"backup"`
 }
 
 type ProxmoxTemplate struct {
@@ -56,6 +57,10 @@ type ProxmoxNetwork struct {
 	SDNZone      string `toml:"sdn_zone"`
 	VXLANIDStart uint32 `toml:"vxlan_id_start"`
 	VXLANIDEnd   uint32 `toml:"vxlan_id_end"`
+}
+
+type ProxmoxBackup struct {
+	Storage string `toml:"storage"`
 }
 
 var config Config = Config{}

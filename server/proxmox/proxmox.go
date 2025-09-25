@@ -21,6 +21,7 @@ var (
 	cTemplate *config.ProxmoxTemplate = nil
 	cClone    *config.ProxmoxClone    = nil
 	cNetwork  *config.ProxmoxNetwork  = nil
+	cBackup   *config.ProxmoxBackup   = nil
 
 	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
 	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
@@ -64,6 +65,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	cTemplate = &config.Template
 	cClone = &config.Clone
 	cNetwork = &config.Network
+	cBackup = &config.Backup
 
 	return nil
 }
