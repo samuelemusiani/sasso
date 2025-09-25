@@ -28,6 +28,7 @@ var (
 	ErrInvalidVXLANRange      = errors.New("invalid_vxlan_range")
 	ErrInsufficientResources  = errors.New("insufficient_resources")
 	ErrTaskFailed             = errors.New("task_failed")
+	ErrInvalidStorage         = errors.New("invalid_storage")
 
 	isProxmoxReachable = true
 	isGatewayReachable = true
@@ -108,6 +109,10 @@ func configChecks(config config.Proxmox) error {
 		return ErrInvalidVXLANRange
 	}
 
+	if config.Backup.Storage == "" {
+		logger.Error("Proxmox backup storage is not configured", "storage", config.Backup.Storage)
+		return ErrInvalidStorage
+	}
 	return nil
 }
 
