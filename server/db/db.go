@@ -59,6 +59,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initBackupRequests()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize backup requests in database")
+		return err
+	}
+
 	err = initUsers()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize users in database")
@@ -68,6 +74,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	err = initVMs()
 	if err != nil {
 		logger.With("error", err).Error("Failed to initialize VMs in database")
+		return err
+	}
+
+	err = initPortForwards()
+	if err != nil {
+		logger.With("error", err).Error("Failed to initialize port forwards in database")
 		return err
 	}
 
