@@ -61,7 +61,6 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 }
 
 func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	logger.Info("Deleting nets", "nets", nets)
 	localNets, err := db.GetAllSubnets()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get all subnets from DB")
@@ -69,6 +68,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 	}
 
 	for _, ln := range localNets {
+		logger.Debug("Deleting net", "local_net", ln)
 		f := func(n internal.Net) bool { return n.Subnet == ln.Subnet }
 		if slices.IndexFunc(nets, f) == -1 {
 			logger.Info("Deleting net", "subnet", ln.Subnet)
@@ -145,15 +145,11 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 }
 
 func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	logger.Info("Enabling nets", "nets", nets)
-
 	for _, n := range nets {
 		if n.Subnet == "" {
 			// When just created, the net has no subnet assigned yet
 			continue
 		}
-
-		logger.Info("Processing net", "net", n)
 
 		// Check if the subnet associated to the net already exists in the DB
 		exist, err := db.CheckSubnetExists(n.Subnet)
@@ -164,9 +160,10 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		// If it exists, skip it
 		if exist {
-			logger.Info("Subnet already exists, skipping", "subnet", n.Subnet)
 			continue
 		}
+
+		logger.Debug("Enabling net", "net", n.Subnet)
 
 		iface, err := db.GetInterfaceByUserID(n.UserID)
 		if err != nil {
@@ -214,8 +211,6 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		logger.With("error", err).Error("Failed to fetch VPN configs from main server")
 		return err
 	}
-
-	logger.With("vpns", vpns).Info("Fetched VPN configs from main server")
 
 	localInterfaces, err := db.GetAllInterfaces()
 	if err != nil {
