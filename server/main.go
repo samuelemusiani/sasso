@@ -36,6 +36,7 @@ func main() {
 			slog.SetLogLoggerLevel(slog.LevelError)
 		default:
 			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+		}
 	}
 
 	// Config file can be passed as the first argument
