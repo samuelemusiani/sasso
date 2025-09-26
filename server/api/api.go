@@ -60,7 +60,6 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 		// Group VM-specific endpoints with additional middleware
 		r.Route("/vm/{vmid}", func(r chi.Router) {
-			// Add VM-specific middleware here (e.g., VM ownership validation)
 			r.Use(validateVMOwnership())
 
 			r.Get("/", getVM)
@@ -80,6 +79,12 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 				r.Put("/", updateInterface)
 				r.Delete("/", deleteInterface)
 			})
+
+			r.Get("/backup", listBackups)
+			r.Post("/backup", createBackup)
+
+			r.Delete("/backup/{backupid}", deleteBackup)
+			r.Post("/backup/{backupid}/restore", restoreBackup)
 		})
 
 		r.Post("/net", createNet)
