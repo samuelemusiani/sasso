@@ -16,6 +16,22 @@ const DEFAULT_LOG_LEVEL = slog.LevelDebug
 func main() {
 	slog.SetLogLoggerLevel(DEFAULT_LOG_LEVEL)
 
+	lLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if ok {
+		switch lLevel {
+		case "DEBUG":
+			slog.SetLogLoggerLevel(slog.LevelDebug)
+		case "INFO":
+			slog.SetLogLoggerLevel(slog.LevelInfo)
+		case "WARN":
+			slog.SetLogLoggerLevel(slog.LevelWarn)
+		case "ERROR":
+			slog.SetLogLoggerLevel(slog.LevelError)
+		default:
+			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+		}
+	}
+
 	if len(os.Args) < 2 {
 		slog.Error("No config file provided")
 		slog.Error("Please provide a config file as the first argument")
