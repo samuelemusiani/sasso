@@ -31,7 +31,8 @@ onMounted(() => {
       Back to Home
     </RouterLink>
     <div class="font-bold text-lg">VPN configuration for <b>sasso</b>!</div>
-    <p class="whitespace-pre bg-gray-50 mt-4">
+    <!-- TODO: add copy and download btn -->
+    <p class="whitespace-pre bg-base-100 p-3 rounded-lg mt-4">
       {{ vpnConfig }}
     </p>
   </div>

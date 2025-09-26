@@ -93,11 +93,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded-lg">
+  <div class="p-4 bg-base-100 rounded-lg">
     <h2 class="text-xl mb-4">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
-        <label for="net" class="block text-sm font-medium text-gray-700">Network:</label>
+        <label for="net" class="block text-sm font-medium">Network:</label>
         <select id="net" v-model="form.vnet_id" class="border p-2 rounded-lg w-full">
           <option v-for="net in nets" :key="net.id" :value="net.id">
             {{ net.name }}
@@ -109,7 +109,7 @@ onMounted(() => {
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div>
-        <label for="vlan_tag" class="block text-sm font-medium text-gray-700">VLAN Tag:</label>
+        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
         <input
           type="number"
           id="vlan_tag"
@@ -118,11 +118,11 @@ onMounted(() => {
         />
       </div>
       <div>
-        <label for="ip_add" class="block text-sm font-medium text-gray-700">IP Address:</label>
+        <label for="ip_add" class="block text-sm font-medium">IP Address:</label>
         <input type="text" id="ip_add" v-model="form.ip_add" class="border p-2 rounded-lg w-full" />
       </div>
       <div>
-        <label for="gateway" class="block text-sm font-medium text-gray-700">Gateway:</label>
+        <label for="gateway" class="block text-sm font-medium">Gateway:</label>
         <input
           type="text"
           id="gateway"
@@ -133,14 +133,14 @@ onMounted(() => {
       <div class="flex gap-2">
         <button
           type="submit"
-          class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded"
+          class="btn btn-info"
         >
           {{ editing ? 'Update' : 'Add' }}
         </button>
         <button
           @click="$emit('cancel')"
           type="button"
-          class="bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+          class="btn btn-error"
         >
           Cancel
         </button>

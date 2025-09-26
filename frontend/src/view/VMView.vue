@@ -185,25 +185,25 @@ onMounted(() => {
               <button
                 v-if="vm.status === 'stopped'"
                 @click="startVM(vm.id)"
-                class="btn btn-success rounded-lg"
+                class="btn btn-success rounded-lg btn-outline"
               >
                 Start
               </button>
               <button
                 v-if="vm.status === 'running'"
                 @click="stopVM(vm.id)"
-                class="btn btn-warning rounded-lg"
+                class="btn btn-warning rounded-lg btn-outline"
               >
                 Stop
               </button>
               <button
                 v-if="vm.status === 'running'"
                 @click="restartVM(vm.id)"
-                class="btn btn-info rounded-lg mx-2"
+                class="btn btn-info rounded-lg btn-outline"
               >
                 Restart
               </button>
-              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg">
+              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg btn-outline">
                 Delete
               </button>
             </td>

@@ -8,9 +8,6 @@
     <div class="hidden">
       <div>Home view for <b>sasso</b>!</div>
     </div>
-    <div v-if="whoami">
-      {{ whoami }}
-    </div>
     <Drawer></Drawer>
     <div class="flex gap-2"></div>
   </div>
