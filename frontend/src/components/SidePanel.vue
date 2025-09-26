@@ -57,7 +57,7 @@ onMounted(() => {
       <div class="flex justify-between items-center w-full px-4" :class="{ 'flex-col': collapsed }">
         <a href="/" class="px-3 transition" :class="{ '!p-0': collapsed }">
           <img
-            :src="collapsed ? '/logo-sasso.png' : '/sasso.png'"
+            :src="collapsed ? '/sasso-icon.png' : '/sasso.png'"
             alt="Sasso Logo"
             :class="{ 'h-8 my-1': collapsed }"
           />
