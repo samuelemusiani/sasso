@@ -74,7 +74,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		h.Write([]byte(item.Volid))
 
 		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, BackupNoteString) {
-			bkr, err := db.NewBackupRequest(BackupRequestTypeDelete, BackupRequestStatusPending, uint(vmID))
+			bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &item.Volid, uint(vmID))
 			if err != nil {
 				logger.Error("failed to create backup request", "error", err)
 				return 0, err

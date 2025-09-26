@@ -27,10 +27,15 @@ func initBackupRequests() error {
 }
 
 func NewBackupRequest(backupType, status string, vmID uint) (*BackupRequest, error) {
+	return NewBackupRequestWithVolid(backupType, status, nil, vmID)
+}
+
+func NewBackupRequestWithVolid(backupType, status string, volid *string, vmID uint) (*BackupRequest, error) {
 	backupRequest := &BackupRequest{
 		Type:   backupType,
 		Status: status,
 		VMID:   vmID,
+		Volid:  volid,
 	}
 	result := db.Create(backupRequest)
 	if result.Error != nil {
