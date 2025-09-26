@@ -70,6 +70,7 @@ type Gateway interface {
 	Init(c config.Gateway) error
 	NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error)
 	RemoveInterface(id uint) error
+	VerifyInterface(dbIface *Interface) (bool, error)
 }
 
 func (i *Interface) SaveToDB() error {

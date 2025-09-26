@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -102,4 +103,41 @@ func (lg *LinuxGateway) RemoveInterface(id uint) error {
 		return err
 	}
 	return nil
+}
+
+// True if interface is verified, false otherwise
+func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
+
+	link, err := netlink.LinkByIndex(int(iface.LocalID))
+
+	// not present, inconsistant
+	if errors.Is(err, netlink.LinkNotFoundError{}) {
+		return false, nil
+	}
+
+	if err != nil {
+		logger.With("error", err, "id", iface.LocalID).Error("Failed to get Link")
+		return false, err
+	}
+
+	// not a vxlan, inconsistant
+	if link.Type() != "vxlan" {
+		return false, nil
+	}
+
+	vxlanlink, ok := link.(*netlink.Vxlan)
+	if !ok {
+		return false, nil
+	}
+
+	// other  consistancy checks
+	if (vxlanlink.Name != iface.VNet) ||
+		(vxlanlink.VxlanId != int(iface.VNetID)) ||
+		!vxlanlink.SrcAddr.Equal(net.ParseIP(iface.RouterIP)) ||
+		!vxlanlink.Group.Equal(net.ParseIP(iface.Broadcast)) {
+		return false, nil
+	}
+
+	// else is consistant
+	return true, nil
 }
