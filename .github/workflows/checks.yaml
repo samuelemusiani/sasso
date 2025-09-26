@@ -26,11 +26,12 @@ jobs:
       - name: Install just
         run: sudo apt install just
 
+      - name: Build application
+        run: just build
+
       - name: Check formatting
         run: just check-format
 
       - name: Check lint
         run: just frontend-lint
 
-      - name: Build application
-        run: just build
