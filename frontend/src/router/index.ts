@@ -14,7 +14,7 @@ import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 import SettingsView from '../view/SettingsView.vue'
-import BackupView from '../view/BackupView.vue'
+
 import PortForwardView from '../view/PortForwardView.vue'
 import { api } from '../lib/api'
 
@@ -28,7 +28,7 @@ const router = createRouter({
     { path: '/net', component: NetsView, meta: { requiresAuth: true } },
     { path: '/ssh-keys', component: SSHKeysView, meta: { requiresAuth: true } },
     { path: '/vpn', component: VPNView, meta: { requiresAuth: true } },
-    { path: '/backup', component: BackupView, meta: { requiresAuth: true } },
+
     { path: '/port-forward', component: PortForwardView, meta: { requiresAuth: true } },
     { path: '/settings', component: SettingsView, meta: { requiresAuth: true } },
     {

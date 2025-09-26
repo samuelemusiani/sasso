@@ -1,618 +1,473 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { api } from '@/lib/api'
 import { Icon } from '@iconify/vue'
 import { globalNotifications } from '@/lib/notifications'
-import type { PortForward } from '@/types'
+import type { AdminPortForward } from '@/types'
 
 const route = useRoute()
-const portForwards = ref<PortForward[]>([])
+const portForwards = ref<AdminPortForward[]>([])
 const isLoading = ref(true)
 const searchQuery = ref('')
-const selectedStatus = ref<string>('all')
+
+// Opzioni per il filtro stato
+const statusOptions = [
+  { value: 'all', label: 'Tutti', icon: 'material-symbols:list', color: 'text-base-content' },
+  { value: 'approved', label: 'Approvati', icon: 'material-symbols:check-circle', color: 'text-success' },
+  { value: 'pending', label: 'In attesa', icon: 'material-symbols:schedule', color: 'text-warning' }
+]
+const selectedStatus = ref('all')
+const addingPortForward = ref(false)
 const isProcessing = ref(false)
 
-// Modalità creazione
-const showCreateModal = ref(false)
-const newPortForward = ref({
-  name: '',
-  target_ip: '',
-  target_port: '',
-  source_port: '',
-  description: '',
-  user_id: ''
+const newPortForward = ref<{
+  dest_ip: string
+  dest_port: string
+}>({
+  dest_ip: '',
+  dest_port: ''
 })
-const users = ref<any[]>([])
 
-// Controlla se siamo in modalità creazione
-const isCreateMode = computed(() => route.query.create === 'true')
-
-// Port forwards filtrati per ricerca e stato
+// Port forwards filtrati per ricerca (rimuoviamo i filtri di stato)
 const filteredPortForwards = computed(() => {
   let filtered = portForwards.value
-  
-  // Filtro per stato
-  if (selectedStatus.value !== 'all') {
-    filtered = filtered.filter(pf => pf.status === selectedStatus.value)
-  }
-  
-  // Filtro per ricerca
+
+  // Filtro per testo di ricerca
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(pf => 
-      pf.name.toLowerCase().includes(query) ||
-      pf.user_name.toLowerCase().includes(query) ||
-      pf.description.toLowerCase().includes(query) ||
-      pf.target_ip.includes(query)
+      pf.dest_ip.toLowerCase().includes(query) ||
+      pf.dest_port.toString().includes(query) ||
+      (pf.out_port && pf.out_port.toString().includes(query))
     )
   }
-  
+
   return filtered
 })
 
 // Statistiche dei port forwarding
 const pfStats = computed(() => ({
   totalRequests: portForwards.value.length,
-  pendingRequests: portForwards.value.filter(pf => pf.status === 'pending').length,
-  approvedRequests: portForwards.value.filter(pf => pf.status === 'approved').length,
-  activeRequests: portForwards.value.filter(pf => pf.status === 'active').length,
-  rejectedRequests: portForwards.value.filter(pf => pf.status === 'rejected').length
+  approvedRequests: portForwards.value.filter(pf => pf.approved).length,
+  pendingRequests: portForwards.value.filter(pf => !pf.approved).length
 }))
 
-const statusOptions = [
-  { value: 'all', label: 'Tutti', icon: 'material-symbols:list', color: 'text-base-content' },
-  { value: 'pending', label: 'In attesa', icon: 'material-symbols:schedule', color: 'text-warning' },
-  { value: 'approved', label: 'Approvati', icon: 'material-symbols:check-circle', color: 'text-success' },
-  { value: 'active', label: 'Attivi', icon: 'material-symbols:play-circle', color: 'text-info' },
-  { value: 'rejected', label: 'Rifiutati', icon: 'material-symbols:cancel', color: 'text-error' }
-]
-
-async function fetchPortForwards() {
-  try {
-    isLoading.value = true
-    const res = await api.get('/admin/port-forwards')
-    portForwards.value = res.data as PortForward[]
-  } catch (error) {
-    console.error('Errore nel caricamento dei port forwarding:', error)
-    globalNotifications.showError('Errore nel caricamento dei port forwarding')
-    portForwards.value = []
-  } finally {
-    isLoading.value = false
-  }
+function fetchPortForwards() {
+  isLoading.value = true
+  api
+    .get('/admin/port-forwards')
+    .then((res) => {
+      portForwards.value = res.data as AdminPortForward[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch Port Forwards:', err)
+      globalNotifications.showError('Errore nel caricamento dei port forwarding')
+      portForwards.value = []
+    })
+    .finally(() => {
+      isLoading.value = false
+    })
 }
 
-async function fetchUsers() {
-  try {
-    const res = await api.get('/admin/users')
-    users.value = res.data || []
-  } catch (error) {
-    console.error('Errore nel caricamento degli utenti:', error)
-    globalNotifications.showError('Errore nel caricamento degli utenti')
-  }
-}
-
-async function createPortForward() {
-  if (!newPortForward.value.name || !newPortForward.value.target_ip || 
-      !newPortForward.value.target_port || !newPortForward.value.source_port || 
-      !newPortForward.value.user_id) {
+function createPortForward() {
+  if (!newPortForward.value.dest_ip || !newPortForward.value.dest_port) {
     globalNotifications.showError('Compila tutti i campi obbligatori')
     return
   }
 
   // Validazione IP
   const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/
-  if (!ipRegex.test(newPortForward.value.target_ip)) {
+  if (!ipRegex.test(newPortForward.value.dest_ip)) {
     globalNotifications.showError('Inserisci un indirizzo IP valido')
     return
   }
 
-  // Validazione porte
-  const targetPort = parseInt(newPortForward.value.target_port)
-  const sourcePort = parseInt(newPortForward.value.source_port)
+  // Validazione porta
+  const destPort = parseInt(newPortForward.value.dest_port)
   
-  if (targetPort < 1 || targetPort > 65535 || sourcePort < 1 || sourcePort > 65535) {
-    globalNotifications.showError('Le porte devono essere comprese tra 1 e 65535')
+  if (destPort < 1 || destPort > 65535) {
+    globalNotifications.showError('La porta deve essere compresa tra 1 e 65535')
     return
   }
 
-  try {
-    isProcessing.value = true
-    await api.post('/admin/port-forwards', {
-      name: newPortForward.value.name,
-      target_ip: newPortForward.value.target_ip,
-      target_port: targetPort,
-      source_port: sourcePort,
-      description: newPortForward.value.description,
-      user_id: parseInt(newPortForward.value.user_id),
-      status: 'approved' // Creato direttamente dall'admin, quindi già approvato
+  isProcessing.value = true
+  
+  // L'admin crea il port forward e poi lo approva automaticamente
+  api
+    .post('/port-forwards', {
+      dest_ip: newPortForward.value.dest_ip,
+      dest_port: destPort
     })
-    
-    // Reset form
-    newPortForward.value = {
-      name: '',
-      target_ip: '',
-      target_port: '',
-      source_port: '',
-      description: '',
-      user_id: ''
-    }
-    
-    showCreateModal.value = false
-    await fetchPortForwards() // Ricarica la lista
-    
-    globalNotifications.showSuccess('Port forwarding creato e approvato automaticamente!')
-  } catch (error) {
-    console.error('Errore nella creazione del port forwarding:', error)
-    globalNotifications.showError('Errore nella creazione del port forwarding')
-  } finally {
-    isProcessing.value = false
-  }
+    .then(async (response) => {
+      console.log('Created port forward:', response.data)
+      
+      // Dopo aver creato il port forward, lo approviamo automaticamente se abbiamo l'ID
+      const newPortForwardId = response.data?.id
+      if (newPortForwardId) {
+        console.log('Approving port forward with ID:', newPortForwardId)
+        await api.put(`/admin/port-forwards/${newPortForwardId}`, { approve: true })
+        globalNotifications.showSuccess('Port forwarding creato e approvato con successo!')
+      } else {
+        // Fallback: refresh la lista e trova l'ultimo port forward per approvarlo
+        console.log('No ID received, refreshing list to find and approve the new port forward')
+        await fetchPortForwards()
+        
+        // Trova il port forward più recente per questo IP e porta e approvalo
+        const latestPf = portForwards.value
+          .filter(pf => pf.dest_ip === newPortForward.value.dest_ip && pf.dest_port === destPort && !pf.approved)
+          .sort((a, b) => b.id - a.id)[0]
+        
+        if (latestPf) {
+          await api.put(`/admin/port-forwards/${latestPf.id}`, { approve: true })
+          globalNotifications.showSuccess('Port forwarding creato e approvato con successo!')
+        } else {
+          globalNotifications.showSuccess('Port forwarding creato con successo!')
+        }
+      }
+      
+      fetchPortForwards()
+      newPortForward.value = {
+        dest_ip: '',
+        dest_port: ''
+      }
+      addingPortForward.value = false
+    })
+    .catch((err) => {
+      console.error('Failed to add port forward:', err)
+      globalNotifications.showError('Errore nella creazione del port forwarding')
+    })
+    .finally(() => {
+      isProcessing.value = false
+    })
 }
 
-async function approvePortForward(portForward: PortForward) {
-  if (!confirm(`Sei sicuro di voler approvare il port forwarding "${portForward.name}" di ${portForward.user_name}?`)) {
-    return
-  }
-
-  try {
-    isProcessing.value = true
-    await api.put(`/admin/port-forwards/${portForward.id}/approve`)
-    
-    // Aggiorna lo stato locale
-    const index = portForwards.value.findIndex(pf => pf.id === portForward.id)
-    if (index !== -1) {
-      portForwards.value[index].status = 'approved'
-      portForwards.value[index].approved_at = new Date().toISOString()
-    }
-    
-    globalNotifications.showSuccess(`Port forwarding "${portForward.name}" approvato con successo!`)
-  } catch (error) {
-    console.error('Errore nell\'approvazione del port forwarding:', error)
-    globalNotifications.showError('Errore nell\'approvazione del port forwarding')
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-async function rejectPortForward(portForward: PortForward) {
-  if (!confirm(`Sei sicuro di voler rifiutare il port forwarding "${portForward.name}" di ${portForward.user_name}?`)) {
-    return
-  }
-
-  try {
-    isProcessing.value = true
-    await api.put(`/admin/port-forwards/${portForward.id}/reject`)
-    
-    // Aggiorna lo stato locale
-    const index = portForwards.value.findIndex(pf => pf.id === portForward.id)
-    if (index !== -1) {
-      portForwards.value[index].status = 'rejected'
-    }
-    
-    globalNotifications.showSuccess(`Port forwarding "${portForward.name}" rifiutato`)
-  } catch (error) {
-    console.error('Errore nel rifiuto del port forwarding:', error)
-    globalNotifications.showError('Errore nel rifiuto del port forwarding')
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-async function deletePortForward(portForward: PortForward) {
-  if (!confirm(`Sei sicuro di voler eliminare definitivamente il port forwarding "${portForward.name}"?`)) {
-    return
-  }
-
-  try {
-    await api.delete(`/admin/port-forwards/${portForward.id}`)
-    portForwards.value = portForwards.value.filter(pf => pf.id !== portForward.id)
-    globalNotifications.showSuccess('Port forwarding eliminato con successo!')
-  } catch (error) {
-    console.error('Errore nell\'eliminazione del port forwarding:', error)
-    globalNotifications.showError('Errore nell\'eliminazione del port forwarding')
-  }
-}
-
-function getStatusIcon(status: string): string {
-  switch (status) {
-    case 'pending': return 'material-symbols:schedule'
-    case 'approved': return 'material-symbols:check-circle'
-    case 'active': return 'material-symbols:play-circle'
-    case 'rejected': return 'material-symbols:cancel'
-    default: return 'material-symbols:help'
-  }
-}
-
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'pending': return 'text-warning'
-    case 'approved': return 'text-success'
-    case 'active': return 'text-info'
-    case 'rejected': return 'text-error'
-    default: return 'text-base-content'
-  }
-}
-
-function getStatusBadgeClass(status: string): string {
-  switch (status) {
-    case 'pending': return 'badge-warning'
-    case 'approved': return 'badge-success'
-    case 'active': return 'badge-info'
-    case 'rejected': return 'badge-error'
-    default: return 'badge-ghost'
-  }
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('it-IT', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-onMounted(async () => {
-  await fetchPortForwards()
+function approvePortForward(id: number) {
+  console.log('Approving port forward:', id)
   
-  // Se siamo in modalità creazione, carica gli utenti e apri il modal
-  if (isCreateMode.value) {
-    await fetchUsers()
-    showCreateModal.value = true
+  api
+    .put(`/admin/port-forwards/${id}`, { approve: true })
+    .then(() => {
+      fetchPortForwards()
+      globalNotifications.showSuccess('Port forwarding approvato!')
+    })
+    .catch((err) => {
+      console.error('Failed to approve port forward:', err)
+      globalNotifications.showError('Errore nell\'approvazione del port forwarding')
+    })
+}
+
+function deletePortForward(id: number) {
+  if (!confirm('Sei sicuro di voler eliminare questo port forwarding?')) {
+    return
+  }
+
+  api
+    .delete(`/port-forwards/${id}`)
+    .then(() => {
+      fetchPortForwards()
+      globalNotifications.showSuccess('Port forwarding eliminato!')
+    })
+    .catch((err) => {
+      console.error('Failed to delete port forward:', err)
+      globalNotifications.showError('Errore nell\'eliminazione del port forwarding')
+    })
+}
+
+function getApprovalBadge(approved: boolean) {
+  if (approved) {
+    return { class: 'badge-success', icon: 'material-symbols:check-circle', text: 'Approvato' }
+  } else {
+    return { class: 'badge-warning', icon: 'material-symbols:schedule', text: 'In attesa' }
+  }
+}
+
+onMounted(() => {
+  fetchPortForwards()
+  
+  // Controlla se deve aprire automaticamente il form di aggiunta
+  if (route.query.add === 'true') {
+    addingPortForward.value = true
   }
 })
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-      <!-- Header con effetto glass -->
-      <div class="bg-base-100/80 backdrop-blur-sm border border-base-300/50 rounded-2xl p-6 mb-6 shadow-xl">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
-              <Icon icon="material-symbols:router" class="text-2xl text-white" />
+  <div class="h-full overflow-auto">
+    <!-- Header con breadcrumb -->
+    <div class="mb-6 px-2">
+      <div class="flex items-center gap-2 mb-2">
+        <RouterLink to="/admin" class="btn btn-ghost btn-sm gap-2">
+          <Icon icon="material-symbols:arrow-back" />
+          Admin Panel
+        </RouterLink>
+        <span class="text-base-content/50">/</span>
+        <span class="text-base-content font-medium">Port Forwarding</span>
+      </div>
+      
+      <div class="flex items-center gap-3 mb-4">
+        <div class="btn btn-square btn-lg rounded-xl btn-primary p-0 flex-shrink-0">
+          <Icon icon="material-symbols:router" class="text-2xl" />
+        </div>
+        <div>
+          <h1 class="text-3xl font-bold text-base-content">Gestione Port Forwarding</h1>
+          <p class="text-base-content/70">Gestisci le richieste di port forwarding degli utenti</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex justify-center items-center h-64">
+      <div class="loading loading-spinner loading-lg"></div>
+      <span class="ml-4 text-lg">Caricamento port forwards...</span>
+    </div>
+
+    <div v-else>
+
+      <!-- Statistiche e controlli -->
+      <div class="px-2 mb-6">
+        <div class="card shadow-xl bg-base-100 border border-base-300">
+          <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="stat bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 rounded-xl">
+                <div class="stat-figure text-primary">
+                  <Icon icon="material-symbols:list" class="text-3xl" />
+                </div>
+                <div class="stat-title text-primary/70">Totali</div>
+                <div class="stat-value text-2xl text-primary">{{ pfStats.totalRequests }}</div>
+              </div>
+              
+              <div class="stat bg-gradient-to-br from-warning/10 to-warning/20 border border-warning/20 rounded-xl">
+                <div class="stat-figure text-warning">
+                  <Icon icon="material-symbols:schedule" class="text-3xl" />
+                </div>
+                <div class="stat-title text-warning/70">In attesa</div>
+                <div class="stat-value text-2xl text-warning">{{ pfStats.pendingRequests }}</div>
+              </div>
+              
+              <div class="stat bg-gradient-to-br from-success/10 to-success/20 border border-success/20 rounded-xl">
+                <div class="stat-figure text-success">
+                  <Icon icon="material-symbols:check-circle" class="text-3xl" />
+                </div>
+                <div class="stat-title text-success/70">Approvati</div>
+                <div class="stat-value text-2xl text-success">{{ pfStats.approvedRequests }}</div>
+              </div>
             </div>
-            <div>
-              <h1 class="text-3xl font-bold text-base-content">Approvazione Port Forwarding</h1>
-              <p class="text-base-content/70">Gestisci le richieste di port forwarding degli utenti</p>
+            
+            <!-- Filtri e controlli -->
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <!-- Ricerca -->
+              <div class="flex-1 max-w-md">
+                <div class="relative">
+                  <Icon icon="material-symbols:search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" />
+                  <input v-model="searchQuery" 
+                         type="text" 
+                         placeholder="Cerca per IP o porta..." 
+                         class="input input-bordered pl-10 w-full" />
+                </div>
+              </div>
+              
+              <!-- Filtro Stato e pulsanti azione -->
+              <div class="flex gap-2 shrink-0">
+                <!-- Filtri stato -->
+                <button v-for="status in statusOptions" 
+                        :key="status.value"
+                        @click="selectedStatus = status.value"
+                        class="btn btn-sm gap-2 transition-all duration-200"
+                        :class="selectedStatus === status.value ? 'btn-primary' : 'btn-ghost'">
+                  <Icon :icon="status.icon" class="text-sm" :class="status.color" />
+                  {{ status.label }}
+                </button>
+                
+                <!-- Pulsante aggiungi port forward -->
+                <button
+                  @click="addingPortForward = true"
+                  v-show="!addingPortForward"
+                  class="btn btn-primary gap-2 h-12"
+                >
+                  <Icon icon="material-symbols:add" />
+                  Nuovo Port Forward
+                </button>
+                
+                <!-- Pulsante annulla -->
+                <button
+                  @click="addingPortForward = false"
+                  v-show="addingPortForward"
+                  class="btn btn-error gap-2 h-12"
+                >
+                  <Icon icon="material-symbols:cancel" />
+                  Annulla
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form aggiunta port forward -->
+      <div v-if="addingPortForward" class="mb-6 px-2">
+        <div class="card shadow-xl bg-base-100 border border-base-300">
+          <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+              <Icon icon="material-symbols:add-circle" class="text-3xl text-primary" />
+              <div>
+                <h3 class="font-bold text-xl">Aggiungi Nuovo Port Forward</h3>
+                <p class="text-sm text-base-content/70">Crea una nuova regola di port forwarding (sarà automaticamente approvata)</p>
+              </div>
+            </div>
+            
+            <form @submit.prevent="createPortForward" class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- IP Destinazione -->
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text font-medium">IP Destinazione *</span>
+                  </label>
+                  <input
+                    v-model="newPortForward.dest_ip"
+                    type="text"
+                    placeholder="192.168.1.100"
+                    class="input input-bordered w-full"
+                    pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                    required
+                  />
+                </div>
+                
+                <!-- Porta Destinazione -->
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text font-medium">Porta Destinazione *</span>
+                  </label>
+                  <input
+                    v-model="newPortForward.dest_port"
+                    type="number"
+                    placeholder="8080"
+                    class="input input-bordered w-full"
+                    min="1"
+                    max="65535"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <!-- Azioni -->
+              <div class="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  @click="addingPortForward = false"
+                  class="btn btn-ghost"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  :disabled="isProcessing"
+                  class="btn btn-primary gap-2"
+                >
+                  <span v-if="isProcessing" class="loading loading-spinner loading-sm"></span>
+                  <Icon v-else icon="material-symbols:add" />
+                  {{ isProcessing ? 'Creazione...' : 'Crea Port Forward' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista Port Forwards -->
+      <div v-show="!addingPortForward" class="px-2">
+        <div class="card shadow-xl bg-base-100 border border-base-300">
+          <div class="card-body p-0">
+        <div class="p-6 border-b border-base-300/50">
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <Icon icon="material-symbols:list" class="text-primary" />
+            Port Forwarding Attivi
+          </h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <!-- Loading State -->
+          <div v-if="isLoading" class="flex justify-center items-center h-64">
+            <div class="loading loading-spinner loading-lg"></div>
+            <span class="ml-4 text-lg">Caricamento...</span>
           </div>
           
-          <!-- Pulsante Crea Port Forward -->
-          <button @click="showCreateModal = true; fetchUsers()" 
-                  class="btn btn-primary gap-2 shadow-lg hover:shadow-xl transition-all duration-300">
-            <Icon icon="material-symbols:add-box" class="text-lg" />
-            Crea Port Forward
-          </button>
-        </div>
-      </div>
-
-      <!-- Statistiche -->
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 px-2">
-        <div class="stat bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 rounded-xl">
-          <div class="stat-figure text-primary">
-            <Icon icon="material-symbols:list" class="text-3xl" />
-          </div>
-          <div class="stat-title text-primary/70">Totali</div>
-          <div class="stat-value text-2xl text-primary">{{ pfStats.totalRequests }}</div>
-        </div>
-        
-        <div class="stat bg-gradient-to-br from-warning/10 to-warning/20 border border-warning/20 rounded-xl">
-          <div class="stat-figure text-warning">
-            <Icon icon="material-symbols:schedule" class="text-3xl" />
-          </div>
-          <div class="stat-title text-warning/70">In attesa</div>
-          <div class="stat-value text-2xl text-warning">{{ pfStats.pendingRequests }}</div>
-        </div>
-        
-        <div class="stat bg-gradient-to-br from-success/10 to-success/20 border border-success/20 rounded-xl">
-          <div class="stat-figure text-success">
-            <Icon icon="material-symbols:check-circle" class="text-3xl" />
-          </div>
-          <div class="stat-title text-success/70">Approvati</div>
-          <div class="stat-value text-2xl text-success">{{ pfStats.approvedRequests }}</div>
-        </div>
-        
-        <div class="stat bg-gradient-to-br from-info/10 to-info/20 border border-info/20 rounded-xl">
-          <div class="stat-figure text-info">
-            <Icon icon="material-symbols:play-circle" class="text-3xl" />
-          </div>
-          <div class="stat-title text-info/70">Attivi</div>
-          <div class="stat-value text-2xl text-info">{{ pfStats.activeRequests }}</div>
-        </div>
-        
-        <div class="stat bg-gradient-to-br from-error/10 to-error/20 border border-error/20 rounded-xl">
-          <div class="stat-figure text-error">
-            <Icon icon="material-symbols:cancel" class="text-3xl" />
-          </div>
-          <div class="stat-title text-error/70">Rifiutati</div>
-          <div class="stat-value text-2xl text-error">{{ pfStats.rejectedRequests }}</div>
-        </div>
-      </div>
-
-      <!-- Controlli principali -->
-      <div class="flex flex-col md:flex-row md:items-center gap-4 mb-6 px-2">
-        <!-- Barra di ricerca -->
-        <div class="flex items-center gap-3 flex-1">
-          <Icon icon="material-symbols:search" class="text-base-content/60 text-xl" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cerca per nome, utente, IP..."
-            class="input input-bordered flex-1"
-          />
-        </div>
-        
-        <!-- Filtro stato -->
-        <div class="flex gap-2 shrink-0">
-          <select v-model="selectedStatus" class="select select-bordered">
-            <option
-              v-for="option in statusOptions"
-              :key="option.value"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Lista port forwarding -->
-      <div class="px-2">
-        <div class="bg-base-100/80 backdrop-blur-sm border border-base-300/50 rounded-2xl shadow-lg overflow-hidden">
-          <!-- Loading state -->
-          <div v-if="isLoading" class="p-8 text-center">
-            <span class="loading loading-spinner loading-lg text-primary"></span>
-            <p class="mt-2 text-base-content/70">Caricamento richieste port forwarding...</p>
-          </div>
-
-          <!-- Tabella port forwarding -->
-          <div v-else-if="filteredPortForwards.length > 0" class="overflow-x-auto">
-            <table class="table table-zebra w-full">
-              <thead>
-                <tr class="border-base-300">
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:tag" class="text-sm" />
-                      ID
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:person" class="text-sm" />
-                      Utente
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:router" class="text-sm" />
-                      Port Forwarding
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:network-node" class="text-sm" />
-                      Routing
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:flag" class="text-sm" />
-                      Stato
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50">
-                    <div class="flex items-center gap-2">
-                      <Icon icon="material-symbols:schedule" class="text-sm" />
-                      Data
-                    </div>
-                  </th>
-                  <th class="bg-base-200/50 text-center">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="pf in filteredPortForwards" :key="pf.id" class="hover">
-                  <td class="font-mono text-sm">{{ pf.id }}</td>
-                  <td>
-                    <div class="flex items-center gap-3">
-                      <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Icon icon="material-symbols:person" class="text-primary text-xl" />
-                      </div>
-                      <div>
-                        <div class="font-bold">{{ pf.user_name }}</div>
-                        <div class="text-sm text-base-content/70">ID: {{ pf.user_id }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <div class="font-bold">{{ pf.name }}</div>
-                      <div class="text-sm text-base-content/70">{{ pf.description }}</div>
-                    </div>
-                  </td>
-                  <td class="font-mono text-sm">
-                    <div class="flex items-center gap-2">
-                      <span class="badge badge-outline">{{ pf.source_port }}</span>
-                      <Icon icon="material-symbols:arrow-forward" class="text-base-content/60" />
-                      <span class="text-primary">{{ pf.target_ip }}:{{ pf.target_port }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="flex items-center gap-2">
-                      <Icon :icon="getStatusIcon(pf.status)" :class="getStatusColor(pf.status)" />
-                      <span class="badge badge-sm" :class="getStatusBadgeClass(pf.status)">
-                        {{ pf.status.toUpperCase() }}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="text-sm text-base-content/70">
-                    {{ formatDate(pf.created_at) }}
-                  </td>
-                  <td>
-                    <div class="flex gap-1 justify-center">
-                      <!-- Pulsante approva -->
-                      <button 
-                        v-if="pf.status === 'pending'"
-                        @click="approvePortForward(pf)"
-                        class="btn btn-ghost btn-sm gap-1 hover:btn-success"
-                        :disabled="isProcessing"
-                      >
-                        <Icon icon="material-symbols:check" />
-                        Approva
-                      </button>
-                      
-                      <!-- Pulsante rifiuta -->
-                      <button 
-                        v-if="pf.status === 'pending'"
-                        @click="rejectPortForward(pf)"
-                        class="btn btn-ghost btn-sm gap-1 hover:btn-error"
-                        :disabled="isProcessing"
-                      >
-                        <Icon icon="material-symbols:close" />
-                        Rifiuta
-                      </button>
-                      
-                      <!-- Pulsante elimina -->
-                      <button 
-                        @click="deletePortForward(pf)"
-                        class="btn btn-ghost btn-sm gap-1 hover:btn-error"
-                        :disabled="isProcessing"
-                      >
-                        <Icon icon="material-symbols:delete" />
-                        Elimina
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <!-- Tabella port forwards -->
+          <table v-else-if="filteredPortForwards.length > 0" class="table table-zebra w-full">
+            <thead>
+              <tr class="bg-base-200/50">
+                <th class="font-semibold">ID</th>
+                <th class="font-semibold">Utente</th>
+                <th class="font-semibold">Porta Esterna</th>
+                <th class="font-semibold">Destinazione</th>
+                <th class="font-semibold">Stato</th>
+                <th class="font-semibold">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="pf in filteredPortForwards" :key="pf.id" class="hover">
+                <td>
+                  <div class="font-mono text-sm font-medium">
+                    {{ pf.id }}
+                  </div>
+                </td>
+                <td>
+                  <div class="font-medium text-sm">
+                    {{ pf.username }}
+                  </div>
+                </td>
+                <td>
+                  <div class="font-mono text-sm font-medium">
+                    :{{ pf.out_port }}
+                  </div>
+                </td>
+                <td>
+                  <div class="font-mono text-sm">
+                    {{ pf.dest_ip }}:{{ pf.dest_port }}
+                  </div>
+                </td>
+                <td>
+                  <div class="badge gap-1" :class="getApprovalBadge(pf.approved).class">
+                    <Icon :icon="getApprovalBadge(pf.approved).icon" class="text-xs" />
+                    {{ getApprovalBadge(pf.approved).text }}
+                  </div>
+                </td>
+                <td>
+                  <div class="flex gap-2">
+                    <button v-if="!pf.approved" @click="approvePortForward(pf.id)" class="btn btn-success btn-sm gap-1">
+                      <Icon icon="material-symbols:check" /> Approva
+                    </button>
+                    <button
+                      @click="deletePortForward(pf.id)"
+                      class="btn btn-error btn-sm gap-1"
+                      title="Elimina port forwarding"
+                    >
+                      <Icon icon="material-symbols:delete" />
+                      Elimina
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
           
           <!-- Stato vuoto -->
-          <div v-else-if="portForwards.length === 0" class="p-8 text-center">
-            <Icon icon="material-symbols:router-outline" class="text-6xl text-base-content/30 mb-4" />
-            <p class="text-lg font-medium text-base-content/70 mb-2">Nessuna richiesta di port forwarding</p>
-            <p class="text-base-content/50">Le richieste degli utenti appariranno qui</p>
-          </div>
-          
-          <!-- Stato vuoto per ricerca -->
           <div v-else class="p-8 text-center">
-            <Icon icon="material-symbols:search-off" class="text-6xl text-base-content/30 mb-4" />
-            <p class="text-base-content/70">Nessuna richiesta trovata per i criteri selezionati</p>
+            <Icon icon="material-symbols:router-outline" class="text-6xl text-base-content/30 mb-4" />
+            <p class="text-lg font-medium text-base-content/70 mb-2">Nessun port forwarding trovato</p>
+            <p class="text-base-content/50">Utilizza il pulsante "Nuovo Port Forward" per crearne uno</p>
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- Modal Creazione Port Forward -->
-    <div v-if="showCreateModal" class="modal modal-open">
-      <div class="modal-box w-11/12 max-w-2xl bg-base-100 border border-base-300">
-        <h3 class="font-bold text-lg mb-6 flex items-center gap-2">
-          <Icon icon="material-symbols:add-box" class="text-orange-500" />
-          Crea Nuovo Port Forward (Pre-approvato)
-        </h3>
-        
-        <div class="alert alert-info mb-4">
-          <Icon icon="material-symbols:info" />
-          <span class="text-sm">I port forward creati dagli admin vengono automaticamente approvati e attivati.</span>
-        </div>
-        
-        <form @submit.prevent="createPortForward" class="space-y-4">
-          <!-- Nome -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-medium">Nome *</span>
-            </label>
-            <input v-model="newPortForward.name" 
-                   type="text" 
-                   placeholder="Nome identificativo del port forward" 
-                   class="input input-bordered w-full"
-                   required />
-          </div>
-          
-          <!-- Utente -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-medium">Utente *</span>
-            </label>
-            <select v-model="newPortForward.user_id" class="select select-bordered w-full" required>
-              <option value="">Seleziona utente</option>
-              <option v-for="user in users" :key="user.id" :value="user.id">
-                {{ user.username }} ({{ user.email }})
-              </option>
-            </select>
-          </div>
-          
-          <!-- IP Target e Porta Target -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">IP Target *</span>
-              </label>
-              <input v-model="newPortForward.target_ip" 
-                     type="text" 
-                     placeholder="192.168.1.100" 
-                     class="input input-bordered w-full"
-                     pattern="^(\d{1,3}\.){3}\d{1,3}$"
-                     required />
-            </div>
-            
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Porta Target *</span>
-              </label>
-              <input v-model="newPortForward.target_port" 
-                     type="number" 
-                     placeholder="8080" 
-                     class="input input-bordered w-full"
-                     min="1" max="65535"
-                     required />
-            </div>
-          </div>
-          
-          <!-- Porta Sorgente -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-medium">Porta Sorgente *</span>
-            </label>
-            <input v-model="newPortForward.source_port" 
-                   type="number" 
-                   placeholder="8080" 
-                   class="input input-bordered w-full"
-                   min="1" max="65535"
-                   required />
-          </div>
-          
-          <!-- Descrizione -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-medium">Descrizione</span>
-            </label>
-            <textarea v-model="newPortForward.description" 
-                      placeholder="Descrizione opzionale del port forward"
-                      class="textarea textarea-bordered w-full h-20"></textarea>
-          </div>
-          
-          <!-- Azioni -->
-          <div class="modal-action">
-            <button type="button" 
-                    @click="showCreateModal = false" 
-                    class="btn btn-ghost">
-              Annulla
-            </button>
-            <button type="submit" 
-                    :disabled="isProcessing"
-                    class="btn btn-primary gap-2">
-              <span v-if="isProcessing" class="loading loading-spinner loading-sm"></span>
-              <Icon v-else icon="material-symbols:add-box" />
-              {{ isProcessing ? 'Creazione...' : 'Crea Port Forward' }}
-            </button>
-          </div>
-        </form>
-      </div>
+    </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.table th {
+  background-color: hsl(var(--b2) / 0.5);
+}
+</style>

@@ -3,22 +3,23 @@ import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '@/lib/api'
 import { Icon } from '@iconify/vue'
-import type { PortForward } from '@/types'
+import type { AdminPortForward } from '@/types'
 
 const isLoading = ref(true)
 const users = ref([])
 const realms = ref([])
 const globalSSHKeys = ref([])
-const portForwards = ref<PortForward[]>([])
+const portForwards = ref<AdminPortForward[]>([])
 
 // Statistiche computate
 const adminStats = computed(() => {
   const totalUsers = users.value.length
   const activeRealms = realms.value.length
   const totalSSHKeys = globalSSHKeys.value.length
-  const pendingPortForwards = portForwards.value.filter(pf => pf.status === 'pending').length
+  const totalPortForwards = portForwards.value.length
+  const pendingPortForwards = portForwards.value.filter(pf => !pf.approved).length
   
-  return { totalUsers, activeRealms, totalSSHKeys, pendingPortForwards }
+  return { totalUsers, activeRealms, totalSSHKeys, totalPortForwards, pendingPortForwards }
 })
 
 // Sezioni admin con informazioni
@@ -62,7 +63,7 @@ const adminSections = computed(() => [
   {
     id: 'port-forwards',
     title: 'Port Forwarding',
-    description: 'Approva e gestisci richieste di port forwarding',
+    description: `${adminStats.value.totalPortForwards} totali • ${adminStats.value.pendingPortForwards} in attesa`,
     icon: 'material-symbols:router',
     route: '/admin/port-forwards',
     count: adminStats.value.pendingPortForwards,

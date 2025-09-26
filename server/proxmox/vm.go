@@ -39,11 +39,13 @@ var (
 )
 
 type VM struct {
-	ID     uint64 `json:"id"`
-	Status string `json:"status"`
-	Cores  uint   `json:"cores"`
-	RAM    uint   `json:"ram"`
-	Disk   uint   `json:"disk"`
+	ID       uint64 `json:"id"`
+	Status   string `json:"status"`
+	Cores    uint   `json:"cores"`
+	RAM      uint   `json:"ram"`
+	Disk     uint   `json:"disk"`
+	Template string `json:"template,omitempty"`
+	Uptime   uint64 `json:"uptime,omitempty"`
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -56,6 +58,13 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 
 	vms := make([]VM, len(db_vms))
 
+	// Get Proxmox cluster for additional VM info
+	cluster, clusterErr := getProxmoxCluster(client)
+	var resources goprox.ClusterResources
+	if clusterErr == nil {
+		resources, _ = getProxmoxResources(cluster, "vm")
+	}
+
 	for i := range vms {
 		vms[i].ID = db_vms[i].ID
 		// Status needs to be checked against the acctual Proxmox VM status
@@ -63,6 +72,26 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		vms[i].Cores = db_vms[i].Cores
 		vms[i].RAM = db_vms[i].RAM
 		vms[i].Disk = db_vms[i].Disk
+
+		// Try to get additional info from Proxmox
+		if clusterErr == nil {
+			for _, resource := range resources {
+				if resource.VMID == vms[i].ID && resource.Type == "qemu" {
+					// Set template info - for now use a generic template name
+					if cTemplate != nil {
+						vms[i].Template = cTemplate.Name
+					} else {
+						vms[i].Template = "ubuntu-22.04"
+					}
+
+					// Set uptime if VM is running
+					if vms[i].Status == "running" && resource.Uptime != nil {
+						vms[i].Uptime = uint64(*resource.Uptime)
+					}
+					break
+				}
+			}
+		}
 	}
 
 	return vms, nil

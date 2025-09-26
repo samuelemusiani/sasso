@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { VM, Interface, Net } from '@/types'
+import type { VM, Interface, Net, Backup } from '@/types'
 import { api } from '@/lib/api'
 import { Icon } from '@iconify/vue'
 import { globalNotifications } from '@/lib/notifications'
@@ -17,10 +17,14 @@ const isLoading = ref(true)
 const showCreateForm = ref(false)
 const expandedSettings = ref<Record<number, boolean>>({})
 const expandedInterfaces = ref<Record<number, boolean>>({})
+const expandedBackups = ref<Record<number, boolean>>({})
 
 // Interfacce e reti
 const vmInterfaces = ref<Record<number, Interface[]>>({})
 const nets = ref<Net[]>([])
+
+// Backup
+const vmBackups = ref<Record<number, Backup[]>>({})
 
 // Mappa delle reti per nome
 const netMap = computed(() => {
@@ -61,6 +65,7 @@ const vmStats = computed(() => {
 async function fetchVMs() {
   try {
     const response = await api.get('/vm')
+    console.log('VM data received:', response.data)
     vms.value = response.data as VM[]
   } catch (error) {
     console.error('Errore nel recuperare le VM:', error)
@@ -235,6 +240,99 @@ async function updateVMSettings(vmid: number) {
     globalNotifications.showError('Errore nell\'aggiornamento delle impostazioni')
   }
 }
+
+// Funzioni per i backup
+async function toggleBackups(vmid: number) {
+  expandedBackups.value[vmid] = !expandedBackups.value[vmid]
+  
+  if (expandedBackups.value[vmid] && !vmBackups.value[vmid]) {
+    await fetchVMBackups(vmid)
+  }
+}
+
+async function fetchVMBackups(vmid: number) {
+  try {
+    const response = await api.get(`/vm/${vmid}/backup`)
+    console.log('Backup data received:', response.data)
+    vmBackups.value[vmid] = response.data || []
+  } catch (error) {
+    console.error('Errore nel recuperare i backup:', error)
+    vmBackups.value[vmid] = []
+  }
+}
+
+async function createBackup(vmid: number) {
+  try {
+    await api.post(`/vm/${vmid}/backup`)
+    await fetchVMBackups(vmid)
+    globalNotifications.showSuccess('Backup creato con successo!')
+  } catch (error) {
+    console.error('Errore nella creazione del backup:', error)
+    globalNotifications.showError('Errore nella creazione del backup')
+  }
+}
+
+async function restoreBackup(vmid: number, backupId: string) {
+  if (!confirm('Sei sicuro di voler ripristinare questo backup? Questa operazione sovrascriverà lo stato attuale della VM.')) {
+    return
+  }
+  
+  try {
+    await api.post(`/vm/${vmid}/backup/${backupId}/restore`)
+    await fetchVMs()
+    globalNotifications.showSuccess('Backup ripristinato con successo!')
+  } catch (error) {
+    console.error('Errore nel ripristino del backup:', error)
+    globalNotifications.showError('Errore nel ripristino del backup')
+  }
+}
+
+async function deleteBackup(vmid: number, backupId: string) {
+  if (!confirm('Sei sicuro di voler eliminare questo backup?')) {
+    return
+  }
+  
+  try {
+    await api.delete(`/vm/${vmid}/backup/${backupId}`)
+    await fetchVMBackups(vmid)
+    globalNotifications.showSuccess('Backup eliminato con successo!')
+  } catch (error) {
+    console.error('Errore nell\'eliminazione del backup:', error)
+    globalNotifications.showError('Errore nell\'eliminazione del backup')
+  }
+}
+
+function formatBackupDate(date: string) {
+  if (!date) {
+    return 'Data non disponibile'
+  }
+  
+  try {
+    return new Date(date).toLocaleString('it-IT')
+  } catch (error) {
+    return 'Data non valida'
+  }
+}
+
+function formatUptime(uptimeSeconds?: number) {
+  if (!uptimeSeconds || uptimeSeconds < 0) {
+    return 'Non disponibile'
+  }
+  
+  const days = Math.floor(uptimeSeconds / 86400)
+  const hours = Math.floor((uptimeSeconds % 86400) / 3600)
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60)
+  
+  if (days > 0) {
+    return `${days}g ${hours}h ${minutes}m`
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  } else {
+    return `${minutes}m`
+  }
+}
+
+
 
 onMounted(async () => {
   await Promise.all([fetchVMs(), fetchNets()])
@@ -443,84 +541,103 @@ onMounted(async () => {
         <!-- VM Cards -->
         <div v-else class="space-y-4">
           <div v-for="vm in vms" :key="vm.id" class="liquid-glass-card-no-scale p-6">
-            <div class="flex items-center justify-between">
-              <!-- Informazioni VM -->
-              <div class="flex items-center gap-6">
-                <!-- Stato -->
-                <div class="flex items-center gap-3">
-                  <div class="btn btn-square btn-md rounded-xl p-0 m-1 flex-shrink-0"
-                       :class="{
-                         'btn-success': vm.status === 'running',
-                         'btn-error': vm.status === 'stopped',
-                         'btn-warning': vm.status === 'starting',
-                         'btn-neutral': !['running', 'stopped', 'starting'].includes(vm.status)
-                       }">
-                    <Icon :icon="getStatusIcon(vm.status)" class="text-xl" />
-                  </div>
-                  <div>
-                    <h3 class="font-bold text-lg text-base-content">
-                      {{ vm.name || `VM #${vm.id}` }}
-                    </h3>
-                    <span class="text-sm font-semibold capitalize" :class="getStatusColor(vm.status)">
-                      {{ vm.status }}
-                    </span>
-                  </div>
+            <!-- Informazioni VM -->
+            <div class="flex items-center gap-6 mb-4">
+              <!-- Stato -->
+              <div class="flex items-center gap-3">
+                <div class="btn btn-square btn-md rounded-xl p-0 m-1 flex-shrink-0"
+                     :class="{
+                       'btn-success': vm.status === 'running',
+                       'btn-error': vm.status === 'stopped',
+                       'btn-warning': vm.status === 'starting',
+                       'btn-neutral': !['running', 'stopped', 'starting'].includes(vm.status)
+                     }">
+                  <Icon :icon="getStatusIcon(vm.status)" class="text-xl" />
                 </div>
-                
-                <!-- Specifiche -->
-                <div class="hidden lg:flex items-center gap-6 text-sm text-base-content/70">
-                  <div class="flex items-center gap-2">
-                    <Icon icon="material-symbols:memory" class="text-lg" />
-                    <span>{{ vm.cores }} cores</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <Icon icon="material-symbols:storage" class="text-lg" />
-                    <span>{{ vm.ram }} MB</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <Icon icon="material-symbols:hard-drive" class="text-lg" />
-                    <span>{{ vm.disk }} GB</span>
-                  </div>
+                <div>
+                  <h3 class="font-bold text-lg text-base-content">
+                    {{ vm.name || `VM #${vm.id}` }}
+                  </h3>
+                  <span class="text-sm font-semibold capitalize" :class="getStatusColor(vm.status)">
+                    {{ vm.status }}
+                  </span>
+                    <!-- Info VM tutte affiancate -->
+                    <div class="hidden lg:flex items-center gap-6 text-sm text-base-content/70 mt-2">
+                      <div class="flex items-center gap-2">
+                        <Icon icon="material-symbols:memory" class="text-lg" />
+                        <span>{{ vm.cores }} cores</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Icon icon="material-symbols:storage" class="text-lg" />
+                        <span>{{ vm.ram }} MB</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Icon icon="material-symbols:hard-drive" class="text-lg" />
+                        <span>{{ vm.disk }} GB</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Icon icon="material-symbols:device-hub" class="text-lg" />
+                        <span>{{ vm.template || 'ubuntu-22.04' }}</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Icon icon="material-symbols:schedule" class="text-lg" />
+                        <span v-if="vm.status === 'running'">
+                          {{ formatUptime(vm.uptime || 3600) }}
+                        </span>
+                        <span v-else class="text-base-content/40">
+                          non in esecuzione
+                        </span>
+                      </div>
+                    </div>
                 </div>
               </div>
+                <!-- ...esistente per mobile... -->
+            </div>
+            
+            <!-- Azioni VM su riga separata -->
+            <div class="flex flex-wrap items-center gap-2 pt-4 border-t border-white/10">
+              <button @click="toggleSettings(vm.id)"
+                      class="btn btn-info btn-sm">
+                <Icon icon="material-symbols:settings" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Impostazioni</span>
+              </button>
               
-              <!-- Azioni -->
-              <div class="flex items-center gap-2">
-                <button @click="toggleSettings(vm.id)"
-                        class="btn btn-info btn-sm">
-                  <Icon icon="material-symbols:settings" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Impostazioni</span>
-                </button>
-                
-                <button @click="toggleInterfaces(vm.id)"
-                        class="btn btn-primary btn-sm">
-                  <Icon icon="material-symbols:network-node" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Interfacce</span>
-                </button>
-                
-                <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)"
-                        class="btn btn-success btn-sm">
-                  <Icon icon="material-symbols:play-arrow" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Avvia</span>
-                </button>
-                
-                <button v-if="vm.status === 'running'" @click="stopVM(vm.id)"
-                        class="btn btn-warning btn-sm">
-                  <Icon icon="material-symbols:stop" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Ferma</span>
-                </button>
-                
-                <button v-if="vm.status === 'running'" @click="restartVM(vm.id)"
-                        class="btn btn-info btn-sm">
-                  <Icon icon="material-symbols:restart-alt" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Riavvia</span>
-                </button>
-                
-                <button @click="deleteVM(vm.id)" class="btn btn-error btn-sm">
-                  <Icon icon="material-symbols:delete" class="text-lg" />
-                  <span class="hidden sm:inline ml-1">Elimina</span>
-                </button>
-              </div>
+              <button @click="toggleInterfaces(vm.id)"
+                      class="btn btn-primary btn-sm">
+                <Icon icon="material-symbols:network-node" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Interfacce</span>
+              </button>
+              
+              <button @click="toggleBackups(vm.id)"
+                      class="btn btn-secondary btn-sm">
+                <Icon icon="material-symbols:backup" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Backup</span>
+              </button>
+              
+              <div class="divider divider-horizontal"></div>
+              
+              <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)"
+                      class="btn btn-success btn-sm">
+                <Icon icon="material-symbols:play-arrow" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Avvia</span>
+              </button>
+              
+              <button v-if="vm.status === 'running'" @click="stopVM(vm.id)"
+                      class="btn btn-warning btn-sm">
+                <Icon icon="material-symbols:stop" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Ferma</span>
+              </button>
+              
+              <button v-if="vm.status === 'running'" @click="restartVM(vm.id)"
+                      class="btn btn-info btn-sm">
+                <Icon icon="material-symbols:restart-alt" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Riavvia</span>
+              </button>
+              
+              <button @click="deleteVM(vm.id)" class="btn btn-error btn-sm">
+                <Icon icon="material-symbols:delete" class="text-lg" />
+                <span class="hidden sm:inline ml-1">Elimina</span>
+              </button>
             </div>
             
             <!-- Specifiche mobile -->
@@ -674,10 +791,113 @@ onMounted(async () => {
                     <Icon icon="material-symbols:close" class="text-lg" />
                     Chiudi
                   </button>
-                </div>
               </div>
             </div>
           </div>
+
+          <!-- Sezione Backup Espandibile -->
+          <div v-if="expandedBackups[vm.id]" 
+               class="mt-6 card shadow-xl liquid-glass-card-no-scale bg-gradient-to-br from-primary/5 via-transparent to-accent/5 border border-base-300">
+            <div class="card-body">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <Icon icon="material-symbols:backup" class="text-2xl text-secondary" />
+                  <div>
+                    <h3 class="text-lg font-semibold text-base-content">
+                      Backup della VM
+                    </h3>
+                    <p class="text-sm text-base-content/70">
+                      Gestisci backup e ripristini
+                    </p>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button @click="createBackup(vm.id)"
+                          class="btn btn-primary btn-sm gap-2">
+                    <Icon icon="material-symbols:add" />
+                    Crea Backup
+                  </button>
+                </div>
+              </div>
+              
+              <div class="divider my-2"></div>
+
+              <!-- Lista Backup -->
+              <div v-if="vmBackups[vm.id] && vmBackups[vm.id].length > 0" 
+                   class="space-y-3">
+                <div v-for="backup in vmBackups[vm.id]" 
+                     :key="backup.name"
+                     class="flex items-center justify-between p-4 bg-base-200/50 rounded-lg border border-base-300/50">
+                  <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-secondary text-secondary-content rounded-full flex items-center justify-center shrink-0">
+                      <Icon icon="material-symbols:backup" class="text-lg" />
+                    </div>
+                    <div>
+                      <div class="font-medium text-base-content">
+                        Backup {{ backup.name.substring(0, 8) }}...
+                      </div>
+                      <div class="text-sm text-base-content/70 flex items-center gap-4">
+                        <span class="flex items-center gap-1">
+                          <Icon icon="material-symbols:schedule" class="text-xs" />
+                          {{ formatBackupDate(backup.ctime) }}
+                        </span>
+                        <span class="flex items-center gap-1" v-if="backup.can_delete">
+                          <Icon icon="material-symbols:admin-panel-settings" class="text-xs" />
+                          Eliminabile
+                        </span>
+                        <span class="flex items-center gap-1" v-else>
+                          <Icon icon="material-symbols:lock" class="text-xs" />
+                          Protetto
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="flex gap-2">
+                    <button @click="restoreBackup(vm.id, backup.name)"
+                            class="btn btn-success btn-sm gap-1"
+                            :disabled="vm.status !== 'stopped'">
+                      <Icon icon="material-symbols:restore" />
+                      Ripristina
+                    </button>
+                    <button @click="deleteBackup(vm.id, backup.name)"
+                            class="btn btn-error btn-sm gap-1"
+                            :disabled="!backup.can_delete">
+                      <Icon icon="material-symbols:delete" />
+                      Elimina
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nessun backup -->
+              <div v-else-if="vmBackups[vm.id] && vmBackups[vm.id].length === 0" 
+                   class="text-center py-8">
+                <Icon icon="material-symbols:backup" class="text-4xl text-base-content/30 mb-3" />
+                <p class="text-base-content/70 font-medium mb-1">Nessun backup disponibile</p>
+                <p class="text-base-content/50 text-xs">Crea il primo backup per questa VM</p>
+              </div>
+
+              <!-- Loading -->
+              <div v-else class="text-center py-6">
+                <Icon icon="material-symbols:refresh" class="text-2xl text-base-content/50 animate-spin mb-2" />
+                <p class="text-base-content/50 text-sm">Caricamento backup...</p>
+              </div>
+
+              <div class="flex justify-between items-center mt-4 pt-4 border-t border-base-300">
+                <p class="text-xs text-base-content/50">
+                  <Icon icon="material-symbols:info" class="text-xs mr-1" />
+                  I backup possono essere ripristinati solo su VM spente
+                </p>
+                <button @click="expandedBackups[vm.id] = false" 
+                        class="btn btn-ghost btn-sm">
+                  <Icon icon="material-symbols:close" class="text-lg" />
+                  Chiudi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
   </div>

@@ -7,6 +7,7 @@ export interface VM {
   disk: number
   status: string
   include_global_ssh_keys: boolean
+  uptime?: number // uptime in seconds
 }
 
 export interface User {
@@ -63,15 +64,18 @@ export interface Interface {
 
 export interface PortForward {
   id: number
-  user_id: number
-  user_name: string
-  name: string
-  description: string
-  source_port: number
-  target_ip: string
-  target_port: number
-  status: 'pending' | 'approved' | 'rejected' | 'active'
-  created_at: string
-  approved_at?: string
-  approved_by?: string
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+}
+
+export interface AdminPortForward extends PortForward {
+  username: string
+}
+
+export interface Backup {
+  name: string      // ID del backup (hash)
+  ctime: string     // Data/ora di creazione
+  can_delete: boolean // Se può essere eliminato
 }

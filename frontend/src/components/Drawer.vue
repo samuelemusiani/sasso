@@ -15,7 +15,6 @@ const menu = {
   Nets: { icon: "ph:network", to: "/net" },
   "SSH Keys": { icon: "icon-park-twotone:key", to: "/ssh-keys" },
   VPN: { icon: "cib:wireguard", to: "/vpn" },
-  Backup: { icon: "material-symbols:backup", to: "/backup" },
   "Port Forward": { icon: "material-symbols:router", to: "/port-forward" },
 };
 
