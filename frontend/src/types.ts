@@ -78,4 +78,5 @@ export interface AdminPortForward {
 export interface Backup {
   name: string
   ctime: string
+  can_delete: boolean
 }

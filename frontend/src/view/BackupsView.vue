@@ -121,6 +121,7 @@ onMounted(() => {
               Restore
             </button>
             <button
+              v-if="bk.can_delete"
               @click="deleteBackup(bk.name)"
               class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
             >

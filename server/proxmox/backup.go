@@ -15,8 +15,9 @@ import (
 
 type Backup struct {
 	// Name is the Volid hashed
-	Name  string    `json:"name"`
-	Ctime time.Time `json:"ctime"`
+	Name      string    `json:"name"`
+	Ctime     time.Time `json:"ctime"`
+	CanDelete bool      `json:"can_delete"`
 }
 
 var (
@@ -46,8 +47,9 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		h.Write([]byte(item.Volid))
 
 		backups = append(backups, Backup{
-			Name:  hex.EncodeToString(h.Sum(nil)),
-			Ctime: time.Unix(int64(item.Ctime), 0),
+			Name:      hex.EncodeToString(h.Sum(nil)),
+			Ctime:     time.Unix(int64(item.Ctime), 0),
+			CanDelete: strings.Contains(item.Notes, BackupNoteString),
 		})
 	}
 
