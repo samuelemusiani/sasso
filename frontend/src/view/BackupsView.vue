@@ -57,6 +57,18 @@ function deleteBackup(backupName: string) {
   }
 }
 
+function makeBackup() {
+  api
+    .post(`/vm/${vmid}/backup`)
+    .then(() => {
+      console.log('Backup created')
+    })
+    .catch((err) => {
+      console.error('Failed to create backup:', err)
+      alert(`Failed to create backup`)
+    })
+}
+
 onMounted(() => {
   fetchBackups()
 })
@@ -70,6 +82,12 @@ onMounted(() => {
   >
     Back to VMs
   </RouterLink>
+  <button
+    @click="makeBackup()"
+    class="bg-green-500 p-2 rounded-lg hover:bg-green-400 text-white mb-4 inline-block"
+  >
+    Create Backup
+  </button>
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
