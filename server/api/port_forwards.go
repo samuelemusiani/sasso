@@ -80,7 +80,6 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 type createPortForwardRequest struct {
@@ -242,7 +241,6 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
@@ -268,5 +266,4 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }

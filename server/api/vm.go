@@ -23,8 +23,6 @@ func vms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode VMs to JSON", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 type newVMRequest struct {
@@ -75,8 +73,6 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode VM to JSON", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {

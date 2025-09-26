@@ -131,8 +131,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func deleteInterface(w http.ResponseWriter, r *http.Request) {

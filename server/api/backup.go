@@ -25,7 +25,6 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode backups to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 type createBackupRequest struct {
@@ -55,7 +54,6 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode restore backup response to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func createBackup(w http.ResponseWriter, r *http.Request) {

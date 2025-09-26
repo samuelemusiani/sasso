@@ -151,8 +151,6 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
