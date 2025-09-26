@@ -98,7 +98,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 
 func (lg *LinuxGateway) RemoveInterface(id uint) error {
 	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(id)}})
-	if err != nil {
+	if err != nil && !errors.Is(err, unix.ENODEV) {
 		logger.With("error", err, "id", id).Error("Failed to remove VxLAN interface")
 		return err
 	}
