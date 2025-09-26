@@ -1012,7 +1012,7 @@ func createBackups() {
 			Mode:          "snapshot",
 			Remove:        false,
 			Compress:      "zstd",
-			NotesTemplate: "{{guestname}}",
+			NotesTemplate: fmt.Sprintf("{{guestname}} %s", BackupNoteString),
 		})
 		cancel()
 		if err != nil {

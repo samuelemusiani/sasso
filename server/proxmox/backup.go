@@ -28,6 +28,8 @@ var (
 	BackupRequestTypeRestore = "restore"
 	BackupRequestTypeDelete  = "delete"
 
+	BackupNoteString = "sasso-user-backup"
+
 	ErrBackupNotFound = errors.New("backup_not_found")
 )
 
@@ -71,7 +73,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
-		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, "sasso-user-backup") {
+		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, BackupNoteString) {
 			bkr, err := db.NewBackupRequest(BackupRequestTypeDelete, BackupRequestStatusPending, uint(vmID))
 			if err != nil {
 				logger.Error("failed to create backup request", "error", err)
