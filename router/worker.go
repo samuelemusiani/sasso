@@ -35,6 +35,11 @@ func worker(logger *slog.Logger, conf config.Server) {
 	}
 
 	for {
+		err := verifyNets(logger, gtw)
+		if err != nil {
+			logger.With("error", err).Error("Failed to verify VNets")
+		}
+
 		nets, err := getNetsStatus(logger, conf)
 		if err != nil {
 			logger.With("error", err).Error("Failed to get VNets with status")
@@ -87,6 +92,40 @@ func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, err
 	}
 	logger.Info("Fetched nets status from main server", "nets", nets)
 	return nets, nil
+}
+
+// This function takes care of deleting the interfaces that are present on the DB
+// but not on the machine
+func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
+
+	dbInterfaces, err := db.GetAllInterfaces()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all interfaces from database")
+		return err
+	}
+
+	for _, dbIface := range dbInterfaces {
+		ok, err := gtw.VerifyInterface(gateway.InterfaceFromDB(&dbIface))
+
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			// if is not consistant, remove it
+			err = gtw.RemoveInterface(dbIface.LocalID)
+			if err != nil {
+				logger.Error("Failed to remove interface from gateway", "error", err, "local_id", dbIface.LocalID)
+			}
+
+			err = db.DeleteInterface(dbIface.ID)
+			if err != nil {
+				logger.Error("Failed to delete interface from database", "error", err, "interface_id", dbIface.ID)
+			}
+		}
+	}
+
+	return nil
 }
 
 // This function takes care of deleting the nets that are present on the DB
