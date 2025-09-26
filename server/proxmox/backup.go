@@ -64,50 +64,26 @@ func CreateBackup(userID, vmID uint64) (uint, error) {
 }
 
 func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
-	_, _, _, mcontent, err := listBackups(vmID, since)
+	volid, err := findVolid(vmID, backupid, since)
 	if err != nil {
 		return 0, err
 	}
 
-	for _, item := range mcontent {
-		h := hmac.New(sha256.New, nonce)
-		h.Write([]byte(item.Volid))
-
-		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, BackupNoteString) {
-			bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &item.Volid, uint(vmID))
-			if err != nil {
-				logger.Error("failed to create backup request", "error", err)
-				return 0, err
-			}
-			return bkr.ID, nil
-		}
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID))
+	if err != nil {
+		logger.Error("failed to create backup request", "error", err)
+		return 0, err
 	}
-
-	return 0, ErrBackupNotFound
+	return bkr.ID, nil
 }
 
 func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
-	cluster, err := getProxmoxCluster(client)
+	volid, err := findVolid(vmID, backupid, since)
 	if err != nil {
 		return 0, err
 	}
 
-	resources, err := getProxmoxResources(cluster, "vm")
-	if err != nil {
-		return 0, err
-	}
-
-	for _, r := range resources {
-		if r.VMID == vmID {
-			if r.Status != string(VMStatusStopped) {
-				return 0, ErrInvalidVMState
-			} else {
-				break
-			}
-		}
-	}
-
-	bkr, err := db.NewBackupRequest(BackupRequestTypeRestore, BackupRequestStatusPending, uint(vmID))
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID))
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -165,4 +141,22 @@ func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *
 	}
 
 	return cluster, node, vm, nContent, nil
+}
+
+func findVolid(vmID uint64, backupid string, since time.Time) (string, error) {
+	_, _, _, mcontent, err := listBackups(vmID, since)
+	if err != nil {
+		return "", err
+	}
+
+	for _, item := range mcontent {
+		h := hmac.New(sha256.New, nonce)
+		h.Write([]byte(item.Volid))
+
+		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, BackupNoteString) {
+			return item.Volid, nil
+		}
+	}
+
+	return "", ErrBackupNotFound
 }
