@@ -90,7 +90,6 @@ func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, err
 		logger.With("error", err).Error("Failed to fetch nets status from main server")
 		return nil, err
 	}
-	logger.Info("Fetched nets status from main server", "nets", nets)
 	return nets, nil
 }
 
@@ -281,7 +280,6 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 		logger.With("error", err).Error("Failed to fetch port forwards status from main server")
 		return nil, err
 	}
-	logger.Info("Fetched port forwards status from main server", "port_forwards", pfs)
 	return pfs, nil
 }
 
