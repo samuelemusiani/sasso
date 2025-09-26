@@ -14,6 +14,7 @@ const url = ref($props.realm ? $props.realm.url : '')
 const baseDN = ref($props.realm ? $props.realm.base_dn : '')
 const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
+const filter = ref($props.realm ? $props.realm.filter || '' : '')
 
 const editing = ref(!!$props.realm)
 
@@ -26,6 +27,7 @@ function addRealm() {
     bindDN: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
+    filter: filter.value,
   }
 
   api
@@ -48,6 +50,7 @@ function updateRealm() {
     bindDN: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
+    filter: filter.value,
   }
 
   api
@@ -64,78 +67,119 @@ function updateRealm() {
 
 <template>
   <div>
-    <div class="text-lg font-bold">LDAP Realm</div>
-    {{ $props.realm ? 'Edit LDAP Realm' : 'Add LDAP Realm' }}
-    <form class="max-w-96">
-      <label class="block mb-2 text-gray-800">Name</label>
-      <input
-        v-model="name"
-        type="text"
-        placeholder="My LDAP Realm"
-        class="border p-2 rounded w-full mb-2"
-      />
+    <form class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Nome del Realm -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium text-base-content">Nome del Realm</span>
+          </label>
+          <input
+            v-model="name"
+            type="text"
+            placeholder="Il mio Realm LDAP"
+            class="input input-bordered w-full"
+          />
+        </div>
 
-      <label class="block mb-2 text-gray-800">Description</label>
-      <input
-        v-model="description"
-        type="text"
-        placeholder="A description of my LDAP Realm"
-        class="border p-2 rounded w-full mb-2"
-      />
+        <!-- URL del Server -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium text-base-content">URL del Server</span>
+          </label>
+          <input
+            v-model="url"
+            type="text"
+            placeholder="ldap://server.example.com:389"
+            class="input input-bordered w-full"
+          />
+        </div>
+      </div>
 
-      <label class="block mb-2 text-gray-800">URL</label>
-      <input
-        v-model="url"
-        type="text"
-        placeholder="ldap://server.test.com:389"
-        class="border p-2 rounded w-full mb-2"
-      />
+      <!-- Descrizione -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-medium text-base-content">Descrizione</span>
+        </label>
+        <input
+          v-model="description"
+          type="text"
+          placeholder="Descrizione del realm LDAP"
+          class="input input-bordered w-full"
+        />
+      </div>
 
-      <label class="block mb-2 text-gray-800">Base DN</label>
-      <input
-        v-model="baseDN"
-        type="text"
-        placeholder="dc=example,dc=com"
-        class="border p-2 rounded w-full mb-2"
-      />
+      <!-- Filtro LDAP -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-medium text-base-content">Filtro LDAP</span>
+          <span class="label-text-alt text-base-content/60">Filtro per selezionare gli utenti (opzionale)</span>
+        </label>
+        <input
+          v-model="filter"
+          type="text"
+          placeholder="(objectClass=person)"
+          class="input input-bordered w-full font-mono text-sm"
+        />
+        <div class="label">
+          <span class="label-text-alt text-base-content/50">Esempio: (memberOf=cn=admins,ou=groups,dc=example,dc=com)</span>
+        </div>
+      </div>
 
-      <label class="block mb-2 text-gray-800">Bind DN</label>
-      <input
-        v-model="bindDN"
-        type="text"
-        placeholder="cn=admin,dc=example,dc=com"
-        class="border p-2 rounded w-full mb-2"
-      />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Base DN -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium text-base-content">Base DN</span>
+            <span class="label-text-alt text-base-content/60">Distinguished Name di base</span>
+          </label>
+          <input
+            v-model="baseDN"
+            type="text"
+            placeholder="dc=example,dc=com"
+            class="input input-bordered w-full font-mono text-sm"
+          />
+        </div>
 
-      <label class="block mb-2 text-gray-800">Bind Password</label>
-      <input
-        v-model="bindPassword"
-        type="password"
-        :placeholder="$props.realm ? 'Unchanged' : 'Pour bind password'"
-        class="border p-2 rounded w-full mb-2"
-      />
+        <!-- Bind DN -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium text-base-content">Bind DN</span>
+            <span class="label-text-alt text-base-content/60">Account per l'autenticazione</span>
+          </label>
+          <input
+            v-model="bindDN"
+            type="text"
+            placeholder="cn=admin,dc=example,dc=com"
+            class="input input-bordered w-full font-mono text-sm"
+          />
+        </div>
+      </div>
 
+      <!-- Bind Password -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-medium text-base-content">Password di Bind</span>
+          <span class="label-text-alt text-base-content/60" v-if="$props.realm">
+            Lascia vuoto per mantenere la password esistente
+          </span>
+        </label>
+        <input
+          v-model="bindPassword"
+          type="password"
+          :placeholder="$props.realm ? 'Password non modificata' : 'Password per l\'autenticazione'"
+          class="input input-bordered w-full"
+        />
+      </div>
+
+      <!-- Pulsante Create solo se non in editing mode (per compatibilità) -->
       <button
         @click.prevent="addRealm()"
         v-if="!editing"
-        class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded w-full"
+        class="btn btn-primary w-full"
       >
-        Create Realm
+        Crea Realm LDAP
       </button>
-      <div v-else class="flex gap-2">
-        <RouterLink
-          to="/admin/realms"
-          class="bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-4 rounded w-full text-center"
-        >
-          Cancel
-        </RouterLink>
-        <button
-          @click.prevent="updateRealm()"
-          class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded w-full text-center"
-        >
-          Update Realm
-        </button>
-      </div>
     </form>
   </div>
 </template>

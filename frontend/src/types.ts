@@ -33,6 +33,7 @@ export interface LDAPRealm extends Realm {
   base_dn: string
   bind_dn: string
   password: string
+  filter?: string
 }
 
 export interface Net {
@@ -58,4 +59,19 @@ export interface Interface {
   ip_add: string
   gateway: string
   status: string
+}
+
+export interface PortForward {
+  id: number
+  user_id: number
+  user_name: string
+  name: string
+  description: string
+  source_port: number
+  target_ip: string
+  target_port: number
+  status: 'pending' | 'approved' | 'rejected' | 'active'
+  created_at: string
+  approved_at?: string
+  approved_by?: string
 }

@@ -8,6 +8,7 @@ import AdminUsersView from '../view/admin/UsersView.vue'
 import AdminRealmsView from '../view/admin/RealmsView.vue'
 import UserDetailView from '../view/admin/UserDetailView.vue'
 import RealmsMultiplexer from '../components/realms/RealmsMultiplexer.vue'
+import PortForwardApprovalView from '../view/admin/PortForwardApprovalView.vue'
 import NetsView from '../view/NetsView.vue'
 import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
@@ -40,6 +41,7 @@ const router = createRouter({
         { path: 'realms', component: AdminRealmsView },
         { path: 'realms/:id', component: RealmsMultiplexer },
         { path: 'ssh-keys', component: () => import('../view/admin/GlobalSSHKeysView.vue') },
+        { path: 'port-forwards', component: PortForwardApprovalView },
       ],
     },
     // Catch-all route per rotte non definite
