@@ -40,6 +40,10 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.RestoreBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
+		if err == proxmox.ErrBackupNotFound {
+			http.Error(w, "Backup not found", http.StatusNotFound)
+			return
+		}
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to restore backup")
 		http.Error(w, "Failed to restore backup", http.StatusInternalServerError)
 		return
@@ -83,6 +87,14 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.DeleteBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
+		if err == proxmox.ErrBackupNotFound {
+			http.Error(w, "Backup not found", http.StatusNotFound)
+			return
+		} else if err == proxmox.ErrCantDeleteBackup {
+			http.Error(w, "Can't delete backup", http.StatusBadRequest)
+			return
+		}
+
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)
 		return

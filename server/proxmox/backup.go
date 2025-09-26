@@ -30,7 +30,8 @@ var (
 
 	BackupNoteString = "sasso-user-backup"
 
-	ErrBackupNotFound = errors.New("backup_not_found")
+	ErrBackupNotFound   = errors.New("backup_not_found")
+	ErrCantDeleteBackup = errors.New("cant_delete_backup")
 )
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
@@ -64,7 +65,7 @@ func CreateBackup(userID, vmID uint64) (uint, error) {
 }
 
 func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
-	volid, err := findVolid(vmID, backupid, since)
+	volid, err := findVolid(vmID, backupid, since, true)
 	if err != nil {
 		return 0, err
 	}
@@ -78,7 +79,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 }
 
 func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
-	volid, err := findVolid(vmID, backupid, since)
+	volid, err := findVolid(vmID, backupid, since, false)
 	if err != nil {
 		return 0, err
 	}
@@ -143,7 +144,8 @@ func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *
 	return cluster, node, vm, nContent, nil
 }
 
-func findVolid(vmID uint64, backupid string, since time.Time) (string, error) {
+// Deletion is true if we are looking for a backup to delete, false if we are looking for a backup to restore
+func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (string, error) {
 	_, _, _, mcontent, err := listBackups(vmID, since)
 	if err != nil {
 		return "", err
@@ -153,8 +155,12 @@ func findVolid(vmID uint64, backupid string, since time.Time) (string, error) {
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
-		if hex.EncodeToString(h.Sum(nil)) == backupid && strings.Contains(item.Notes, BackupNoteString) {
-			return item.Volid, nil
+		if hex.EncodeToString(h.Sum(nil)) == backupid {
+			if !deletion || strings.Contains(item.Notes, BackupNoteString) {
+				return item.Volid, nil
+			} else {
+				return "", ErrCantDeleteBackup
+			}
 		}
 	}
 
