@@ -908,7 +908,7 @@ func restoreBackups() {
 		slog.Debug("Restoring backup", "id", r.ID)
 
 		if r.Volid == nil {
-			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
+			slog.Error("Can't restore backup. Volid is nil", "id", r.ID)
 			continue
 		}
 
@@ -987,11 +987,6 @@ func createBackups() {
 
 	for _, r := range bkr {
 		slog.Debug("Creating backup", "id", r.ID)
-
-		if r.Volid == nil {
-			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
-			continue
-		}
 
 		nodeName, ok := mapVMContent[uint64(r.VMID)]
 		if !ok {
