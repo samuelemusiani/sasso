@@ -101,7 +101,7 @@ onMounted(() => {
       <label for="ram">RAM (MB):</label>
       <input type="number" id="ram" v-model="ram" class="input border p-2 rounded-lg w-24" />
       <label for="disk">Disk (GB):</label>
-      <input type="number" id="disk" v-model="disk" class="input border  rounded-lg w-24" />
+      <input type="number" id="disk" v-model="disk" class="input border rounded-lg w-24" />
       <div class="flex items-center">
         <input
           type="checkbox"
@@ -111,9 +111,7 @@ onMounted(() => {
         />
         <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
       </div>
-      <button class="btn btn-success p-2 rounded-lg" @click="createVM()">
-        Create VM
-      </button>
+      <button class="btn btn-success p-2 rounded-lg" @click="createVM()">Create VM</button>
     </div>
     <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
@@ -177,9 +175,7 @@ onMounted(() => {
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2">
-              <RouterLink
-                :to="`/vm/${vm.id}/interfaces`"
-                class="btn btn-primary mr-4"
+              <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary mr-4"
                 >Interfaces</RouterLink
               >
               <button

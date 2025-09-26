@@ -60,9 +60,7 @@ onMounted(() => {
       <input type="text" id="name" v-model="name" class="border p-2 rounded-lg w-48" />
       <label for="key">Key:</label>
       <input type="text" id="key" v-model="key" class="border p-2 rounded-lg w-96" />
-      <button class="btn btn-success rounded-lg" @click="addSSHKey()">
-        Add Key
-      </button>
+      <button class="btn btn-success rounded-lg" @click="addSSHKey()">Add Key</button>
     </div>
 
     <div class="overflow-x-auto">

@@ -187,16 +187,10 @@ onMounted(() => {
             <td
               class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
             >
-              <button
-                @click="showEditForm(iface)"
-                class="btn btn-primary p-2 rounded-lg"
-              >
+              <button @click="showEditForm(iface)" class="btn btn-primary p-2 rounded-lg">
                 Edit
               </button>
-              <button
-                @click="deleteInterface(iface.id)"
-                class="btn btn-error p-2 rounded-lg"
-              >
+              <button @click="deleteInterface(iface.id)" class="btn btn-error p-2 rounded-lg">
                 Delete
               </button>
             </td>

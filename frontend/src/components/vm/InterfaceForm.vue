@@ -131,19 +131,10 @@ onMounted(() => {
         />
       </div>
       <div class="flex gap-2">
-        <button
-          type="submit"
-          class="btn btn-info"
-        >
+        <button type="submit" class="btn btn-info">
           {{ editing ? 'Update' : 'Add' }}
         </button>
-        <button
-          @click="$emit('cancel')"
-          type="button"
-          class="btn btn-error"
-        >
-          Cancel
-        </button>
+        <button @click="$emit('cancel')" type="button" class="btn btn-error">Cancel</button>
       </div>
     </form>
   </div>
