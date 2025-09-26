@@ -549,7 +549,7 @@ func updateVMs() {
 			if err != nil {
 				logger.With("vmid", r.VMID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
 			}
-		} else {
+		} else if r.Status != vm.Status {
 			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Warn("VM changed status on proxmox unexpectedly")
 
 			err := db.UpdateVMStatus(r.VMID, r.Status)
