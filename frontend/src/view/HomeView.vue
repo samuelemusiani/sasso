@@ -1,6 +1,4 @@
-<script setup lang="ts">
-import SplitPanel from '@/components/SplitPanel.vue'
-</script>
+<script setup lang="ts"></script>
 
 <template>
   <!-- <div class="bg-linear-to-r to-primary/50 from-base-100 h-full w-full">/ -->
@@ -8,7 +6,6 @@ import SplitPanel from '@/components/SplitPanel.vue'
     <div class="hidden">
       <div>Home view for <b>sasso</b>!</div>
     </div>
-    <SplitPanel />
     <div class="flex gap-2"></div>
   </div>
 </template>

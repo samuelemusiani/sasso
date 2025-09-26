@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DrawerLine from '@/components/DrawerLine.vue'
+import PanelLine from '@/components/PanelLine.vue'
 import { useRouter } from 'vue-router'
 import { onMounted, computed, ref } from 'vue'
 import type { User } from '@/types'
@@ -80,23 +80,23 @@ onMounted(() => {
       <!-- Menu -->
       <ul class="menu flex-1 gap-1 w-full">
         <li v-for="(item, name) in menu" :key="name">
-          <DrawerLine :to="item.to" :icon="item.icon" :label="name" :collapsed="collapsed" />
+          <PanelLine :to="item.to" :icon="item.icon" :label="name" :collapsed="collapsed" />
         </li>
         <!-- TODO: change showAdminPanel for testing -->
         <div class="divider" v-if="!showAdminPanel"></div>
         <li v-if="!showAdminPanel">
-          <DrawerLine
+          <PanelLine
             to="/admin"
             icon="material-symbols:admin-panel-settings"
             label="Admin Panel"
-          ></DrawerLine>
+          ></PanelLine>
         </li>
       </ul>
 
       <!-- Footer actions -->
       <!-- TODO: user avatar for user settings -->
       <div class="p-2 border-t border-base-300 w-full">
-        <DrawerLine
+        <PanelLine
           to="/settings"
           icon="material-symbols:settings"
           label="Settings"

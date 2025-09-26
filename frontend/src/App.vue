@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
-import SplitPanel from '@/components/SplitPanel.vue'
+import router from '@/router/index.ts'
+import SidePanel from '@/components/SidePanel.vue'
+
+console.log('Current route:', router.currentRoute.value)
 </script>
 
 <template>
   <main
     class="flex w-full h-screen overflow-auto bg-[url(/pattern-sasso.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]"
   >
-    <SplitPanel />
+    <SidePanel v-if="router.currentRoute.value.path !== '/login'" />
     <div class="backdrop-blur-xl bg-base-200 p-4 rounded-2xl m-6 w-full">
       <RouterView />
     </div>
