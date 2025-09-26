@@ -31,12 +31,12 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	// Middleware
 	router.Use(middleware.RealIP)
-	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.CleanPath)
 
 	apiRouter := chi.NewRouter()
 
+	apiRouter.Use(middleware.Logger)
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
 	tokenAuth = jwtauth.New("HS256", key, nil)
