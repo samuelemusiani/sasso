@@ -179,8 +179,13 @@ onMounted(() => {
               <RouterLink
                 :to="`/vm/${vm.id}/interfaces`"
                 class="text-indigo-600 hover:text-indigo-900 mr-4"
-                >Interfaces</RouterLink
-              >
+                >Interfaces
+              </RouterLink>
+              <RouterLink
+                :to="`/vm/${vm.id}/backups`"
+                class="text-orange-600 hover:text-orange-900 mr-4"
+                >Backups
+              </RouterLink>
               <button
                 v-if="vm.status === 'stopped'"
                 @click="startVM(vm.id)"

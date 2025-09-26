@@ -74,3 +74,8 @@ export interface AdminPortForward {
   approved: boolean
   username: string
 }
+
+export interface Backup {
+  name: string
+  ctime: string
+}
