@@ -49,16 +49,20 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := mustGetUserIDFromContext(r)
+
 	n, err := db.GetNetByID(req.VNetID)
 	if err != nil {
 		http.Error(w, "vnet not found", http.StatusBadRequest)
 		return
 	}
 
-	userID := mustGetUserIDFromContext(r)
-
 	if n.UserID != userID {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+		return
+	}
+	if !n.VlanAware && req.VlanTag != 0 {
+		http.Error(w, "vlan_tag must be 0 for non-vlan-aware vnets", http.StatusBadRequest)
 		return
 	}
 
