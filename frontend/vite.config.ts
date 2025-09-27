@@ -32,7 +32,7 @@ export default defineConfig({
         target: "https://sasso.mini.students.cs.unibo.it",
         changeOrigin: true,
         headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTg5Mjk2NzYsImlhdCI6MTc1ODg4NjQ3NiwidXNlcl9pZCI6M30.VUs6zrvYT-A-CgHJMpx1dAj0hnZCh7PcfdRIg1k2j4g'
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTkwMjIwNjcsImlhdCI6MTc1ODk3ODg2NywidXNlcl9pZCI6M30.87P6zqmhjJ7hJP1TJqBiUAAAVImA8UNceiZZD_hcufY'
         }
       }
     }

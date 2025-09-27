@@ -71,6 +71,11 @@ export interface PortForward {
   name?: string;
   status?: string;
   user_name?: string;
+  target_port?: number;
+  target_ip?: string;
+  source_port?: number;
+  description?: string;
+  user_id?: number;
 }
 
 export interface AdminPortForward extends PortForward {
