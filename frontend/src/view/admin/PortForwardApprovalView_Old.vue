@@ -16,8 +16,18 @@ const isProcessing = ref(false)
 const showCreateModal = ref(false)
 const newPortForward = ref({
   dest_ip: '',
-  dest_port: ''
+  dest_port: '',
+  name: '',
+  user_id: '',
+  target_ip: '',
+  target_port: '',
+  source_port: '',
+  description: ''
 })
+
+// Variabili mancanti
+const selectedStatus = ref<string>('all')
+const users = ref<{id: number, username: string, email: string}[]>([])
 
 // Controlla se siamo in modalità creazione
 const isCreateMode = computed(() => route.query.create === 'true')
@@ -42,7 +52,9 @@ const filteredPortForwards = computed(() => {
 const pfStats = computed(() => ({
   totalRequests: portForwards.value.length,
   approvedRequests: portForwards.value.filter(pf => pf.approved).length,
-  pendingRequests: portForwards.value.filter(pf => !pf.approved).length
+  pendingRequests: portForwards.value.filter(pf => !pf.approved).length,
+  rejectedRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'rejected').length,
+  activeRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'active').length
 }))
 
 const statusOptions = [
@@ -98,7 +110,13 @@ async function createPortForward() {
     // Reset form
     newPortForward.value = {
       dest_ip: '',
-      dest_port: ''
+      dest_port: '',
+      name: '',
+      user_id: '',
+      target_ip: '',
+      target_port: '',
+      source_port: '',
+      description: ''
     }
     
     showCreateModal.value = false
@@ -193,6 +211,30 @@ function formatDate(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+async function fetchUsers() {
+  try {
+    const res = await api.get('/admin/users')
+    users.value = res.data
+  } catch (error) {
+    console.error('Errore nel caricamento degli utenti:', error)
+    users.value = []
+  }
+}
+
+async function approvePortForward(portForward: PortForward) {
+  try {
+    isProcessing.value = true
+    await api.put(`/admin/port-forwards/${portForward.id}`, { approve: true })
+    await fetchPortForwards()
+    globalNotifications.showSuccess('Port forwarding approvato con successo!')
+  } catch (error) {
+    console.error('Errore nell\'approvazione del port forwarding:', error)
+    globalNotifications.showError('Errore nell\'approvazione del port forwarding')
+  } finally {
+    isProcessing.value = false
+  }
 }
 
 onMounted(async () => {
@@ -383,14 +425,14 @@ onMounted(async () => {
                   </td>
                   <td>
                     <div class="flex items-center gap-2">
-                      <Icon :icon="getStatusIcon(pf.status)" :class="getStatusColor(pf.status)" />
-                      <span class="badge badge-sm" :class="getStatusBadgeClass(pf.status)">
-                        {{ pf.status.toUpperCase() }}
+                      <Icon :icon="getStatusIcon(pf.status ?? 'unknown')" :class="getStatusColor(pf.status ?? 'unknown')" />
+                      <span class="badge badge-sm" :class="getStatusBadgeClass(pf.status ?? 'unknown')">
+                        {{ (pf.status ?? 'unknown').toUpperCase() }}
                       </span>
                     </div>
                   </td>
                   <td class="text-sm text-base-content/70">
-                    {{ formatDate(pf.created_at) }}
+                    {{ formatDate(pf.created_at ?? '') }}
                   </td>
                   <td>
                     <div class="flex gap-1 justify-center">

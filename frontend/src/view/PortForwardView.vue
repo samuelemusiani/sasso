@@ -224,7 +224,7 @@ const userStats = computed(() => ({
 const selectedStatus = ref<string>('tutto')
 
 // Funzione fetchUsers (placeholder)
-export function fetchUsers() {
+function fetchUsers() {
   // Implementa qui la logica per recuperare gli utenti se serve
 }
 // Funzione di formattazione data

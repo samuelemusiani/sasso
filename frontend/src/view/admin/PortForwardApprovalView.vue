@@ -51,7 +51,9 @@ const filteredPortForwards = computed(() => {
 const pfStats = computed(() => ({
   totalRequests: portForwards.value.length,
   approvedRequests: portForwards.value.filter(pf => pf.approved).length,
-  pendingRequests: portForwards.value.filter(pf => !pf.approved).length
+  pendingRequests: portForwards.value.filter(pf => !pf.approved).length,
+  rejectedRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'rejected').length,
+  activeRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'active').length
 }))
 
 function fetchPortForwards() {
