@@ -63,16 +63,31 @@ export interface Interface {
 }
 
 export interface PortForward {
-  id: number
-  out_port: number
-  dest_port: number
-  dest_ip: string
-  approved: boolean
+  id: number;
+  out_port: number;
+  dest_port: number;
+  dest_ip: string;
+  approved: boolean;
+  name?: string;
+  status?: string;
+  user_name?: string;
 }
 
 export interface AdminPortForward extends PortForward {
-  username: string
+  username?: string;
 }
+
+// Statistiche richieste dalla view
+export interface PortForwardStats {
+  totalRequests: number;
+  approvedRequests: number;
+  pendingRequests: number;
+  rejectedRequests?: number;
+  activeRequests?: number;
+}
+
+// Funzione placeholder per fetchUsers (da implementare o importare dove serve)
+// export async function fetchUsers() {}
 
 export interface Backup {
   name: string      // ID del backup (hash)

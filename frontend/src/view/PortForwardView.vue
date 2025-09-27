@@ -300,6 +300,12 @@ function getApprovalBadge(approved: boolean) {
   }
 }
 
+function fetchUsers() {
+  // Implementa qui la logica per recuperare gli utenti se serve
+}
+
+const selectedStatus = ref<string>('tutto')
+
 onMounted(() => {
   fetchUserPortForwards()
 })
