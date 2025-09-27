@@ -158,11 +158,11 @@
                     <Icon :icon="getApprovalBadge(portForward.approved).icon" class="text-xs" />
                     {{ getApprovalBadge(portForward.approved).text }}
                   </div>
-                  <div v-if="portForward.status !== undefined" class="text-xs text-base-content/50">{{ portForward.status }}</div>
+                  <div class="text-xs text-base-content/50">{{ portForward.status ?? 'N/A' }}</div>
                 </td>
                 <td>
                   <div class="font-mono text-xs">
-                    {{ portForward.created_at ? formatDate(String(portForward.created_at)) : '-' }}
+                    {{ portForward.created_at ? formatDate(portForward.created_at as string) : '-' }}
                   </div>
                 </td>
                 <td>
@@ -215,16 +215,16 @@ const newPortForward = ref({
 // Statistiche delle richieste utente
 const userStats = computed(() => ({
   totalRequests: portForwards.value.length,
-  pendingRequests: portForwards.value.filter(pf => pf.status === 'pending').length,
-  approvedRequests: portForwards.value.filter(pf => pf.status === 'approved').length,
-  rejectedRequests: portForwards.value.filter(pf => pf.status === 'rejected').length,
-  activeRequests: portForwards.value.filter(pf => pf.status === 'active').length
+  pendingRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'pending').length,
+  approvedRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'approved').length,
+  rejectedRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'rejected').length,
+  activeRequests: portForwards.value.filter(pf => (pf.status ?? '') === 'active').length
 }))
 // Variabile per filtro stato richieste
 const selectedStatus = ref<string>('tutto')
 
 // Funzione fetchUsers (placeholder)
-function fetchUsers() {
+export function fetchUsers() {
   // Implementa qui la logica per recuperare gli utenti se serve
 }
 // Funzione di formattazione data
