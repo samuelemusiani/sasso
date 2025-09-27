@@ -63,6 +63,7 @@ export interface Interface {
 }
 
 export interface PortForward {
+  created_at?: string;
   id: number;
   out_port: number;
   dest_port: number;

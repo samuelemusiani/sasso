@@ -132,6 +132,7 @@
                 <th class="font-semibold">Porta Esterna</th>
                 <th class="font-semibold">Destinazione</th>
                 <th class="font-semibold">Stato</th>
+                <th class="font-semibold">Creato il</th>
                 <th class="font-semibold">Azioni</th>
               </tr>
             </thead>
@@ -156,6 +157,12 @@
                   <div class="badge gap-1" :class="getApprovalBadge(portForward.approved).class">
                     <Icon :icon="getApprovalBadge(portForward.approved).icon" class="text-xs" />
                     {{ getApprovalBadge(portForward.approved).text }}
+                  </div>
+                  <div v-if="portForward.status !== undefined" class="text-xs text-base-content/50">{{ portForward.status }}</div>
+                </td>
+                <td>
+                  <div class="font-mono text-xs">
+                    {{ portForward.created_at ? formatDate(String(portForward.created_at)) : '-' }}
                   </div>
                 </td>
                 <td>
@@ -208,11 +215,23 @@ const newPortForward = ref({
 // Statistiche delle richieste utente
 const userStats = computed(() => ({
   totalRequests: portForwards.value.length,
-  pendingRequests: 0, // Non utilizzato nella branch main
-  approvedRequests: portForwards.value.filter(pf => pf.approved).length,
-  activeRequests: portForwards.value.filter(pf => pf.approved).length,
-  rejectedRequests: portForwards.value.filter(pf => !pf.approved).length
+  pendingRequests: portForwards.value.filter(pf => pf.status === 'pending').length,
+  approvedRequests: portForwards.value.filter(pf => pf.status === 'approved').length,
+  rejectedRequests: portForwards.value.filter(pf => pf.status === 'rejected').length,
+  activeRequests: portForwards.value.filter(pf => pf.status === 'active').length
 }))
+// Variabile per filtro stato richieste
+const selectedStatus = ref<string>('tutto')
+
+// Funzione fetchUsers (placeholder)
+function fetchUsers() {
+  // Implementa qui la logica per recuperare gli utenti se serve
+}
+// Funzione di formattazione data
+function formatDate(dateString: string) {
+  const d = new Date(dateString)
+  return d.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
 
 function fetchUserPortForwards() {
   isLoading.value = true
@@ -300,11 +319,6 @@ function getApprovalBadge(approved: boolean) {
   }
 }
 
-function fetchUsers() {
-  // Implementa qui la logica per recuperare gli utenti se serve
-}
-
-const selectedStatus = ref<string>('tutto')
 
 onMounted(() => {
   fetchUserPortForwards()
