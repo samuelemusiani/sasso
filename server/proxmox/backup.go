@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -246,9 +247,10 @@ type BackupNotes struct {
 }
 
 func generateBackNotes(name, notes string, userID uint) (string, error) {
+	base64Notes := base64.StdEncoding.EncodeToString([]byte(notes))
 	bn := BackupNotes{
 		Name:          name,
-		Notes:         notes,
+		Notes:         base64Notes,
 		UserID:        userID,
 		SassoVerifier: BackupSassoString,
 	}
@@ -265,6 +267,11 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 	if err != nil {
 		return nil, err
 	}
+	decodedNotes, err := base64.StdEncoding.DecodeString(bn.Notes)
+	if err != nil {
+		return nil, err
+	}
+	bn.Notes = string(decodedNotes)
 	return &bn, nil
 }
 
