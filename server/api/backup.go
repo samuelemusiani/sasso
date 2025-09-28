@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -149,9 +150,15 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 
 func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	bkrID := chi.URLParam(r, "bkrid")
+	sbkrID := chi.URLParam(r, "requestid")
 
-	bkr, err := db.GetBackupRequestByIDAndUserID(parseUint(bkrID), userID)
+	bkrID, err := strconv.ParseUint(sbkrID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid backup request ID", http.StatusBadRequest)
+		return
+	}
+
+	bkr, err := db.GetBackupRequestByIDAndUserID(uint(bkrID), userID)
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "Backup request not found", http.StatusNotFound)

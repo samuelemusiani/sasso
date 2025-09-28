@@ -87,7 +87,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 			r.Post("/backup/{backupid}/restore", restoreBackup)
 
 			r.Get("/backup/request", listBackupRequests)
-			r.Get("/backup/request/{requestid}", getBackupRequestStatus)
+			r.Get("/backup/request/{requestid}", getBackupRequest)
 		})
 
 		r.Post("/net", createNet)
