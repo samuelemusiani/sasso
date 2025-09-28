@@ -57,7 +57,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 }
 
 func CreateBackup(userID, vmID uint64) (uint, error) {
-	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID))
+	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID))
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -72,7 +72,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID))
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), uint(userID))
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -86,7 +86,7 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID))
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), uint(userID))
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
