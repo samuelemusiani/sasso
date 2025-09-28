@@ -260,15 +260,23 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 }
 
 func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
-	_, node, _, mcontent, err := listBackups(vmID, since)
-	if err != nil {
-		logger.Error("failed to list backups", "error", err)
-		return false, err
-	}
-	count := 0
-	for _, i := range mcontent {
-		if bool(i.Protected) {
-			count++
+	var node *proxmox.Node
+	var err error
+	var count int
+
+	// We only need to check the upper limit if we are trying to protect a backup
+	if protected {
+		var mcontent []*proxmox.StorageContent
+		_, node, _, mcontent, err = listBackups(vmID, since)
+		if err != nil {
+			logger.Error("failed to list backups", "error", err)
+			return false, err
+		}
+		count := 0
+		for _, i := range mcontent {
+			if bool(i.Protected) {
+				count++
+			}
 		}
 	}
 

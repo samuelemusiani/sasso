@@ -219,6 +219,9 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 		if err == proxmox.ErrBackupNotFound {
 			http.Error(w, "Backup not found", http.StatusNotFound)
 			return
+		} else if err == proxmox.ErrMaxProtectedBackupsReached {
+			http.Error(w, "Max protected backups reached", http.StatusBadRequest)
+			return
 		}
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to protect backup")
 		http.Error(w, "Failed to protect backup", http.StatusInternalServerError)
