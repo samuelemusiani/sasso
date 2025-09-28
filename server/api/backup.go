@@ -169,7 +169,6 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 		resp = append(resp, BackupRequest{
 			ID:        b.ID,
 			CreatedAt: b.CreatedAt,
-			UpdatedAt: b.UpdatedAt,
 			Type:      b.Type,
 			Status:    b.Status,
 			VMID:      b.VMID,
@@ -207,7 +206,6 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	resp := BackupRequest{
 		ID:        bkr.ID,
 		CreatedAt: bkr.CreatedAt,
-		UpdatedAt: bkr.UpdatedAt,
 		Type:      bkr.Type,
 		Status:    bkr.Status,
 		VMID:      bkr.VMID,
