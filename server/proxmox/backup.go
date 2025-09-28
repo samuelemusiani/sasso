@@ -89,7 +89,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 	if len(name) > 40 {
 		return 0, ErrBackupNameTooLong
-	} else if len(notes)*4/3 > 900 {
+	} else if len(notes)*4/3 > 800 {
 		return 0, ErrBackupNotesTooLong
 	}
 
