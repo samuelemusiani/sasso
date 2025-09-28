@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Backup } from '@/types'
+import type { Backup, BackupRequest } from '@/types'
 import { api } from '@/lib/api'
 
 const backups = ref<Backup[]>([])
@@ -11,6 +11,24 @@ const notes = ref('')
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
+
+const backupRequests = ref<BackupRequest[]>([])
+const pendingBackupRequests = computed(() =>
+  backupRequests.value.filter((req) => req.status === 'pending'),
+)
+
+function fetchBackupsRequests() {
+  return api
+    .get(`/vm/${vmid}/backup/request`)
+    .then((res) => {
+      // Handle the response data
+      backupRequests.value = res.data as BackupRequest[]
+      console.log('Fetched backup requests:', backupRequests)
+    })
+    .catch((err) => {
+      console.error('Failed to fetch backup requests:', err)
+    })
+}
 
 function fetchBackups() {
   api
@@ -35,6 +53,7 @@ function restoreBackup(backupID: string) {
       .post(`/vm/${vmid}/backup/${backupID}/restore`)
       .then(() => {
         console.log('Backup restoring')
+        fetchBackupsRequests()
       })
       .catch((err) => {
         console.error('Failed to restore backup:', err)
@@ -52,6 +71,7 @@ function deleteBackup(backupID: string) {
       .then(() => {
         console.log('Backup deleted')
         fetchBackups() // Refresh the list after deletion
+        fetchBackupsRequests()
       })
       .catch((err) => {
         console.error('Failed to delete backup:', err)
@@ -83,6 +103,7 @@ function makeBackup() {
     })
     .then(() => {
       console.log('Backup created')
+      fetchBackupsRequests()
     })
     .catch((err) => {
       console.error('Failed to create backup:', err)
@@ -90,8 +111,20 @@ function makeBackup() {
     })
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchBackups()
+  fetchBackupsRequests()
+  intervalId = setInterval(() => {
+    fetchBackupsRequests()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
@@ -116,6 +149,9 @@ onMounted(() => {
   >
     Create Backup
   </button>
+  <div>
+    {{ pendingBackupRequests }}
+  </div>
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">

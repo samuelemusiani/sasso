@@ -148,7 +148,6 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 type BackupRequest struct {
 	ID        uint      `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 
 	Type   string `json:"type"`
 	Status string `json:"status"`

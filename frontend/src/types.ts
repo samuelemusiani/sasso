@@ -83,3 +83,12 @@ export interface Backup {
   notes: string
   protected: boolean
 }
+
+export interface BackupRequest {
+  id: number
+  created_at: string
+
+  type: string
+  status: string
+  vmid: number
+}
