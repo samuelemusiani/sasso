@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onBeforeUnmount } from 'vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
 
@@ -19,10 +19,6 @@ function fetchVMs() {
       console.error('Failed to fetch VMs:', err)
     })
 }
-
-setInterval(() => {
-  fetchVMs()
-}, 5000)
 
 function createVM() {
   api
@@ -86,8 +82,19 @@ function restartVM(vmid: number) {
     })
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchVMs()
+  intervalId = setInterval(() => {
+    fetchVMs()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 

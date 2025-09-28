@@ -16,6 +16,10 @@ type BackupRequest struct {
 	Volid  *string `gorm:"default:null"`
 	VMID   uint    `gorm:"not null"`
 	UserID uint    `gorm:"not null"`
+
+	// For creation
+	Name  string `gorm:"not null"`
+	Notes string `gorm:"not null"`
 }
 
 func initBackupRequests() error {
@@ -26,16 +30,19 @@ func initBackupRequests() error {
 	return nil
 }
 
-func NewBackupRequest(backupType, status string, vmID uint) (*BackupRequest, error) {
-	return NewBackupRequestWithVolid(backupType, status, nil, vmID)
+func NewBackupRequest(backupType, status string, vmID, userID uint, name, notes string) (*BackupRequest, error) {
+	return NewBackupRequestWithVolid(backupType, status, nil, vmID, userID, name, notes)
 }
 
-func NewBackupRequestWithVolid(backupType, status string, volid *string, vmID uint) (*BackupRequest, error) {
+func NewBackupRequestWithVolid(backupType, status string, volid *string, vmID, userID uint, name, notes string) (*BackupRequest, error) {
 	backupRequest := &BackupRequest{
 		Type:   backupType,
 		Status: status,
 		VMID:   vmID,
 		Volid:  volid,
+		UserID: userID,
+		Name:   name,
+		Notes:  notes,
 	}
 	result := db.Create(backupRequest)
 	if result.Error != nil {
@@ -64,4 +71,43 @@ func GetBackupRequestWithStatusAndType(status, t string) ([]BackupRequest, error
 		return nil, result.Error
 	}
 	return backupRequests, nil
+}
+
+func GetBackupRequestsByUserID(userID uint) ([]BackupRequest, error) {
+	var backupRequests []BackupRequest
+	result := db.Where("user_id = ?", userID).Find(&backupRequests)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return backupRequests, nil
+}
+
+func GetBackupRequestByIDAndUserID(id, userID uint) (*BackupRequest, error) {
+	var backupRequest BackupRequest
+	result := db.Where("id = ? AND user_id = ?", id, userID).First(&backupRequest)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, result.Error
+	}
+	return &backupRequest, nil
+}
+
+func IsAPendingBackupRequest(vmID uint) (bool, error) {
+	var count int64
+	result := db.Model(&BackupRequest{}).Where("vm_id = ? AND status = ?", vmID, "pending").Count(&count)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
+}
+
+func IsAPendingBackupRequestWithVolid(vmID uint, volid string) (bool, error) {
+	var count int64
+	result := db.Model(&BackupRequest{}).Where("vm_id = ? AND volid = ? AND status = ?", vmID, volid, "pending").Count(&count)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
 }

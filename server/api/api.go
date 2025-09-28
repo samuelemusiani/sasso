@@ -85,6 +85,10 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 			r.Delete("/backup/{backupid}", deleteBackup)
 			r.Post("/backup/{backupid}/restore", restoreBackup)
+			r.Post("/backup/{backupid}/protect", protectBackup)
+
+			r.Get("/backup/request", listBackupRequests)
+			r.Get("/backup/request/{requestid}", getBackupRequest)
 		})
 
 		r.Post("/net", createNet)
@@ -169,7 +173,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 
 		f, err := fs.ReadFile(ui_fs, p)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				// If the file does not exists it could be a route that the SPA router
 				// would catch. We serve the index.html instead
 

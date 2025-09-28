@@ -76,7 +76,19 @@ export interface AdminPortForward {
 }
 
 export interface Backup {
-  name: string
+  id: string
   ctime: string
   can_delete: boolean
+  name: string
+  notes: string
+  protected: boolean
+}
+
+export interface BackupRequest {
+  id: number
+  created_at: string
+
+  type: string
+  status: string
+  vmid: number
 }
