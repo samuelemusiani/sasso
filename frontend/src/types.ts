@@ -81,4 +81,5 @@ export interface Backup {
   can_delete: boolean
   name: string
   notes: string
+  protected: boolean
 }

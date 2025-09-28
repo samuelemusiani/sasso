@@ -60,6 +60,21 @@ function deleteBackup(backupName: string) {
   }
 }
 
+function protectBackup(backupName: string, protect: boolean) {
+  api
+    .post(`/vm/${vmid}/backup/${backupName}/protect`, {
+      protected: protect,
+    })
+    .then(() => {
+      console.log('Backup deleted')
+      fetchBackups() // Refresh the list after deletion
+    })
+    .catch((err) => {
+      console.error('Failed to delete backup:', err)
+      alert(`Failed to delete backup ${backupName}.`)
+    })
+}
+
 function makeBackup() {
   api
     .post(`/vm/${vmid}/backup`, {
@@ -129,6 +144,12 @@ onMounted(() => {
           >
             Notes
           </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Protected
+          </th>
           <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
@@ -138,9 +159,16 @@ onMounted(() => {
           <td class="px-6 py-4 whitespace-nowrap">{{ bk.name }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ bk.ctime }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ bk.notes }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ bk.protected }}</td>
           <td
             class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
           >
+            <button
+              @click="protectBackup(bk.name, !bk.protected)"
+              class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
+            >
+              Protect
+            </button>
             <button
               @click="restoreBackup(bk.name)"
               class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 text-white"

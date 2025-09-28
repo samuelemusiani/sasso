@@ -102,3 +102,12 @@ func IsAPendingBackupRequest(vmID uint) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func IsAPendingBackupRequestWithVolid(vmID uint, volid string) (bool, error) {
+	var count int64
+	result := db.Model(&BackupRequest{}).Where("vm_id = ? AND volid = ? AND status = ?", vmID, volid, "pending").Count(&count)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
+}

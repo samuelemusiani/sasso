@@ -85,6 +85,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 			r.Delete("/backup/{backupid}", deleteBackup)
 			r.Post("/backup/{backupid}/restore", restoreBackup)
+			r.Post("/backup/{backupid}/protect", protectBackup)
 
 			r.Get("/backup/request", listBackupRequests)
 			r.Get("/backup/request/{requestid}", getBackupRequest)

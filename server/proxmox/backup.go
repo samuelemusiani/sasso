@@ -21,10 +21,12 @@ type Backup struct {
 	CanDelete bool      `json:"can_delete"`
 	Name      string    `json:"name"`
 	Notes     string    `json:"notes"`
+	Protected bool      `json:"protected"`
 }
 
 const (
-	MAX_BACKUPS_PER_USER = 2
+	MAX_BACKUPS_PER_USER           = 2
+	MAX_PROTECTED_BACKUPS_PER_USER = 4
 )
 
 var (
@@ -38,10 +40,11 @@ var (
 
 	BackupNoteString = "sasso-user-backup"
 
-	ErrBackupNotFound       = errors.New("backup_not_found")
-	ErrCantDeleteBackup     = errors.New("cant_delete_backup")
-	ErrPendingBackupRequest = errors.New("pending_backup_request")
-	ErrMaxBackupsReached    = errors.New("max_backups_reached")
+	ErrBackupNotFound             = errors.New("backup_not_found")
+	ErrCantDeleteBackup           = errors.New("cant_delete_backup")
+	ErrPendingBackupRequest       = errors.New("pending_backup_request")
+	ErrMaxBackupsReached          = errors.New("max_backups_reached")
+	ErrMaxProtectedBackupsReached = errors.New("max_protected_backups_reached")
 )
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
@@ -71,6 +74,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 			CanDelete: strings.Contains(item.Notes, BackupNoteString),
 			Name:      name,
 			Notes:     notes,
+			Protected: item.Protection,
 		})
 	}
 
@@ -166,41 +170,31 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *proxmox.Node, vm *proxmox.VirtualMachine, scontent []*proxmox.StorageContent, err error) {
 	cluster, err = getProxmoxCluster(client)
 	if err != nil {
-		logger.Error("failed to get proxmox cluster", "error", err)
 		return nil, nil, nil, nil, err
 	}
 
 	m, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
-		logger.Error("failed to map VMID to Proxmox nodes", "error", err)
 		return nil, nil, nil, nil, err
 	}
 
 	nodeName, ok := m[vmID]
 	if !ok {
-		logger.Error("no Proxmox node found for VMID", "vmID", vmID)
 		return nil, nil, nil, nil, ErrVMNotFound
 	}
 
 	node, err = getProxmoxNode(client, nodeName)
 	if err != nil {
-		logger.Error("failed to get proxmox node", "error", err)
 		return nil, nil, nil, nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	s, err := node.Storage(ctx, cBackup.Storage)
-	defer cancel()
+	s, err := getProxmoxStorage(node, cBackup.Storage)
 	if err != nil {
-		logger.Error("failed to get storage info", "error", err)
 		return nil, nil, nil, nil, err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	mcontent, err := s.GetContent(ctx)
-	defer cancel()
+	mcontent, err := getProxmoxStorageContent(s)
 	if err != nil {
-		logger.Error("failed to get storage content", "error", err)
 		return nil, nil, nil, nil, err
 	}
 
@@ -263,4 +257,55 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 		return nil, err
 	}
 	return &bn, nil
+}
+
+func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
+	_, node, _, mcontent, err := listBackups(vmID, since)
+	if err != nil {
+		logger.Error("failed to list backups", "error", err)
+		return false, err
+	}
+	count := 0
+	for _, i := range mcontent {
+		if i.Protection {
+			count++
+		}
+	}
+
+	if count >= MAX_PROTECTED_BACKUPS_PER_USER {
+		return false, ErrMaxProtectedBackupsReached
+	}
+
+	// TODO: optimize this, we search the backup twice
+	volid, err := findVolid(vmID, backupid, since, false)
+	if err != nil {
+		return false, err
+	}
+
+	pending, err := db.IsAPendingBackupRequestWithVolid(uint(vmID), volid)
+	if err != nil {
+		logger.Error("failed to check for pending backup requests", "error", err)
+		return false, err
+	}
+	if pending {
+		return false, ErrPendingBackupRequest
+	}
+
+	s, err := getProxmoxStorage(node, cBackup.Storage)
+	if err != nil {
+		return false, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	isSuccessful, err := s.ChangeProtection(ctx, protected, volid)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to change backup protection")
+		return false, err
+	}
+	if !isSuccessful {
+		logger.Error("Failed to change backup protection: operation not successful")
+		return false, errors.New("operation_not_successful")
+	}
+	return true, nil
 }

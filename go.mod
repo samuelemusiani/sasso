@@ -12,6 +12,7 @@ require (
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.42.0
+	golang.org/x/sys v0.36.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
 )
@@ -44,8 +45,7 @@ require (
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.5
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.6

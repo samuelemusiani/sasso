@@ -222,3 +222,14 @@ func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, er
 	}
 	return s, nil
 }
+
+func getProxmoxStorageContent(s *proxmox.Storage) ([]*proxmox.StorageContent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	content, err := s.GetContent(ctx)
+	cancel()
+	if err != nil {
+		logger.Error("Failed to get Proxmox Storage content", "error", err, "storage", s.Name)
+		return nil, err
+	}
+	return content, nil
+}

@@ -196,3 +196,38 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+type ProtectBackupRequest struct {
+	Protected bool `json:"protected"`
+}
+
+func protectBackup(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+	vm := getVMFromContext(r)
+
+	backupid := chi.URLParam(r, "backupid")
+
+	var reqBody ProtectBackupRequest
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	protected, err := proxmox.ProtectBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt, reqBody.Protected)
+	if err != nil {
+		if err == proxmox.ErrBackupNotFound {
+			http.Error(w, "Backup not found", http.StatusNotFound)
+			return
+		}
+		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to protect backup")
+		http.Error(w, "Failed to protect backup", http.StatusInternalServerError)
+		return
+	}
+	if !protected {
+		http.Error(w, "Failed to protect backup", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
