@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"samuelemusiani/sasso/server/db"
 	"strings"
@@ -14,10 +15,12 @@ import (
 )
 
 type Backup struct {
-	// Name is the Volid hashed
-	Name      string    `json:"name"`
+	// ID is the Volid hashed
+	ID        string    `json:"id"`
 	Ctime     time.Time `json:"ctime"`
 	CanDelete bool      `json:"can_delete"`
+	Name      string    `json:"name"`
+	Notes     string    `json:"notes"`
 }
 
 var (
@@ -47,17 +50,30 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
+		var name, notes string
+		bkn, err := parseBackupNotes(item.Notes)
+		if err != nil {
+			logger.Warn("failed to parse backup notes, skipping", "error", err)
+			name = "unknown"
+			notes = ""
+		} else {
+			name = bkn.Name
+			notes = bkn.Notes
+		}
+
 		backups = append(backups, Backup{
-			Name:      hex.EncodeToString(h.Sum(nil)),
+			ID:        hex.EncodeToString(h.Sum(nil)),
 			Ctime:     time.Unix(int64(item.Ctime), 0),
 			CanDelete: strings.Contains(item.Notes, BackupNoteString),
+			Name:      name,
+			Notes:     notes,
 		})
 	}
 
 	return backups, nil
 }
 
-func CreateBackup(userID, vmID uint64) (uint, error) {
+func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)
@@ -67,7 +83,7 @@ func CreateBackup(userID, vmID uint64) (uint, error) {
 		return 0, ErrPendingBackupRequest
 	}
 
-	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID))
+	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID), name, notes)
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -91,7 +107,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), uint(userID))
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), uint(userID), "", "")
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -114,7 +130,7 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), uint(userID))
+	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), uint(userID), "", "")
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -195,4 +211,32 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (st
 	}
 
 	return "", ErrBackupNotFound
+}
+
+type BackupNotes struct {
+	Name   string `json:"name"`
+	Notes  string `json:"notes"`
+	UserID uint   `json:"user_id"`
+}
+
+func generateBackNotes(name, notes string, userID uint) (string, error) {
+	bn := BackupNotes{
+		Name:   name,
+		Notes:  notes,
+		UserID: userID,
+	}
+	b, err := json.Marshal(bn)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func parseBackupNotes(notes string) (*BackupNotes, error) {
+	var bn BackupNotes
+	err := json.Unmarshal([]byte(notes), &bn)
+	if err != nil {
+		return nil, err
+	}
+	return &bn, nil
 }

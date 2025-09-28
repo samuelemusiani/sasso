@@ -59,13 +59,25 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type CreateBackupRequestBody struct {
+	Name  string `json:"name"`
+	Notes string `json:"notes"`
+}
+
 func createBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
 
 	backupid := chi.URLParam(r, "backupid")
 
-	id, err := proxmox.CreateBackup(uint64(userID), vm.ID)
+	var reqBody CreateBackupRequestBody
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	id, err := proxmox.CreateBackup(uint64(userID), vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)

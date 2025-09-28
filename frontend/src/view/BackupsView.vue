@@ -6,6 +6,9 @@ import { api } from '@/lib/api'
 
 const backups = ref<Backup[]>([])
 
+const name = ref('')
+const notes = ref('')
+
 const route = useRoute()
 const vmid = Number(route.params.vmid)
 
@@ -59,7 +62,10 @@ function deleteBackup(backupName: string) {
 
 function makeBackup() {
   api
-    .post(`/vm/${vmid}/backup`)
+    .post(`/vm/${vmid}/backup`, {
+      name: name.value,
+      notes: notes.value,
+    })
     .then(() => {
       console.log('Backup created')
     })
@@ -82,6 +88,13 @@ onMounted(() => {
   >
     Back to VMs
   </RouterLink>
+  <input type="text" placeholder="Backup Name" v-model="name" class="border p-2 rounded-lg mb-4" />
+  <input
+    type="text"
+    placeholder="Backup Notes"
+    v-model="notes"
+    class="border p-2 rounded-lg mb-4"
+  />
   <button
     @click="makeBackup()"
     class="bg-green-500 p-2 rounded-lg hover:bg-green-400 text-white mb-4 inline-block"
@@ -102,15 +115,29 @@ onMounted(() => {
             scope="col"
             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
           >
+            Name
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
             Time
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Notes
           </th>
           <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
         <tr v-for="bk in backups" :key="bk.name">
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.name.substring(0, 10) }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ bk.id.substring(0, 10) }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ bk.name }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ bk.ctime }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ bk.notes }}</td>
           <td
             class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
           >

@@ -1000,6 +1000,12 @@ func createBackups() {
 			continue
 		}
 
+		notes, err := generateBackNotes(r.Name, r.Notes, r.UserID)
+		if err != nil {
+			logger.Error("Failed to generate backup notes", "error", err)
+			continue
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t, err := node.Vzdump(ctx, &gprox.VirtualMachineBackupOptions{
 			Storage:       cBackup.Storage,
@@ -1007,7 +1013,7 @@ func createBackups() {
 			Mode:          "snapshot",
 			Remove:        false,
 			Compress:      "zstd",
-			NotesTemplate: fmt.Sprintf("{{guestname}} %s", BackupNoteString),
+			NotesTemplate: notes,
 		})
 		cancel()
 		if err != nil {

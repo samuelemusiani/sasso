@@ -16,6 +16,10 @@ type BackupRequest struct {
 	Volid  *string `gorm:"default:null"`
 	VMID   uint    `gorm:"not null"`
 	UserID uint    `gorm:"not null"`
+
+	// For creation
+	Name  string `gorm:"not null"`
+	Notes string `gorm:"not null"`
 }
 
 func initBackupRequests() error {
@@ -26,17 +30,19 @@ func initBackupRequests() error {
 	return nil
 }
 
-func NewBackupRequest(backupType, status string, vmID, userID uint) (*BackupRequest, error) {
-	return NewBackupRequestWithVolid(backupType, status, nil, vmID, userID)
+func NewBackupRequest(backupType, status string, vmID, userID uint, name, notes string) (*BackupRequest, error) {
+	return NewBackupRequestWithVolid(backupType, status, nil, vmID, userID, name, notes)
 }
 
-func NewBackupRequestWithVolid(backupType, status string, volid *string, vmID, userID uint) (*BackupRequest, error) {
+func NewBackupRequestWithVolid(backupType, status string, volid *string, vmID, userID uint, name, notes string) (*BackupRequest, error) {
 	backupRequest := &BackupRequest{
 		Type:   backupType,
 		Status: status,
 		VMID:   vmID,
 		Volid:  volid,
 		UserID: userID,
+		Name:   name,
+		Notes:  notes,
 	}
 	result := db.Create(backupRequest)
 	if result.Error != nil {
