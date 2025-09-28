@@ -45,6 +45,9 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 		if err == proxmox.ErrBackupNotFound {
 			http.Error(w, "Backup not found", http.StatusNotFound)
 			return
+		} else if err == proxmox.ErrPendingBackupRequest {
+			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
+			return
 		}
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to restore backup")
 		http.Error(w, "Failed to restore backup", http.StatusInternalServerError)
@@ -79,6 +82,13 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.CreateBackup(uint64(userID), vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
+		if err == proxmox.ErrPendingBackupRequest {
+			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrMaxBackupsReached {
+			http.Error(w, "Maximum number of backups reached for this user", http.StatusBadRequest)
+			return
+		}
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)
 		return
@@ -105,6 +115,9 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if err == proxmox.ErrCantDeleteBackup {
 			http.Error(w, "Can't delete backup", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrPendingBackupRequest {
+			http.Error(w, "Pending backup request", http.StatusBadRequest)
 			return
 		}
 

@@ -108,7 +108,7 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 	}
 
 	if count >= MAX_BACKUPS_PER_USER {
-		return 0, errors.New("max_backups_reached")
+		return 0, ErrMaxBackupsReached
 	}
 
 	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID), name, notes)
