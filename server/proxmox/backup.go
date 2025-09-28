@@ -230,12 +230,12 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (st
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
-		bkn, err := parseBackupNotes(item.Notes)
-		if err != nil {
-			continue
-		}
-
 		if hex.EncodeToString(h.Sum(nil)) == backupid {
+			bkn, err := parseBackupNotes(item.Notes)
+			if err != nil && deletion {
+				continue
+			}
+
 			if !deletion || bkn.SassoVerifier == BackupSassoString {
 				return item.Volid, nil
 			} else {
