@@ -87,3 +87,12 @@ func GetBackupRequestByIDAndUserID(id, userID uint) (*BackupRequest, error) {
 	}
 	return &backupRequest, nil
 }
+
+func IsAPendingBackupRequest(vmID uint) (bool, error) {
+	var count int64
+	result := db.Model(&BackupRequest{}).Where("vm_id = ? AND status = ?", vmID, "pending").Count(&count)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
+}

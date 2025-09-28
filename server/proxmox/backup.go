@@ -31,8 +31,9 @@ var (
 
 	BackupNoteString = "sasso-user-backup"
 
-	ErrBackupNotFound   = errors.New("backup_not_found")
-	ErrCantDeleteBackup = errors.New("cant_delete_backup")
+	ErrBackupNotFound       = errors.New("backup_not_found")
+	ErrCantDeleteBackup     = errors.New("cant_delete_backup")
+	ErrPendingBackupRequest = errors.New("pending_backup_request")
 )
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
@@ -57,6 +58,15 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 }
 
 func CreateBackup(userID, vmID uint64) (uint, error) {
+	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
+	if err != nil {
+		logger.Error("failed to check for pending backup requests", "error", err)
+		return 0, err
+	}
+	if isPending {
+		return 0, ErrPendingBackupRequest
+	}
+
 	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID))
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
@@ -67,6 +77,15 @@ func CreateBackup(userID, vmID uint64) (uint, error) {
 }
 
 func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
+	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
+	if err != nil {
+		logger.Error("failed to check for pending backup requests", "error", err)
+		return 0, err
+	}
+	if isPending {
+		return 0, ErrPendingBackupRequest
+	}
+
 	volid, err := findVolid(vmID, backupid, since, true)
 	if err != nil {
 		return 0, err
@@ -81,6 +100,15 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 }
 
 func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
+	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
+	if err != nil {
+		logger.Error("failed to check for pending backup requests", "error", err)
+		return 0, err
+	}
+	if isPending {
+		return 0, ErrPendingBackupRequest
+	}
+
 	volid, err := findVolid(vmID, backupid, since, false)
 	if err != nil {
 		return 0, err
