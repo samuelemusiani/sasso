@@ -23,6 +23,10 @@ type Backup struct {
 	Notes     string    `json:"notes"`
 }
 
+const (
+	MAX_BACKUPS_PER_USER = 2
+)
+
 var (
 	BackupRequestStatusPending   = "pending"
 	BackupRequestStatusCompleted = "completed"
@@ -37,6 +41,7 @@ var (
 	ErrBackupNotFound       = errors.New("backup_not_found")
 	ErrCantDeleteBackup     = errors.New("cant_delete_backup")
 	ErrPendingBackupRequest = errors.New("pending_backup_request")
+	ErrMaxBackupsReached    = errors.New("max_backups_reached")
 )
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
@@ -53,7 +58,6 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		var name, notes string
 		bkn, err := parseBackupNotes(item.Notes)
 		if err != nil {
-			logger.Warn("failed to parse backup notes, skipping", "error", err)
 			name = "unknown"
 			notes = ""
 		} else {
@@ -81,6 +85,26 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 	}
 	if isPending {
 		return 0, ErrPendingBackupRequest
+	}
+
+	_, _, _, mcontent, err := listBackups(vmID, time.Time{})
+	if err != nil {
+		logger.Error("failed to list backups", "error", err)
+		return 0, err
+	}
+	count := 0
+	for _, i := range mcontent {
+		bkn, err := parseBackupNotes(i.Notes)
+		if err != nil {
+			continue
+		}
+		if bkn.UserID == uint(userID) {
+			count++
+		}
+	}
+
+	if count >= MAX_BACKUPS_PER_USER {
+		return 0, errors.New("max_backups_reached")
 	}
 
 	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID), name, notes)
