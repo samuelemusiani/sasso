@@ -25,53 +25,53 @@ function fetchBackups() {
     })
 }
 
-function restoreBackup(backupName: string) {
+function restoreBackup(backupID: string) {
   if (
     confirm(
-      `Are you sure you want to restore backup ${backupName}? This will overwrite the current VM state.`,
+      `Are you sure you want to restore backup ${backupID}? This will overwrite the current VM state.`,
     )
   ) {
     api
-      .post(`/vm/${vmid}/backup/${backupName}/restore`)
+      .post(`/vm/${vmid}/backup/${backupID}/restore`)
       .then(() => {
         console.log('Backup restoring')
       })
       .catch((err) => {
         console.error('Failed to restore backup:', err)
-        alert(`Failed to restore backup ${backupName}.`)
+        alert(`Failed to restore backup ${backupID}.`)
       })
   }
 }
 
-function deleteBackup(backupName: string) {
+function deleteBackup(backupID: string) {
   if (
-    confirm(`Are you sure you want to delete backup ${backupName}? This action cannot be undone.`)
+    confirm(`Are you sure you want to delete backup ${backupID}? This action cannot be undone.`)
   ) {
     api
-      .delete(`/vm/${vmid}/backup/${backupName}`)
+      .delete(`/vm/${vmid}/backup/${backupID}`)
       .then(() => {
         console.log('Backup deleted')
         fetchBackups() // Refresh the list after deletion
       })
       .catch((err) => {
         console.error('Failed to delete backup:', err)
-        alert(`Failed to delete backup ${backupName}.`)
+        alert(`Failed to delete backup ${backupID}.`)
       })
   }
 }
 
-function protectBackup(backupName: string, protect: boolean) {
+function protectBackup(backupID: string, protect: boolean) {
   api
-    .post(`/vm/${vmid}/backup/${backupName}/protect`, {
+    .post(`/vm/${vmid}/backup/${backupID}/protect`, {
       protected: protect,
     })
     .then(() => {
-      console.log('Backup deleted')
+      console.log('Backup protection toggled')
       fetchBackups() // Refresh the list after deletion
     })
     .catch((err) => {
-      console.error('Failed to delete backup:', err)
-      alert(`Failed to delete backup ${backupName}.`)
+      console.error('Failed to toggle backup protection:', err)
+      alert(`Failed to toggle backup protection for ${backupID}.`)
     })
 }
 
@@ -164,20 +164,20 @@ onMounted(() => {
             class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
           >
             <button
-              @click="protectBackup(bk.name, !bk.protected)"
+              @click="protectBackup(bk.id, !bk.protected)"
               class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
             >
               Protect
             </button>
             <button
-              @click="restoreBackup(bk.name)"
+              @click="restoreBackup(bk.id)"
               class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 text-white"
             >
               Restore
             </button>
             <button
               v-if="bk.can_delete"
-              @click="deleteBackup(bk.name)"
+              @click="deleteBackup(bk.id)"
               class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
             >
               Delete
