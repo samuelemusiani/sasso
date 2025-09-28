@@ -173,7 +173,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 
 		f, err := fs.ReadFile(ui_fs, p)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				// If the file does not exists it could be a route that the SPA router
 				// would catch. We serve the index.html instead
 
