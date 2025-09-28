@@ -74,7 +74,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 			CanDelete: strings.Contains(item.Notes, BackupNoteString),
 			Name:      name,
 			Notes:     notes,
-			Protected: item.Protection,
+			Protected: bool(item.Protected),
 		})
 	}
 
@@ -267,7 +267,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 	}
 	count := 0
 	for _, i := range mcontent {
-		if i.Protection {
+		if bool(i.Protected) {
 			count++
 		}
 	}
