@@ -3,7 +3,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -102,6 +104,76 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.With("error", err).Error("Failed to encode delete backup response to JSON")
 		http.Error(w, "Failed to encode delete backup response to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
+type BackupRequest struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Type   string `json:"type"`
+	Status string `json:"status"`
+	VMID   uint   `json:"vm_id"`
+}
+
+func listBackupRequests(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	bkr, err := db.GetBackupRequestsByUserID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to list backup requests")
+		http.Error(w, "Failed to list backup requests", http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]BackupRequest, 0, len(bkr))
+	for _, b := range bkr {
+		resp = append(resp, BackupRequest{
+			ID:        b.ID,
+			CreatedAt: b.CreatedAt,
+			UpdatedAt: b.UpdatedAt,
+			Type:      b.Type,
+			Status:    b.Status,
+			VMID:      b.VMID,
+		})
+	}
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to encode backup requests to JSON")
+		http.Error(w, "Failed to encode backup requests to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
+func getBackupRequest(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+	bkrID := chi.URLParam(r, "bkrid")
+
+	bkr, err := db.GetBackupRequestByIDAndUserID(parseUint(bkrID), userID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Backup request not found", http.StatusNotFound)
+			return
+		}
+		logger.With("userID", userID, "bkrID", bkrID, "error", err).Error("Failed to get backup request")
+		http.Error(w, "Failed to get backup request", http.StatusInternalServerError)
+		return
+	}
+
+	resp := BackupRequest{
+		ID:        bkr.ID,
+		CreatedAt: bkr.CreatedAt,
+		UpdatedAt: bkr.UpdatedAt,
+		Type:      bkr.Type,
+		Status:    bkr.Status,
+		VMID:      bkr.VMID,
+	}
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		logger.With("userID", userID, "bkrID", bkrID, "error", err).Error("Failed to encode backup request to JSON")
+		http.Error(w, "Failed to encode backup request to JSON", http.StatusInternalServerError)
 		return
 	}
 }

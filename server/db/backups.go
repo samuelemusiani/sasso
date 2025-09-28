@@ -66,3 +66,24 @@ func GetBackupRequestWithStatusAndType(status, t string) ([]BackupRequest, error
 	}
 	return backupRequests, nil
 }
+
+func GetBackupRequestsByUserID(userID uint) ([]BackupRequest, error) {
+	var backupRequests []BackupRequest
+	result := db.Where("user_id = ?", userID).Find(&backupRequests)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return backupRequests, nil
+}
+
+func GetBackupRequestByIDAndUserID(id, userID uint) (*BackupRequest, error) {
+	var backupRequest BackupRequest
+	result := db.Where("id = ? AND user_id = ?", id, userID).First(&backupRequest)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, result.Error
+	}
+	return &backupRequest, nil
+}
