@@ -38,6 +38,11 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
 
+	if vm.Status != string(proxmox.VMStatusStopped) {
+		http.Error(w, "VM must be stopped to restore a backup", http.StatusBadRequest)
+		return
+	}
+
 	backupid := chi.URLParam(r, "backupid")
 
 	id, err := proxmox.RestoreBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt)
