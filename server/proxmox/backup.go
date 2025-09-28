@@ -45,6 +45,8 @@ var (
 	ErrPendingBackupRequest       = errors.New("pending_backup_request")
 	ErrMaxBackupsReached          = errors.New("max_backups_reached")
 	ErrMaxProtectedBackupsReached = errors.New("max_protected_backups_reached")
+	ErrBackupNameTooLong          = errors.New("backup_name_too_long")
+	ErrBackupNotesTooLong         = errors.New("backup_notes_too_long")
 )
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
@@ -85,6 +87,12 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 }
 
 func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
+	if len(name) > 40 {
+		return 0, ErrBackupNameTooLong
+	} else if len(notes)*4/3 > 900 {
+		return 0, ErrBackupNotesTooLong
+	}
+
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)

@@ -88,6 +88,12 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		} else if err == proxmox.ErrMaxBackupsReached {
 			http.Error(w, "Maximum number of backups reached for this user", http.StatusBadRequest)
 			return
+		} else if err == proxmox.ErrBackupNameTooLong {
+			http.Error(w, "Backup name too long", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrBackupNotesTooLong {
+			http.Error(w, "Backup notes too long", http.StatusBadRequest)
+			return
 		}
 		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)
