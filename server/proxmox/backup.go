@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"samuelemusiani/sasso/server/db"
-	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
@@ -38,7 +37,7 @@ var (
 	BackupRequestTypeRestore = "restore"
 	BackupRequestTypeDelete  = "delete"
 
-	BackupNoteString = "sasso-user-backup"
+	BackupSassoString = "sasso-user-backup"
 
 	ErrBackupNotFound             = errors.New("backup_not_found")
 	ErrCantDeleteBackup           = errors.New("cant_delete_backup")
@@ -59,19 +58,22 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		h.Write([]byte(item.Volid))
 
 		var name, notes string
+		var canDelete bool
 		bkn, err := parseBackupNotes(item.Notes)
 		if err != nil {
 			name = "unknown"
 			notes = ""
+			canDelete = false
 		} else {
 			name = bkn.Name
 			notes = bkn.Notes
+			canDelete = bkn.SassoVerifier == BackupSassoString
 		}
 
 		backups = append(backups, Backup{
 			ID:        hex.EncodeToString(h.Sum(nil)),
 			Ctime:     time.Unix(int64(item.Ctime), 0),
-			CanDelete: strings.Contains(item.Notes, BackupNoteString),
+			CanDelete: canDelete,
 			Name:      name,
 			Notes:     notes,
 			Protected: bool(item.Protected),
@@ -219,8 +221,13 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (st
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
+		bkn, err := parseBackupNotes(item.Notes)
+		if err != nil {
+			continue
+		}
+
 		if hex.EncodeToString(h.Sum(nil)) == backupid {
-			if !deletion || strings.Contains(item.Notes, BackupNoteString) {
+			if !deletion || bkn.SassoVerifier == BackupSassoString {
 				return item.Volid, nil
 			} else {
 				return "", ErrCantDeleteBackup
@@ -232,16 +239,18 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (st
 }
 
 type BackupNotes struct {
-	Name   string `json:"name"`
-	Notes  string `json:"notes"`
-	UserID uint   `json:"user_id"`
+	Name          string `json:"name"`
+	Notes         string `json:"notes"`
+	UserID        uint   `json:"user_id"`
+	SassoVerifier string `json:"sasso_verifier"`
 }
 
 func generateBackNotes(name, notes string, userID uint) (string, error) {
 	bn := BackupNotes{
-		Name:   name,
-		Notes:  notes,
-		UserID: userID,
+		Name:          name,
+		Notes:         notes,
+		UserID:        userID,
+		SassoVerifier: BackupSassoString,
 	}
 	b, err := json.Marshal(bn)
 	if err != nil {
