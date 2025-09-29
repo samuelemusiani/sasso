@@ -15,11 +15,14 @@ type Realm struct {
 }
 
 type LDAPRealm struct {
-	Realm    `gorm:"embedded;embeddedPrefix:realm_"`
-	URL      string `gorm:"not null"`
-	BaseDN   string `gorm:"not null"`
-	BindDN   string `gorm:"not null"`
-	Password string `gorm:"not null"`
+	Realm           `gorm:"embedded;embeddedPrefix:realm_"`
+	URL             string `gorm:"not null"`
+	UserBaseDN      string `gorm:"not null"`
+	GroupBaseDN     string `gorm:"not null"`
+	BindDN          string `gorm:"not null"`
+	Password        string `gorm:"not null"`
+	MaintainerGroup string `gorm:"not null"`
+	AdminGroup      string `gorm:"not null"`
 }
 
 func initRealms() error {
