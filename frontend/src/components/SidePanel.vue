@@ -10,7 +10,7 @@ const router = useRouter()
 
 const menu = {
   Home: { icon: 'material-symbols:home-rounded', to: '/' },
-  VM: { icon: 'mi:computer', to: '/vm' },
+  'Virtual Machine': { icon: 'mi:computer', to: '/vm' },
   Nets: { icon: 'ph:network', to: '/net' },
   'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
