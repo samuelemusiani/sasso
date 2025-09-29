@@ -99,6 +99,37 @@ func genKeys() (string, string, error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
+func parsePeers() (map[string]WGPeer, error) {
+	stdout, stderr, err := executeCommand("wg", "show", interfaceName, "dump")
+	if err != nil {
+		logger.With("err", err, "stderr", stderr).Error("Error dumping peers")
+		return nil, err
+	}
+
+	peers := make(map[string]WGPeer)
+
+	lines := strings.Split(stdout, "\n")
+	for i, l := range lines {
+		if i == 0 {
+			continue // fist is the interface
+		}
+		fields := strings.Split(l, "\t")
+
+		publicKey := fields[0]
+		privateKey := fields[1]
+		allowedIps := fields[3]
+
+		peer := WGPeer{
+			Address:    allowedIps,
+			PrivateKey: privateKey,
+			PublicKey:  publicKey,
+		}
+		peers[publicKey] = peer
+	}
+
+	return peers, nil
+}
+
 func PeerFromDB(iface *db.Peer) WGPeer {
 	return WGPeer{
 		Address:    iface.Address,
