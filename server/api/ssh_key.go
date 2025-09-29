@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/crypto/ssh"
 )
 
 func getSSHKeys(w http.ResponseWriter, r *http.Request) {
@@ -54,6 +55,17 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 	var req newSSHKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.Key == "" {
+		http.Error(w, "Name and Key are required", http.StatusBadRequest)
+		return
+	}
+
+	_, _, _, _, err := ssh.ParseAuthorizedKey([]byte(req.Key))
+	if err != nil {
+		http.Error(w, "Invalid SSH key format", http.StatusBadRequest)
 		return
 	}
 
