@@ -105,25 +105,39 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="p-2 flex flex-col gap-2">
-    <div>This is the VM view for <b>sasso</b>!</div>
-    <div class="flex gap-2 items-center">
-      <label for="cores">Cores:</label>
-      <input type="number" id="cores" v-model="cores" class="input border p-2 rounded-lg w-24" />
-      <label for="ram">RAM (MB):</label>
-      <input type="number" id="ram" v-model="ram" class="input border p-2 rounded-lg w-24" />
-      <label for="disk">Disk (GB):</label>
-      <input type="number" id="disk" v-model="disk" class="input border rounded-lg w-24" />
-      <div class="flex items-center">
-        <input
-          type="checkbox"
-          id="include_global_ssh_keys"
-          v-model="include_global_ssh_keys"
-          class="checkbox checkbox-primary"
-        />
-        <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
-      </div>
-      <button class="btn btn-success p-2 rounded-lg" @click="createVM()">Create VM</button>
+    <h1 class="text-3xl font-bold flex items-center gap-2">
+      <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
+    </h1>
+
+    <div>
+      <button class="btn btn-primary rounded-xl" @click="openCreate = !openCreate">
+        <IconVue icon="mi:add" class="text-xl"></IconVue>{{openCreate? 'Close':'Create VM'}}
+      </button>
     </div>
+    <div v-if="openCreate">
+      <div class="p-4 border border-primary rounded-xl bg-base-200 flex flex-col gap-4 w-full h-full">
+        <div>
+          <label for="cores">CPU Cores:</label>
+          <input type="number" id="cores" v-model="cores" class="input w-full border p-2 rounded-lg w-24" />
+        </div>
+        <div>
+          <label for="ram">RAM (MB):</label>
+          <input type="number" id="ram" v-model="ram" class="input w-full border p-2 rounded-lg w-24" />
+        </div>
+        <div>
+          <label for="disk">Disk (GB):</label>
+          <input type="number" id="disk" v-model="disk" class="input w-full border rounded-lg w-24" />
+        </div>
+        <div class="flex items-center">
+          <input type="checkbox" id="include_global_ssh_keys" v-model="include_global_ssh_keys"
+            class="checkbox checkbox-primary" />
+          <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
+        </div>
+        <button class="btn btn-success p-2 rounded-lg" @click="createVM()">Create VM</button>
+
+      </div>
+    </div>
+
     <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
       <p>
@@ -143,34 +157,19 @@ onBeforeUnmount(() => {
       <table class="table min-w-full *:text-base-content">
         <thead>
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               ID
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Cores
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               RAM (MB)
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Disk (GB)
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
             <th scope="col" class="relative px-6 py-3">
@@ -201,18 +200,12 @@ onBeforeUnmount(() => {
               >
                 Start
               </button>
-              <button
-                v-if="vm.status === 'running'"
-                @click="stopVM(vm.id)"
-                class="btn btn-warning rounded-lg btn-outline"
-              >
+              <button v-if="vm.status === 'running'" @click="stopVM(vm.id)"
+                class="btn btn-warning rounded-lg btn-outline">
                 Stop
               </button>
-              <button
-                v-if="vm.status === 'running'"
-                @click="restartVM(vm.id)"
-                class="btn btn-info rounded-lg btn-outline"
-              >
+              <button v-if="vm.status === 'running'" @click="restartVM(vm.id)"
+                class="btn btn-info rounded-lg btn-outline">
                 Restart
               </button>
               <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg btn-outline">
