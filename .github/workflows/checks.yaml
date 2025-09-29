@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -17,9 +20,6 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Checkout the repo
-        uses: actions/checkout@v4
-
       - name: Install run-all
         run: npm i npm-run-all --save-dev
 
@@ -27,7 +27,11 @@ jobs:
         run: sudo apt install just
 
       - name: Build application
-        run: just build
+        run: |
+          set -e
+          just build-front
+          just copy-front
+          just build-server
 
       - name: Check formatting
         run: just check-format

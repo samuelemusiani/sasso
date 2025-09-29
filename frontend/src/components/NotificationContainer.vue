@@ -15,17 +15,14 @@
               'bg-success text-success-content': notification.type === 'success',
               'bg-warning text-warning-content': notification.type === 'warning',
               'bg-info text-info-content': notification.type === 'info',
-              'opacity-0 transform translate-x-full scale-95': notification.isRemoving
-            }
+              'opacity-0 transform translate-x-full scale-95': notification.isRemoving,
+            },
           ]"
         >
           <div class="p-4">
             <div class="flex items-start">
               <div class="flex-shrink-0">
-                <Icon 
-                  :icon="getIcon(notification.type)" 
-                  class="text-xl"
-                />
+                <IconifyIcon :icon="getIcon(notification.type)" class="text-xl" />
               </div>
               <div class="ml-3 w-0 flex-1">
                 <p class="text-sm font-medium">
@@ -40,7 +37,7 @@
                   @click="removeNotification(notification.id)"
                   class="rounded-md inline-flex text-current hover:opacity-75 focus:outline-none"
                 >
-                  <Icon icon="material-symbols:close" class="text-lg" />
+                  <IconifyIcon icon="material-symbols:close" class="text-lg" />
                 </button>
               </div>
             </div>
@@ -52,7 +49,6 @@
 </template>
 
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
 import { globalNotifications } from '@/lib/notifications'
 
 const notifications = globalNotifications.notifications

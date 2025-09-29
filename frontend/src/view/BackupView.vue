@@ -9,7 +9,7 @@
 
       <!-- Content -->
       <div class="text-center mb-12">
-        <Icon icon="material-symbols:backup" class="text-6xl text-primary mx-auto mb-4" />
+        <IconifyIcon icon="material-symbols:backup" class="text-6xl text-primary mx-auto mb-4" />
         <h2 class="text-2xl font-semibold text-base-content mb-2">Backup System</h2>
         <p class="text-base-content/70">
           Sistema di backup automatico per le tue macchine virtuali
@@ -28,17 +28,17 @@
       <!-- Future features preview -->
       <div class="grid md:grid-cols-3 gap-4 mt-8">
         <div class="liquid-glass-card p-6">
-          <Icon icon="material-symbols:schedule" class="text-3xl text-primary mb-3" />
+          <IconifyIcon icon="material-symbols:schedule" class="text-3xl text-primary mb-3" />
           <h3 class="font-semibold mb-2">Backup Automatici</h3>
           <p class="text-sm text-base-content/70">Pianifica backup automatici delle tue VM</p>
         </div>
         <div class="liquid-glass-card p-6">
-          <Icon icon="material-symbols:restore" class="text-3xl text-primary mb-3" />
+          <IconifyIcon icon="material-symbols:restore" class="text-3xl text-primary mb-3" />
           <h3 class="font-semibold mb-2">Ripristino Rapido</h3>
           <p class="text-sm text-base-content/70">Ripristina le VM da backup con un click</p>
         </div>
         <div class="liquid-glass-card p-6">
-          <Icon icon="material-symbols:cloud-sync" class="text-3xl text-primary mb-3" />
+          <IconifyIcon icon="material-symbols:cloud-sync" class="text-3xl text-primary mb-3" />
           <h3 class="font-semibold mb-2">Storage Esterno</h3>
           <p class="text-sm text-base-content/70">Salva i backup su storage esterni</p>
         </div>
@@ -47,9 +47,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { Icon } from '@iconify/vue'
-</script>
+<script setup lang="ts"></script>
 
 <style scoped>
 .liquid-glass-card {
@@ -57,7 +55,7 @@ import { Icon } from '@iconify/vue'
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 16px;
-  box-shadow: 
+  box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
     0 0 20px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);

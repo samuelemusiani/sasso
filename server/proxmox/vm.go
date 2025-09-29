@@ -78,15 +78,11 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 			for _, resource := range resources {
 				if resource.VMID == vms[i].ID && resource.Type == "qemu" {
 					// Set template info - for now use a generic template name
-					if cTemplate != nil {
-						vms[i].Template = cTemplate.Name
-					} else {
-						vms[i].Template = "ubuntu-22.04"
-					}
+					vms[i].Template = "ubuntu-22.04"
 
 					// Set uptime if VM is running
-					if vms[i].Status == "running" && resource.Uptime != nil {
-						vms[i].Uptime = uint64(*resource.Uptime)
+					if vms[i].Status == "running" {
+						vms[i].Uptime = resource.Uptime
 					}
 					break
 				}

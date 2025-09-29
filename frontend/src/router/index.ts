@@ -72,7 +72,7 @@ router.beforeEach(async (to, from, next) => {
     try {
       const response = await api.get('/whoami')
       const user = response.data
-      
+
       if (user.role !== 'admin') {
         // Non è admin, reindirizza alla home
         next('/')
@@ -85,7 +85,7 @@ router.beforeEach(async (to, from, next) => {
       return
     }
   }
-  
+
   next()
 })
 

@@ -18,27 +18,27 @@ const animationComplete = ref(false)
 
 const realms = ref<Realm[]>([
   { id: 1, name: 'Local', description: 'Local Authentication', type: 'local' },
-  { id: 2, name: 'LDAP', description: 'LDAP Authentication', type: 'ldap' }
+  { id: 2, name: 'LDAP', description: 'LDAP Authentication', type: 'ldap' },
 ])
 
 async function fetchRealms() {
   try {
     const response = await api.get('/login/realms')
     const apiRealms = response.data as Realm[]
-    
+
     // Filtra i realm dall'API per rimuovere eventuali duplicati Local
-    const nonLocalRealms = apiRealms.filter(realm => realm.type !== 'local')
-    
+    const nonLocalRealms = apiRealms.filter((realm) => realm.type !== 'local')
+
     realms.value = [
       { id: 0, name: 'Local', description: 'Local Authentication', type: 'local' },
-      ...nonLocalRealms
+      ...nonLocalRealms,
     ]
   } catch (error) {
     console.error('Errore nel recuperare i realm:', error)
     // Fallback con realm locali
     realms.value = [
       { id: 1, name: 'Local', description: 'Local Authentication', type: 'local' },
-      { id: 2, name: 'LDAP', description: 'LDAP Authentication', type: 'ldap' }
+      { id: 2, name: 'LDAP', description: 'LDAP Authentication', type: 'ldap' },
     ]
   }
 }
@@ -56,11 +56,10 @@ async function login() {
       globalNotifications.showError('Errore configurazione', 'Realm selezionato non valido')
       return
     }
-    
+
     await _login(username.value.trim(), password.value, realmData.id)
     globalNotifications.showSuccess('Login effettuato', 'Benvenuto nel sistema SASSO!')
     router.push('/')
-    
   } catch (error) {
     console.error('Login fallito:', error)
     globalNotifications.showError('Login fallito', 'Verifica le credenziali e riprova')
@@ -78,7 +77,7 @@ function handleKeyPress(event: KeyboardEvent) {
 
 onMounted(async () => {
   await fetchRealms()
-  
+
   // Animazione immediata
   setTimeout(() => {
     animationComplete.value = true
@@ -87,29 +86,45 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-300 flex items-center justify-center p-4 relative overflow-hidden">
+  <div
+    class="min-h-screen bg-base-300 flex items-center justify-center p-4 relative overflow-hidden"
+  >
     <!-- Pattern di sfondo -->
     <div class="absolute inset-0 opacity-10">
-      <div class="absolute inset-0" style="background-image: url('/pattern-sasso.png'); background-size: 400px; background-repeat: repeat;"></div>
+      <div
+        class="absolute inset-0"
+        style="
+          background-image: url('/pattern-sasso.png');
+          background-size: 400px;
+          background-repeat: repeat;
+        "
+      ></div>
     </div>
     <!-- Container principale con liquid glass -->
     <div class="w-full max-w-md">
-      
       <!-- Logo animato -->
       <div class="text-center mb-8">
-        <div 
+        <div
           class="logo-container transform transition-all duration-300 ease-out"
-          :class="animationComplete ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-4 scale-95 opacity-0'"
+          :class="
+            animationComplete
+              ? 'translate-y-0 scale-100 opacity-100'
+              : 'translate-y-4 scale-95 opacity-0'
+          "
         >
           <!-- Logo -->
           <div class="w-32 h-32 mx-auto mb-4 flex items-center justify-center">
             <img src="/logo-sasso.png" alt="SASSO Logo" class="w-full h-full object-contain" />
           </div>
-          
+
           <!-- Scritta che appare dopo l'animazione -->
-          <div 
+          <div
             class="transition-all duration-300 ease-out"
-            :class="animationComplete ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2'"
+            :class="
+              animationComplete
+                ? 'opacity-100 transform translate-y-0'
+                : 'opacity-0 transform translate-y-2'
+            "
           >
             <img src="/logo_scritta.png" alt="SASSO" class="h-12 mx-auto mb-2" />
           </div>
@@ -117,23 +132,32 @@ onMounted(async () => {
       </div>
 
       <!-- Form di login con liquid glass -->
-      <div 
+      <div
         class="liquid-glass-card transition-all duration-300 ease-out"
-        :class="animationComplete ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'"
+        :class="
+          animationComplete
+            ? 'opacity-100 transform translate-y-0'
+            : 'opacity-0 transform translate-y-4'
+        "
       >
         <div class="card-body p-8">
-          <h2 class="text-xl font-semibold text-base-content mb-6 text-center">Accedi al Sistema</h2>
-          
+          <h2 class="text-xl font-semibold text-base-content mb-6 text-center">
+            Accedi al Sistema
+          </h2>
+
           <!-- Campo Username -->
           <div class="form-control mb-4">
             <label class="label">
               <span class="label-text text-base-content font-medium">Username</span>
             </label>
             <div class="relative">
-              <Icon icon="material-symbols:person" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" />
-              <input 
+              <Icon
+                icon="material-symbols:person"
+                class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50"
+              />
+              <input
                 v-model="username"
-                type="text" 
+                type="text"
                 placeholder="Inserisci il tuo username"
                 class="input input-bordered w-full pl-10 bg-base-100/50 border-white/30 focus:border-primary/50 text-base-content placeholder:text-base-content/50"
                 @keypress="handleKeyPress"
@@ -148,8 +172,11 @@ onMounted(async () => {
               <span class="label-text text-base-content font-medium">Password</span>
             </label>
             <div class="relative">
-              <Icon icon="material-symbols:lock" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" />
-              <input 
+              <Icon
+                icon="material-symbols:lock"
+                class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50"
+              />
+              <input
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="Inserisci la tua password"
@@ -157,13 +184,18 @@ onMounted(async () => {
                 @keypress="handleKeyPress"
                 :disabled="isLoading"
               />
-              <button 
+              <button
                 type="button"
                 @click="showPassword = !showPassword"
                 class="absolute right-3 top-1/2 transform -translate-y-1/2 text-base-content/50 hover:text-base-content transition-colors"
                 :disabled="isLoading"
               >
-                <Icon :icon="showPassword ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="text-lg" />
+                <Icon
+                  :icon="
+                    showPassword ? 'material-symbols:visibility-off' : 'material-symbols:visibility'
+                  "
+                  class="text-lg"
+                />
               </button>
             </div>
           </div>
@@ -174,8 +206,11 @@ onMounted(async () => {
               <span class="label-text text-base-content font-medium">Metodo di Autenticazione</span>
             </label>
             <div class="relative">
-              <Icon icon="material-symbols:domain" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50 z-10" />
-              <select 
+              <Icon
+                icon="material-symbols:domain"
+                class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50 z-10"
+              />
+              <select
                 v-model="selectedRealm"
                 class="select select-bordered w-full pl-10 bg-base-100/50 border-white/30 focus:border-primary/50 text-base-content appearance-none"
                 :disabled="isLoading"
@@ -184,35 +219,34 @@ onMounted(async () => {
                   {{ realm.name }} - {{ realm.description }}
                 </option>
               </select>
-              <Icon icon="material-symbols:expand-more" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-base-content/50 pointer-events-none" />
+              <Icon
+                icon="material-symbols:expand-more"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-base-content/50 pointer-events-none"
+              />
             </div>
           </div>
 
           <!-- Pulsante Login -->
-          <button 
+          <button
             @click="login()"
             class="btn btn-primary w-full gap-2"
             :disabled="isLoading || !username.trim() || !password.trim()"
-            :class="{ 'loading': isLoading }"
+            :class="{ loading: isLoading }"
           >
-            <Icon v-if="!isLoading" icon="material-symbols:login" class="text-lg" />
+            <IconifyIcon v-if="!isLoading" icon="material-symbols:login" class="text-lg" />
             {{ isLoading ? 'Accesso in corso...' : 'Accedi' }}
           </button>
 
           <!-- Informazioni aggiuntive -->
-          <div class="text-center mt-6 text-sm text-base-content/60">
-            
-          </div>
+          <div class="text-center mt-6 text-sm text-base-content/60"></div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div 
+      <div
         class="text-center mt-8 transition-all duration-300 ease-out"
         :class="animationComplete ? 'opacity-100' : 'opacity-0'"
-      >
-       
-      </div>
+      ></div>
     </div>
   </div>
 </template>
@@ -243,7 +277,7 @@ onMounted(async () => {
 /* Animazione per la card di login */
 .liquid-glass-card {
   backdrop-filter: blur(20px);
-  box-shadow: 
+  box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
     0 0 20px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);

@@ -1,31 +1,31 @@
 @import 'tailwindcss';
 
 @plugin "daisyui" {
-	themes: false;
+  themes: false;
 }
 
 @plugin "daisyui/theme" {
-	name: "dark";
-	default: true;
-	color-scheme: dark;
+  name: 'dark';
+  default: true;
+  color-scheme: dark;
 
-	--color-primary: #365fab;
-	--color-secondary: #B3AF8F;
-	--color-accent: #7EBDC3;
-	--color-neutral: #232323;
-	--color-base-100: #232323;
-	--color-base-200: #141414;
-	--color-base-300: #0a0a0a;
-	--color-base-content: #ffffff;
-	--color-info: #89D2DC;
-	--color-success: #A3F7B5;
-	--color-warning: #FFED65;
-	--color-error: #E87461;
+  --color-primary: #365fab;
+  --color-secondary: #b3af8f;
+  --color-accent: #7ebdc3;
+  --color-neutral: #232323;
+  --color-base-100: #232323;
+  --color-base-200: #141414;
+  --color-base-300: #0a0a0a;
+  --color-base-content: #ffffff;
+  --color-info: #89d2dc;
+  --color-success: #a3f7b5;
+  --color-warning: #ffed65;
+  --color-error: #e87461;
 }
 
 /* Liquid Glass Effect */
 .liquid-glass-card {
-	@apply card shadow-2xl border border-white/30 
+  @apply card shadow-2xl border border-white/30 
          bg-gradient-to-br from-white/15 to-white/8 
          backdrop-blur-2xl backdrop-saturate-200
          hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_20px_rgba(255,255,255,0.1)]
@@ -41,7 +41,7 @@
 
 /* Liquid Glass senza scale per griglie strette */
 .liquid-glass-card-no-scale {
-	@apply card shadow-2xl border border-white/30 
+  @apply card shadow-2xl border border-white/30 
          bg-gradient-to-br from-white/15 to-white/8 
          backdrop-blur-2xl backdrop-saturate-200
          hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_20px_rgba(255,255,255,0.1)]

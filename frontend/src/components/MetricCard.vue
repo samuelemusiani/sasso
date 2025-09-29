@@ -7,7 +7,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  color: 'primary'
+  color: 'primary',
 })
 
 // Calcola il circumference per l'animazione del cerchio
@@ -25,19 +25,21 @@ const getColor = () => {
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all duration-300">
+  <div
+    class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all duration-300"
+  >
     <div class="card-body p-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="p-3 rounded-full bg-primary/10">
-            <Icon :icon="icon" class="text-2xl text-primary" />
+            <IconifyIcon :icon="icon" class="text-2xl text-primary" />
           </div>
           <div>
             <h3 class="font-bold text-lg">{{ title }}</h3>
             <p class="text-sm opacity-70">Sistema</p>
           </div>
         </div>
-        
+
         <!-- Indicatore circolare di percentuale -->
         <div class="relative">
           <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
@@ -68,9 +70,7 @@ const getColor = () => {
           </svg>
           <!-- Percentuale al centro -->
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-lg font-bold" :class="getColor()">
-              {{ percentage }}%
-            </span>
+            <span class="text-lg font-bold" :class="getColor()"> {{ percentage }}% </span>
           </div>
         </div>
       </div>

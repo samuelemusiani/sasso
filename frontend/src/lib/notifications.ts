@@ -24,21 +24,21 @@ function addNotification(notification: Omit<Notification, 'id'>) {
   const id = generateId()
   const newNotification: Notification = {
     id,
-    duration: notification.duration ?? 5000, // 5 secondi di default  
-    ...notification
+    duration: notification.duration ?? 5000, // 5 secondi di default
+    ...notification,
   }
-  
+
   notificationList.value.push(newNotification)
-  
+
   // Auto-remove dopo la durata specificata
   const duration = newNotification.duration || 5000
-  
+
   const timerId = window.setTimeout(() => {
     removeNotification(id)
   }, duration)
-  
+
   activeTimers.set(id, timerId)
-  
+
   return id
 }
 
@@ -49,12 +49,12 @@ function removeNotification(id: string) {
     window.clearTimeout(timerId)
     activeTimers.delete(id)
   }
-  
+
   const notification = notificationList.value.find((n: Notification) => n.id === id)
   if (notification) {
     // Imposta lo stato di rimozione per attivare la transizione
     notification.isRemoving = true
-    
+
     // Rimuovi definitivamente dopo la durata della transizione
     setTimeout(() => {
       const index = notificationList.value.findIndex((n: Notification) => n.id === id)
@@ -70,15 +70,17 @@ export function useNotifications() {
     notifications: notificationList,
     addNotification,
     removeNotification,
-    clearAllNotifications: () => { notificationList.value = [] },
-    showError: (title: string, message?: string, duration?: number) => 
+    clearAllNotifications: () => {
+      notificationList.value = []
+    },
+    showError: (title: string, message?: string, duration?: number) =>
       addNotification({ type: 'error', title, message, duration }),
-    showSuccess: (title: string, message?: string, duration?: number) => 
+    showSuccess: (title: string, message?: string, duration?: number) =>
       addNotification({ type: 'success', title, message, duration }),
-    showWarning: (title: string, message?: string, duration?: number) => 
+    showWarning: (title: string, message?: string, duration?: number) =>
       addNotification({ type: 'warning', title, message, duration }),
-    showInfo: (title: string, message?: string, duration?: number) => 
-      addNotification({ type: 'info', title, message, duration })
+    showInfo: (title: string, message?: string, duration?: number) =>
+      addNotification({ type: 'info', title, message, duration }),
   }
 }
 
@@ -93,5 +95,5 @@ export const globalNotifications = {
   showInfo: (title: string, message?: string, duration?: number) =>
     addNotification({ type: 'info', title, message, duration }),
   removeNotification,
-  notifications: notificationList
+  notifications: notificationList,
 }

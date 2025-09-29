@@ -63,40 +63,40 @@ export interface Interface {
 }
 
 export interface PortForward {
-  created_at?: string;
-  id: number;
-  out_port: number;
-  dest_port: number;
-  dest_ip: string;
-  approved: boolean;
-  name?: string;
-  status?: string;
-  user_name?: string;
-  target_port?: number;
-  target_ip?: string;
-  source_port?: number;
-  description?: string;
-  user_id?: number;
+  created_at?: string
+  id: number
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+  name?: string
+  status?: string
+  user_name?: string
+  target_port?: number
+  target_ip?: string
+  source_port?: number
+  description?: string
+  user_id?: number
 }
 
 export interface AdminPortForward extends PortForward {
-  username?: string;
+  username?: string
 }
 
 // Statistiche richieste dalla view
 export interface PortForwardStats {
-  totalRequests: number;
-  approvedRequests: number;
-  pendingRequests: number;
-  rejectedRequests?: number;
-  activeRequests?: number;
+  totalRequests: number
+  approvedRequests: number
+  pendingRequests: number
+  rejectedRequests?: number
+  activeRequests?: number
 }
 
 // Funzione placeholder per fetchUsers (da implementare o importare dove serve)
 // export async function fetchUsers() {}
 
 export interface Backup {
-  name: string      // ID del backup (hash)
-  ctime: string     // Data/ora di creazione
+  name: string // ID del backup (hash)
+  ctime: string // Data/ora di creazione
   can_delete: boolean // Se può essere eliminato
 }

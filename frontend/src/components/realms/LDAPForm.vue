@@ -40,29 +40,6 @@ function addRealm() {
       console.error('Error creating realm:', error)
     })
 }
-
-function updateRealm() {
-  const realmData = {
-    name: name.value,
-    description: description.value,
-    url: url.value,
-    baseDN: baseDN.value,
-    bindDN: bindDN.value,
-    type: 'ldap',
-    password: bindPassword.value,
-    filter: filter.value,
-  }
-
-  api
-    .put(`/admin/realms/${$props.realm?.id}`, realmData)
-    .then((response) => {
-      console.log('Realm updated:', response.data)
-      $emit('realmAdded')
-    })
-    .catch((error) => {
-      console.error('Error updating realm:', error)
-    })
-}
 </script>
 
 <template>
@@ -113,7 +90,9 @@ function updateRealm() {
       <div class="form-control">
         <label class="label">
           <span class="label-text font-medium text-base-content">Filtro LDAP</span>
-          <span class="label-text-alt text-base-content/60">Filtro per selezionare gli utenti (opzionale)</span>
+          <span class="label-text-alt text-base-content/60"
+            >Filtro per selezionare gli utenti (opzionale)</span
+          >
         </label>
         <input
           v-model="filter"
@@ -122,7 +101,9 @@ function updateRealm() {
           class="input input-bordered w-full font-mono text-sm"
         />
         <div class="label">
-          <span class="label-text-alt text-base-content/50">Esempio: (memberOf=cn=admins,ou=groups,dc=example,dc=com)</span>
+          <span class="label-text-alt text-base-content/50"
+            >Esempio: (memberOf=cn=admins,ou=groups,dc=example,dc=com)</span
+          >
         </div>
       </div>
 
@@ -173,11 +154,7 @@ function updateRealm() {
       </div>
 
       <!-- Pulsante Create solo se non in editing mode (per compatibilità) -->
-      <button
-        @click.prevent="addRealm()"
-        v-if="!editing"
-        class="btn btn-primary w-full"
-      >
+      <button @click.prevent="addRealm()" v-if="!editing" class="btn btn-primary w-full">
         Crea Realm LDAP
       </button>
     </form>
