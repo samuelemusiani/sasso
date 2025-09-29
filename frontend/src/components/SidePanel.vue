@@ -14,6 +14,7 @@ const menu = {
   Nets: { icon: 'ph:network', to: '/net' },
   'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
+  'Port forwards': { icon: 'material-symbols:call-made', to: '/port-forwards' }
 }
 
 function logout() {

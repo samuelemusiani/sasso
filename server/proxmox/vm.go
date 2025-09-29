@@ -34,8 +34,11 @@ var (
 	VMStatusPreConfiguring VMStatus = "pre-configuring"
 	VMStatusConfiguring    VMStatus = "configuring"
 
+	VMCloneDiskSizeGB uint = 4 // Minimum disk size in GB for a VM clone
+
 	ErrVMNotFound     error = errors.New("VM not found")
 	ErrInvalidVMState error = errors.New("invalid VM state for this action")
+	ErrInvalidVMParam error = errors.New("invalid VM parameter")
 )
 
 type VM struct {
@@ -87,6 +90,15 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 }
 
 func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+
+	if cores < 1 {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
+	} else if ram < 512 {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
+	} else if disk < VMCloneDiskSizeGB {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
+	}
+
 	user, err := db.GetUserByID(userID)
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get user from database")
@@ -311,25 +323,31 @@ func TestEndpointClone() {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		node, err := client.Node(ctx, cTemplate.Node)
-		cancel() // Cancel immediately after the call
-
+		node, err := getProxmoxNode(client, cTemplate.Node)
 		if err != nil {
 			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		vm, err := node.VirtualMachine(ctx, cTemplate.VMID)
-		cancel()
+		vm, err := getProxmoxVM(node, cTemplate.VMID)
 		if err != nil {
 			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
 			wasError = true
 		} else if first {
 			logger.Info("Proxmox VM is ready for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
 			first = false
+
+			s, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
+			if ok {
+				sto, err := parseStorageFromString(s)
+				if err != nil {
+					logger.Error("Failed to parse storage from VM config", "vmid", cTemplate.VMID, "error", err)
+				} else {
+					VMCloneDiskSizeGB = sto.Size
+				}
+			}
+
 		} else if wasError {
 			logger.Info("Proxmox VM is back online for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
 			wasError = false

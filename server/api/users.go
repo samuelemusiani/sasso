@@ -118,7 +118,6 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func listUsers(w http.ResponseWriter, r *http.Request) {
@@ -150,8 +149,6 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode users to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +189,6 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 type updateUserLimitsRequest struct {
@@ -215,5 +211,5 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }

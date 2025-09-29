@@ -17,6 +17,8 @@ type Net struct {
 
 	UserID uint   `gorm:"not null"`
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','creating','deleting','pre-creating','pre-deleting')"`
+
+	PortForwards []PortForward `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
 }
 
 func initNetworks() error {
@@ -70,6 +72,27 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 		return nil, err
 	}
 	return nets, nil
+}
+
+func GetSubnetsByUserID(userID uint) ([]string, error) {
+	var subnets []string
+	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get subnets for user")
+		return nil, err
+	}
+	return subnets, nil
+}
+
+func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
+	var count int64
+
+	addressLike := address + "/%"
+
+	if err := db.Model(&Net{}).Where("gateway LIKE ? OR broadcast LIKE ?", addressLike, addressLike).Count(&count).Error; err != nil {
+		logger.With("address", address, "error", err).Error("Failed to check if address is a gateway or broadcast")
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
@@ -139,4 +162,13 @@ func GetAllNets() ([]Net, error) {
 		return nil, err
 	}
 	return nets, nil
+}
+
+func GetVNetBySubnet(subnet string) (*Net, error) {
+	var net Net
+	if err := db.Where("subnet = ?", subnet).First(&net).Error; err != nil {
+		logger.With("subnet", subnet, "error", err).Error("Failed to find network by subnet")
+		return nil, err
+	}
+	return &net, nil
 }

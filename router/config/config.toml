@@ -29,3 +29,10 @@ type = "linux"
 [gaeteway.linux]
 port = 4789
 peers = ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
+
+[firewall]
+type = "shorewall"
+
+[firewall.shorewall]
+external_zone = "out"
+vm_zone = "sasso"

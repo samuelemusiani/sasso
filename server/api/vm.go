@@ -23,8 +23,6 @@ func vms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode VMs to JSON", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 type newVMRequest struct {
@@ -47,6 +45,8 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
+		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			logger.With("userID", userID, "error", err).Error("Failed to create new VM")
 			http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
@@ -73,8 +73,6 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode VM to JSON", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {

@@ -49,16 +49,20 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := mustGetUserIDFromContext(r)
+
 	n, err := db.GetNetByID(req.VNetID)
 	if err != nil {
 		http.Error(w, "vnet not found", http.StatusBadRequest)
 		return
 	}
 
-	userID := mustGetUserIDFromContext(r)
-
 	if n.UserID != userID {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+		return
+	}
+	if !n.VlanAware && req.VlanTag != 0 {
+		http.Error(w, "vlan_tag must be 0 for non-vlan-aware vnets", http.StatusBadRequest)
 		return
 	}
 
@@ -69,7 +73,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqIPAdd.GetNetworkPrefixLen() == nil {
+	if !reqIPAdd.IsPrefixed() {
 		http.Error(w, "ip_add must have a subnet mask", http.StatusBadRequest)
 		return
 	}
@@ -80,7 +84,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqGateway.GetNetworkPrefixLen() != nil {
+	if reqGateway.IsPrefixed() {
 		http.Error(w, "gateway must not have a subnet mask", http.StatusBadRequest)
 		return
 	}
@@ -127,8 +131,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func deleteInterface(w http.ResponseWriter, r *http.Request) {

@@ -61,7 +61,6 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 }
 
 func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	logger.Info("Deleting nets", "nets", nets)
 	localNets, err := db.GetAllSubnets()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get all subnets from DB")
@@ -70,47 +69,46 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 	for _, ln := range localNets {
 		f := func(n internal.Net) bool { return n.Subnet == ln.Subnet }
-		if slices.IndexFunc(nets, f) == -1 {
-			logger.Info("Deleting net", "subnet", ln.Subnet)
-
-			iface, err := db.GetInterfaceByID(ln.InterfaceID)
-			if err != nil {
-				logger.With("error", err).Error("Failed to get interface from DB")
-				continue
-			}
-			err = shorewall.RemoveRule(shorewall.Rule{
-				Action:      "ACCEPT",
-				Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
-				Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
-			})
-			if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
-				logger.With("error", err).Error("Failed to delete firewall rule")
-				continue
-			}
-
-			if err = shorewall.Reload(); err != nil {
-				logger.With("error", err).Error("Failed to reload firewall")
-				continue
-			}
-
-			err = db.RemoveSubnet(ln.Subnet)
-			if err != nil {
-				logger.With("error", err).Error("Failed to remove subnet from DB")
-				continue
-			}
-
-			logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
+		if slices.IndexFunc(nets, f) != -1 {
+			continue
 		}
+
+		logger.Info("Deleting net", "subnet", ln.Subnet)
+
+		iface, err := db.GetInterfaceByID(ln.InterfaceID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get interface from DB")
+			continue
+		}
+		err = shorewall.RemoveRule(shorewall.Rule{
+			Action:      "ACCEPT",
+			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
+			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
+		})
+		if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
+			logger.With("error", err).Error("Failed to delete firewall rule")
+			continue
+		}
+
+		if err = shorewall.Reload(); err != nil {
+			logger.With("error", err).Error("Failed to reload firewall")
+			continue
+		}
+
+		err = db.RemoveSubnet(ln.Subnet)
+		if err != nil {
+			logger.With("error", err).Error("Failed to remove subnet from DB")
+			continue
+		}
+
+		logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
 	}
 	return nil
 }
 
 func createInterfaces(logger *slog.Logger, users []internal.User) error {
-	logger.Info("Creating interfaces", "users", users)
-
 	for _, u := range users {
 		_, err := db.GetInterfaceByUserID(u.ID)
-		logger.Info("Checking interface for user", "user_id", u.ID)
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.With("error", err).Error("Failed to get interface from DB")
@@ -119,6 +117,7 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 			// Interface already exists, skip
 			continue
 		}
+		logger.Info("Creating new interface", "user_id", u.ID)
 
 		newAddr, err := util.NextAvailableAddress()
 		if err != nil {
@@ -145,15 +144,11 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 }
 
 func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	logger.Info("Enabling nets", "nets", nets)
-
 	for _, n := range nets {
 		if n.Subnet == "" {
 			// When just created, the net has no subnet assigned yet
 			continue
 		}
-
-		logger.Info("Processing net", "net", n)
 
 		// Check if the subnet associated to the net already exists in the DB
 		exist, err := db.CheckSubnetExists(n.Subnet)
@@ -164,9 +159,10 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		// If it exists, skip it
 		if exist {
-			logger.Info("Subnet already exists, skipping", "subnet", n.Subnet)
 			continue
 		}
+
+		logger.Debug("Enabling net", "net", n.Subnet)
 
 		iface, err := db.GetInterfaceByUserID(n.UserID)
 		if err != nil {
@@ -214,8 +210,6 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		logger.With("error", err).Error("Failed to fetch VPN configs from main server")
 		return err
 	}
-
-	logger.With("vpns", vpns).Info("Fetched VPN configs from main server")
 
 	localInterfaces, err := db.GetAllInterfaces()
 	if err != nil {

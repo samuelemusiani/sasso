@@ -49,7 +49,6 @@ func listRealms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode realms to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func addRealm(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +177,6 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode Realm to JSON", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func deleteRealm(w http.ResponseWriter, r *http.Request) {

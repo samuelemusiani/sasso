@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onBeforeUnmount } from 'vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
 
@@ -87,8 +87,19 @@ function restartVM(vmid: number) {
     })
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchVMs()
+  intervalId = setInterval(() => {
+    fetchVMs()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
@@ -176,8 +187,13 @@ onMounted(() => {
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2">
               <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary mr-4"
-                >Interfaces</RouterLink
-              >
+                >Interfaces
+              </RouterLink>
+              <RouterLink
+                :to="`/vm/${vm.id}/backups`"
+                class="text-orange-600 hover:text-orange-900 mr-4"
+                >Backups
+              </RouterLink>
               <button
                 v-if="vm.status === 'stopped'"
                 @click="startVM(vm.id)"

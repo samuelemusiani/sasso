@@ -31,12 +31,12 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	// Middleware
 	router.Use(middleware.RealIP)
-	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.CleanPath)
 
 	apiRouter := chi.NewRouter()
 
+	apiRouter.Use(middleware.Logger)
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
 	tokenAuth = jwtauth.New("HS256", key, nil)
@@ -60,7 +60,6 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 		// Group VM-specific endpoints with additional middleware
 		r.Route("/vm/{vmid}", func(r chi.Router) {
-			// Add VM-specific middleware here (e.g., VM ownership validation)
 			r.Use(validateVMOwnership())
 
 			r.Get("/", getVM)
@@ -80,6 +79,16 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 				r.Put("/", updateInterface)
 				r.Delete("/", deleteInterface)
 			})
+
+			r.Get("/backup", listBackups)
+			r.Post("/backup", createBackup)
+
+			r.Delete("/backup/{backupid}", deleteBackup)
+			r.Post("/backup/{backupid}/restore", restoreBackup)
+			r.Post("/backup/{backupid}/protect", protectBackup)
+
+			r.Get("/backup/request", listBackupRequests)
+			r.Get("/backup/request/{requestid}", getBackupRequest)
 		})
 
 		r.Post("/net", createNet)
@@ -91,6 +100,10 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
 		r.Get("/vpn", getUserVPNConfig)
+
+		r.Get("/port-forwards", listPortForwards)
+		r.Post("/port-forwards", addPortForward)
+		r.Delete("/port-forwards/{id}", deletePortForward)
 	})
 
 	// Admin Auth routes
@@ -111,6 +124,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/admin/ssh-keys/global", getGlobalSSHKeys)
 		r.Post("/admin/ssh-keys/global", addGlobalSSHKey)
 		r.Delete("/admin/ssh-keys/global/{id}", deleteGlobalSSHKey)
+
+		r.Get("/admin/port-forwards", listAllPortForwards)
+		r.Put("/admin/port-forwards/{id}", approvePortForward)
 	})
 
 	// Internal routes
@@ -125,6 +141,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Put("/vpn", updateVPNConfig)
 
 		r.Get("/user", listUsers)
+
+		r.Get("/port-forwards", internalListProtForwards)
 	})
 
 	router.Mount("/api", apiRouter)
@@ -155,7 +173,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 
 		f, err := fs.ReadFile(ui_fs, p)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				// If the file does not exists it could be a route that the SPA router
 				// would catch. We serve the index.html instead
 

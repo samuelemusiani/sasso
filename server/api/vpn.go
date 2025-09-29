@@ -28,8 +28,6 @@ func updateVPNConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to update VPN config", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
@@ -54,8 +52,6 @@ func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode VPN configs", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {

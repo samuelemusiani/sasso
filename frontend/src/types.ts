@@ -57,3 +57,38 @@ export interface Interface {
   gateway: string
   status: string
 }
+
+export interface PortForward {
+  id: number
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+}
+
+export interface AdminPortForward {
+  id: number
+  out_port: number
+  dest_port: number
+  dest_ip: string
+  approved: boolean
+  username: string
+}
+
+export interface Backup {
+  id: string
+  ctime: string
+  can_delete: boolean
+  name: string
+  notes: string
+  protected: boolean
+}
+
+export interface BackupRequest {
+  id: number
+  created_at: string
+
+  type: string
+  status: string
+  vmid: number
+}

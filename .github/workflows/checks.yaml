@@ -34,3 +34,4 @@ jobs:
 
       - name: Check lint
         run: just frontend-lint
+

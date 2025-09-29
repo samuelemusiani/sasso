@@ -211,3 +211,25 @@ func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption
 
 	return waitForProxmoxTaskCompletion(task)
 }
+
+func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	s, err := node.Storage(ctx, storage)
+	cancel()
+	if err != nil {
+		logger.Error("Failed to get Proxmox Storage", "error", err, "node", node.Name, "storage", storage)
+		return nil, err
+	}
+	return s, nil
+}
+
+func getProxmoxStorageContent(s *proxmox.Storage) ([]*proxmox.StorageContent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	content, err := s.GetContent(ctx)
+	cancel()
+	if err != nil {
+		logger.Error("Failed to get Proxmox Storage content", "error", err, "storage", s.Name)
+		return nil, err
+	}
+	return content, nil
+}
