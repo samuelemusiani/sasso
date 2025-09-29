@@ -32,23 +32,23 @@ func Init(l *slog.Logger, config *config.Wireguard, iface string) {
 	interfaceName = iface
 }
 
-type WGInterface struct {
+type WGPeer struct {
 	Address    string
 	PrivateKey string
 	PublicKey  string
 }
 
-func NewWGConfig(address string) (*WGInterface, error) {
+func NewWGConfig(address string) (*WGPeer, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		logger.With("err", err).Error("Error generating keys")
 		return nil, err
 	}
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
-	return &WGInterface{address, privateKey, publicKey}, nil
+	return &WGPeer{address, privateKey, publicKey}, nil
 }
 
-func (WG *WGInterface) String() string {
+func (WG *WGPeer) String() string {
 	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
@@ -75,13 +75,13 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 	return stdout.String(), stderr.String(), err
 }
 
-func CreateInterface(i *WGInterface) error {
+func CreatePeer(i *WGPeer) error {
 	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
-		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
+		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard peer")
 		return err
 	}
-	logger.Info("WireGuard interface created", "stdout", stdout, "stderr", stderr)
+	logger.Info("WireGuard peer created", "stdout", stdout, "stderr", stderr)
 	return nil
 }
 
@@ -99,8 +99,8 @@ func genKeys() (string, string, error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
-func InterfaceFromDB(iface *db.Interface) WGInterface {
-	return WGInterface{
+func PeerFromDB(iface *db.Peer) WGPeer {
+	return WGPeer{
 		Address:    iface.Address,
 		PrivateKey: iface.PrivateKey,
 		PublicKey:  iface.PublicKey,

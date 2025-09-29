@@ -36,7 +36,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			continue
 		}
 
-		err = createInterfaces(logger, users)
+		err = createPeers(logger, users)
 		if err != nil {
 			logger.With("error", err).Error("Failed to create VNets")
 		}
@@ -75,9 +75,9 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 		logger.Info("Deleting net", "subnet", ln.Subnet)
 
-		iface, err := db.GetInterfaceByID(ln.InterfaceID)
+		iface, err := db.GetPeerByID(ln.PeerID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get interface from DB")
+			logger.With("error", err).Error("Failed to get peer from DB")
 			continue
 		}
 		err = shorewall.RemoveRule(shorewall.Rule{
@@ -106,18 +106,18 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 	return nil
 }
 
-func createInterfaces(logger *slog.Logger, users []internal.User) error {
+func createPeers(logger *slog.Logger, users []internal.User) error {
 	for _, u := range users {
-		_, err := db.GetInterfaceByUserID(u.ID)
+		_, err := db.GetPeerByUserID(u.ID)
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.With("error", err).Error("Failed to get interface from DB")
+			logger.With("error", err).Error("Failed to get peer from DB")
 			continue
 		} else if err == nil {
-			// Interface already exists, skip
+			// peer already exists, skip
 			continue
 		}
-		logger.Info("Creating new interface", "user_id", u.ID)
+		logger.Info("Creating new peer", "user_id", u.ID)
 
 		newAddr, err := util.NextAvailableAddress()
 		if err != nil {
@@ -125,19 +125,19 @@ func createInterfaces(logger *slog.Logger, users []internal.User) error {
 			continue
 		}
 
-		wgInterface, err := wg.NewWGConfig(newAddr)
+		wgPeer, err := wg.NewWGConfig(newAddr)
 		if err != nil {
 			logger.With("error", err).Error("Failed to generate WireGuard config")
 			continue
 		}
 
-		err = db.NewInterface(wgInterface.PrivateKey, wgInterface.PublicKey, newAddr, u.ID)
+		err = db.NewPeer(wgPeer.PrivateKey, wgPeer.PublicKey, newAddr, u.ID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to save interface to database")
+			logger.With("error", err).Error("Failed to save peer to database")
 			continue
 		}
 
-		logger.Info("Successfully created new interface", "user_id", u.ID, "address", newAddr)
+		logger.Info("Successfully created new peer", "user_id", u.ID, "address", newAddr)
 	}
 
 	return nil
@@ -164,9 +164,9 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		logger.Debug("Enabling net", "net", n.Subnet)
 
-		iface, err := db.GetInterfaceByUserID(n.UserID)
+		iface, err := db.GetPeerByUserID(n.UserID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get interface from DB")
+			logger.With("error", err).Error("Failed to get peer from DB")
 			continue
 		}
 
@@ -186,10 +186,10 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		wgIface := wg.InterfaceFromDB(iface)
-		err = wg.CreateInterface(&wgIface)
+		wgIface := wg.PeerFromDB(iface)
+		err = wg.CreatePeer(&wgIface)
 		if err != nil {
-			logger.With("error", err).Error("Failed to create WireGuard interface")
+			logger.With("error", err).Error("Failed to create WireGuard peer")
 			continue
 		}
 
@@ -211,13 +211,13 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		return err
 	}
 
-	localInterfaces, err := db.GetAllInterfaces()
+	localPeers, err := db.GetAllPeers()
 	if err != nil {
-		logger.With("error", err).Error("Failed to fetch local interfaces from DB")
+		logger.With("error", err).Error("Failed to fetch local peers from DB")
 		return err
 	}
 
-	for _, i := range localInterfaces {
+	for _, i := range localPeers {
 		if slices.IndexFunc(vpns, func(v internal.VPNUpdate) bool { return v.UserID == i.UserID }) == -1 {
 			vpns = append(vpns, internal.VPNUpdate{
 				UserID:    i.UserID,
@@ -227,13 +227,13 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 	}
 
 	for _, v := range vpns {
-		iface, err := db.GetInterfaceByUserID(v.UserID)
+		iface, err := db.GetPeerByUserID(v.UserID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get interface from DB")
+			logger.With("error", err).Error("Failed to get Peer from DB")
 			continue
 		}
 
-		wgIface := wg.InterfaceFromDB(iface)
+		wgIface := wg.PeerFromDB(iface)
 		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
 		if base64Conf == v.VPNConfig {
 			continue
