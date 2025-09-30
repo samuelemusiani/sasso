@@ -210,7 +210,8 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 		} else {
 			logger.With("err", err).Debug("Ldap search for admin group returned no entries")
 		}
-	} else if a.MaintainerGroup != "" {
+	}
+	if a.MaintainerGroup != "" && role == db.RoleUser {
 		searchRequestGroup := ldap.NewSearchRequest(
 			a.GroupBaseDN,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
