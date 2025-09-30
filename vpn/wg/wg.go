@@ -137,6 +137,11 @@ func ParsePeers() (map[string]WGPeer, error) {
 		}
 		fields := strings.Split(l, "\t")
 
+		if len(fields) < 4 {
+			// not enough fields, error
+			return nil, fmt.Errorf("not enough fields in wg show dump output")
+		}
+
 		publicKey := fields[0]
 		privateKey := fields[1]
 		allowedIps := fields[3]
