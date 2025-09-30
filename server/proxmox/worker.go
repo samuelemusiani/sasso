@@ -504,6 +504,14 @@ func configureVMs() {
 				logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
 				continue
 			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			err = vm.RegenerateCloudInitImage(ctx)
+			cancel()
+			if err != nil {
+				logger.With("vmid", v.ID, "err", err).Error("Failed to regenerate cloud init image on VM")
+				continue
+			}
 		}
 
 		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
