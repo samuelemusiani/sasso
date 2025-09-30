@@ -85,6 +85,28 @@ func CreatePeer(i *WGPeer) error {
 	return nil
 }
 
+func DeletePeer(i *WGPeer) error {
+	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "remove")
+	if err != nil {
+		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error deleting WireGuard peer")
+		return err
+	}
+	logger.Info("WireGuard peer deleted", "stdout", stdout, "stderr", stderr)
+	return nil
+}
+
+func UpdatePeer(i *WGPeer) error {
+	err := DeletePeer(i)
+	if err != nil {
+		return err
+	}
+	err = CreatePeer(i)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func genKeys() (string, string, error) {
 	privateKey, stderr, err := executeCommand("wg", "genkey")
 	if err != nil {
@@ -99,7 +121,7 @@ func genKeys() (string, string, error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
-func parsePeers() (map[string]WGPeer, error) {
+func ParsePeers() (map[string]WGPeer, error) {
 	stdout, stderr, err := executeCommand("wg", "show", interfaceName, "dump")
 	if err != nil {
 		logger.With("err", err, "stderr", stderr).Error("Error dumping peers")

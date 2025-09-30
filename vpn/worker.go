@@ -22,6 +22,14 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 	logger.Info("Worker started")
 
 	for {
+		// check peers
+		err := checkPeers(logger)
+		if err != nil {
+			logger.With("error", err).Error("Failed to check peers")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
 		nets, err := internal.FetchNets(serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
 			logger.With("error", err).Error("Failed to fetch nets status from main server")
@@ -140,6 +148,58 @@ func createPeers(logger *slog.Logger, users []internal.User) error {
 		logger.Info("Successfully created new peer", "user_id", u.ID, "address", newAddr)
 	}
 
+	return nil
+}
+
+func checkPeers(logger *slog.Logger) error {
+	dbPeers, err := db.GetAllPeers()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get peers from database")
+		return err
+	}
+
+	wgPeers, err := wg.ParsePeers()
+	if err != nil {
+		logger.With("error", err).Error("Failed to parse WireGuard peers")
+		return err
+	}
+
+	for _, peer := range dbPeers {
+		dbp := wg.PeerFromDB(&peer)
+		wgp, ok := wgPeers[dbp.PublicKey]
+		if !ok {
+			// not present, recreate it
+			logger.Info("Peer not found in WireGuard config", "public_key", dbp.PublicKey)
+			err = wg.CreatePeer(&wgp)
+			if err != nil {
+				logger.With("error", err).Error("Failed to create peer")
+				return err
+			}
+		} else {
+			// is present, check if it's up to date
+			if wgp.Address != dbp.Address {
+				logger.Info("Peer address mismatch", "db_address", dbp.Address, "wg_address", wgp.Address)
+				// recreate it with the correct fields
+				err := wg.UpdatePeer(&dbp)
+				if err != nil {
+					logger.With("error", err).Error("Failed to update peer")
+					return err
+				}
+			}
+
+			// delete present peers from the map, so that only peers not present in the database are left
+			delete(wgPeers, dbp.PublicKey)
+		}
+	}
+
+	// delete peers in wireguard that are not present in the database
+	for _, peer := range wgPeers {
+		err := wg.DeletePeer(&peer)
+		if err != nil {
+			logger.With("error", err).Error("Failed to delete peer")
+			return err
+		}
+	}
 	return nil
 }
 
