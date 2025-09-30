@@ -61,16 +61,14 @@ const maskedConfig = computed(() => {
 
 <template>
   <div class="p-2 flex flex-col gap-4">
+    <h2 class="card-title text-base-content flex items-center gap-3">
+      <IconVue icon="material-symbols:settings" class="text-primary text-2xl" />
+      File di Configurazione WireGuard
+    </h2>
     <div class="flex items-center gap-2">
-      <button
-        @click="copyConfig()"
-        class="btn btn-outline btn-sm gap-2 rounded-lg"
-        :class="copySuccess ? 'btn-success' : 'btn-primary'"
-      >
-        <IconVue
-          :icon="copySuccess ? 'material-symbols:check' : 'material-symbols:content-copy'"
-          class="text-lg"
-        />
+      <button @click="copyConfig()" class="btn btn-outline btn-sm gap-2 rounded-lg"
+        :class="copySuccess ? 'btn-success' : 'btn-primary'">
+        <IconVue :icon="copySuccess ? 'material-symbols:check' : 'material-symbols:content-copy'" class="text-lg" />
         {{ copySuccess ? 'Copied!' : 'Copy' }}
       </button>
 
@@ -83,9 +81,9 @@ const maskedConfig = computed(() => {
       <div class="flex items-center justify-between mb-2">
         <p class="text-xs text-base-content/60 font-semibold mb-2">sasso-wireguard.conf</p>
         <button class="badge badge-warning badge-sm" @click="showKeys = !showKeys">
-          <IconVue v-if="!showKeys" icon="material-symbols:visibility-off" class="text-xs mr-1" />
-          <IconVue v-else icon="material-symbols:visibility" class="text-xs mr-1" />
-          {{ showKeys ? 'hide' : 'show' }} keys
+          <IconVue v-if="showKeys" icon="material-symbols:visibility-off" class="text-xs" />
+          <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
+          {{ showKeys ? 'Hide' : 'Show' }} keys
         </button>
       </div>
       {{ showKeys ? vpnConfig : maskedConfig }}
