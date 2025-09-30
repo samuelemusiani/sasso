@@ -85,35 +85,10 @@ onMounted(() => {
 <template>
   <div class="p-2 flex flex-col gap-2">
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
-      to="/vm"
-    >
-      Back to VMs
-    </RouterLink>
 
-    <div class="my-4">
-      <button
-        v-if="!showAddForm && !editingInterface"
-        @click="showAddForm = true"
-        class="bg-green-400 p-2 rounded-lg hover:bg-success"
-      >
-        Add New Interface
-      </button>
-      <InterfaceForm
-        v-if="showAddForm"
-        :vmid="vmid"
-        @interface-added="handleInterfaceAdded"
-        @cancel="handleCancel"
-      />
-      <InterfaceForm
-        v-if="editingInterface"
-        :vmid="vmid"
-        :interface="editingInterface"
-        @interface-updated="handleInterfaceUpdated"
-        @cancel="handleCancel"
-      />
-    </div>
+    <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
+    <InterfaceForm v-if="editingInterface" :vmid="vmid" :interface="editingInterface"
+      @interface-updated="handleInterfaceUpdated" @cancel="handleCancel" />
     <div class="alert alert-warning p-4" role="alert">
       <p class="font-bold">Warning</p>
       <p>
@@ -137,40 +112,22 @@ onMounted(() => {
       <table class="min-w-full divide-y divide-base-content">
         <thead class="bg-base-100">
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               ID
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Network
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               VLAN Tag
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               IP Address
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Gateway
             </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
@@ -184,9 +141,7 @@ onMounted(() => {
             <td class="px-6 py-4 whitespace-nowrap">{{ iface.ip_add }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ iface.gateway }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ iface.status }}</td>
-            <td
-              class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
-            >
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end">
               <button @click="showEditForm(iface)" class="btn btn-primary p-2 rounded-lg">
                 Edit
               </button>

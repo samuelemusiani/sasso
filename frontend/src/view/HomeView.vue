@@ -13,8 +13,8 @@ function fetchWhoami() {
     .then((res) => {
       whoami.value = res.data as User;
       stats.value = [
-        { item: "Core", icon: "heroicons-solid:chip", percent: whoami.value.max_cores , color: 'primary'},
-        { item: "Nets", icon: "ph:network", percent: whoami.value.max_nets, color: 'secondary'},
+        { item: "Core", icon: "heroicons-solid:chip", percent: whoami.value.max_cores, color: 'primary' },
+        { item: "Nets", icon: "ph:network", percent: whoami.value.max_nets, color: 'secondary' },
         { item: "RAM", icon: "fluent:ram-20-regular", percent: whoami.value.max_ram, color: 'success' },
         { item: "Disk", icon: "mingcute:storage-line", percent: whoami.value.max_disk, color: 'accent' },
       ]
@@ -32,11 +32,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full">
+  <div class="h-full overflow-auto">
     <h1 class="text-3xl font-bold my-3">Hi {{ whoami?.username }}!</h1>
-      <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
-    <div class="flex justify-between gap-4">
-      <UserStats v-for="stat in stats" :key="stat.item" :item="stat.item" :icon="stat.icon" :percent="stat.percent" :color="stat.color" />
+    <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
+    <div class="flex flex-wrap justify-around gap-4">
+      <UserStats v-for="stat in stats" :key="stat.item" :item="stat.item" :icon="stat.icon" :percent="stat.percent"
+        :color="stat.color" />
     </div>
   </div>
 </template>

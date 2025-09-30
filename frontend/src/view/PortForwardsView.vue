@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { PortForward } from '@/types'
 import { api } from '@/lib/api'
+import CreateNew from '@/components/CreateNew.vue'
 
 const pfs = ref<PortForward[]>([])
 const port = ref(0)
@@ -54,16 +55,14 @@ onMounted(() => {
 
 <template>
   <div class="p-2 flex flex-col gap-2">
-    <div>This is the Port Forwards view for <b>sasso</b>!</div>
+    <CreateNew title="Port Forward" :create="requestPortForward">
     <div class="flex gap-2 items-center">
-      <label for="name">Destination Port:</label>
-      <input type="number" id="name" v-model="port" class="border p-2 rounded-lg w-48" />
-      <label for="key">Destinatio IP:</label>
-      <input type="text" id="key" v-model="ip" class="border p-2 rounded-lg w-96" />
-      <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="requestPortForward()">
-        Request Port Forward
-      </button>
+      <label for="name">Destination Port</label>
+      <input type="number" id="name" v-model="port" class="input border p-2 rounded-lg w-48" />
+      <label for="key">Destination IP</label>
+      <input type="text" id="key" v-model="ip" class="input border p-2 rounded-lg w-96" />
     </div>
+    </CreateNew>
 
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">

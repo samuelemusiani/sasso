@@ -24,13 +24,6 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg min-w-32 block text-center mb-4 max-w-96"
-      to="/"
-    >
-      Back to Home
-    </RouterLink>
-    <div class="font-bold text-lg">VPN configuration for <b>sasso</b>!</div>
     <!-- TODO: add copy and download btn -->
     <p class="whitespace-pre bg-base-100 p-3 rounded-lg mt-4">
       {{ vpnConfig }}

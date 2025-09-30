@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
+import CreateNew from '../CreateNew.vue';
 
 const $props = defineProps<{
   vmid: number
@@ -93,12 +94,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 bg-base-100 rounded-lg">
-    <h2 class="text-xl mb-4">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
+  <CreateNew title="Interface" :create="handleSubmit">
+    <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
         <label for="net" class="block text-sm font-medium">Network:</label>
-        <select id="net" v-model="form.vnet_id" class="border p-2 rounded-lg w-full">
+        <select id="net" v-model="form.vnet_id" class="select rounded-lg w-full">
           <option v-for="net in nets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
@@ -109,33 +110,20 @@ onMounted(() => {
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div>
+        <!-- FIXME: do this only if the net is vlanaware -->
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
-        <input
-          type="number"
-          id="vlan_tag"
-          v-model.number="form.vlan_tag"
-          class="border p-2 rounded-lg w-full"
-        />
+        <input type="number" id="vlan_tag" v-model.number="form.vlan_tag" class="input rounded-lg w-full" />
       </div>
       <div>
+        <!-- TODO: is needed to /24 -->
         <label for="ip_add" class="block text-sm font-medium">IP Address:</label>
-        <input type="text" id="ip_add" v-model="form.ip_add" class="border p-2 rounded-lg w-full" />
+        <input type="text" id="ip_add" v-model="form.ip_add" class="input rounded-lg w-full" />
       </div>
       <div>
+        <!-- TODO: no /24  -->
         <label for="gateway" class="block text-sm font-medium">Gateway:</label>
-        <input
-          type="text"
-          id="gateway"
-          v-model="form.gateway"
-          class="border p-2 rounded-lg w-full"
-        />
-      </div>
-      <div class="flex gap-2">
-        <button type="submit" class="btn btn-info">
-          {{ editing ? 'Update' : 'Add' }}
-        </button>
-        <button @click="$emit('cancel')" type="button" class="btn btn-error">Cancel</button>
+        <input type="text" id="gateway" v-model="form.gateway" class="input rounded-lg w-full" />
       </div>
     </form>
-  </div>
+  </CreateNew>
 </template>

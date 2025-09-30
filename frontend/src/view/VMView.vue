@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, onBeforeUnmount } from 'vue'
+import CreateNew from '@/components/CreateNew.vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
 
@@ -8,6 +9,7 @@ const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
 const include_global_ssh_keys = ref(true)
+let openCreate = ref(false)
 
 function fetchVMs() {
   api
@@ -89,6 +91,8 @@ function restartVM(vmid: number) {
 
 let intervalId: number | null = null
 
+// pre-creating, pre-deleting, deleting, creating, running, stopped, suspended, unknown, pre-configuring, configuring
+
 onMounted(() => {
   fetchVMs()
   intervalId = setInterval(() => {
@@ -104,39 +108,30 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
+  <div class="flex flex-col gap-2 overflow-y-auto">
     <h1 class="text-3xl font-bold flex items-center gap-2">
       <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
     </h1>
 
-    <div>
-      <button class="btn btn-primary rounded-xl" @click="openCreate = !openCreate">
-        <IconVue icon="mi:add" class="text-xl"></IconVue>{{openCreate? 'Close':'Create VM'}}
-      </button>
-    </div>
-    <div v-if="openCreate">
-      <div class="p-4 border border-primary rounded-xl bg-base-200 flex flex-col gap-4 w-full h-full">
-        <div>
-          <label for="cores">CPU Cores:</label>
-          <input type="number" id="cores" v-model="cores" class="input w-full border p-2 rounded-lg w-24" />
-        </div>
-        <div>
-          <label for="ram">RAM (MB):</label>
-          <input type="number" id="ram" v-model="ram" class="input w-full border p-2 rounded-lg w-24" />
-        </div>
-        <div>
-          <label for="disk">Disk (GB):</label>
-          <input type="number" id="disk" v-model="disk" class="input w-full border rounded-lg w-24" />
-        </div>
-        <div class="flex items-center">
-          <input type="checkbox" id="include_global_ssh_keys" v-model="include_global_ssh_keys"
-            class="checkbox checkbox-primary" />
-          <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
-        </div>
-        <button class="btn btn-success p-2 rounded-lg" @click="createVM()">Create VM</button>
-
+    <CreateNew title="Create New VM" :create="createVM">
+      <div>
+        <label for="cores">CPU Cores:</label>
+        <input type="number" id="cores" v-model="cores" class="input w-full border p-2 rounded-lg w-24" />
       </div>
-    </div>
+      <div>
+        <label for="ram">RAM (MB):</label>
+        <input type="number" id="ram" v-model="ram" class="input w-full border p-2 rounded-lg w-24" />
+      </div>
+      <div>
+        <label for="disk">Disk (GB)</label>
+        <input type="number" id="disk" v-model="disk" class="input w-full border rounded-lg w-24" />
+      </div>
+      <div class="flex items-center">
+        <input type="checkbox" id="include_global_ssh_keys" v-model="include_global_ssh_keys"
+          class="checkbox checkbox-primary" />
+        <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
+      </div>
+    </CreateNew>
 
     <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
@@ -154,50 +149,47 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="overflow-x-auto">
-      <table class="table min-w-full *:text-base-content">
+      <table class="table">
         <thead>
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="text-xs uppercase">
               ID
             </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="text-xs uppercase">
               Cores
             </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="text-xs uppercase">
               RAM (MB)
             </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="text-xs uppercase">
               Disk (GB)
             </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="text-xs uppercase">
               Status
             </th>
-            <th scope="col" class="relative px-6 py-3">
+            <th scope="col" class="relative">
               <span class="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
         <tbody class="divide-y">
           <tr v-for="vm in vms" :key="vm.id">
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.cores }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.ram }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2">
-              <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary mr-4"
-                >Interfaces
+            <td class="">{{ vm.id }}</td>
+            <td class="">{{ vm.cores }}</td>
+            <td class="">{{ vm.ram }}</td>
+            <td class="">{{ vm.disk }}</td>
+            <td class="">{{ vm.status }}</td>
+            <td class=" flex gap-2 items-center">
+              <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary btn-sm md:btn-md rounded-lg">
+                <IconVue icon="material-symbols:network-node" class="text-lg" />
+                <p class="hidden md:inline">Interfaces</p>
               </RouterLink>
-              <RouterLink
-                :to="`/vm/${vm.id}/backups`"
-                class="text-orange-600 hover:text-orange-900 mr-4"
-                >Backups
+              <RouterLink :to="`/vm/${vm.id}/backups`" class="btn btn-secondary btn-sm md:btn-md rounded-lg">
+                <IconVue icon="material-symbols:backup" class="text-lg" />
+                <p class="hidden md:inline">Backup</p>
               </RouterLink>
-              <button
-                v-if="vm.status === 'stopped'"
-                @click="startVM(vm.id)"
-                class="btn btn-success rounded-lg btn-outline"
-              >
+              <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)"
+                class="btn btn-success rounded-lg btn-outline">
                 Start
               </button>
               <button v-if="vm.status === 'running'" @click="stopVM(vm.id)"
@@ -208,8 +200,9 @@ onBeforeUnmount(() => {
                 class="btn btn-info rounded-lg btn-outline">
                 Restart
               </button>
-              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg btn-outline">
-                Delete
+              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline">
+                <IconVue icon="material-symbols:delete" class="text-lg" />
+                <p class="hidden md:inline">Delete</p>
               </button>
             </td>
           </tr>

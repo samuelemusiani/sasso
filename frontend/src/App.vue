@@ -8,11 +8,15 @@ console.log('Current route:', router.currentRoute.value)
 
 <template>
   <main
-    class="flex w-full h-screen overflow-auto bg-[url(/sasso-pattern.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]"
-  >
+    class="flex w-full h-screen overflow-auto bg-[url(/sasso-pattern.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]">
     <SidePanel v-if="router.currentRoute.value.path !== '/login'" />
-    <div class="backdrop-blur-xl bg-base-200 p-4 rounded-2xl m-6 w-full">
-      <RouterView />
+
+    <div class="flex-1 overflow-auto">
+      <div class="backdrop-blur-xl bg-base-200 p-4 rounded-2xl m-6">
+        <RouterView />
+      </div>
     </div>
   </main>
 </template>
+
+<!-- TODO: ip/24 converter -->
