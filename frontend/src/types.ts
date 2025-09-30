@@ -28,9 +28,12 @@ export interface Realm {
 
 export interface LDAPRealm extends Realm {
   url: string
-  base_dn: string
+  user_base_dn: string
+  group_base_dn: string
   bind_dn: string
   password: string
+  admin_group: string
+  maintainer_group: string
 }
 
 export interface Net {

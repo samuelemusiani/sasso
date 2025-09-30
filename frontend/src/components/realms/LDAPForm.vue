@@ -11,9 +11,12 @@ const $props = defineProps<{
 const name = ref($props.realm ? $props.realm.name : '')
 const description = ref($props.realm ? $props.realm.description : '')
 const url = ref($props.realm ? $props.realm.url : '')
-const baseDN = ref($props.realm ? $props.realm.base_dn : '')
+const userBaseDN = ref($props.realm ? $props.realm.user_base_dn : '')
+const groupBaseDN = ref($props.realm ? $props.realm.group_base_dn : '')
 const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
+const adminGroup = ref($props.realm ? $props.realm.admin_group : '')
+const maintainerGroup = ref($props.realm ? $props.realm.maintainer_group : '')
 
 const editing = ref(!!$props.realm)
 
@@ -22,10 +25,13 @@ function addRealm() {
     name: name.value,
     description: description.value,
     url: url.value,
-    baseDN: baseDN.value,
-    bindDN: bindDN.value,
+    user_base_dn: userBaseDN.value,
+    group_base_dn: groupBaseDN.value,
+    bind_dn: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
+    admin_group: adminGroup.value,
+    maintainer_group: maintainerGroup.value,
   }
 
   api
@@ -44,10 +50,13 @@ function updateRealm() {
     name: name.value,
     description: description.value,
     url: url.value,
-    baseDN: baseDN.value,
-    bindDN: bindDN.value,
+    user_base_dn: userBaseDN.value,
+    group_base_dn: groupBaseDN.value,
+    bind_dn: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
+    admin_group: adminGroup.value,
+    maintainer_group: maintainerGroup.value,
   }
 
   api
@@ -91,11 +100,35 @@ function updateRealm() {
         class="border p-2 rounded w-full mb-2"
       />
 
-      <label class="block mb-2 text-gray-800">Base DN</label>
+      <label class="block mb-2 text-gray-800">User Base DN</label>
       <input
-        v-model="baseDN"
+        v-model="userBaseDN"
         type="text"
-        placeholder="dc=example,dc=com"
+        placeholder="ou=people,dc=example,dc=com"
+        class="border p-2 rounded w-full mb-2"
+      />
+
+      <label class="block mb-2 text-gray-800">Group Base DN</label>
+      <input
+        v-model="groupBaseDN"
+        type="text"
+        placeholder="ou=group,dc=example,dc=com"
+        class="border p-2 rounded w-full mb-2"
+      />
+
+      <label class="block mb-2 text-gray-800">Admin Group</label>
+      <input
+        v-model="adminGroup"
+        type="text"
+        placeholder="sasso_admin"
+        class="border p-2 rounded w-full mb-2"
+      />
+
+      <label class="block mb-2 text-gray-800">Maintainer Group</label>
+      <input
+        v-model="maintainerGroup"
+        type="text"
+        placeholder="sasso_maintainer"
         class="border p-2 rounded w-full mb-2"
       />
 
