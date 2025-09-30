@@ -43,6 +43,10 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m := getVMMutex(userID)
+	m.Lock()
+	defer m.Unlock()
+
 	vm, err := proxmox.NewVM(userID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.IncludeGlobalSSHKeys)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
