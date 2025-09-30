@@ -1,5 +1,7 @@
 export interface VM {
   id: number
+  name: string
+  notes: string
   cores: number
   ram: number
   disk: number

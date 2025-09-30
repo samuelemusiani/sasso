@@ -4,6 +4,8 @@ import type { VM } from '@/types'
 import { api } from '@/lib/api'
 
 const vms = ref<VM[]>([])
+const name = ref('')
+const notes = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
@@ -23,6 +25,8 @@ function fetchVMs() {
 function createVM() {
   api
     .post('/vm', {
+      name: name.value,
+      notes: notes.value,
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
@@ -102,6 +106,10 @@ onBeforeUnmount(() => {
   <div class="p-2 flex flex-col gap-2">
     <div>This is the VM view for <b>sasso</b>!</div>
     <div class="flex gap-2 items-center">
+      <label for="name">Name:</label>
+      <input type="text" id="name" v-model="name" class="border p-2 rounded-lg w-48" />
+      <label for="notes">Notes:</label>
+      <input type="text" id="notes" v-model="notes" class="border p-2 rounded-lg w-48" />
       <label for="cores">Cores:</label>
       <input type="number" id="cores" v-model="cores" class="border p-2 rounded-lg w-24" />
       <label for="ram">RAM (MB):</label>
@@ -150,6 +158,18 @@ onBeforeUnmount(() => {
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
+              Name
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Notes
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Cores
             </th>
             <th
@@ -178,6 +198,8 @@ onBeforeUnmount(() => {
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="vm in vms" :key="vm.id">
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.id }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ vm.name }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ vm.notes }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.cores }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.ram }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>

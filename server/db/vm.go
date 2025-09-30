@@ -17,9 +17,11 @@ type VM struct {
 	VMUserID uint   `gorm:"not null;default:0;uniqueIndex:idx_user_vm"`
 	Status   string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
-	Cores uint `gorm:"not null;default:1"`
-	RAM   uint `gorm:"not null;default:1024"`
-	Disk  uint `gorm:"not null;default:4"`
+	Name  string `gorm:"type:varchar(20);not null"`
+	Notes string `gorm:"type:text;not null;default:''"`
+	Cores uint   `gorm:"not null;default:1"`
+	RAM   uint   `gorm:"not null;default:1024"`
+	Disk  uint   `gorm:"not null;default:4"`
 
 	IncludeGlobalSSHKeys bool `gorm:"not null"`
 
@@ -44,12 +46,23 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	return vms, nil
 }
 
-func NewVM(ID uint64, userID uint, vmUserID uint, status string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+func ExistsVMWithUserIdAndName(userID uint, name string) (bool, error) {
+	var count int64
+	result := db.Model(&VM{}).Where("user_id = ? AND name = ?", userID, name).Count(&count)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
+}
+
+func NewVM(ID uint64, userID uint, vmUserID uint, status string, name string, notes string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
 	vm := &VM{
 		ID:                   ID,
 		UserID:               userID,
 		VMUserID:             vmUserID,
 		Status:               status,
+		Name:                 name,
+		Notes:                notes,
 		Cores:                cores,
 		RAM:                  ram,
 		Disk:                 disk,
