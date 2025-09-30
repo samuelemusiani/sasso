@@ -58,7 +58,7 @@ func Worker() {
 		deleteVMs(cluster, vmNodes)
 		createVMs()
 		configureVMs(cluster, vmNodes)
-		configureSSHKeys()
+		configureSSHKeys(vmNodes)
 
 		updateVMs(cluster)
 
@@ -948,7 +948,7 @@ func createBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	}
 }
 
-func configureSSHKeys() {
+func configureSSHKeys(vmNodes map[uint64]string) {
 	logger.Debug("Configuring SSH keys in worker")
 
 	vms, err := db.GetVMsWithStatuses([]string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)})
