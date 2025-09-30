@@ -33,6 +33,7 @@ type Realm struct {
 }
 
 type LDAPRealm struct {
+	Realm
 	URL             string `json:"url"`
 	UserBaseDN      string `json:"user_base_dn"`
 	GroupBaseDN     string `json:"group_base_dn"`
@@ -322,7 +323,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var clientLdapRealm db.LDAPRealm
+		var clientLdapRealm LDAPRealm
 
 		err = json.Unmarshal(body, &clientLdapRealm)
 		if err != nil {
