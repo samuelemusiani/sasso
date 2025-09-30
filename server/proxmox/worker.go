@@ -20,6 +20,15 @@ import (
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
+type stringTime struct {
+	Value string
+	Time  time.Time
+}
+
+var (
+	vmStatusTimeMap map[uint64]stringTime = make(map[uint64]stringTime)
+)
+
 func Worker() {
 	time.Sleep(10 * time.Second)
 	logger.Info("Starting Proxmox worker")
@@ -518,7 +527,7 @@ func updateVMs() {
 	resources, err := getProxmoxResources(cluster, "vm")
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 
-	activeVMs, err := db.GetAllActiveVMs()
+	activeVMs, err := db.GetAllActiveVMsWithUnknown()
 	if err != nil {
 		logger.With("err", err).Error("Can't get active VMs from DB")
 		return
@@ -542,12 +551,26 @@ func updateVMs() {
 			continue
 		}
 
-		if !slices.Contains(allVMStatus, r.Status) {
-			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Error("VM status unrecognised, setting status to unknown")
-
-			err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
+		if vm.Status == string(VMStatusUnknown) {
+			logger.With("vmid", r.VMID, "new_status", r.Status).Warn("VM changed status from unknown to a known status")
+			err := db.UpdateVMStatus(r.VMID, r.Status)
 			if err != nil {
-				logger.With("vmid", r.VMID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
+				logger.With("vmid", r.VMID, "new_status", r.Status, "err", err).Error("Failed to update status of VM")
+			}
+		} else if !slices.Contains(allVMStatus, r.Status) {
+			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
+			if exists && time.Since(vmStatusTimeMapEntry.Time) < 1*time.Minute && vmStatusTimeMapEntry.Value == r.Status {
+				logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Error("VM status unrecognised, setting status to unknown")
+
+				err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
+				if err != nil {
+					logger.With("vmid", r.VMID, "new_status", VMStatusDeleting, "err", err).Error("Failed to update status of VM")
+				}
+			} else {
+				vmStatusTimeMap[r.VMID] = stringTime{
+					Value: r.Status,
+					Time:  time.Now(),
+				}
 			}
 		} else if r.Status != vm.Status {
 			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Warn("VM changed status on proxmox unexpectedly")

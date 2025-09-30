@@ -139,3 +139,13 @@ func GetAllActiveVMs() ([]VM, error) {
 	}
 	return vms, nil
 }
+
+func GetAllActiveVMsWithUnknown() ([]VM, error) {
+	var vms []VM
+	statuses := []string{"running", "stopped", "suspended", "unknown"}
+	result := db.Where("status IN ?", statuses).Find(&vms)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vms, nil
+}
