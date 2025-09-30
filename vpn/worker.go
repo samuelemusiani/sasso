@@ -170,7 +170,7 @@ func checkPeers(logger *slog.Logger) error {
 		if !ok {
 			// not present, recreate it
 			logger.Info("Peer not found in WireGuard config", "public_key", dbp.PublicKey)
-			err = wg.CreatePeer(&wgp)
+			err = wg.CreatePeer(&dbp)
 			if err != nil {
 				logger.With("error", err).Error("Failed to create peer")
 				return err
