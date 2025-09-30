@@ -46,6 +46,7 @@ func Worker() {
 		deleteVMs()
 		createVMs()
 		configureVMs()
+		configureSSHKeys()
 
 		updateVMs()
 
@@ -464,59 +465,11 @@ func configureVMs() {
 			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to resize disk on VM")
 			}
-		}
 
-		sshKeys, err := db.GetSSHKeysByUserID(v.UserID)
-		if err != nil {
-			logger.With("vmid", v.ID, "userid", v.UserID, "err", err).Error("Failed to get SSH keys for user")
-			continue
-		}
-
-		if v.IncludeGlobalSSHKeys {
-			globalKeys, err := db.GetGlobalSSHKeys()
+			err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
 			if err != nil {
-				logger.With("vmid", v.ID, "userid", v.UserID, "err ", err).Error("Failed to get global SSH keys")
-				continue
+				logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
 			}
-
-			sshKeys = append(sshKeys, globalKeys...)
-		}
-
-		var keys strings.Builder
-		for i := range sshKeys {
-			keys.WriteString(sshKeys[i].Key)
-			keys.WriteString("\n")
-		}
-		cloudInitKeys := strings.ReplaceAll(url.QueryEscape(keys.String()), "+", "%20")
-
-		if vm.VirtualMachineConfig.SSHKeys != cloudInitKeys {
-			sshOption := gprox.VirtualMachineOption{
-				Name:  "sshkeys",
-				Value: cloudInitKeys,
-			}
-			isSuccessful, err := configureVM(vm, sshOption)
-			if err != nil {
-				logger.With("vmid", v.ID, "err", err).Error("Failed to set ssh keys on VM")
-				return
-			}
-			logger.With("isSuccessful", isSuccessful).Info("Task finished")
-			if !isSuccessful {
-				logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
-				continue
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			err = vm.RegenerateCloudInitImage(ctx)
-			cancel()
-			if err != nil {
-				logger.With("vmid", v.ID, "err", err).Error("Failed to regenerate cloud init image on VM")
-				continue
-			}
-		}
-
-		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
-		if err != nil {
-			logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
 		}
 
 		logger.With("vm", vm, "vm.VirtualMachineConfig", vm.VirtualMachineConfig).Info("VM configured")
@@ -1078,6 +1031,92 @@ func createBackups() {
 		err = db.UpdateBackupRequestStatus(r.ID, status)
 		if err != nil {
 			logger.With("error", err).Error("Failed to update backup request status", "status", status, "id", r.ID)
+		}
+	}
+}
+
+func configureSSHKeys() {
+	logger.Debug("Configuring VMs in worker")
+
+	cluster, err := getProxmoxCluster(client)
+	if err != nil {
+		return
+	}
+
+	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
+	if err != nil {
+		return
+	}
+
+	vms, err := db.GetVMsWithStatuses([]string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)})
+	if err != nil {
+		logger.With("error", err).Error("Failed to get VMs with 'stopped' status")
+		return
+	}
+
+	for _, v := range vms {
+		nodeName, ok := vmNodes[v.ID]
+		if !ok {
+			logger.With("vmid", v.ID).Error("Can't configure VM. Not found on cluster resources")
+			continue
+		}
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			continue
+		}
+
+		vm, err := getProxmoxVM(node, int(v.ID))
+		if err != nil {
+			continue
+		}
+
+		sshKeys, err := db.GetSSHKeysByUserID(v.UserID)
+		if err != nil {
+			logger.With("vmid", v.ID, "userid", v.UserID, "err", err).Error("Failed to get SSH keys for user")
+			continue
+		}
+
+		if v.IncludeGlobalSSHKeys {
+			globalKeys, err := db.GetGlobalSSHKeys()
+			if err != nil {
+				logger.With("vmid", v.ID, "userid", v.UserID, "err ", err).Error("Failed to get global SSH keys")
+				continue
+			}
+
+			sshKeys = append(sshKeys, globalKeys...)
+		}
+
+		var keys strings.Builder
+		for i := range sshKeys {
+			keys.WriteString(sshKeys[i].Key)
+			keys.WriteString("\n")
+		}
+		cloudInitKeys := strings.ReplaceAll(url.QueryEscape(keys.String()), "+", "%20")
+
+		if vm.VirtualMachineConfig.SSHKeys == cloudInitKeys {
+			continue
+		}
+
+		sshOption := gprox.VirtualMachineOption{
+			Name:  "sshkeys",
+			Value: cloudInitKeys,
+		}
+		isSuccessful, err := configureVM(vm, sshOption)
+		if err != nil {
+			logger.With("vmid", v.ID, "err", err).Error("Failed to set ssh keys on VM")
+			return
+		}
+		logger.With("isSuccessful", isSuccessful).Info("Task finished")
+		if !isSuccessful {
+			logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err = vm.RegenerateCloudInitImage(ctx)
+		cancel()
+		if err != nil {
+			logger.With("vmid", v.ID, "err", err).Error("Failed to regenerate cloud init image on VM")
 		}
 	}
 }
