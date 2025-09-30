@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/jwtauth/v5 v5.3.3
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/luthermonson/go-proxmox v0.2.3
-	github.com/samuelemusiani/go-shorewall v0.0.2
+	github.com/samuelemusiani/go-shorewall v0.0.3
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.42.0
@@ -42,7 +42,7 @@ require (
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/seancfoley/bintree v1.3.1 // indirect
-	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.29.0 // indirect

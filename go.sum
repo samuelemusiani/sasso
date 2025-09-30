@@ -93,12 +93,16 @@ github.com/samuelemusiani/go-proxmox v0.0.5 h1:EMiMzF2JjUO0zWzxm6PJHGvw+s3thE847
 github.com/samuelemusiani/go-proxmox v0.0.5/go.mod h1:oyFgg2WwTEIF0rP6ppjiixOHa5ebK1p8OaRiFhvICBQ=
 github.com/samuelemusiani/go-shorewall v0.0.2 h1:6kD6WGaYhVdBFeNsNd2WGDEVpJABSqB/f8Hk8zHTHaY=
 github.com/samuelemusiani/go-shorewall v0.0.2/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
+github.com/samuelemusiani/go-shorewall v0.0.3 h1:OkoBg0wxRkJDLsbkr0z8iO4BS9IkKPBEG2/fHS2topM=
+github.com/samuelemusiani/go-shorewall v0.0.3/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
 github.com/seancfoley/bintree v1.3.1 h1:cqmmQK7Jm4aw8gna0bP+huu5leVOgHGSJBEpUx3EXGI=
 github.com/seancfoley/bintree v1.3.1/go.mod h1:hIUabL8OFYyFVTQ6azeajbopogQc2l5C/hiXMcemWNU=
 github.com/seancfoley/ipaddress-go v1.7.1 h1:fDWryS+L8iaaH5RxIKbY0xB5Z+Zxk8xoXLN4S4eAPdQ=
 github.com/seancfoley/ipaddress-go v1.7.1/go.mod h1:TQRZgv+9jdvzHmKoPGBMxyiaVmoI0rYpfEk8Q/sL/Iw=
 github.com/segmentio/asm v1.2.0 h1:9BQrFxC+YOHJlTlHGkTrFWf59nbL3XnCoFLTwDCI7ys=
 github.com/segmentio/asm v1.2.0/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=
+github.com/segmentio/asm v1.2.1 h1:DTNbBqs57ioxAD4PrArqftgypG4/qNpXoJx8TVXxPR0=
+github.com/segmentio/asm v1.2.1/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=
 github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af h1:Sp5TG9f7K39yfB+If0vjp97vuT74F72r8hfRpP8jLU0=
 github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
