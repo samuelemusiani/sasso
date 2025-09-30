@@ -738,6 +738,13 @@ func createInterfaces() {
 			continue
 		}
 
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		err = vm.RegenerateCloudInitImage(ctx)
+		cancel()
+		if err != nil {
+			logger.With("error", err).Error("Failed to regenerate cloud-init image on Proxmox VM")
+		}
+
 		iface.LocalID = uint(firstEmptyIndex)
 		iface.Status = string(InterfaceStatusReady)
 		err = db.UpdateInterface(&iface)
