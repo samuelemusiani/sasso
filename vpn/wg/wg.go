@@ -32,23 +32,23 @@ func Init(l *slog.Logger, config *config.Wireguard, iface string) {
 	interfaceName = iface
 }
 
-type WGInterface struct {
+type WGPeer struct {
 	Address    string
 	PrivateKey string
 	PublicKey  string
 }
 
-func NewWGConfig(address string) (*WGInterface, error) {
+func NewWGConfig(address string) (*WGPeer, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		logger.With("err", err).Error("Error generating keys")
 		return nil, err
 	}
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
-	return &WGInterface{address, privateKey, publicKey}, nil
+	return &WGPeer{address, privateKey, publicKey}, nil
 }
 
-func (WG *WGInterface) String() string {
+func (WG *WGPeer) String() string {
 	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
@@ -75,13 +75,35 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 	return stdout.String(), stderr.String(), err
 }
 
-func CreateInterface(i *WGInterface) error {
+func CreatePeer(i *WGPeer) error {
 	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
-		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard interface")
+		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error creating WireGuard peer")
 		return err
 	}
-	logger.Info("WireGuard interface created", "stdout", stdout, "stderr", stderr)
+	logger.Info("WireGuard peer created", "stdout", stdout, "stderr", stderr)
+	return nil
+}
+
+func DeletePeer(i *WGPeer) error {
+	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "remove")
+	if err != nil {
+		logger.With("err", err, "stdout", stdout, "stderr", stderr).Error("Error deleting WireGuard peer")
+		return err
+	}
+	logger.Info("WireGuard peer deleted", "stdout", stdout, "stderr", stderr)
+	return nil
+}
+
+func UpdatePeer(i *WGPeer) error {
+	err := DeletePeer(i)
+	if err != nil {
+		return err
+	}
+	err = CreatePeer(i)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -99,8 +121,44 @@ func genKeys() (string, string, error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
-func InterfaceFromDB(iface *db.Interface) WGInterface {
-	return WGInterface{
+func ParsePeers() (map[string]WGPeer, error) {
+	stdout, stderr, err := executeCommand("wg", "show", interfaceName, "dump")
+	if err != nil {
+		logger.With("err", err, "stderr", stderr).Error("Error dumping peers")
+		return nil, err
+	}
+
+	peers := make(map[string]WGPeer)
+
+	lines := strings.Split(stdout, "\n")
+	for i, l := range lines {
+		if i == 0 {
+			continue // fist is the interface
+		}
+		fields := strings.Split(l, "\t")
+
+		if len(fields) < 4 {
+			// not enough fields, error
+			return nil, fmt.Errorf("not enough fields in wg show dump output")
+		}
+
+		publicKey := fields[0]
+		privateKey := fields[1]
+		allowedIps := fields[3]
+
+		peer := WGPeer{
+			Address:    allowedIps,
+			PrivateKey: privateKey,
+			PublicKey:  publicKey,
+		}
+		peers[publicKey] = peer
+	}
+
+	return peers, nil
+}
+
+func PeerFromDB(iface *db.Peer) WGPeer {
+	return WGPeer{
 		Address:    iface.Address,
 		PrivateKey: iface.PrivateKey,
 		PublicKey:  iface.PublicKey,

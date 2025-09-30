@@ -1,6 +1,6 @@
 package db
 
-type Interface struct {
+type Peer struct {
 	ID         uint   `gorm:"primaryKey"`
 	PrivateKey string `gorm:"not null"`
 	PublicKey  string `gorm:"not null"`
@@ -10,12 +10,12 @@ type Interface struct {
 	Subnet []Subnet
 }
 
-func initInterfaces() error {
-	return db.AutoMigrate(&Interface{})
+func initPeers() error {
+	return db.AutoMigrate(&Peer{})
 }
 
-func NewInterface(privateKey, publicKey, address string, userID uint) error {
-	iface := &Interface{
+func NewPeer(privateKey, publicKey, address string, userID uint) error {
+	iface := &Peer{
 		PrivateKey: privateKey,
 		PublicKey:  publicKey,
 		Address:    address,
@@ -27,16 +27,16 @@ func NewInterface(privateKey, publicKey, address string, userID uint) error {
 	return nil
 }
 
-func GetInterfaceByID(id uint) (*Interface, error) {
-	var iface Interface
+func GetPeerByID(id uint) (*Peer, error) {
+	var iface Peer
 	if err := db.First(&iface, id).Error; err != nil {
 		return nil, err
 	}
 	return &iface, nil
 }
 
-func GetInterfaceByUserID(userID uint) (*Interface, error) {
-	var iface Interface
+func GetPeerByUserID(userID uint) (*Peer, error) {
+	var iface Peer
 	if err := db.Where("user_id = ?", userID).First(&iface).Error; err != nil {
 		return nil, err
 	}
@@ -45,14 +45,14 @@ func GetInterfaceByUserID(userID uint) (*Interface, error) {
 
 func GetAllAddresses() ([]string, error) {
 	var addresses []string
-	if err := db.Model(&Interface{}).Pluck("address", &addresses).Error; err != nil {
+	if err := db.Model(&Peer{}).Pluck("address", &addresses).Error; err != nil {
 		return nil, err
 	}
 	return addresses, nil
 }
 
-func GetAllInterfaces() ([]Interface, error) {
-	var ifaces []Interface
+func GetAllPeers() ([]Peer, error) {
+	var ifaces []Peer
 	if err := db.Find(&ifaces).Error; err != nil {
 		return nil, err
 	}
