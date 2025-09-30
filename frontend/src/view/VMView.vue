@@ -9,7 +9,6 @@ const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
 const include_global_ssh_keys = ref(true)
-let openCreate = ref(false)
 
 function fetchVMs() {
   api
@@ -116,19 +115,33 @@ onBeforeUnmount(() => {
     <CreateNew title="Create New VM" :create="createVM">
       <div>
         <label for="cores">CPU Cores:</label>
-        <input type="number" id="cores" v-model="cores" class="input w-full border p-2 rounded-lg w-24" />
+        <input
+          type="number"
+          id="cores"
+          v-model="cores"
+          class="input w-full border p-2 rounded-lg w-24"
+        />
       </div>
       <div>
         <label for="ram">RAM (MB):</label>
-        <input type="number" id="ram" v-model="ram" class="input w-full border p-2 rounded-lg w-24" />
+        <input
+          type="number"
+          id="ram"
+          v-model="ram"
+          class="input w-full border p-2 rounded-lg w-24"
+        />
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
         <input type="number" id="disk" v-model="disk" class="input w-full border rounded-lg w-24" />
       </div>
       <div class="flex items-center">
-        <input type="checkbox" id="include_global_ssh_keys" v-model="include_global_ssh_keys"
-          class="checkbox checkbox-primary" />
+        <input
+          type="checkbox"
+          id="include_global_ssh_keys"
+          v-model="include_global_ssh_keys"
+          class="checkbox checkbox-primary"
+        />
         <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
       </div>
     </CreateNew>
@@ -152,21 +165,11 @@ onBeforeUnmount(() => {
       <table class="table">
         <thead>
           <tr>
-            <th scope="col" class="text-xs uppercase">
-              ID
-            </th>
-            <th scope="col" class="text-xs uppercase">
-              Cores
-            </th>
-            <th scope="col" class="text-xs uppercase">
-              RAM (MB)
-            </th>
-            <th scope="col" class="text-xs uppercase">
-              Disk (GB)
-            </th>
-            <th scope="col" class="text-xs uppercase">
-              Status
-            </th>
+            <th scope="col" class="text-xs uppercase">ID</th>
+            <th scope="col" class="text-xs uppercase">Cores</th>
+            <th scope="col" class="text-xs uppercase">RAM (MB)</th>
+            <th scope="col" class="text-xs uppercase">Disk (GB)</th>
+            <th scope="col" class="text-xs uppercase">Status</th>
             <th scope="col" class="relative">
               <span class="sr-only">Actions</span>
             </th>
@@ -179,28 +182,46 @@ onBeforeUnmount(() => {
             <td class="">{{ vm.ram }}</td>
             <td class="">{{ vm.disk }}</td>
             <td class="">{{ vm.status }}</td>
-            <td class=" flex gap-2 items-center">
-              <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary btn-sm md:btn-md rounded-lg">
+            <td class="flex gap-2 items-center">
+              <RouterLink
+                :to="`/vm/${vm.id}/interfaces`"
+                class="btn btn-primary btn-sm md:btn-md rounded-lg"
+              >
                 <IconVue icon="material-symbols:network-node" class="text-lg" />
                 <p class="hidden md:inline">Interfaces</p>
               </RouterLink>
-              <RouterLink :to="`/vm/${vm.id}/backups`" class="btn btn-secondary btn-sm md:btn-md rounded-lg">
+              <RouterLink
+                :to="`/vm/${vm.id}/backups`"
+                class="btn btn-secondary btn-sm md:btn-md rounded-lg"
+              >
                 <IconVue icon="material-symbols:backup" class="text-lg" />
                 <p class="hidden md:inline">Backup</p>
               </RouterLink>
-              <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)"
-                class="btn btn-success rounded-lg btn-outline">
+              <button
+                v-if="vm.status === 'stopped'"
+                @click="startVM(vm.id)"
+                class="btn btn-success rounded-lg btn-outline"
+              >
                 Start
               </button>
-              <button v-if="vm.status === 'running'" @click="stopVM(vm.id)"
-                class="btn btn-warning rounded-lg btn-outline">
+              <button
+                v-if="vm.status === 'running'"
+                @click="stopVM(vm.id)"
+                class="btn btn-warning rounded-lg btn-outline"
+              >
                 Stop
               </button>
-              <button v-if="vm.status === 'running'" @click="restartVM(vm.id)"
-                class="btn btn-info rounded-lg btn-outline">
+              <button
+                v-if="vm.status === 'running'"
+                @click="restartVM(vm.id)"
+                class="btn btn-info rounded-lg btn-outline"
+              >
                 Restart
               </button>
-              <button @click="deleteVM(vm.id)" class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline">
+              <button
+                @click="deleteVM(vm.id)"
+                class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+              >
                 <IconVue icon="material-symbols:delete" class="text-lg" />
                 <p class="hidden md:inline">Delete</p>
               </button>

@@ -17,24 +17,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
-//   server: {
-//     proxy: {
-//       '/api': {
-//         target: "http://localhost:8080",
-//         changeOrigin: true
-//       }
-//     }
-//   }
-// })
-
   server: {
     proxy: {
       '/api': {
-        target: "https://sasso.mini.students.cs.unibo.it",
-        changeOrigin: true,
-        headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTkxODc2NzcsImlhdCI6MTc1OTE0NDQ3NywidXNlcl9pZCI6NH0.c4W4BOY6DtNt-mR0iTlHiBFYhrRiys63Wpc9tHVeQ9Y'
-        }
+        target: "http://localhost:8080",
+        changeOrigin: true
       }
     }
   }

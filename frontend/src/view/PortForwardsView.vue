@@ -56,12 +56,12 @@ onMounted(() => {
 <template>
   <div class="p-2 flex flex-col gap-2">
     <CreateNew title="Port Forward" :create="requestPortForward">
-    <div class="flex gap-2 items-center">
-      <label for="name">Destination Port</label>
-      <input type="number" id="name" v-model="port" class="input border p-2 rounded-lg w-48" />
-      <label for="key">Destination IP</label>
-      <input type="text" id="key" v-model="ip" class="input border p-2 rounded-lg w-96" />
-    </div>
+      <div class="flex gap-2 items-center">
+        <label for="name">Destination Port</label>
+        <input type="number" id="name" v-model="port" class="input border p-2 rounded-lg w-48" />
+        <label for="key">Destination IP</label>
+        <input type="text" id="key" v-model="ip" class="input border p-2 rounded-lg w-96" />
+      </div>
     </CreateNew>
 
     <div class="overflow-x-auto">

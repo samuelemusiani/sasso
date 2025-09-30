@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
-import CreateNew from '../CreateNew.vue';
+import CreateNew from '../CreateNew.vue'
 
 const $props = defineProps<{
   vmid: number
@@ -112,7 +112,12 @@ onMounted(() => {
       <div>
         <!-- FIXME: do this only if the net is vlanaware -->
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
-        <input type="number" id="vlan_tag" v-model.number="form.vlan_tag" class="input rounded-lg w-full" />
+        <input
+          type="number"
+          id="vlan_tag"
+          v-model.number="form.vlan_tag"
+          class="input rounded-lg w-full"
+        />
       </div>
       <div>
         <!-- TODO: is needed to /24 -->

@@ -1,34 +1,47 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import UserStats from '@/components/UserStats.vue';
-import { api } from '@/lib/api';
-import type { User } from '@/types';
+import { onMounted, ref } from 'vue'
+import UserStats from '@/components/UserStats.vue'
+import { api } from '@/lib/api'
+import type { User } from '@/types'
 
-const whoami = ref<User | null>(null);
-let stats = ref();
+const whoami = ref<User | null>(null)
+const stats = ref()
 
 function fetchWhoami() {
   api
-    .get("/whoami")
+    .get('/whoami')
     .then((res) => {
-      whoami.value = res.data as User;
+      whoami.value = res.data as User
       stats.value = [
-        { item: "Core", icon: "heroicons-solid:chip", percent: whoami.value.max_cores, color: 'primary' },
-        { item: "Nets", icon: "ph:network", percent: whoami.value.max_nets, color: 'secondary' },
-        { item: "RAM", icon: "fluent:ram-20-regular", percent: whoami.value.max_ram, color: 'success' },
-        { item: "Disk", icon: "mingcute:storage-line", percent: whoami.value.max_disk, color: 'accent' },
+        {
+          item: 'Core',
+          icon: 'heroicons-solid:chip',
+          percent: whoami.value.max_cores,
+          color: 'primary',
+        },
+        { item: 'Nets', icon: 'ph:network', percent: whoami.value.max_nets, color: 'secondary' },
+        {
+          item: 'RAM',
+          icon: 'fluent:ram-20-regular',
+          percent: whoami.value.max_ram,
+          color: 'success',
+        },
+        {
+          item: 'Disk',
+          icon: 'mingcute:storage-line',
+          percent: whoami.value.max_disk,
+          color: 'accent',
+        },
       ]
     })
     .catch((err) => {
-      console.error("Failed to fetch whoami:", err);
-    });
-
+      console.error('Failed to fetch whoami:', err)
+    })
 }
 
 onMounted(() => {
-  fetchWhoami();
-});
-
+  fetchWhoami()
+})
 </script>
 
 <template>
@@ -36,8 +49,14 @@ onMounted(() => {
     <h1 class="text-3xl font-bold my-3">Hi {{ whoami?.username }}!</h1>
     <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
     <div class="flex flex-wrap justify-around gap-4">
-      <UserStats v-for="stat in stats" :key="stat.item" :item="stat.item" :icon="stat.icon" :percent="stat.percent"
-        :color="stat.color" />
+      <UserStats
+        v-for="stat in stats"
+        :key="stat.item"
+        :item="stat.item"
+        :icon="stat.icon"
+        :percent="stat.percent"
+        :color="stat.color"
+      />
     </div>
   </div>
 </template>

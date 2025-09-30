@@ -7,7 +7,7 @@ import CreateNew from '@/components/CreateNew.vue'
 const keys = ref<SSHKey[]>([])
 const name = ref('')
 const key = ref('')
-let error = ref('')
+const error = ref('')
 
 function fetchSSHKeys() {
   api
@@ -33,7 +33,7 @@ function addSSHKey() {
       key.value = ''
     })
     .catch((err) => {
-      console.log('Error details:', err.response.data);
+      console.log('Error details:', err.response.data)
       error.value = 'Failed to add SSH key: ' + err.response.data
       console.error('Failed to add SSH key:', err)
     })
@@ -67,24 +67,28 @@ onMounted(() => {
     <CreateNew title="SSH Key" :create="addSSHKey" :error="error">
       <div class="flex flex-col gap-2">
         <label for="name">Name</label>
-        <input v-model="name" type="text" placeholder="Key Name"
-          class="input w-full p-2 border border-primary rounded-lg" />
+        <input
+          v-model="name"
+          type="text"
+          placeholder="Key Name"
+          class="input w-full p-2 border border-primary rounded-lg"
+        />
 
         <label for="key">Key</label>
-        <input v-model="key" type="text" placeholder="SSH Public Key"
-          class="input w-full p-2 border border-primary rounded-lg" />
+        <input
+          v-model="key"
+          type="text"
+          placeholder="SSH Public Key"
+          class="input w-full p-2 border border-primary rounded-lg"
+        />
       </div>
     </CreateNew>
     <div class="overflow-x-auto">
       <table class="table min-w-full divide-y divide-gray-200">
         <thead class="">
           <tr>
-            <th scope="col" class="">
-              Name
-            </th>
-            <th scope="col" class="">
-              Key
-            </th>
+            <th scope="col" class="">Name</th>
+            <th scope="col" class="">Key</th>
             <th scope="col" class="relative px-6 py-3">
               <span class="sr-only">Actions</span>
             </th>
@@ -95,8 +99,10 @@ onMounted(() => {
             <td class="whitespace-nowrap">{{ sshKey.name }}</td>
             <td class="whitespace-nowrap">{{ sshKey.key }}</td>
             <td class="text-right text-sm font-medium">
-
-              <button @click="deleteSSHKey(sshKey.id)" class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline">
+              <button
+                @click="deleteSSHKey(sshKey.id)"
+                class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+              >
                 <IconVue icon="material-symbols:delete" class="text-lg"></IconVue>
                 <p class="hidden md:inline">Delete</p>
               </button>

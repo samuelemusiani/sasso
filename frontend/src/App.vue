@@ -8,7 +8,8 @@ console.log('Current route:', router.currentRoute.value)
 
 <template>
   <main
-    class="flex w-full h-screen overflow-auto bg-[url(/sasso-pattern.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]">
+    class="flex w-full h-screen overflow-auto bg-[url(/sasso-pattern.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]"
+  >
     <SidePanel v-if="router.currentRoute.value.path !== '/login'" />
 
     <div class="flex-1 overflow-auto">
