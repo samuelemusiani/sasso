@@ -124,7 +124,7 @@ function updateRealm() {
         class="border p-2 rounded w-full mb-2"
       />
 
-      <label class="block mb-2 text-gray-800">Mantainer Group</label>
+      <label class="block mb-2 text-gray-800">Maintainer Group</label>
       <input
         v-model="maintainerGroup"
         type="text"
