@@ -40,38 +40,45 @@ func Worker() {
 			continue
 		}
 
-		createVNets()
-		deleteVNets()
+		cluster, err := getProxmoxCluster(client)
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 
-		deleteVMs()
+		createVNets(cluster)
+		deleteVNets(cluster)
+
+		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		deleteVMs(cluster, vmNodes)
 		createVMs()
-		configureVMs()
+		configureVMs(cluster, vmNodes)
 		configureSSHKeys()
 
-		updateVMs()
+		updateVMs(cluster)
 
-		createInterfaces()
-		deleteInterfaces()
+		createInterfaces(cluster, vmNodes)
+		deleteInterfaces(cluster, vmNodes)
 
-		deleteBackups()
-		restoreBackups()
-		createBackups()
+		deleteBackups(cluster, vmNodes)
+		restoreBackups(cluster, vmNodes)
+		createBackups(cluster, vmNodes)
 
 		time.Sleep(10 * time.Second)
 	}
 }
 
-func createVNets() {
+func createVNets(cluster *gprox.Cluster) {
 	logger.Debug("Creating VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VMStatusPreCreating))
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VNets with 'pre-creating' status")
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
 		return
 	}
 
@@ -137,7 +144,7 @@ func createVNets() {
 	}
 }
 
-func deleteVNets() {
+func deleteVNets(cluster *gprox.Cluster) {
 	logger.Debug("Deleting VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusPreDeleting))
@@ -147,11 +154,6 @@ func deleteVNets() {
 	}
 
 	if len(vnets) == 0 {
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
 		return
 	}
 
@@ -271,22 +273,12 @@ func createVMs() {
 }
 
 // deleteVMs deletes VMs from proxmox that are in the 'pre-deleting' status.
-func deleteVMs() {
+func deleteVMs(cluster *gprox.Cluster, VMLocation map[uint64]string) {
 	logger.Debug("Deleting VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VMs with 'deleting' status")
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		return
-	}
-
-	VMLocation, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
 		return
 	}
 
@@ -371,18 +363,8 @@ func deleteVMs() {
 
 // This function configures VMs that are in the 'pre-configuring' status.
 // Configuration includes setting the number of cores, RAM and disk size
-func configureVMs() {
+func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 	logger.Debug("Configuring VMs in worker")
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		return
-	}
-
-	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		return
-	}
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreConfiguring))
 	if err != nil {
@@ -477,13 +459,8 @@ func configureVMs() {
 }
 
 // updateVMs updates the status of VMs in the database based on their current status in Proxmox.
-func updateVMs() {
+func updateVMs(cluster *gprox.Cluster) {
 	logger.Debug("Updating VMs in worker")
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		return
-	}
 
 	resources, err := getProxmoxResources(cluster, "vm")
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
@@ -567,22 +544,8 @@ func updateVMs() {
 	}
 }
 
-func createInterfaces() {
+func createInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 	logger.Debug("Configuring interfaces in worker")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
-	if err != nil {
-		logger.With("err", err).Error("Can't get cluster")
-		return
-	}
-
-	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		logger.With("err", err).Error("Can't map VMID to Proxmox nodes")
-		return
-	}
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
 	if err != nil {
@@ -716,22 +679,8 @@ func createInterfaces() {
 	}
 }
 
-func deleteInterfaces() {
+func deleteInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 	logger.Debug("Configuring interfaces in worker")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	cluster, err := client.Cluster(ctx)
-	cancel()
-	if err != nil {
-		logger.With("err", err).Error("Can't get cluster")
-		return
-	}
-
-	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		logger.With("err", err).Error("Can't map VMID to Proxmox nodes")
-		return
-	}
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreDeleting))
 	if err != nil {
@@ -796,24 +745,12 @@ func deleteInterfaces() {
 	}
 }
 
-func deleteBackups() {
+func deleteBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	logger.Debug("Deleting backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeDelete)
 	if err != nil {
 		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeDelete)
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
-		return
-	}
-
-	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		logger.With("error", err).Error("Failed to map VMID to content")
 		return
 	}
 
@@ -874,24 +811,12 @@ func deleteBackups() {
 	}
 }
 
-func restoreBackups() {
+func restoreBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	logger.Debug("Restoring backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeRestore)
 	if err != nil {
 		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeRestore)
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
-		return
-	}
-
-	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		logger.With("error", err).Error("Failed to map VMID to content")
 		return
 	}
 
@@ -955,24 +880,12 @@ func restoreBackups() {
 	}
 }
 
-func createBackups() {
+func createBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	logger.Debug("Creating backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeCreate)
 	if err != nil {
 		logger.With("error", err).Error("Failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeCreate)
-		return
-	}
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
-		return
-	}
-
-	mapVMContent, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		logger.With("error", err).Error("Failed to map VMID to content")
 		return
 	}
 
@@ -1037,16 +950,6 @@ func createBackups() {
 
 func configureSSHKeys() {
 	logger.Debug("Configuring SSH keys in worker")
-
-	cluster, err := getProxmoxCluster(client)
-	if err != nil {
-		return
-	}
-
-	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
-	if err != nil {
-		return
-	}
 
 	vms, err := db.GetVMsWithStatuses([]string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)})
 	if err != nil {
