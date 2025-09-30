@@ -33,7 +33,7 @@ export interface LDAPRealm extends Realm {
   bind_dn: string
   password: string
   admin_group: string
-  mantainer_group: string
+  maintainer_group: string
 }
 
 export interface Net {

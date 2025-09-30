@@ -16,7 +16,7 @@ const groupBaseDN = ref($props.realm ? $props.realm.group_base_dn : '')
 const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
 const adminGroup = ref($props.realm ? $props.realm.admin_group : '')
-const mantainerGroup = ref($props.realm ? $props.realm.mantainer_group : '')
+const maintainerGroup = ref($props.realm ? $props.realm.maintainer_group : '')
 
 const editing = ref(!!$props.realm)
 
@@ -31,7 +31,7 @@ function addRealm() {
     type: 'ldap',
     password: bindPassword.value,
     admin_group: adminGroup.value,
-    mantainer_group: mantainerGroup.value,
+    maintainer_group: maintainerGroup.value,
   }
 
   api
@@ -56,7 +56,7 @@ function updateRealm() {
     type: 'ldap',
     password: bindPassword.value,
     admin_group: adminGroup.value,
-    mantainer_group: mantainerGroup.value,
+    maintainer_group: maintainerGroup.value,
   }
 
   api
@@ -126,9 +126,9 @@ function updateRealm() {
 
       <label class="block mb-2 text-gray-800">Mantainer Group</label>
       <input
-        v-model="mantainerGroup"
+        v-model="maintainerGroup"
         type="text"
-        placeholder="sasso_mantainer"
+        placeholder="sasso_maintainer"
         class="border p-2 rounded w-full mb-2"
       />
 
