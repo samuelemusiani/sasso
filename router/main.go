@@ -5,6 +5,7 @@ import (
 	"os"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
+	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -13,6 +14,22 @@ const DEFAULT_LOG_LEVEL = slog.LevelDebug
 
 func main() {
 	slog.SetLogLoggerLevel(DEFAULT_LOG_LEVEL)
+
+	lLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if ok {
+		switch lLevel {
+		case "DEBUG":
+			slog.SetLogLoggerLevel(slog.LevelDebug)
+		case "INFO":
+			slog.SetLogLoggerLevel(slog.LevelInfo)
+		case "WARN":
+			slog.SetLogLoggerLevel(slog.LevelWarn)
+		case "ERROR":
+			slog.SetLogLoggerLevel(slog.LevelError)
+		default:
+			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+		}
+	}
 
 	// Config file must be passed as the first argument
 	if len(os.Args) <= 1 {
@@ -41,6 +58,17 @@ func main() {
 
 	gatewayLogger := slog.With("module", "gateway")
 	err = gateway.Init(gatewayLogger, c.Gateway)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize gateway")
+		os.Exit(1)
+	}
+
+	fwLogger := slog.With("module", "firewall")
+	err = fw.Init(fwLogger, c.Firewall)
+	if err != nil {
+		slog.With("error", err).Error("Failed to initialize firewall")
+		os.Exit(1)
+	}
 
 	// Database
 	slog.Debug("Initializing database")
