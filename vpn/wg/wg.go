@@ -135,7 +135,12 @@ func ParsePeers() (map[string]WGPeer, error) {
 		if i == 0 {
 			continue // fist is the interface
 		}
+		l = strings.TrimSpace(l)
 		fields := strings.Split(l, "\t")
+
+		if len(fields) == 1 {
+			continue // skip empty lines
+		}
 
 		if len(fields) < 4 {
 			// not enough fields, error
