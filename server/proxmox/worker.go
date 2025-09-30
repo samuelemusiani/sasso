@@ -1036,7 +1036,7 @@ func createBackups() {
 }
 
 func configureSSHKeys() {
-	logger.Debug("Configuring VMs in worker")
+	logger.Debug("Configuring SSH keys in worker")
 
 	cluster, err := getProxmoxCluster(client)
 	if err != nil {
