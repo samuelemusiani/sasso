@@ -13,7 +13,9 @@ console.log('Current route:', router.currentRoute.value)
     <SidePanel v-if="router.currentRoute.value.path !== '/login'" />
 
     <div class="flex-1 overflow-auto">
-      <div class="backdrop-blur-xl bg-base-200 p-4 rounded-2xl m-6">
+      <div
+        :class="`${router.currentRoute.value.path === '/login' ? '' : 'bg-base-200 p-4 rounded-2xl m-6'} `"
+      >
         <RouterView />
       </div>
     </div>
