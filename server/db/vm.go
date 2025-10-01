@@ -173,19 +173,40 @@ func GetAllActiveVMsWithUnknown() ([]VM, error) {
 }
 
 func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
-	var vms []VM
-	result := db.Model(&VM{}).Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").Where("user_id = ? AND status IN ?", userID).Find(&vms)
-	if result.Error != nil {
-		return 0, 0, 0, result.Error
-	}
-	return vms[0].Cores, vms[0].RAM, vms[0].Disk, nil
+  var result struct {
+    Cores uint
+    RAM   uint
+    Disk  uint
+  }
+  
+  err := db.Model(&VM{}).
+    Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+    Where("user_id = ?",  userID, ).Scan(&result).Error
+    
+  if err != nil {
+    return 0, 0, 0, err
+  }
+  
+  return result.Cores, result.RAM, result.Disk, nil
 }
 
+
 func GetResorcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
-	var vms []VM
-	result := db.Model(&VM{}).Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").Where("user_id = ? AND status = ?", userID, "running").Find(&vms)
-	if result.Error != nil {
-		return 0, 0, 0, result.Error
-	}
-	return vms[0].Cores, vms[0].RAM, vms[0].Disk, nil
+func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
+  var result struct {
+    Cores uint
+    RAM   uint
+    Disk  uint
+  }
+  
+  err := db.Model(&VM{}).
+    Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+    Where("user_id = ? AND status = ?",  userID, "running").Scan(&result).Error
+    
+  if err != nil {
+    return 0, 0, 0, err
+  }
+  
+  return result.Cores, result.RAM, result.Disk, nil
+}
 }
