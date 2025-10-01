@@ -50,6 +50,9 @@ func Worker() {
 		createVNets(cluster)
 		deleteVNets(cluster)
 
+		createVMs()
+		updateVMs(cluster)
+
 		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 		if err != nil {
 			logger.With("error", err).Error("Failed to map VMID to Proxmox nodes")
@@ -58,11 +61,8 @@ func Worker() {
 		}
 
 		deleteVMs(cluster, vmNodes)
-		createVMs()
-		configureVMs(cluster, vmNodes)
 		configureSSHKeys(vmNodes)
-
-		updateVMs(cluster)
+		configureVMs(cluster, vmNodes)
 
 		createInterfaces(cluster, vmNodes)
 		deleteInterfaces(cluster, vmNodes)
@@ -449,11 +449,11 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to resize disk on VM")
 			}
+		}
 
-			err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
-			if err != nil {
-				logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
-			}
+		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
+		if err != nil {
+			logger.With("vmid", v.ID, "new_status", VMStatusStopped, "err", err).Error("Failed to update status of VM")
 		}
 
 		logger.With("vm", vm).Debug("VM configured")
