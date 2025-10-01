@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"sort"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -317,6 +318,11 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 	}
 
 	fwRules, err := shorewall.GetRules()
+	// sort rules by Source
+	sort.Slice(fwRules, func(i, j int) bool {
+		return fwRules[i].Source < fwRules[j].Source
+	})
+
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
 		return err
@@ -332,15 +338,15 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 		rule := util.CreateRule(fwConfig, "ACCEPT", peer.Address, s.Subnet)
 
 		// check if the rule exists in fwRules
-		// TODO: improve this
-		exists := false
-		for _, r := range fwRules {
-			if r.Action == rule.Action && r.Source == rule.Source && r.Destination == rule.Destination {
-				exists = true
-				break
-			}
-		}
+		// using binary search since fwRules is sorted by Source
+		index := sort.Search(len(fwRules), func(i int) bool {
+			return fwRules[i].Source >= rule.Source
+		})
 
+		exists := index < len(fwRules) &&
+			fwRules[index].Source == rule.Source &&
+			fwRules[index].Destination == rule.Destination &&
+			fwRules[index].Action == rule.Action
 		if !exists {
 			logger.Info("Firewall rule missing, adding it", "rule", rule)
 			err = shorewall.AddRule(rule)
