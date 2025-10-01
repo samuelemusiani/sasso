@@ -74,6 +74,15 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 	return nets, nil
 }
 
+func CountNetsByUserID(userID uint) (uint, error) {
+	var count int64
+	if err := db.Model(&Net{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to count nets for user")
+		return 0, err
+	}
+	return uint(count), nil
+}
+
 func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
 	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {

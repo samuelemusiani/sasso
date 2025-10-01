@@ -125,20 +125,10 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("vm name already exists"))
 	}
 
-	vms, err := db.GetVMsByUserID(userID)
+	currentCores, currentRAM, currentDisk, err := db.GetVMResourcesByUserID(userID)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get VMs by user ID")
+		logger.With("userID", userID, "error", err).Error("Failed to get current VM resources from database")
 		return nil, err
-	}
-
-	var currentCores uint = 0
-	var currentRAM uint = 0
-	var currentDisk uint = 0
-
-	for _, vm := range vms {
-		currentCores += vm.Cores
-		currentRAM += vm.RAM
-		currentDisk += vm.Disk
 	}
 
 	if currentCores+cores > user.MaxCores {

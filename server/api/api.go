@@ -104,6 +104,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/port-forwards", listPortForwards)
 		r.Post("/port-forwards", addPortForward)
 		r.Delete("/port-forwards/{id}", deletePortForward)
+
+		r.Get("/resources", getUserResources)
 	})
 
 	// Admin Auth routes
