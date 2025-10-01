@@ -1,10 +1,12 @@
 export interface VM {
   id: number
+  name: string
   cores: number
   ram: number
   disk: number
   status: string
   include_global_ssh_keys: boolean
+  notes: string
 }
 
 export interface User {

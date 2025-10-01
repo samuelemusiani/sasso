@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Net } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
@@ -22,9 +22,20 @@ function fetchNets() {
     })
 }
 
-setInterval(() => {
+let intervalId: number | null = null
+
+onMounted(() => {
   fetchNets()
-}, 5000)
+  intervalId = setInterval(() => {
+    fetchNets()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+})
 
 function createNet() {
   if (!newNetName.value || !newNetVlanAware.value) {
@@ -80,10 +91,6 @@ function getStatusClass(status: string) {
   }
 }
 // unknown, pending, ready, error, creating, deleting, pre-creating, pre-deleting
-
-onMounted(() => {
-  fetchNets()
-})
 </script>
 
 <template>
@@ -94,6 +101,7 @@ onMounted(() => {
       <div class="flex flex-col gap-2">
         <label for="name">Network Name</label>
         <input
+          required
           v-model="newNetName"
           type="text"
           placeholder="Network Name"

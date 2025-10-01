@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
 import CreateNew from '../CreateNew.vue'
+import { error } from 'console'
 
 const $props = defineProps<{
   vmid: number
@@ -13,6 +14,10 @@ const $emit = defineEmits(['interfaceAdded', 'interfaceUpdated', 'cancel'])
 
 const nets = ref<Net[]>([])
 const editing = ref(!!$props.interface)
+const currentNet = computed(() => {
+  return nets.value.find((n) => n.id === form.value.vnet_id)
+})
+const error = ref('')
 
 const form = ref({
   vnet_id: $props.interface?.vnet_id || 0,
@@ -54,6 +59,7 @@ function fetchNets() {
     })
     .catch((err) => {
       console.error('Failed to fetch nets:', err)
+      error.value = 'Failed to fetch networks: ' + err.message
     })
 }
 
@@ -73,6 +79,7 @@ function addInterface() {
     })
     .catch((err) => {
       console.error('Failed to add interface:', err)
+      error.value = 'Failed to add interface: ' + err.message
     })
 }
 
@@ -94,7 +101,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <CreateNew title="Interface" :create="handleSubmit">
+  <CreateNew title="Interface" :create="handleSubmit" :error="error">
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
@@ -109,7 +116,7 @@ onMounted(() => {
         <div>Subnet: {{ currentSubnet }}</div>
         <div>Gateway: {{ currentGateway }}</div>
       </div>
-      <div>
+      <div v-if="currentNet?.vlanaware">
         <!-- FIXME: do this only if the net is vlanaware -->
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
         <input

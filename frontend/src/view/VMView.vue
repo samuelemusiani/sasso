@@ -5,10 +5,13 @@ import type { VM } from '@/types'
 import { api } from '@/lib/api'
 
 const vms = ref<VM[]>([])
+const name = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const notes = ref('')
 const include_global_ssh_keys = ref(true)
+const error = ref('')
 
 function fetchVMs() {
   api
@@ -21,24 +24,22 @@ function fetchVMs() {
     })
 }
 
-setInterval(() => {
-  // FIXME: timer infinito
-  fetchVMs()
-}, 5000)
-
 function createVM() {
   api
     .post('/vm', {
+      name: name.value,
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
       include_global_ssh_keys: include_global_ssh_keys.value,
+      notes: notes.value,
     })
     .then(() => {
       fetchVMs()
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
+      error.value = 'Failed to create VM: ' + err.message
     })
 }
 
@@ -112,9 +113,19 @@ onBeforeUnmount(() => {
       <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
     </h1>
 
-    <CreateNew title="Create New VM" :create="createVM">
+    <CreateNew title="New VM" :create="createVM" :error="error">
       <div>
-        <label for="cores">CPU Cores:</label>
+        <label for="cores">Name</label>
+        <input
+          required
+          type="text"
+          id="name"
+          v-model="name"
+          class="input w-full border p-2 rounded-lg w-24"
+        />
+      </div>
+      <div>
+        <label for="cores">CPU Cores</label>
         <input
           type="number"
           id="cores"
@@ -123,7 +134,7 @@ onBeforeUnmount(() => {
         />
       </div>
       <div>
-        <label for="ram">RAM (MB):</label>
+        <label for="ram">RAM (MB)</label>
         <input
           type="number"
           id="ram"
@@ -143,6 +154,10 @@ onBeforeUnmount(() => {
           class="checkbox checkbox-primary"
         />
         <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
+      </div>
+      <div class="flex flex-col w-full">
+        <label for="cores">Notes</label>
+        <textarea class="w-full textarea" placeholder="VM Notes" v-model="notes"></textarea>
       </div>
     </CreateNew>
 
@@ -165,7 +180,7 @@ onBeforeUnmount(() => {
       <table class="table">
         <thead>
           <tr>
-            <th scope="col" class="text-xs uppercase">ID</th>
+            <th scope="col" class="text-xs uppercase">Name</th>
             <th scope="col" class="text-xs uppercase">Cores</th>
             <th scope="col" class="text-xs uppercase">RAM (MB)</th>
             <th scope="col" class="text-xs uppercase">Disk (GB)</th>
@@ -177,7 +192,10 @@ onBeforeUnmount(() => {
         </thead>
         <tbody class="divide-y">
           <tr v-for="vm in vms" :key="vm.id">
-            <td class="">{{ vm.id }}</td>
+            <td class="flex flex-col">
+              {{ vm.name }}
+              <div class="text-xs bg-base-100 p-2 rounded-lg">{{ vm.notes }}</div>
+            </td>
             <td class="">{{ vm.cores }}</td>
             <td class="">{{ vm.ram }}</td>
             <td class="">{{ vm.disk }}</td>

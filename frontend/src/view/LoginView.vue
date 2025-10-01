@@ -10,7 +10,7 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 
-let showPassword = ref(false)
+const showPassword = ref(false)
 const realm = ref('Local')
 const realms = ref<Realm[]>([])
 

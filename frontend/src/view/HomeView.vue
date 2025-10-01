@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import UserStats from '@/components/UserStats.vue'
+// import UserStats from '@/components/UserStats.vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 
@@ -47,7 +47,7 @@ onMounted(() => {
 <template>
   <div class="h-full overflow-auto">
     <h1 class="text-3xl font-bold my-3">Hi {{ whoami?.username }}!</h1>
-    <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
+    <!-- <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
     <div class="flex flex-wrap justify-around gap-4">
       <UserStats
         v-for="stat in stats"
@@ -57,6 +57,6 @@ onMounted(() => {
         :percent="stat.percent"
         :color="stat.color"
       />
-    </div>
+    </div> -->
   </div>
 </template>
