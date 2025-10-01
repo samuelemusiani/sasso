@@ -192,7 +192,6 @@ func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
 
 
 func GetResorcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
-func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
   var result struct {
     Cores uint
     RAM   uint
