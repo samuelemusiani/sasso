@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
 	"time"
@@ -26,6 +25,14 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		err := checkPeers(logger)
 		if err != nil {
 			logger.With("error", err).Error("Failed to check peers")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		// check firewall
+		err = checkFiewall(logger, fwConfig)
+		if err != nil {
+			logger.With("error", err).Error("Failed to check firewall")
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -83,16 +90,12 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 		logger.Info("Deleting net", "subnet", ln.Subnet)
 
-		iface, err := db.GetPeerByID(ln.PeerID)
+		peer, err := db.GetPeerByID(ln.PeerID)
 		if err != nil {
 			logger.With("error", err).Error("Failed to get peer from DB")
 			continue
 		}
-		err = shorewall.RemoveRule(shorewall.Rule{
-			Action:      "ACCEPT",
-			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
-			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
-		})
+		err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, ln.Subnet))
 		if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
 			logger.With("error", err).Error("Failed to delete firewall rule")
 			continue
@@ -224,17 +227,13 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		logger.Debug("Enabling net", "net", n.Subnet)
 
-		iface, err := db.GetPeerByUserID(n.UserID)
+		peer, err := db.GetPeerByUserID(n.UserID)
 		if err != nil {
 			logger.With("error", err).Error("Failed to get peer from DB")
 			continue
 		}
 
-		err = shorewall.AddRule(shorewall.Rule{
-			Action:      "ACCEPT",
-			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
-			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, n.Subnet),
-		})
+		err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, n.Subnet))
 
 		if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
 			logger.With("error", err).Error("Failed to add firewall rule")
@@ -246,14 +245,14 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		wgIface := wg.PeerFromDB(iface)
+		wgIface := wg.PeerFromDB(peer)
 		err = wg.CreatePeer(&wgIface)
 		if err != nil {
 			logger.With("error", err).Error("Failed to create WireGuard peer")
 			continue
 		}
 
-		err = db.NewSubnet(n.Subnet, iface.ID)
+		err = db.NewSubnet(n.Subnet, peer.ID)
 		if err != nil {
 			logger.With("error", err).Error("Failed to save subnet to database")
 			continue
@@ -304,6 +303,58 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 			UserID:    v.UserID,
 			VPNConfig: base64Conf,
 		})
+	}
+
+	return nil
+}
+
+func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
+	// for all subnets in the db, check if there is a rule in shorewall
+	subnets, err := db.GetAllSubnets()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all subnets from DB")
+		return err
+	}
+
+	fwRules, err := shorewall.GetRules()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get firewall rules")
+		return err
+	}
+
+	for _, s := range subnets {
+		peer, err := db.GetPeerByID(s.PeerID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get peer from DB")
+			continue
+		}
+
+		rule := util.CreateRule(fwConfig, "ACCEPT", peer.Address, s.Subnet)
+
+		// check if the rule exists in fwRules
+		// TODO: improve this
+		exists := false
+		for _, r := range fwRules {
+			if r.Action == rule.Action && r.Source == rule.Source && r.Destination == rule.Destination {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			logger.Info("Firewall rule missing, adding it", "rule", rule)
+			err = shorewall.AddRule(rule)
+			if err != nil {
+				logger.With("error", err).Error("Failed to add firewall rule")
+				continue
+			}
+		}
+	}
+
+	// reload shorewall to apply changes
+	if err = shorewall.Reload(); err != nil {
+		logger.With("error", err).Error("Failed to reload firewall")
+		return err
 	}
 
 	return nil
