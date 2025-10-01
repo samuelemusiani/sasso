@@ -171,3 +171,39 @@ func GetAllActiveVMsWithUnknown() ([]VM, error) {
 	}
 	return vms, nil
 }
+
+func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
+	var result struct {
+		Cores uint
+		RAM   uint
+		Disk  uint
+	}
+
+	err := db.Model(&VM{}).
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Where("user_id = ?", userID).Scan(&result).Error
+
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return result.Cores, result.RAM, result.Disk, nil
+}
+
+func GetResorcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
+	var result struct {
+		Cores uint
+		RAM   uint
+		Disk  uint
+	}
+
+	err := db.Model(&VM{}).
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Where("user_id = ? AND status = ?", userID, "running").Scan(&result).Error
+
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return result.Cores, result.RAM, result.Disk, nil
+}

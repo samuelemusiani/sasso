@@ -213,3 +213,55 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+type returnUserResources struct {
+	MaxCores       uint `json:"max_cores"`
+	MaxRAM         uint `json:"max_ram"`
+	MaxDisk        uint `json:"max_disk"`
+	MaxNets        uint `json:"max_nets"`
+	AllocatedCores uint `json:"allocated_cores"`
+	AllocatedRAM   uint `json:"allocated_ram"`
+	AllocatedDisk  uint `json:"allocated_disk"`
+	AllocatedNets  uint `json:"allocated_nets"`
+	ActiveVMsCores uint `json:"active_vms_cores"`
+	ActiveVMsRAM   uint `json:"active_vms_ram"`
+	ActiveVMsDisk  uint `json:"active_vms_disk"`
+}
+
+func getUserResources(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+	var userResources returnUserResources
+	var err error
+
+	user, err := db.GetUserByID(userID)
+	if err != nil {
+		logger.Error("failed to get user by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	userResources.MaxCores = user.MaxCores
+	userResources.MaxRAM = user.MaxRAM
+	userResources.MaxDisk = user.MaxDisk
+	userResources.MaxNets = user.MaxNets
+
+	userResources.AllocatedCores, userResources.AllocatedRAM, userResources.AllocatedDisk, err = db.GetVMResourcesByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get VM resources by user ID", "error", err)
+		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
+		return
+	}
+	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
+
+	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResorcesActiveVMsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get active VM resources by user ID", "error", err)
+		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(userResources); err != nil {
+		logger.Error("failed to encode resources to JSON", "error", err)
+		http.Error(w, "Failed to encode resources to JSON", http.StatusInternalServerError)
+		return
+	}
+}
