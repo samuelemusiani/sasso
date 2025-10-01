@@ -42,6 +42,7 @@ func Worker() {
 
 		cluster, err := getProxmoxCluster(client)
 		if err != nil {
+			logger.With("error", err).Error("Failed to get Proxmox cluster")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -51,6 +52,7 @@ func Worker() {
 
 		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 		if err != nil {
+			logger.With("error", err).Error("Failed to map VMID to Proxmox nodes")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -134,7 +136,7 @@ func createVNets(cluster *gprox.Cluster) {
 		}
 		return
 	} else {
-		logger.Info("SDN changes applied successfully")
+		logger.Debug("SDN changes applied successfully")
 		for _, v := range vnets {
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
 			if err != nil {
@@ -183,7 +185,7 @@ func deleteVNets(cluster *gprox.Cluster) {
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if isSuccessful {
-		logger.Info("SDN changes applied successfully")
+		logger.Debug("SDN changes applied successfully")
 		for _, v := range vnets {
 			err = db.DeleteNetByID(v.ID)
 			if err != nil {
@@ -239,7 +241,7 @@ func createVMs() {
 		if v.Status != string(VMStatusPreCreating) {
 			continue
 		}
-		logger.Info("Cloning VM", "vmid", v.ID)
+		logger.Debug("Cloning VM", "vmid", v.ID)
 		// Create the VM in Proxmox
 		// Creation implies cloning a template
 		cloningOptions.NewID = int(v.ID)
@@ -283,7 +285,7 @@ func deleteVMs(cluster *gprox.Cluster, VMLocation map[uint64]string) {
 	}
 
 	for _, v := range vms {
-		logger.With("vmid", v.ID).Info("Deleting VM")
+		logger.With("vmid", v.ID).Debug("Deleting VM")
 
 		err := db.DeleteAllInterfacesByVMID(v.ID)
 		if err != nil {
@@ -387,7 +389,7 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 		if err != nil {
 			continue
 		}
-		logger.With("vmid", v.ID).Info("Configuring VM")
+		logger.With("vmid", v.ID).Debug("Configuring VM")
 
 		if vm.VirtualMachineConfig.Cores != int(v.Cores) {
 			coresOption := gprox.VirtualMachineOption{
@@ -399,7 +401,7 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set cores on VM")
 				return
 			}
-			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			logger.With("isSuccessful", isSuccessful).Debug("Task finished")
 			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to set cores on VM")
 			}
@@ -415,7 +417,7 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 				logger.With("vmid", v.ID, "err", err).Error("Failed to set ram on VM")
 				continue
 			}
-			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			logger.With("isSuccessful", isSuccessful).Debug("Task finished")
 			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to set ram on VM")
 			}
@@ -443,7 +445,7 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 			}
 
 			isSuccessful, err := waitForProxmoxTaskCompletion(t)
-			logger.With("isSuccessful", isSuccessful).Info("Task finished")
+			logger.With("isSuccessful", isSuccessful).Debug("Task finished")
 			if !isSuccessful {
 				logger.With("vmid", v.ID).Error("Failed to resize disk on VM")
 			}
@@ -454,7 +456,7 @@ func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 			}
 		}
 
-		logger.With("vm", vm, "vm.VirtualMachineConfig", vm.VirtualMachineConfig).Info("VM configured")
+		logger.With("vm", vm).Debug("VM configured")
 	}
 }
 
@@ -1009,7 +1011,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			logger.With("vmid", v.ID, "err", err).Error("Failed to set ssh keys on VM")
 			return
 		}
-		logger.With("isSuccessful", isSuccessful).Info("Task finished")
+		logger.With("isSuccessful", isSuccessful).Debug("Task finished")
 		if !isSuccessful {
 			logger.With("vmid", v.ID).Error("Failed to set ssh keys on VM")
 			continue
