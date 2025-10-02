@@ -12,3 +12,10 @@ func getNetMutex(netID uint) *sync.Mutex {
 	mu, _ := netMutexes.LoadOrStore(netID, &sync.Mutex{})
 	return mu.(*sync.Mutex)
 }
+
+// Used to avoid race conditions on VM operations
+var vmMutexes = sync.Map{} // map[uint]*sync.Mutex
+func getVMMutex(vmID uint) *sync.Mutex {
+	mu, _ := vmMutexes.LoadOrStore(vmID, &sync.Mutex{})
+	return mu.(*sync.Mutex)
+}

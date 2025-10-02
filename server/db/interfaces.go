@@ -20,7 +20,7 @@ func initInterfaces() error {
 		logger.With("error", err).Error("Failed to migrate interfaces table")
 		return err
 	}
-	logger.Info("Interfaces table migrated successfully")
+	logger.Debug("Interfaces table migrated successfully")
 	return nil
 }
 

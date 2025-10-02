@@ -45,7 +45,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	net, err := proxmox.AssignNewNetToUser(userID, req.Name)
+	net, err := proxmox.AssignNewNetToUser(userID, req.Name, req.VlanAware)
 	if err != nil {
 		if err == proxmox.ErrInsufficientResources {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
@@ -56,9 +56,10 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	returnableNet := returnNet{
-		ID:     net.ID,
-		Name:   net.Alias, // This is correct. For the user the name is the alias.
-		Status: net.Status,
+		ID:        net.ID,
+		Name:      net.Alias, // This is correct. For the user the name is the alias.
+		Status:    net.Status,
+		VlanAware: net.VlanAware,
 	}
 
 	w.WriteHeader(http.StatusCreated)

@@ -45,8 +45,8 @@ func Init(l *slog.Logger, c *config.Database) error {
 		return err
 	}
 
-	if err := initInterfaces(); err != nil {
-		logger.With("error", err).Error("Failed to initialize interfaces in database")
+	if err := initPeers(); err != nil {
+		logger.With("error", err).Error("Failed to initialize peers in database")
 		return err
 	}
 	return nil

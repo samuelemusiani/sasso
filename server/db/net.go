@@ -26,7 +26,7 @@ func initNetworks() error {
 		logger.With("error", err).Error("Failed to migrate networks table")
 		return err
 	}
-	logger.Info("Networks table migrated successfully")
+	logger.Debug("Networks table migrated successfully")
 	return nil
 }
 
@@ -74,6 +74,15 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 	return nets, nil
 }
 
+func CountNetsByUserID(userID uint) (uint, error) {
+	var count int64
+	if err := db.Model(&Net{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to count nets for user")
+		return 0, err
+	}
+	return uint(count), nil
+}
+
 func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
 	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {
@@ -114,7 +123,7 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 		return nil, err
 	}
 
-	logger.With("userID", userID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware).Info("Created network for user")
+	logger.With("userID", userID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware).Debug("Created network for user")
 
 	return net, nil
 }
@@ -133,7 +142,7 @@ func UpdateVNetStatus(ID uint, status string) error {
 		logger.With("netID", ID, "status", status, "error", err).Error("Failed to update VNet status")
 		return err
 	}
-	logger.With("netID", ID, "status", status).Info("Updated VNet status")
+	logger.With("netID", ID, "status", status).Debug("Updated VNet status")
 	return nil
 }
 
@@ -142,7 +151,7 @@ func DeleteNetByID(ID uint) error {
 		logger.With("netID", ID, "error", err).Error("Failed to delete network")
 		return err
 	}
-	logger.With("netID", ID).Info("Deleted network")
+	logger.With("netID", ID).Debug("Deleted network")
 	return nil
 }
 
@@ -151,7 +160,7 @@ func UpdateVNet(net *Net) error {
 		logger.With("netID", net.ID, "error", err).Error("Failed to update network")
 		return err
 	}
-	logger.With("netID", net.ID).Info("Updated network")
+	logger.With("netID", net.ID).Debug("Updated network")
 	return nil
 }
 

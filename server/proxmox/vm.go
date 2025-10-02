@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -39,11 +40,15 @@ var (
 	ErrVMNotFound     error = errors.New("VM not found")
 	ErrInvalidVMState error = errors.New("invalid VM state for this action")
 	ErrInvalidVMParam error = errors.New("invalid VM parameter")
+
+	vmNameRegex = regexp.MustCompile(`^\w+$`)
 )
 
 type VM struct {
 	ID     uint64 `json:"id"`
 	Status string `json:"status"`
+	Name   string `json:"name"`
+	Notes  string `json:"notes"`
 	Cores  uint   `json:"cores"`
 	RAM    uint   `json:"ram"`
 	Disk   uint   `json:"disk"`
@@ -62,6 +67,8 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	for i := range vms {
 		vms[i].ID = db_vms[i].ID
 		// Status needs to be checked against the acctual Proxmox VM status
+		vms[i].Name = db_vms[i].Name
+		vms[i].Notes = db_vms[i].Notes
 		vms[i].Status = string(db_vms[i].Status)
 		vms[i].Cores = db_vms[i].Cores
 		vms[i].RAM = db_vms[i].RAM
@@ -89,13 +96,19 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 	return vmid, nil
 }
 
-func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+
+	if !vmNameRegex.MatchString(name) || len(name) > 16 {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
+	}
 
 	if cores < 1 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
-	} else if ram < 512 {
+	}
+	if ram < 512 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
-	} else if disk < VMCloneDiskSizeGB {
+	}
+	if disk < VMCloneDiskSizeGB {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
 	}
 
@@ -105,20 +118,19 @@ func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bo
 		return nil, err
 	}
 
-	vms, err := db.GetVMsByUserID(userID)
+	exists, err := db.ExistsVMWithUserIdAndName(userID, name)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get VMs by user ID")
+		logger.With("userID", userID, "name", name, "error", err).Error("Failed to check if VM name exists")
 		return nil, err
 	}
+	if exists {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("vm name already exists"))
+	}
 
-	var currentCores uint = 0
-	var currentRAM uint = 0
-	var currentDisk uint = 0
-
-	for _, vm := range vms {
-		currentCores += vm.Cores
-		currentRAM += vm.RAM
-		currentDisk += vm.Disk
+	currentCores, currentRAM, currentDisk, err := db.GetVMResourcesByUserID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get current VM resources from database")
+		return nil, err
 	}
 
 	if currentCores+cores > user.MaxCores {
@@ -143,7 +155,7 @@ func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bo
 	vmUserID++ // Increment the VM user ID for the new VM
 	VMID, err := generateFullVMID(userID, vmUserID)
 
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), cores, ram, disk, includeGlobalSSHKeys)
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), name, notes, cores, ram, disk, includeGlobalSSHKeys)
 	if err != nil {
 		logger.With("userID", userID, "vmUserID", vmUserID, "error", err).
 			Error("Failed to create new VM in database")
@@ -153,6 +165,8 @@ func NewVM(userID uint, cores uint, ram uint, disk uint, includeGlobalSSHKeys bo
 	vm := &VM{
 		ID:     db_vm.ID,
 		Status: string(db_vm.Status),
+		Name:   db_vm.Name,
+		Notes:  db_vm.Notes,
 	}
 
 	return vm, nil
@@ -179,7 +193,7 @@ func DeleteVM(userID uint, vmID uint64) error {
 	}
 
 	logger.With("userID", userID, "vmID", vmID).
-		Info("VM set to 'deleting' successfully")
+		Debug("VM set to 'deleting' successfully")
 
 	return nil
 }
@@ -307,7 +321,7 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 		return err
 	}
 
-	logger.With("userID", userID, "vmID", vmID).Info(fmt.Sprintf("VM %sed successfully", action))
+	logger.With("userID", userID, "vmID", vmID).Debug(fmt.Sprintf("VM %sed successfully", action))
 
 	return nil
 }

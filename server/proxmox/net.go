@@ -86,7 +86,7 @@ func TestEndpointNetZone() {
 }
 
 // This Function only creates a network in the database.
-func AssignNewNetToUser(userID uint, name string) (*db.Net, error) {
+func AssignNewNetToUser(userID uint, name string, vlanaware bool) (*db.Net, error) {
 	user, err := db.GetUserByID(userID)
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get user by ID")
@@ -116,7 +116,7 @@ func AssignNewNetToUser(userID uint, name string) (*db.Net, error) {
 
 	netName := cNetwork.SDNZone[0:3] + EncodeBase62(uint32(tag))
 
-	net, err := db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, tag, false, string(VNetStatusPreCreating))
+	net, err := db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, tag, vlanaware, string(VNetStatusPreCreating))
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to create network for user")
 		return nil, err

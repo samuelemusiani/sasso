@@ -5,24 +5,42 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"samuelemusiani/sasso/server/db"
+	"regexp"
 	"strconv"
+
+	"samuelemusiani/sasso/server/db"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type returnRealm struct {
+var groupRegex = regexp.MustCompile(`^\w*$`)
+
+type returnLDAPRealm struct {
+	Realm
+	URL             string `json:"url"`
+	UserBaseDN      string `json:"user_base_dn"`
+	GroupBaseDN     string `json:"group_base_dn"`
+	BindDN          string `json:"bind_dn"`
+	MaintainerGroup string `json:"maintainer_group"`
+	AdminGroup      string `json:"admin_group"`
+}
+
+type Realm struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Type        string `json:"type"`
 }
 
-type returnLDAPRealm struct {
-	returnRealm
-	URL    string `json:"url"`
-	BaseDN string `json:"base_dn"`
-	BindDN string `json:"bind_dn"`
+type LDAPRealm struct {
+	Realm
+	URL             string `json:"url"`
+	UserBaseDN      string `json:"user_base_dn"`
+	GroupBaseDN     string `json:"group_base_dn"`
+	BindDN          string `json:"bind_dn"`
+	Password        string `json:"password"`
+	MaintainerGroup string `json:"maintainer_group"`
+	AdminGroup      string `json:"admin_group"`
 }
 
 func listRealms(w http.ResponseWriter, r *http.Request) {
@@ -33,9 +51,9 @@ func listRealms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	returnedRealms := make([]returnRealm, len(realms))
+	returnedRealms := make([]Realm, len(realms))
 	for i, realm := range realms {
-		returnedRealms[i] = returnRealm{
+		returnedRealms[i] = Realm{
 			ID:          realm.ID,
 			Name:        realm.Name,
 			Description: realm.Description,
@@ -59,7 +77,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var newRealm db.Realm
+	var newRealm Realm
 	if err := json.Unmarshal(body, &newRealm); err != nil {
 		logger.With("error", err).Error("Failed to unmarshal request body into Realm")
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
@@ -78,14 +96,14 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case "ldap":
-		var ldapRealm db.LDAPRealm
+		var ldapRealm LDAPRealm
 		if err := json.Unmarshal(body, &ldapRealm); err != nil {
 			logger.With("error", err).Error("Failed to unmarshal request body into LDAPRealm")
 			http.Error(w, "Invalid JSON format for LDAP realm", http.StatusBadRequest)
 			return
 		}
 
-		if ldapRealm.URL == "" || ldapRealm.BaseDN == "" || ldapRealm.BindDN == "" || ldapRealm.Password == "" {
+		if ldapRealm.URL == "" || ldapRealm.UserBaseDN == "" || ldapRealm.BindDN == "" || ldapRealm.Password == "" {
 			logger.Error("Missing required fields for LDAP realm")
 			http.Error(w, "Missing required fields for LDAP realm", http.StatusBadRequest)
 			return
@@ -98,8 +116,40 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if ldapRealm.MaintainerGroup != "" && !groupRegex.MatchString(ldapRealm.MaintainerGroup) {
+			logger.With("maintainerGroup", ldapRealm.MaintainerGroup).Error("Invalid maintainer group format")
+			http.Error(w, "Invalid maintainer group format", http.StatusBadRequest)
+			return
+		}
+
+		if ldapRealm.AdminGroup != "" && !groupRegex.MatchString(ldapRealm.AdminGroup) {
+			logger.With("adminGroup", ldapRealm.AdminGroup).Error("Invalid admin group format")
+			http.Error(w, "Invalid admin group format", http.StatusBadRequest)
+			return
+		}
+
+		if (ldapRealm.MaintainerGroup != "" || ldapRealm.AdminGroup != "") && ldapRealm.GroupBaseDN == "" {
+			logger.With("groupBaseDN", ldapRealm.GroupBaseDN).Error("empty group base dn")
+			http.Error(w, "Invalid group format", http.StatusBadRequest)
+			return
+		}
+
 		logger.With("ldapRealm", ldapRealm).Info("Adding new LDAP realm")
-		if err := db.AddLDAPRealm(ldapRealm); err != nil {
+		dbRealm := db.LDAPRealm{
+			Realm: db.Realm{
+				Name:        newRealm.Name,
+				Description: newRealm.Description,
+				Type:        newRealm.Type,
+			},
+			URL:             ldapRealm.URL,
+			UserBaseDN:      ldapRealm.UserBaseDN,
+			GroupBaseDN:     ldapRealm.GroupBaseDN,
+			BindDN:          ldapRealm.BindDN,
+			Password:        ldapRealm.Password,
+			MaintainerGroup: ldapRealm.MaintainerGroup,
+			AdminGroup:      ldapRealm.AdminGroup,
+		}
+		if err := db.AddLDAPRealm(dbRealm); err != nil {
 			logger.With("error", err).Error("Failed to add LDAP realm")
 			http.Error(w, "Failed to add LDAP realm", http.StatusInternalServerError)
 			return
@@ -136,7 +186,7 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var returnedRealm any
-	basicRealm := returnRealm{
+	basicRealm := Realm{
 		ID:          realm.ID,
 		Name:        realm.Name,
 		Description: realm.Description,
@@ -160,10 +210,13 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 		}
 
 		returnedRealm = returnLDAPRealm{
-			returnRealm: basicRealm,
-			URL:         ldapRealm.URL,
-			BaseDN:      ldapRealm.BaseDN,
-			BindDN:      ldapRealm.BindDN,
+			Realm:           basicRealm,
+			URL:             ldapRealm.URL,
+			UserBaseDN:      ldapRealm.UserBaseDN,
+			GroupBaseDN:     ldapRealm.GroupBaseDN,
+			BindDN:          ldapRealm.BindDN,
+			MaintainerGroup: ldapRealm.MaintainerGroup,
+			AdminGroup:      ldapRealm.AdminGroup,
 		}
 	default:
 		logger.With("userID", userID, "realmID", realmID).Error("Unsupported realm type")
@@ -270,7 +323,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var clientLdapRealm db.LDAPRealm
+		var clientLdapRealm LDAPRealm
 
 		err = json.Unmarshal(body, &clientLdapRealm)
 		if err != nil {
@@ -294,14 +347,23 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 			}
 			ldapRealm.URL = clientLdapRealm.URL
 		}
-		if clientLdapRealm.BaseDN != "" {
-			ldapRealm.BaseDN = clientLdapRealm.BaseDN
+		if clientLdapRealm.UserBaseDN != "" {
+			ldapRealm.UserBaseDN = clientLdapRealm.UserBaseDN
+		}
+		if clientLdapRealm.GroupBaseDN != "" {
+			ldapRealm.GroupBaseDN = clientLdapRealm.GroupBaseDN
 		}
 		if clientLdapRealm.BindDN != "" {
 			ldapRealm.BindDN = clientLdapRealm.BindDN
 		}
 		if clientLdapRealm.Password != "" {
 			ldapRealm.Password = clientLdapRealm.Password
+		}
+		if clientLdapRealm.MaintainerGroup != "" {
+			ldapRealm.MaintainerGroup = clientLdapRealm.MaintainerGroup
+		}
+		if clientLdapRealm.AdminGroup != "" {
+			ldapRealm.AdminGroup = clientLdapRealm.AdminGroup
 		}
 
 		if err := db.UpdateLDAPRealm(*ldapRealm); err != nil {

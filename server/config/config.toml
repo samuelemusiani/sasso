@@ -1,7 +1,10 @@
 # Example of a server configuration
 
-[server]
+[public_server]
 bind = ":8080"
+
+[internal_server]
+bind = ":8081"
 
 [database]
 user = "user"

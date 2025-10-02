@@ -4,7 +4,7 @@ type Subnet struct {
 	ID     uint   `gorm:"primaryKey"`
 	Subnet string `gorm:"not null;unique"`
 
-	InterfaceID uint `gorm:"index"`
+	PeerID uint `gorm:"index"`
 }
 
 func initSubnets() error {
@@ -27,10 +27,10 @@ func CheckSubnetExists(subnet string) (bool, error) {
 	return count > 0, nil
 }
 
-func NewSubnet(subnet string, interfaceID uint) error {
+func NewSubnet(subnet string, PeerID uint) error {
 	s := &Subnet{
-		Subnet:      subnet,
-		InterfaceID: interfaceID,
+		Subnet: subnet,
+		PeerID: PeerID,
 	}
 	if err := db.Create(s).Error; err != nil {
 		return err

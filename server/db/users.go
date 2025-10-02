@@ -13,7 +13,7 @@ type UserRole string
 const (
 	RoleAdmin      UserRole = "admin"
 	RoleUser       UserRole = "user"
-	RoleMaintainer UserRole = "mantainer"
+	RoleMaintainer UserRole = "maintainer"
 )
 
 var ErrInvalidUserRole = errors.New("invalid user role")
@@ -25,7 +25,7 @@ type User struct {
 	Password []byte
 	Email    string   `gorm:"uniqueIndex;not null"`
 	Realm    string   `gorm:"default:'local'"`
-	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','mantainer')"`
+	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','maintainer')"`
 
 	MaxCores uint `gorm:"not null;default:2"`
 	MaxRAM   uint `gorm:"not null;default:2048"`
@@ -98,7 +98,7 @@ func initUsers() error {
 		return err
 	}
 
-	logger.With("password", passwd).Info("Admin user created successfully")
+	logger.With("password", passwd).Debug("Admin user created successfully")
 	return nil
 }
 
