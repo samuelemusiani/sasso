@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	router *chi.Mux     = nil
-	logger *slog.Logger = nil
+	publicRouter  *chi.Mux     = nil
+	privateRouter *chi.Mux     = nil
+	logger        *slog.Logger = nil
 
 	tokenAuth *jwtauth.JWTAuth = nil
 )
@@ -27,17 +28,27 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 	logger = apiLogger
 
 	// Router
-	router = chi.NewRouter()
+	publicRouter = chi.NewRouter()
+	privateRouter = chi.NewRouter()
 
 	// Middleware
-	router.Use(middleware.RealIP)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.CleanPath)
+	publicRouter.Use(middleware.RealIP)
+	publicRouter.Use(middleware.Recoverer)
+	publicRouter.Use(middleware.CleanPath)
+
+	privateRouter.Use(middleware.RealIP)
+	privateRouter.Use(middleware.Recoverer)
+	privateRouter.Use(middleware.CleanPath)
 
 	apiRouter := chi.NewRouter()
 
 	apiRouter.Use(middleware.Logger)
+	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
+
+	privateRouter.Use(middleware.Logger)
+	privateRouter.Use(middleware.Recoverer)
+	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
 
 	tokenAuth = jwtauth.New("HS256", key, nil)
 
@@ -147,19 +158,35 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 		r.Get("/port-forwards", internalListProtForwards)
 	})
 
-	router.Mount("/api", apiRouter)
-	router.Mount("/internal", internalRouter)
+	publicRouter.Mount("/api", apiRouter)
+	privateRouter.Mount("/internal", internalRouter)
 
-	router.Get("/*", frontHandler(frontFS))
+	publicRouter.Get("/*", frontHandler(frontFS))
 }
 
-func ListenAndServe(c config.Server) error {
-	if router == nil {
+func ListenAndServe(publicConfig, privateConfig config.Server) error {
+	if publicRouter == nil {
+		panic("Router not initialized")
+	}
+	if privateRouter == nil {
 		panic("Router not initialized")
 	}
 
-	logger.Info("Listening", "bind", c.Bind)
-	return http.ListenAndServe(c.Bind, router)
+	c := make(chan error, 1)
+
+	go func() {
+		logger.Info("Public router listening", "bind", publicConfig.Bind)
+		err := http.ListenAndServe(privateConfig.Bind, publicRouter)
+		c <- err
+	}()
+
+	go func() {
+		logger.Info("Private router listening", "bind", privateConfig.Bind)
+		err := http.ListenAndServe(privateConfig.Bind, privateRouter)
+		c <- err
+	}()
+
+	return <-c
 }
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {

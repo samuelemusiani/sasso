@@ -5,10 +5,11 @@ import (
 )
 
 type Config struct {
-	Server   Server   `toml:"server"`
-	Database Database `toml:"database"`
-	Secrets  Secrets  `toml:"secrets"`
-	Proxmox  Proxmox  `toml:"proxmox"`
+	PublicServer  Server   `toml:"public_server"`
+	PrivateServer Server   `toml:"private_server"`
+	Database      Database `toml:"database"`
+	Secrets       Secrets  `toml:"secrets"`
+	Proxmox       Proxmox  `toml:"proxmox"`
 }
 
 type Server struct {
