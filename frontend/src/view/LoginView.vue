@@ -56,7 +56,7 @@ onMounted(() => {
         Login into <img src="/public/sasso.png" class="h-20" />
       </div>
       <div class="w-full">
-        <legend class="label">Username</legend>
+        <legend class="label mb-1">Username</legend>
         <label class="input validator rounded-lg">
           <IconVue icon="material-symbols:person" class="h-[1em] opacity-50 text-lg" />
           <input
@@ -72,7 +72,7 @@ onMounted(() => {
       </div>
 
       <div class="w-full">
-        <legend class="label">Password</legend>
+        <legend class="label mb-1">Password</legend>
         <label class="input rounded-lg">
           <IconVue icon="material-symbols:lock" class="h-[1em] opacity-50 text-lg" />
           <input
@@ -101,7 +101,7 @@ onMounted(() => {
         There's a connection error, please try to refresh
       </div>
       <fieldset v-else class="my-2 w-full">
-        <legend class="label">Realms</legend>
+        <legend class="label mb-1">Realms</legend>
         <select class="flex flex-col items-center select rounded-lg">
           <template v-for="r in realms" :key="r.id">
             <option class="block px-4 py-2" @click="realm = r.name">
@@ -113,4 +113,13 @@ onMounted(() => {
       <button class="btn btn-primary p-2 rounded-lg w-full" @click="login()">Login</button>
     </div>
   </div>
+  <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8">
+    by
+    <a href="https://students.cs.unibo.it" class="text-primary"
+      ><img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff"
+    /></a>
+  </p>
+  <!-- 
+    <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8 ">Developed by <a
+      href="https://students.cs.unibo.it" class="text-primary">ADMStaff</a></p> -->
 </template>

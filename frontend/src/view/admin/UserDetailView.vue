@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
+import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,6 +58,7 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
+    <AdminBreadcrumbs />
     <RouterLink
       class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
       to="/admin/users"

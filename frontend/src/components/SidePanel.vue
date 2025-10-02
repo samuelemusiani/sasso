@@ -32,7 +32,6 @@ function fetchWhoami() {
   api
     .get('/whoami')
     .then((res) => {
-      console.log('Whoami response:', res.data)
       whoami.value = res.data as User
     })
     .catch((err) => {
@@ -105,10 +104,10 @@ onMounted(() => {
         />
         <button
           @click="logout()"
-          class="flex items-center gap-2 p-2 hover:bg-primary/20 rounded-full w-full font-semibold"
+          class="btn flex items-center gap-2 hover:bg-error-content rounded-full w-full font-semibold"
           :class="{ '!justify-center !rounded-2xl': collapsed }"
         >
-          <IconVue icon="material-symbols:logout" class="text-xl ml-5" />
+          <IconVue icon="material-symbols:logout" class="text-xl" />
           <span v-if="!collapsed">Logout</span>
         </button>
       </div>

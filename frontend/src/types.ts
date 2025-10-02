@@ -94,3 +94,17 @@ export interface BackupRequest {
   status: string
   vmid: number
 }
+
+export interface Stat {
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
+  allocated_cores: number
+  allocated_ram: number
+  allocated_disk: number
+  allocated_nets: number
+  active_vms_cores: number
+  active_vms_ram: number
+  active_vms_disk: number
+}

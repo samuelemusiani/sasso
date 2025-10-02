@@ -1,5 +1,38 @@
+<script setup lang="ts">
+import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import AdminCard from '@/components/AdminCard.vue'
+
+const menu = {
+  users: {
+    to: '/admin/users',
+    color: 'info',
+    icon: 'mdi:account-multiple-outline',
+    title: 'Users',
+  },
+  realms: {
+    to: '/admin/realms',
+    color: 'primary',
+    icon: 'mdi:domain',
+    title: 'Realms',
+  },
+  sshKeys: {
+    to: '/admin/ssh-keys',
+    color: 'warning',
+    icon: 'mdi:key-outline',
+    title: 'SSH Keys',
+  },
+  portForwards: {
+    to: '/admin/port-forwards',
+    color: 'success',
+    icon: 'mdi:network-outline',
+    title: 'Port Forwards',
+  },
+}
+</script>
+
 <template>
   <div class="p-2">
+    <AdminBreadcrumbs />
     <!-- Header -->
     <div class="mb-8 px-2">
       <div class="flex items-center gap-3 mb-4 text-3xl font-bold">
@@ -8,30 +41,7 @@
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-2">
-      <RouterLink
-        class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg min-w-32 block text-center"
-        to="/admin/users"
-      >
-        Users
-      </RouterLink>
-      <RouterLink
-        class="bg-pink-400 hover:bg-pink-300 p-2 rounded-lg min-w-32 block text-center"
-        to="/admin/realms"
-      >
-        Realms
-      </RouterLink>
-      <RouterLink
-        class="bg-green-400 hover:bg-success p-2 rounded-lg min-w-32 block text-center"
-        to="/admin/ssh-keys"
-      >
-        SSH Keys
-      </RouterLink>
-      <RouterLink
-        class="bg-orange-400 hover:bg-orange-300 p-2 rounded-lg min-w-32 block text-center"
-        to="/admin/port-forwards"
-      >
-        Port Forwards
-      </RouterLink>
+      <AdminCard v-for="(value, key) in menu" :key="key" :value="value"></AdminCard>
     </div>
   </div>
 </template>

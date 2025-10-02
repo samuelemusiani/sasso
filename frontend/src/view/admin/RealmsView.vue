@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { Realm } from '@/types'
 import RealmsMultiplexer from '@/components/realms/RealmsMultiplexer.vue'
+import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 
 const realms = ref<Realm[]>([])
 
@@ -47,13 +48,7 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <div>Admin realm view for <b>sasso</b>!</div>
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
-      to="/admin"
-    >
-      Back to Admin Panel
-    </RouterLink>
+    <AdminBreadcrumbs />
     <button
       class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg w-64 block text-center"
       @click="addingRealm = true"
@@ -68,28 +63,26 @@ onMounted(() => {
     >
       Cancel
     </button>
-    <table class="w-full mt-2 p-2" v-show="!addingRealm">
+    <table class="table w-full mt-2 p-2" v-show="!addingRealm">
       <thead>
-        <tr class="bg-cyan-500">
-          <th class="p-2 border-y border-black border-l">ID</th>
-          <th class="p-2 border-y border-black">Name</th>
-          <th class="p-2 border-y border-black">Description</th>
-          <th class="p-2 border-y border-black">Type</th>
-          <th class="p-2 border-y border-black border-r"></th>
+        <tr class="">
+          <th class="">Name</th>
+          <th class="">Description</th>
+          <th class="">Type</th>
+          <th class=""></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="realm in realms" :key="realm.id" class="odd:bg-blue-100 even:bg-blue-200">
-          <td class="p-2 text-center border-y border-black border-l">{{ realm.id }}</td>
-          <td class="p-2 text-center border-y border-black">{{ realm.name }}</td>
-          <td class="p-2 text-center border-y border-black">{{ realm.description }}</td>
-          <td class="p-2 text-center border-y border-black">{{ realm.type }}</td>
-          <td class="p-2 text-center border-y border-black border-r">
-            <div class="flex justify-evenly" v-show="realm.type != 'local'">
-              <RouterLink class="text-blue-500 hover:underline" :to="`/admin/realms/${realm.id}`"
+        <tr v-for="realm in realms" :key="realm.id" class="odd:bg-base-100 even:bg-base-200">
+          <td class="">{{ realm.name }}</td>
+          <td class="">{{ realm.description }}</td>
+          <td class="">{{ realm.type }}</td>
+          <td class="">
+            <div class="flex justify-start gap-2" v-show="realm.type != 'local'">
+              <RouterLink class="btn btn-primary" :to="`/admin/realms/${realm.id}`"
                 >Edit</RouterLink
               >
-              <button class="text-red-500 hover:underline" @click="deleteRealm(realm.id)">
+              <button class="btn btn-error btn-outline" @click="deleteRealm(realm.id)">
                 Delete
               </button>
             </div>
