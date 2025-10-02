@@ -104,9 +104,11 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 
 	if cores < 1 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
-	} else if ram < 512 {
+	}
+	if ram < 512 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
-	} else if disk < VMCloneDiskSizeGB {
+	}
+	if disk < VMCloneDiskSizeGB {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
 	}
 
