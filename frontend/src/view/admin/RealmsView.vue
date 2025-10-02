@@ -56,13 +56,6 @@ onMounted(() => {
     >
       Add LDAP Realm
     </button>
-    <button
-      class="bg-red-400 hover:bg-red-300 p-2 rounded-lg w-64 block text-center"
-      @click="addingRealm = false"
-      v-show="addingRealm"
-    >
-      Cancel
-    </button>
     <table class="table w-full mt-2 p-2" v-show="!addingRealm">
       <thead>
         <tr class="">
@@ -92,7 +85,6 @@ onMounted(() => {
     </table>
 
     <RealmsMultiplexer
-      class="mt-4"
       v-show="addingRealm"
       :adding="addingRealm"
       :type="addingType"

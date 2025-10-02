@@ -45,10 +45,10 @@ onMounted(() => {
 <template>
   <div class="p-4">
     <LDAPForm
-      class="w-1/3"
+      class=""
       v-if="(realm && realm.type == 'ldap') || $props.type == 'ldap'"
       @realm-added="realmAdded"
       :realm="realm as LDAPRealm"
-    />
+    ></LDAPForm>
   </div>
 </template>

@@ -63,7 +63,7 @@ const maskedConfig = computed(() => {
   <div class="p-2 flex flex-col gap-4">
     <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
       <IconVue icon="material-symbols:settings" class="text-primary" />
-      File di Configurazione WireGuard
+      WireGuard's Configuration File
     </h2>
     <div class="flex items-center gap-2">
       <button

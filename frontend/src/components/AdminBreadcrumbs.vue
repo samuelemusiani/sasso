@@ -2,6 +2,11 @@
 import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
+
+function computeRoute(s: string) {
+  const index = route.path.indexOf(s)
+  return route.path.slice(0, index + s.length)
+}
 </script>
 
 <template>
@@ -9,7 +14,7 @@ const route = useRoute()
     <ul>
       <li v-for="value in route.path.split('/').slice(1)" :key="value">
         <RouterLink
-          :to="`/${value}`"
+          :to="`${computeRoute(value)}`"
           class="capitalize font-semibold label hover:text-base-content"
           >{{ value }}</RouterLink
         >
