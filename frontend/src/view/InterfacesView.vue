@@ -85,36 +85,16 @@ onMounted(() => {
 <template>
   <div class="p-2 flex flex-col gap-2">
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
-      to="/vm"
-    >
-      Back to VMs
-    </RouterLink>
 
-    <div class="my-4">
-      <button
-        v-if="!showAddForm && !editingInterface"
-        @click="showAddForm = true"
-        class="bg-green-400 p-2 rounded-lg hover:bg-green-300"
-      >
-        Add New Interface
-      </button>
-      <InterfaceForm
-        v-if="showAddForm"
-        :vmid="vmid"
-        @interface-added="handleInterfaceAdded"
-        @cancel="handleCancel"
-      />
-      <InterfaceForm
-        v-if="editingInterface"
-        :vmid="vmid"
-        :interface="editingInterface"
-        @interface-updated="handleInterfaceUpdated"
-        @cancel="handleCancel"
-      />
-    </div>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+    <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
+    <InterfaceForm
+      v-if="editingInterface"
+      :vmid="vmid"
+      :interface="editingInterface"
+      @interface-updated="handleInterfaceUpdated"
+      @cancel="handleCancel"
+    />
+    <div class="alert alert-warning p-4" role="alert">
       <p class="font-bold">Warning</p>
       <p>
         Adding interfaces while the VM is running is possible. The VM will see the interface, but it
@@ -122,7 +102,7 @@ onMounted(() => {
         restart the VM.
       </p>
     </div>
-    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+    <div class="alert alert-info p-4" role="alert">
       <p class="font-bold">Information</p>
       <p>
         The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
@@ -134,8 +114,8 @@ onMounted(() => {
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-base-content">
+        <thead class="bg-base-100">
           <tr>
             <th
               scope="col"
@@ -176,7 +156,7 @@ onMounted(() => {
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="iface in interfaces" :key="iface.id">
             <td class="px-6 py-4 whitespace-nowrap">{{ iface.id }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ netMap.get(iface.vnet_id) }}</td>
@@ -187,16 +167,10 @@ onMounted(() => {
             <td
               class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
             >
-              <button
-                @click="showEditForm(iface)"
-                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
-              >
+              <button @click="showEditForm(iface)" class="btn btn-primary p-2 rounded-lg">
                 Edit
               </button>
-              <button
-                @click="deleteInterface(iface.id)"
-                class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
-              >
+              <button @click="deleteInterface(iface.id)" class="btn btn-error p-2 rounded-lg">
                 Delete
               </button>
             </td>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Net } from '@/types'
 import { api } from '@/lib/api'
+import CreateNew from '@/components/CreateNew.vue'
 const nets = ref<Net[]>([])
 const newNetName = ref('')
+const newNetVlanAware = ref(false)
+const error = ref('')
 
 function fetchNets() {
   api
@@ -14,26 +17,40 @@ function fetchNets() {
       nets.value = res.data as Net[]
     })
     .catch((err) => {
+      error.value = 'Failed to fetch nets: ' + err.response.data
       console.error('Failed to fetch nets:', err)
     })
 }
 
-setInterval(() => {
+let intervalId: number | null = null
+
+onMounted(() => {
   fetchNets()
-}, 5000)
+  intervalId = setInterval(() => {
+    fetchNets()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+})
 
 function createNet() {
-  if (!newNetName.value) {
+  if (!newNetName.value || !newNetVlanAware.value) {
     return
   }
 
   api
-    .post('/net', { name: newNetName.value })
+    .post('/net', { name: newNetName.value, vlanaware: newNetVlanAware.value })
     .then(() => {
       newNetName.value = ''
+      newNetVlanAware.value = false
       fetchNets()
     })
     .catch((err) => {
+      error.value = 'Failed to create net: ' + err.response.data
       console.error('Failed to create net:', err)
     })
 }
@@ -50,89 +67,86 @@ function deleteNet(id: number) {
       fetchNets()
     })
     .catch((err) => {
+      error.value = 'Failed to delete network: ' + err.response.data
       console.error(`Failed to delete network ${id}:`, err)
     })
 }
 
-function addtmp() {
-  console.log('Adding temporary networks...')
-  for (let i = 0; i < 10; i++) {
-    newNetName.value = `net-${Math.random().toString(36).substring(2, 8)}`
-    createNet()
+function getStatusClass(status: string) {
+  switch (status) {
+    case 'ready':
+      return 'text-success'
+    case 'error':
+    case 'deleting':
+    case 'pre-deleting':
+    case 'unknown':
+      return 'text-error'
+    case 'creating':
+    case 'pre-creating':
+      return 'text-warning'
+    case 'pending':
+      return 'text-info'
+    default:
+      return 'text-info'
   }
 }
-
-function deltmp() {
-  console.log('Deleting temporary networks...')
-  nets.value.forEach((net) => {
-    deleteNet(net.id)
-  })
-}
-
-onMounted(() => {
-  fetchNets()
-})
+// unknown, pending, ready, error, creating, deleting, pre-creating, pre-deleting
 </script>
 
 <template>
-  <div class="p-2">
-    <h1 class="text-2xl">My Networks</h1>
-    <div class="my-4">
-      <h2 class="text-xl">Create New Network</h2>
-      <div class="flex gap-2">
+  <div class="p-2 flex flex-col gap-2">
+    <h1 class="text-3xl font-bold mb-2">My Networks</h1>
+
+    <CreateNew title="Network" :create="createNet" :error="error">
+      <div class="flex flex-col gap-2">
+        <label for="name">Network Name</label>
         <input
+          required
           v-model="newNetName"
           type="text"
           placeholder="Network Name"
-          class="p-2 border rounded-lg"
+          class="p-2 border border-primary rounded-lg"
         />
-        <button @click="createNet" class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg">
-          Create
-        </button>
+
+        <label class="cursor-pointer flex items-center gap-3">
+          <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
+          <span class="label-text text-base-content">Abilita supporto VLAN</span>
+        </label>
       </div>
-    </div>
+    </CreateNew>
 
-    <button class="bg-purple-400 p-2 rounded-lg hover:bg-purple-300 w-64" @click="addtmp">
-      Add n interfaces
-    </button>
-    <button class="bg-red-400 p-2 rounded-lg hover:bg-red-300 w-64" @click="deltmp">
-      Delete n interfaces
-    </button>
-
-    <div>
-      <h2 class="text-xl">Existing Networks</h2>
-      <table class="table-auto w-full">
-        <thead>
-          <tr>
-            <th class="px-4 py-2">ID</th>
-            <th class="px-4 py-2">Name</th>
-            <th class="px-4 py-2">VlanAware</th>
-            <th class="px-4 py-2">Status</th>
-            <th class="px-4 py-2">Subnet</th>
-            <th class="px-4 py-2">Gateway</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="net in nets" :key="net.id">
-            <td class="border px-4 py-2">{{ net.id }}</td>
-            <td class="border px-4 py-2">{{ net.name }}</td>
-            <td class="border px-4 py-2">{{ net.vlanaware }}</td>
-            <td class="border px-4 py-2">{{ net.status }}</td>
-            <td class="border px-4 py-2">{{ net.subnet }}</td>
-            <td class="border px-4 py-2">{{ net.gateway }}</td>
-            <td class="border px-4 py-2">
-              <button
-                v-if="net.status === 'ready'"
-                @click="deleteNet(net.id)"
-                class="text-red-400 hover:blue-red-300 p-2 hover:underline"
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <table class="table table-auto w-full">
+      <thead>
+        <tr>
+          <th class="">Name</th>
+          <th class="">Status</th>
+          <th class="">VlanAware</th>
+          <th class="">Subnet</th>
+          <th class="">Gateway</th>
+          <th class=""></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="net in nets" :key="net.id">
+          <td class="">{{ net.name }}</td>
+          <td class="capitalize font-semibold" :class="getStatusClass(net.status)">
+            {{ net.status }}
+          </td>
+          <td class="">{{ net.vlanaware }}</td>
+          <td class="">{{ net.subnet }}</td>
+          <td class="">{{ net.gateway }}</td>
+          <td class="">
+            <button
+              v-if="net.status === 'ready'"
+              @click="deleteNet(net.id)"
+              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+            >
+              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <p class="hidden md:inline">Delete</p>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

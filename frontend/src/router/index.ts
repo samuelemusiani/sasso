@@ -15,6 +15,7 @@ import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
+import SettingsView from '@/view/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,6 +29,7 @@ const router = createRouter({
     { path: '/ssh-keys', component: SSHKeysView },
     { path: '/vpn', component: VPNView },
     { path: '/port-forwards', component: PortForwardsView },
+    { path: '/settings', component: SettingsView },
     {
       path: '/admin',
       children: [

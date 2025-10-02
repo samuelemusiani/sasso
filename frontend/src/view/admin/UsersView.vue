@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
+import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 
 const users = ref<User[]>([])
 
@@ -23,35 +24,25 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <div>Admin users view for <b>sasso</b>!</div>
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
-      to="/admin"
-    >
-      Back to Admin Panel
-    </RouterLink>
-    <table class="w-full mt-2 p-2">
+    <AdminBreadcrumbs />
+    <table class="table w-full mt-2 p-2">
       <thead>
-        <tr class="bg-cyan-500">
-          <th class="p-2 border-y border-black border-l">ID</th>
-          <th class="p-2 border-y border-black">Username</th>
-          <th class="p-2 border-y border-black">Email</th>
-          <th class="p-2 border-y border-black">Role</th>
-          <th class="p-2 border-y border-black border-r">Realm</th>
-          <th class="p-2 border-y border-black border-r">Actions</th>
+        <tr class="">
+          <th class="">Username</th>
+          <th class="">Email</th>
+          <th class="">Role</th>
+          <th class="">Realm</th>
+          <th class="">Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in users" :key="user.id" class="odd:bg-blue-100 even:bg-blue-200">
-          <td class="p-2 text-center border-y border-black border-l">{{ user.id }}</td>
-          <td class="p-2 text-center border-y border-black">{{ user.username }}</td>
-          <td class="p-2 text-center border-y border-black">{{ user.email }}</td>
-          <td class="p-2 text-center border-y border-black">{{ user.role }}</td>
-          <td class="p-2 text-center border-y border-black">{{ user.realm }}</td>
-          <td class="p-2 text-center border-y border-black border-r">
-            <RouterLink :to="`/admin/users/${user.id}`" class="text-blue-600 hover:underline">
-              Edit
-            </RouterLink>
+        <tr v-for="user in users" :key="user.id" class="odd:bg-base-100 even:bg-base-200">
+          <td class="">{{ user.username }}</td>
+          <td class="">{{ user.email }}</td>
+          <td class="">{{ user.role }}</td>
+          <td class="">{{ user.realm }}</td>
+          <td class="">
+            <RouterLink :to="`/admin/users/${user.id}`" class="btn btn-primary"> Edit </RouterLink>
           </td>
         </tr>
       </tbody>

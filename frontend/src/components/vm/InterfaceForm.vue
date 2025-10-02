@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
+import CreateNew from '../CreateNew.vue'
 
 const $props = defineProps<{
   vmid: number
@@ -12,6 +13,10 @@ const $emit = defineEmits(['interfaceAdded', 'interfaceUpdated', 'cancel'])
 
 const nets = ref<Net[]>([])
 const editing = ref(!!$props.interface)
+const currentNet = computed(() => {
+  return nets.value.find((n) => n.id === form.value.vnet_id)
+})
+const error = ref('')
 
 const form = ref({
   vnet_id: $props.interface?.vnet_id || 0,
@@ -53,6 +58,7 @@ function fetchNets() {
     })
     .catch((err) => {
       console.error('Failed to fetch nets:', err)
+      error.value = 'Failed to fetch networks: ' + err.message
     })
 }
 
@@ -72,6 +78,7 @@ function addInterface() {
     })
     .catch((err) => {
       console.error('Failed to add interface:', err)
+      error.value = 'Failed to add interface: ' + err.message
     })
 }
 
@@ -93,12 +100,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded-lg">
-    <h2 class="text-xl mb-4">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
+  <CreateNew title="Interface" :create="handleSubmit" :error="error">
+    <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
-        <label for="net" class="block text-sm font-medium text-gray-700">Network:</label>
-        <select id="net" v-model="form.vnet_id" class="border p-2 rounded-lg w-full">
+        <label for="net" class="block text-sm font-medium">Network:</label>
+        <select id="net" v-model="form.vnet_id" class="select rounded-lg w-full">
           <option v-for="net in nets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
@@ -108,43 +115,26 @@ onMounted(() => {
         <div>Subnet: {{ currentSubnet }}</div>
         <div>Gateway: {{ currentGateway }}</div>
       </div>
-      <div>
-        <label for="vlan_tag" class="block text-sm font-medium text-gray-700">VLAN Tag:</label>
+      <div v-if="currentNet?.vlanaware">
+        <!-- FIXME: do this only if the net is vlanaware -->
+        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
         <input
           type="number"
           id="vlan_tag"
           v-model.number="form.vlan_tag"
-          class="border p-2 rounded-lg w-full"
+          class="input rounded-lg w-full"
         />
       </div>
       <div>
-        <label for="ip_add" class="block text-sm font-medium text-gray-700">IP Address:</label>
-        <input type="text" id="ip_add" v-model="form.ip_add" class="border p-2 rounded-lg w-full" />
+        <!-- TODO: is needed to /24 -->
+        <label for="ip_add" class="block text-sm font-medium">IP Address:</label>
+        <input type="text" id="ip_add" v-model="form.ip_add" class="input rounded-lg w-full" />
       </div>
       <div>
-        <label for="gateway" class="block text-sm font-medium text-gray-700">Gateway:</label>
-        <input
-          type="text"
-          id="gateway"
-          v-model="form.gateway"
-          class="border p-2 rounded-lg w-full"
-        />
-      </div>
-      <div class="flex gap-2">
-        <button
-          type="submit"
-          class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded"
-        >
-          {{ editing ? 'Update' : 'Add' }}
-        </button>
-        <button
-          @click="$emit('cancel')"
-          type="button"
-          class="bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 rounded"
-        >
-          Cancel
-        </button>
+        <!-- TODO: no /24  -->
+        <label for="gateway" class="block text-sm font-medium">Gateway:</label>
+        <input type="text" id="gateway" v-model="form.gateway" class="input rounded-lg w-full" />
       </div>
     </form>
-  </div>
+  </CreateNew>
 </template>
