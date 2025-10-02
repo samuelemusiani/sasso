@@ -37,7 +37,7 @@ func initPortForwards() error {
 		logger.With("error", err).Error("Failed to migrate port forwards table")
 		return err
 	}
-	logger.Info("Port forwards table migrated successfully")
+	logger.Debug("Port forwards table migrated successfully")
 	return nil
 }
 

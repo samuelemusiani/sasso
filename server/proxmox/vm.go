@@ -193,7 +193,7 @@ func DeleteVM(userID uint, vmID uint64) error {
 	}
 
 	logger.With("userID", userID, "vmID", vmID).
-		Info("VM set to 'deleting' successfully")
+		Debug("VM set to 'deleting' successfully")
 
 	return nil
 }
@@ -321,7 +321,7 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 		return err
 	}
 
-	logger.With("userID", userID, "vmID", vmID).Info(fmt.Sprintf("VM %sed successfully", action))
+	logger.With("userID", userID, "vmID", vmID).Debug(fmt.Sprintf("VM %sed successfully", action))
 
 	return nil
 }

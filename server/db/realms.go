@@ -50,7 +50,7 @@ func initRealms() error {
 		return result.Error
 	}
 
-	logger.Info("Local realm initialized successfully")
+	logger.Debug("Local realm initialized successfully")
 	return nil
 }
 
@@ -76,7 +76,7 @@ func AddLDAPRealm(realm LDAPRealm) error {
 			return err
 		}
 
-		logger.Info("LDAP realm added successfully")
+		logger.Debug("LDAP realm added successfully")
 		return nil
 	})
 }
@@ -111,7 +111,7 @@ func DeleteRealmByID(id uint) error {
 			return err
 		}
 
-		logger.Info("Realm deleted successfully", "realmID", id)
+		logger.Debug("Realm deleted successfully", "realmID", id)
 		return nil
 	})
 }
@@ -128,7 +128,7 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 			return err
 		}
 
-		logger.Info("LDAP realm updated successfully", "realmID", realm.ID)
+		logger.Debug("LDAP realm updated successfully", "realmID", realm.ID)
 		return nil
 	})
 }

@@ -98,7 +98,7 @@ func initUsers() error {
 		return err
 	}
 
-	logger.With("password", passwd).Info("Admin user created successfully")
+	logger.With("password", passwd).Debug("Admin user created successfully")
 	return nil
 }
 
