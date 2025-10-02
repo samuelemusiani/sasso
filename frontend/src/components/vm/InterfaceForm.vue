@@ -3,7 +3,6 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
 import CreateNew from '../CreateNew.vue'
-import { error } from 'console'
 
 const $props = defineProps<{
   vmid: number
