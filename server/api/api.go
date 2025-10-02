@@ -176,7 +176,7 @@ func ListenAndServe(publicConfig, privateConfig config.Server) error {
 
 	go func() {
 		logger.Info("Public router listening", "bind", publicConfig.Bind)
-		err := http.ListenAndServe(privateConfig.Bind, publicRouter)
+		err := http.ListenAndServe(publicConfig.Bind, publicRouter)
 		c <- err
 	}()
 
