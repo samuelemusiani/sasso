@@ -14,17 +14,17 @@ var (
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP requests.",
-		}, []string{"method", "code"},
+		}, []string{"method", "code", "path"},
 	)
 )
 
-func prometheusHandler() func(next http.Handler) http.Handler {
+func prometheusHandler(path string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 			defer func() {
-				httpRequestsTotal.WithLabelValues(r.Method, strconv.Itoa(ww.Status())).Inc()
+				httpRequestsTotal.WithLabelValues(r.Method, strconv.Itoa(ww.Status()), path).Inc()
 			}()
 
 			next.ServeHTTP(ww, r)
