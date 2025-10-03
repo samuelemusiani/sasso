@@ -17,6 +17,7 @@ import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
 import SettingsView from '@/view/SettingsView.vue'
 import SidebarView from '@/view/SidebarView.vue'
+import GlobalSSHKeysView from '@/view/admin/GlobalSSHKeysView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,18 +36,18 @@ const router = createRouter({
         { path: '/vpn', component: VPNView },
         { path: '/port-forwards', component: PortForwardsView },
         { path: '/settings', component: SettingsView },
-      ],
-    },
-    {
-      path: '/admin',
-      children: [
-        { path: '', component: AdminView },
-        { path: 'users', component: AdminUsersView },
-        { path: 'users/:id', component: UserDetailView },
-        { path: 'realms', component: AdminRealmsView },
-        { path: 'realms/:id', component: RealmsMultiplexer },
-        { path: 'ssh-keys', component: () => import('../view/admin/GlobalSSHKeysView.vue') },
-        { path: 'port-forwards', component: AdminPortForwardsView },
+        {
+          path: '/admin',
+          children: [
+            { path: '', component: AdminView },
+            { path: 'users', component: AdminUsersView },
+            { path: 'users/:id', component: UserDetailView },
+            { path: 'realms', component: AdminRealmsView },
+            { path: 'realms/:id', component: RealmsMultiplexer },
+            { path: 'ssh-keys', component: GlobalSSHKeysView },
+            { path: 'port-forwards', component: AdminPortForwardsView },
+          ],
+        },
       ],
     },
   ],

@@ -54,7 +54,7 @@ onMounted(() => {
     <div class="grid h-screen place-items-center">
       <div class="flex flex-col items-center gap-2">
         <div class="text-center flex items-center gap-2">
-          Login into <img src="/public/sasso.png" class="h-20" />
+          Login into <img src="/sasso.png" class="h-20" />
         </div>
         <div class="w-full">
           <legend class="label mb-1">Username</legend>
