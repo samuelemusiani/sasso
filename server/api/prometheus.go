@@ -2,10 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -18,5 +19,15 @@ var (
 )
 
 func prometheusHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(promhttp.InstrumentHandlerCounter(httpRequestsTotal, h))
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+
+		defer func() {
+			httpRequestsTotal.WithLabelValues(r.Method, strconv.Itoa(ww.Status())).Inc()
+		}()
+
+		h.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
 }
