@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -44,10 +45,12 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	apiRouter.Use(middleware.Logger)
 	apiRouter.Use(middleware.Recoverer)
+	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
 	privateRouter.Use(middleware.Logger)
 	privateRouter.Use(middleware.Recoverer)
+	privateRouter.Use(prometheusHandler("/internal"))
 	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
 
 	tokenAuth = jwtauth.New("HS256", key, nil)
@@ -160,6 +163,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	publicRouter.Mount("/api", apiRouter)
 	privateRouter.Mount("/internal", internalRouter)
+	privateRouter.Mount("/metrics", promhttp.Handler())
 
 	publicRouter.Get("/*", frontHandler(frontFS))
 }

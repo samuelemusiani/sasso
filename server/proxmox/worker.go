@@ -34,6 +34,7 @@ func Worker() {
 	logger.Info("Starting Proxmox worker")
 
 	for {
+		now := time.Now()
 		// For all VMs we must check the status and take the necessary actions
 		if !isProxmoxReachable {
 			time.Sleep(20 * time.Second)
@@ -47,11 +48,11 @@ func Worker() {
 			continue
 		}
 
-		createVNets(cluster)
-		deleteVNets(cluster)
+		workerCycleDurationObserve("create_vnets", func() { createVNets(cluster) })
+		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(cluster) })
 
-		createVMs()
-		updateVMs(cluster)
+		workerCycleDurationObserve("create_vms", func() { createVMs() })
+		workerCycleDurationObserve("update_vms", func() { updateVMs(cluster) })
 
 		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 		if err != nil {
@@ -60,18 +61,22 @@ func Worker() {
 			continue
 		}
 
-		deleteVMs(cluster, vmNodes)
-		configureSSHKeys(vmNodes)
-		configureVMs(cluster, vmNodes)
+		workerCycleDurationObserve("delete_vms", func() { deleteVMs(cluster, vmNodes) })
+		workerCycleDurationObserve("configure_vms", func() { configureVMs(cluster, vmNodes) })
+		workerCycleDurationObserve("configure_vms", func() { configureVMs(cluster, vmNodes) })
 
-		createInterfaces(cluster, vmNodes)
-		deleteInterfaces(cluster, vmNodes)
+		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(cluster, vmNodes) })
+		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(cluster, vmNodes) })
 
-		deleteBackups(cluster, vmNodes)
-		restoreBackups(cluster, vmNodes)
-		createBackups(cluster, vmNodes)
+		workerCycleDurationObserve("delete_backups", func() { deleteBackups(cluster, vmNodes) })
+		workerCycleDurationObserve("restore_backups", func() { restoreBackups(cluster, vmNodes) })
+		workerCycleDurationObserve("create_backups", func() { createBackups(cluster, vmNodes) })
 
-		time.Sleep(10 * time.Second)
+		elapsed := time.Since(now)
+		workerCycleDuration.Observe(elapsed.Seconds())
+		if elapsed < 10*time.Second {
+			time.Sleep(10*time.Second - elapsed)
+		}
 	}
 }
 
