@@ -4,7 +4,6 @@ import CreateNew from '@/components/CreateNew.vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
 import { getStatusClass } from '@/const'
-import { Bubble } from 'vue-chartjs'
 import BubbleAlert from '@/components/BubbleAlert.vue'
 
 const vms = ref<VM[]>([])

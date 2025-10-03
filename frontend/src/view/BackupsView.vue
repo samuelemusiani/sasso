@@ -3,7 +3,6 @@ import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Backup, BackupRequest } from '@/types'
 import { api } from '@/lib/api'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 import CreateNew from '@/components/CreateNew.vue'
 
 const backups = ref<Backup[]>([])
