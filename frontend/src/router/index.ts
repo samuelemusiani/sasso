@@ -16,20 +16,27 @@ import VPNView from '../view/VPNView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
 import SettingsView from '@/view/SettingsView.vue'
+import SidebarView from '@/view/SidebarView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', component: HomeView },
     { path: '/login', component: LoginView },
-    { path: '/vm', component: VMView },
-    { path: '/vm/:vmid/interfaces', component: InterfacesView },
-    { path: '/vm/:vmid/backups', component: BackupsView },
-    { path: '/net', component: NetsView },
-    { path: '/ssh-keys', component: SSHKeysView },
-    { path: '/vpn', component: VPNView },
-    { path: '/port-forwards', component: PortForwardsView },
-    { path: '/settings', component: SettingsView },
+    {
+      path: '/',
+      component: SidebarView,
+      children: [
+        { path: '', component: HomeView },
+        { path: '/vm', component: VMView },
+        { path: '/vm/:vmid/interfaces', component: InterfacesView },
+        { path: '/vm/:vmid/backups', component: BackupsView },
+        { path: '/net', component: NetsView },
+        { path: '/ssh-keys', component: SSHKeysView },
+        { path: '/vpn', component: VPNView },
+        { path: '/port-forwards', component: PortForwardsView },
+        { path: '/settings', component: SettingsView },
+      ],
+    },
     {
       path: '/admin',
       children: [

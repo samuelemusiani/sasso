@@ -86,13 +86,13 @@ const maskedConfig = computed(() => {
     <div class="whitespace-pre bg-base-100/50 rounded-lg p-4 border border-base-300/50">
       <div class="flex items-center justify-between mb-2">
         <p class="text-xs text-base-content/60 font-semibold mb-2">sasso-wireguard.conf</p>
-        <button class="badge badge-warning badge-sm" @click="showKeys = !showKeys">
+        <button class="badge badge-warning" @click="showKeys = !showKeys">
           <IconVue v-if="showKeys" icon="material-symbols:visibility-off" class="text-xs" />
           <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
           {{ showKeys ? 'Hide' : 'Show' }} keys
         </button>
       </div>
-      {{ showKeys ? vpnConfig : maskedConfig }}
+      <p>{{ showKeys ? vpnConfig : maskedConfig }}</p>
     </div>
   </div>
 </template>

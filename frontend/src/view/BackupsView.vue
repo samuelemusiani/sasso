@@ -3,6 +3,7 @@ import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Backup, BackupRequest } from '@/types'
 import { api } from '@/lib/api'
+import CreateNew from '@/components/CreateNew.vue'
 
 const backups = ref<Backup[]>([])
 
@@ -11,6 +12,7 @@ const notes = ref('')
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
+const error = ref('')
 
 const backupRequests = ref<BackupRequest[]>([])
 const pendingBackupRequests = computed(() =>
@@ -64,6 +66,7 @@ function restoreBackup(backupID: string) {
 
 function deleteBackup(backupID: string) {
   if (
+    // FIXME: pls remove this stupid id
     confirm(`Are you sure you want to delete backup ${backupID}? This action cannot be undone.`)
   ) {
     api
@@ -106,6 +109,7 @@ function makeBackup() {
       fetchBackupsRequests()
     })
     .catch((err) => {
+      error.value = 'Failed to create backup: ' + err.message
       console.error('Failed to create backup:', err)
       alert(`Failed to create backup`)
     })
@@ -129,98 +133,61 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div>This is the Backups view for <b>sasso</b>!</div>
-  <RouterLink
-    :to="`/vm/`"
-    class="bg-blue-500 p-2 rounded-lg hover:bg-blue-400 text-white mb-4 inline-block"
-  >
-    Back to VMs
-  </RouterLink>
-  <input type="text" placeholder="Backup Name" v-model="name" class="border p-2 rounded-lg mb-4" />
-  <input
-    type="text"
-    placeholder="Backup Notes"
-    v-model="notes"
-    class="border p-2 rounded-lg mb-4"
-  />
-  <button
-    @click="makeBackup()"
-    class="bg-green-500 p-2 rounded-lg hover:bg-green-400 text-white mb-4 inline-block"
-  >
-    Create Backup
-  </button>
-  <div>
-    {{ pendingBackupRequests }}
-  </div>
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
-        <tr>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-          >
-            ID
-          </th>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-          >
-            Name
-          </th>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-          >
-            Time
-          </th>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-          >
-            Notes
-          </th>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-          >
-            Protected
-          </th>
-          <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
-        <tr v-for="bk in backups" :key="bk.name">
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.id.substring(0, 10) }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.name }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.ctime }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.notes }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ bk.protected }}</td>
-          <td
-            class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
-          >
-            <button
-              @click="protectBackup(bk.id, !bk.protected)"
-              class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
-            >
-              Protect
-            </button>
-            <button
-              @click="restoreBackup(bk.id)"
-              class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 text-white"
-            >
-              Restore
-            </button>
-            <button
-              v-if="bk.can_delete"
-              @click="deleteBackup(bk.id)"
-              class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- TODO: go back to vm -->
+  <div class="flex gap-2 flex-col">
+    <h2 class="text-2xl font-bold">Create a Backup</h2>
+    <CreateNew :create="makeBackup" title="New Backup" :error="error">
+      <label class="label">Backup Name</label>
+      <input type="text" placeholder="Name" v-model="name" class="input rounded-lg w-full" />
+      <label class="label">Backup Notes</label>
+      <textarea placeholder="Notes" v-model="notes" class="input rounded-lg w-full h-32"></textarea>
+    </CreateNew>
+    <div v-show="pendingBackupRequests.length > 0">
+      <!-- TODO: quando ne crei uno resta in pending per un po' e non si vede subito nella tabella -->
+      <!-- TODO: dopo il pending rifaccio refetch -->
+      {{ pendingBackupRequests[0] }}
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table min-w-full divide-y">
+        <thead>
+          <tr>
+            <th scope="col" class="font-medium uppercase">Name</th>
+            <th scope="col" class="font-medium uppercase">Time</th>
+            <th scope="col" class="font-medium uppercase">Notes</th>
+            <th scope="col" class="font-medium uppercase">Protected</th>
+            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <tr v-for="bk in backups" :key="bk.name">
+            <td>{{ bk.name }}</td>
+            <!-- TODO: format timing -->
+            <td>{{ bk.ctime }}</td>
+            <!-- TODO: fix with some fancy notes -->
+            <td>{{ bk.notes }}</td>
+            <td>{{ bk.protected }}</td>
+            <td class="text-right text-sm font-medium flex gap-2 justify-end">
+              <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->
+              <button
+                @click="protectBackup(bk.id, !bk.protected)"
+                class="btn btn-primary rounded-lg"
+              >
+                {{ bk.protected ? 'Unprotect' : 'Protect' }}
+              </button>
+              <button @click="restoreBackup(bk.id)" class="btn btn-warning rounded-lg">
+                Restore
+              </button>
+              <button
+                v-if="bk.can_delete"
+                @click="deleteBackup(bk.id)"
+                class="btn btn-error btn-outline rounded-lg"
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

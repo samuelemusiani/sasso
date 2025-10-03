@@ -94,79 +94,41 @@ onMounted(() => {
       @interface-updated="handleInterfaceUpdated"
       @cancel="handleCancel"
     />
-    <div class="alert alert-warning p-4" role="alert">
-      <p class="font-bold">Warning</p>
-      <p>
-        Adding interfaces while the VM is running is possible. The VM will see the interface, but it
-        will not be configured inside the VM. To have the interface configured, you will need to
-        restart the VM.
-      </p>
-    </div>
-    <div class="alert alert-info p-4" role="alert">
-      <p class="font-bold">Information</p>
-      <p>
-        The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
-        used to separate different VMs at layer 2. Interfaces with the same VLAN tag can communicate
-        with each other but not with interfaces with different VLAN tags. The gateway is on the
-        untagged vlan (vlan 0). If you want to reach the internet with a VM, it needs to have at
-        least one interface with vlan tag 0.
-      </p>
+
+    <div class="alert alert-warning p-4 flex flex-col w-max" role="alert">
+      <p class="font-bold">Adding interfaces to a running VM</p>
+      <ul class="list-disc pl-5">
+        <li>You can attach new interfaces while the VM is running.</li>
+        <li>
+          The VM will detect them, but <strong>they will not be configured automatically</strong>.
+        </li>
+        <li>To apply configuration, you need to restart the VM.</li>
+      </ul>
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-base-content">
-        <thead class="bg-base-100">
+      <table class="table min-w-full divide-y">
+        <thead>
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Network
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              VLAN Tag
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              IP Address
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Gateway
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Status
-            </th>
-            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+            <th scope="col">ID</th>
+            <th scope="col">Network</th>
+            <th scope="col">VLAN Tag</th>
+            <th scope="col">IP Address</th>
+            <th scope="col">Gateway</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="relative"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody class="divide-y">
           <tr v-for="iface in interfaces" :key="iface.id">
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ netMap.get(iface.vnet_id) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.vlan_tag }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.ip_add }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.gateway }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.status }}</td>
-            <td
-              class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
-            >
+            <td class="">{{ iface.id }}</td>
+            <td class="">{{ netMap.get(iface.vnet_id) }}</td>
+            <td class="">{{ iface.vlan_tag }}</td>
+            <td class="">{{ iface.ip_add }}</td>
+            <td class="">{{ iface.gateway }}</td>
+            <td class="">{{ iface.status }}</td>
+            <td class="text-right text-sm font-medium flex gap-2 justify-end">
+              <!-- FIXME: editing will show another"CreateNew" component filled -->
               <button @click="showEditForm(iface)" class="btn btn-primary p-2 rounded-lg">
                 Edit
               </button>
