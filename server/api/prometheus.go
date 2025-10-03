@@ -13,14 +13,14 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_total",
+			Name: "sasso_http_requests_total",
 			Help: "Total number of HTTP requests.",
 		}, []string{"method", "code", "path"},
 	)
 
 	requestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "http_request_duration_seconds",
+			Name:    "sasso_http_request_duration_seconds",
 			Help:    "Histogram of latencies for HTTP requests.",
 			Buckets: prometheus.ExponentialBuckets(0.001, 2, 15),
 		}, []string{"method", "code", "path"},
