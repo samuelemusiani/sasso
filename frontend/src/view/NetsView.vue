@@ -3,6 +3,8 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Net } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import { getStatusClass } from '@/const'
+
 const nets = ref<Net[]>([])
 const newNetName = ref('')
 const newNetVlanAware = ref(false)
@@ -71,26 +73,6 @@ function deleteNet(id: number) {
       console.error(`Failed to delete network ${id}:`, err)
     })
 }
-
-function getStatusClass(status: string) {
-  switch (status) {
-    case 'ready':
-      return 'text-success'
-    case 'error':
-    case 'deleting':
-    case 'pre-deleting':
-    case 'unknown':
-      return 'text-error'
-    case 'creating':
-    case 'pre-creating':
-      return 'text-warning'
-    case 'pending':
-      return 'text-info'
-    default:
-      return 'text-info'
-  }
-}
-// unknown, pending, ready, error, creating, deleting, pre-creating, pre-deleting
 </script>
 
 <template>
@@ -100,17 +82,12 @@ function getStatusClass(status: string) {
     <CreateNew title="Network" :create="createNet" :error="error">
       <div class="flex flex-col gap-2">
         <label for="name">Network Name</label>
-        <input
-          required
-          v-model="newNetName"
-          type="text"
-          placeholder="Network Name"
-          class="p-2 border border-primary rounded-lg"
-        />
+        <input required v-model="newNetName" type="text" placeholder="Network Name"
+          class="p-2 border border-primary rounded-lg" />
 
         <label class="cursor-pointer flex items-center gap-3">
           <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
-          <span class="label-text text-base-content">Abilita supporto VLAN</span>
+          <span class="label-text text-base-content">Enable VLAN support</span>
         </label>
       </div>
     </CreateNew>
@@ -136,11 +113,8 @@ function getStatusClass(status: string) {
           <td class="">{{ net.subnet }}</td>
           <td class="">{{ net.gateway }}</td>
           <td class="">
-            <button
-              v-if="net.status === 'ready'"
-              @click="deleteNet(net.id)"
-              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
-            >
+            <button v-if="net.status === 'ready'" @click="deleteNet(net.id)"
+              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline">
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>

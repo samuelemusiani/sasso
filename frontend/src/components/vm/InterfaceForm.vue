@@ -104,35 +104,41 @@ onMounted(() => {
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
-        <label for="net" class="block text-sm font-medium">Network:</label>
+        <label for="net" class="block text-sm font-medium">Network</label>
         <select id="net" v-model="form.vnet_id" class="select rounded-lg w-full">
           <option v-for="net in nets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
         </select>
       </div>
+
       <div>
         <div>Subnet: {{ currentSubnet }}</div>
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div v-if="currentNet?.vlanaware">
-        <!-- FIXME: do this only if the net is vlanaware -->
-        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag:</label>
-        <input
-          type="number"
-          id="vlan_tag"
-          v-model.number="form.vlan_tag"
-          class="input rounded-lg w-full"
-        />
+
+        <div class="alert alert-info p-4" role="alert">
+          <p class="font-bold">Information</p>
+          <p>
+            The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
+            used to separate different VMs at layer 2. Interfaces with the same VLAN tag can communicate
+            with each other but not with interfaces with different VLAN tags. The gateway is on the
+            untagged vlan (vlan 0). If you want to reach the internet with a VM, it needs to have at
+            least one interface with vlan tag 0.
+          </p>
+        </div>
+        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
+        <input type="number" id="vlan_tag" v-model.number="form.vlan_tag" class="input rounded-lg w-full" />
       </div>
       <div>
         <!-- TODO: is needed to /24 -->
-        <label for="ip_add" class="block text-sm font-medium">IP Address:</label>
+        <label for="ip_add" class="block text-sm font-medium">IP Address</label>
         <input type="text" id="ip_add" v-model="form.ip_add" class="input rounded-lg w-full" />
       </div>
       <div>
         <!-- TODO: no /24  -->
-        <label for="gateway" class="block text-sm font-medium">Gateway:</label>
+        <label for="gateway" class="block text-sm font-medium">Gateway</label>
         <input type="text" id="gateway" v-model="form.gateway" class="input rounded-lg w-full" />
       </div>
     </form>
