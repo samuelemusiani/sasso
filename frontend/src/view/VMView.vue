@@ -19,7 +19,8 @@ function fetchVMs() {
   api
     .get('/vm')
     .then((res) => {
-      vms.value = res.data as VM[]
+      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
+      vms.value = tmp as VM[]
     })
     .catch((err) => {
       console.error('Failed to fetch VMs:', err)
