@@ -5,21 +5,18 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	httpRequestCount = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sasso_http_requests_total",
-		Help: "Total number of HTTP requests",
-	})
+	httpRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests.",
+		}, []string{"method", "code"},
+	)
 )
 
 func prometheusHandler(h http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		defer httpRequestCount.Inc()
-
-		h.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
+	return http.HandlerFunc(promhttp.InstrumentHandlerCounter(httpRequestsTotal, h))
 }
