@@ -152,18 +152,10 @@ onBeforeUnmount(() => {
       <table class="table min-w-full divide-y">
         <thead>
           <tr>
-            <th scope="col" class="font-medium uppercase">
-              Name
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Time
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Notes
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Protected
-            </th>
+            <th scope="col" class="font-medium uppercase">Name</th>
+            <th scope="col" class="font-medium uppercase">Time</th>
+            <th scope="col" class="font-medium uppercase">Notes</th>
+            <th scope="col" class="font-medium uppercase">Protected</th>
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
@@ -177,13 +169,20 @@ onBeforeUnmount(() => {
             <td>{{ bk.protected }}</td>
             <td class="text-right text-sm font-medium flex gap-2 justify-end">
               <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->
-              <button @click="protectBackup(bk.id, !bk.protected)" class="btn btn-primary rounded-lg">
+              <button
+                @click="protectBackup(bk.id, !bk.protected)"
+                class="btn btn-primary rounded-lg"
+              >
                 {{ bk.protected ? 'Unprotect' : 'Protect' }}
               </button>
               <button @click="restoreBackup(bk.id)" class="btn btn-warning rounded-lg">
                 Restore
               </button>
-              <button v-if="bk.can_delete" @click="deleteBackup(bk.id)" class="btn btn-error btn-outline rounded-lg">
+              <button
+                v-if="bk.can_delete"
+                @click="deleteBackup(bk.id)"
+                class="btn btn-error btn-outline rounded-lg"
+              >
                 Delete
               </button>
             </td>

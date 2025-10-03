@@ -10,12 +10,12 @@ export function getStatusClass(status: string) {
       return 'text-error'
     case 'creating':
     case 'pre-creating':
-	case 'configuring':
-	case 'pre-configuring':
-	case 'stopped':
+    case 'configuring':
+    case 'pre-configuring':
+    case 'stopped':
       return 'text-warning'
     case 'pending':
-	case 'suspended':
+    case 'suspended':
       return 'text-info'
     default:
       return 'text-info'

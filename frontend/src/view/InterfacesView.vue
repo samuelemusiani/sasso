@@ -87,14 +87,21 @@ onMounted(() => {
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
 
     <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
-    <InterfaceForm v-if="editingInterface" :vmid="vmid" :interface="editingInterface"
-      @interface-updated="handleInterfaceUpdated" @cancel="handleCancel" />
+    <InterfaceForm
+      v-if="editingInterface"
+      :vmid="vmid"
+      :interface="editingInterface"
+      @interface-updated="handleInterfaceUpdated"
+      @cancel="handleCancel"
+    />
 
     <div class="alert alert-warning p-4 flex flex-col w-max" role="alert">
       <p class="font-bold">Adding interfaces to a running VM</p>
       <ul class="list-disc pl-5">
         <li>You can attach new interfaces while the VM is running.</li>
-        <li>The VM will detect them, but <strong>they will not be configured automatically</strong>.</li>
+        <li>
+          The VM will detect them, but <strong>they will not be configured automatically</strong>.
+        </li>
         <li>To apply configuration, you need to restart the VM.</li>
       </ul>
     </div>
@@ -103,24 +110,12 @@ onMounted(() => {
       <table class="table min-w-full divide-y">
         <thead>
           <tr>
-            <th scope="col" class="font-medium uppercase">
-              ID
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Network
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              VLAN Tag
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              IP Address
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Gateway
-            </th>
-            <th scope="col" class="font-medium uppercase">
-              Status
-            </th>
+            <th scope="col">ID</th>
+            <th scope="col">Network</th>
+            <th scope="col">VLAN Tag</th>
+            <th scope="col">IP Address</th>
+            <th scope="col">Gateway</th>
+            <th scope="col">Status</th>
             <th scope="col" class="relative"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>

@@ -92,7 +92,7 @@ const maskedConfig = computed(() => {
           {{ showKeys ? 'Hide' : 'Show' }} keys
         </button>
       </div>
-     <p>{{ showKeys ? vpnConfig : maskedConfig }}</p>
+      <p>{{ showKeys ? vpnConfig : maskedConfig }}</p>
     </div>
   </div>
 </template>

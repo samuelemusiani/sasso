@@ -82,8 +82,13 @@ function deleteNet(id: number) {
     <CreateNew title="Network" :create="createNet" :error="error">
       <div class="flex flex-col gap-2">
         <label for="name">Network Name</label>
-        <input required v-model="newNetName" type="text" placeholder="Network Name"
-          class="p-2 border border-primary rounded-lg" />
+        <input
+          required
+          v-model="newNetName"
+          type="text"
+          placeholder="Network Name"
+          class="p-2 border border-primary rounded-lg"
+        />
 
         <label class="cursor-pointer flex items-center gap-3">
           <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
@@ -113,8 +118,11 @@ function deleteNet(id: number) {
           <td class="">{{ net.subnet }}</td>
           <td class="">{{ net.gateway }}</td>
           <td class="">
-            <button v-if="net.status === 'ready'" @click="deleteNet(net.id)"
-              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline">
+            <button
+              v-if="net.status === 'ready'"
+              @click="deleteNet(net.id)"
+              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+            >
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>

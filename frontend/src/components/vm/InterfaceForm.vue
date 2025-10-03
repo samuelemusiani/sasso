@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import type { Interface, Net } from '@/types'
 import CreateNew from '../CreateNew.vue'
+import BubbleAlert from '../BubbleAlert.vue'
 
 const $props = defineProps<{
   vmid: number
@@ -117,19 +118,22 @@ onMounted(() => {
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div v-if="currentNet?.vlanaware">
-
-        <div class="alert alert-info p-4" role="alert">
-          <p class="font-bold">Information</p>
-          <p>
-            The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
-            used to separate different VMs at layer 2. Interfaces with the same VLAN tag can communicate
-            with each other but not with interfaces with different VLAN tags. The gateway is on the
-            untagged vlan (vlan 0). If you want to reach the internet with a VM, it needs to have at
-            least one interface with vlan tag 0.
-          </p>
+        <div class="flex items-center mb-1">
+          <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
+          <BubbleAlert type="info" title="VLAN Tag"
+            >The VLAN tag is optional. If you don't know what to put here, leave it at zero. It
+            could be used to separate different VMs at layer 2. Interfaces with the same VLAN tag
+            can communicate with each other but not with interfaces with different VLAN tags. The
+            gateway is on the untagged vlan (vlan 0). If you want to reach the internet with a VM,
+            it needs to have at least one interface with vlan tag 0.
+          </BubbleAlert>
         </div>
-        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
-        <input type="number" id="vlan_tag" v-model.number="form.vlan_tag" class="input rounded-lg w-full" />
+        <input
+          type="number"
+          id="vlan_tag"
+          v-model.number="form.vlan_tag"
+          class="input rounded-lg w-full"
+        />
       </div>
       <div>
         <!-- TODO: is needed to /24 -->
