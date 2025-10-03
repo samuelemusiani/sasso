@@ -34,6 +34,7 @@ func Worker() {
 	logger.Info("Starting Proxmox worker")
 
 	for {
+		now := time.Now()
 		// For all VMs we must check the status and take the necessary actions
 		if !isProxmoxReachable {
 			time.Sleep(20 * time.Second)
@@ -71,7 +72,10 @@ func Worker() {
 		restoreBackups(cluster, vmNodes)
 		createBackups(cluster, vmNodes)
 
-		time.Sleep(10 * time.Second)
+		elapsed := time.Since(now)
+		if elapsed < 10*time.Second {
+			time.Sleep(10*time.Second - elapsed)
+		}
 	}
 }
 
