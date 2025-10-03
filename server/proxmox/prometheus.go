@@ -19,7 +19,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "sasso_worker_cycle_total_duration_seconds",
 			Help:    "Histogram of total latencies for worker cycles.",
-			Buckets: prometheus.ExponentialBuckets(0.001, 2, 15),
+			Buckets: prometheus.ExponentialBuckets(0.032, 2, 14),
 		})
 )
 
