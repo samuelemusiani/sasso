@@ -18,16 +18,18 @@ var (
 	)
 )
 
-func prometheusHandler(h http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+func prometheusHandler() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-		defer func() {
-			httpRequestsTotal.WithLabelValues(r.Method, strconv.Itoa(ww.Status())).Inc()
-		}()
+			defer func() {
+				httpRequestsTotal.WithLabelValues(r.Method, strconv.Itoa(ww.Status())).Inc()
+			}()
 
-		h.ServeHTTP(w, r)
+			next.ServeHTTP(ww, r)
+		}
+
+		return http.HandlerFunc(fn)
 	}
-
-	return http.HandlerFunc(fn)
 }

@@ -45,7 +45,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	apiRouter.Use(middleware.Logger)
 	apiRouter.Use(middleware.Recoverer)
-	apiRouter.Use(prometheusHandler)
+	apiRouter.Use(prometheusHandler())
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
 	privateRouter.Use(middleware.Logger)
