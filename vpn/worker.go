@@ -318,15 +318,23 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 	}
 
 	fwRules, err := shorewall.GetRules()
-	// sort rules by Source
-	sort.Slice(fwRules, func(i, j int) bool {
-		return fwRules[i].Source < fwRules[j].Source
-	})
-
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
 		return err
 	}
+
+	// sort rules by Source
+	sort.Slice(fwRules, func(i, j int) bool {
+		if fwRules[i].Action != fwRules[j].Action {
+			return fwRules[i].Action < fwRules[j].Action
+		}
+		if fwRules[i].Source != fwRules[j].Source {
+			return fwRules[i].Source < fwRules[j].Source
+		}
+		return fwRules[i].Destination < fwRules[j].Destination
+	})
+
+	reloadFirewall := false
 
 	for _, s := range subnets {
 		peer, err := db.GetPeerByID(s.PeerID)
@@ -340,27 +348,37 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 		// check if the rule exists in fwRules
 		// using binary search since fwRules is sorted by Source
 		index := sort.Search(len(fwRules), func(i int) bool {
-			return fwRules[i].Source >= rule.Source
+			if fwRules[i].Action != rule.Action {
+				return fwRules[i].Action > rule.Action
+			}
+			if fwRules[i].Source != rule.Source {
+				return fwRules[i].Source > rule.Source
+			}
+			return fwRules[i].Destination >= rule.Destination
 		})
 
 		exists := index < len(fwRules) &&
+			fwRules[index].Action == rule.Action &&
 			fwRules[index].Source == rule.Source &&
-			fwRules[index].Destination == rule.Destination &&
-			fwRules[index].Action == rule.Action
+			fwRules[index].Destination == rule.Destination
 		if !exists {
 			logger.Info("Firewall rule missing, adding it", "rule", rule)
 			err = shorewall.AddRule(rule)
 			if err != nil {
 				logger.With("error", err).Error("Failed to add firewall rule")
-				continue
+				return err
 			}
+			reloadFirewall = true
 		}
 	}
 
 	// reload shorewall to apply changes
-	if err = shorewall.Reload(); err != nil {
-		logger.With("error", err).Error("Failed to reload firewall")
-		return err
+	if reloadFirewall {
+		err = shorewall.Reload()
+		if err != nil {
+			logger.With("error", err).Error("Failed to reload firewall")
+			return err
+		}
 	}
 
 	return nil
