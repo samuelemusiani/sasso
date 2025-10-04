@@ -521,7 +521,7 @@ func updateVMs(cluster *gprox.Cluster) {
 					Time:  time.Now(),
 				}
 			}
-		} else if r.Status != vm.Status {
+		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
 			logger.With("vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status).Warn("VM changed status on proxmox unexpectedly")
 
 			err := db.UpdateVMStatus(r.VMID, r.Status)
