@@ -19,12 +19,12 @@ const props = defineProps<{
   </div>
   <div v-if="openCreate">
     <form
-      class="p-4 border border-primary rounded-xl bg-base-200 flex flex-col gap-4 w-full h-full"
+      class="border-primary bg-base-200 flex h-full w-full flex-col gap-4 rounded-xl border p-4"
       @submit.prevent="props.create"
     >
       <slot></slot>
       <p v-if="props.error" class="text-error">{{ props.error }}</p>
-      <button class="btn btn-success p-2 rounded-lg" type="submit">Create {{ props.title }}</button>
+      <button class="btn btn-success rounded-lg p-2" type="submit">Create {{ props.title }}</button>
     </form>
   </div>
 </template>

@@ -37,7 +37,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
+  <div class="flex flex-col gap-2 p-2">
     <AdminBreadcrumbs />
     <div class="overflow-x-auto">
       <table class="table min-w-full divide-y">
@@ -58,10 +58,10 @@ onMounted(() => {
             <td class="">{{ pf.dest_port }}</td>
             <td class="">{{ pf.dest_ip }}</td>
             <td class="">{{ pf.username }}</td>
-            <td class="text-right text-sm font-medium flex">
+            <td class="flex text-right text-sm font-medium">
               <button
                 @click="approvePortForward(pf.id, !pf.approved)"
-                class="btn p-2 rounded-lg grow"
+                class="btn grow rounded-lg p-2"
                 :class="pf.approved ? 'btn-error' : 'btn-success'"
               >
                 {{ pf.approved ? 'Revoke' : 'Approve' }}

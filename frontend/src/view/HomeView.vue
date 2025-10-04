@@ -76,8 +76,8 @@ onMounted(() => {
 
 <template>
   <div class="h-full overflow-auto">
-    <h1 class="text-3xl font-bold my-3">Hi {{ whoami?.username }}!</h1>
-    <h1 class="text-xl font-semibold my-2">Usage of your resources</h1>
+    <h1 class="my-3 text-3xl font-bold">Hi {{ whoami?.username }}!</h1>
+    <h1 class="my-2 text-xl font-semibold">Usage of your resources</h1>
     <div class="flex flex-wrap justify-around gap-4">
       <!-- <UserStats v-for="stat in stats" :key="stat.item" :stat="stat" /> -->
     </div>

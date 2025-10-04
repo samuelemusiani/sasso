@@ -15,7 +15,7 @@ function computeRoute(s: string) {
       <li v-for="value in route.path.split('/').slice(1)" :key="value">
         <RouterLink
           :to="`${computeRoute(value)}`"
-          class="capitalize font-semibold label hover:text-base-content"
+          class="label hover:text-base-content font-semibold capitalize"
           >{{ value }}</RouterLink
         >
       </li>

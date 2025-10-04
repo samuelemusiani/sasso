@@ -60,7 +60,7 @@ const maskedConfig = computed(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-4">
+  <div class="flex flex-col gap-4 p-2">
     <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
       <IconVue icon="material-symbols:settings" class="text-primary" />
       WireGuard's Configuration File
@@ -83,9 +83,9 @@ const maskedConfig = computed(() => {
         Download .conf
       </button>
     </div>
-    <div class="whitespace-pre bg-base-100/50 rounded-lg p-4 border border-base-300/50">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-base-content/60 font-semibold mb-2">sasso-wireguard.conf</p>
+    <div class="bg-base-100/50 border-base-300/50 rounded-lg border p-4 whitespace-pre">
+      <div class="mb-2 flex items-center justify-between">
+        <p class="text-base-content/60 mb-2 text-xs font-semibold">sasso-wireguard.conf</p>
         <button class="badge badge-warning" @click="showKeys = !showKeys">
           <IconVue v-if="showKeys" icon="material-symbols:visibility-off" class="text-xs" />
           <IconVue v-else icon="material-symbols:visibility" class="text-xs" />

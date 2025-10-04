@@ -54,17 +54,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
+  <div class="flex flex-col gap-2 p-2">
     <CreateNew title="Port Forward" :create="requestPortForward">
-      <div class="flex gap-2 items-center">
+      <div class="flex items-center gap-2">
         <label for="name">Destination Port</label>
-        <input type="number" id="name" v-model="port" class="input border p-2 rounded-lg w-48" />
+        <input type="number" id="name" v-model="port" class="input w-48 rounded-lg border p-2" />
         <label for="key">Destination IP</label>
-        <input type="text" id="key" v-model="ip" class="input border p-2 rounded-lg w-96" />
+        <input type="text" id="key" v-model="ip" class="input w-96 rounded-lg border p-2" />
       </div>
     </CreateNew>
 
-    <table class="table table-auto w-full">
+    <table class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Out Port</th>
@@ -83,7 +83,7 @@ onMounted(() => {
           <td class="whitespace-nowrap">
             <button
               @click="deletePortForward(pf.id)"
-              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>

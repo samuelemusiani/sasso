@@ -106,7 +106,7 @@ onMounted(() => {
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
         <label for="net" class="block text-sm font-medium">Network</label>
-        <select id="net" v-model="form.vnet_id" class="select rounded-lg w-full">
+        <select id="net" v-model="form.vnet_id" class="select w-full rounded-lg">
           <option v-for="net in nets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
@@ -118,7 +118,7 @@ onMounted(() => {
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div v-if="currentNet?.vlanaware">
-        <div class="flex items-center mb-1">
+        <div class="mb-1 flex items-center">
           <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
           <BubbleAlert type="info" title="VLAN Tag"
             >The VLAN tag is optional. If you don't know what to put here, leave it at zero. It
@@ -132,18 +132,18 @@ onMounted(() => {
           type="number"
           id="vlan_tag"
           v-model.number="form.vlan_tag"
-          class="input rounded-lg w-full"
+          class="input w-full rounded-lg"
         />
       </div>
       <div>
         <!-- TODO: is needed to /24 -->
         <label for="ip_add" class="block text-sm font-medium">IP Address</label>
-        <input type="text" id="ip_add" v-model="form.ip_add" class="input rounded-lg w-full" />
+        <input type="text" id="ip_add" v-model="form.ip_add" class="input w-full rounded-lg" />
       </div>
       <div>
         <!-- TODO: no /24  -->
         <label for="gateway" class="block text-sm font-medium">Gateway</label>
-        <input type="text" id="gateway" v-model="form.gateway" class="input rounded-lg w-full" />
+        <input type="text" id="gateway" v-model="form.gateway" class="input w-full rounded-lg" />
       </div>
     </form>
   </CreateNew>

@@ -50,13 +50,13 @@ onMounted(() => {
   <div class="p-2">
     <AdminBreadcrumbs />
     <button
-      class="bg-blue-400 hover:bg-blue-300 p-2 rounded-lg w-64 block text-center"
+      class="block w-64 rounded-lg bg-blue-400 p-2 text-center hover:bg-blue-300"
       @click="addingRealm = true"
       v-show="!addingRealm"
     >
       Add LDAP Realm
     </button>
-    <table class="table w-full mt-2 p-2" v-show="!addingRealm">
+    <table class="mt-2 table w-full p-2" v-show="!addingRealm">
       <thead>
         <tr class="">
           <th class="">Name</th>

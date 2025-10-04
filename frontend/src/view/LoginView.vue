@@ -65,13 +65,13 @@ onMounted(() => {
   <div class="flex-1 overflow-auto">
     <div class="grid h-screen place-items-center">
       <div class="flex flex-col items-center gap-2">
-        <div class="text-center flex items-center gap-2">
+        <div class="flex items-center gap-2 text-center">
           Login into <img src="/sasso.png" class="h-20" />
         </div>
         <div class="w-full">
           <legend class="label mb-1">Username</legend>
           <label class="input validator rounded-lg">
-            <IconVue icon="material-symbols:person" class="h-[1em] opacity-50 text-lg" />
+            <IconVue icon="material-symbols:person" class="h-[1em] text-lg opacity-50" />
             <input
               type="text"
               v-model="username"
@@ -88,7 +88,7 @@ onMounted(() => {
         <div class="w-full">
           <legend class="label mb-1">Password</legend>
           <label class="input rounded-lg">
-            <IconVue icon="material-symbols:lock" class="h-[1em] opacity-50 text-lg" />
+            <IconVue icon="material-symbols:lock" class="h-[1em] text-lg opacity-50" />
             <input
               required
               v-model="password"
@@ -99,13 +99,13 @@ onMounted(() => {
             <button
               type="button"
               @click="showPassword = !showPassword"
-              class="btn btn-ghost btn-circle w-auto h-auto hover:bg-transparent hover:border-0"
+              class="btn btn-ghost btn-circle h-auto w-auto hover:border-0 hover:bg-transparent"
             >
               <IconVue
                 :icon="
                   showPassword ? 'material-symbols:visibility-off' : 'material-symbols:visibility'
                 "
-                class="text-lg text-base-content/50"
+                class="text-base-content/50 text-lg"
               />
             </button>
           </label>
@@ -124,13 +124,13 @@ onMounted(() => {
             </template>
           </select>
         </fieldset>
-        <button class="btn btn-primary p-2 rounded-lg w-full" @click="login()">Login</button>
+        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">Login</button>
       </div>
     </div>
-    <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8">
+    <p class="text-base-content/50 absolute inset-x-0 bottom-8 text-center">
       by
       <a href="https://students.cs.unibo.it" class="text-primary"
-        ><img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff"
+        ><img src="/ADMStaff.svg" class="inline h-8 opacity-70" alt="ADMStaff"
       /></a>
     </p>
     <!--

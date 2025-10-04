@@ -68,7 +68,7 @@ onMounted(() => {
       <p><strong>Realm</strong> {{ user.realm }}</p>
       <p><strong>Role</strong> {{ user.role }}</p>
 
-      <h3 class="text-xl font-bold mt-6">Resource Limits</h3>
+      <h3 class="mt-6 text-xl font-bold">Resource Limits</h3>
       <form @submit.prevent="updateLimits" class="mt-4 space-y-4">
         <div>
           <label for="maxCores" class="block text-sm font-medium">Max Cores</label>

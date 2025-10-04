@@ -23,11 +23,11 @@ const icon = computed(() => {
 <template>
   <div class="dropdown dropdown-hover dropdown-center" :class="`text-${props.type}`">
     <div tabindex="0" role="button" class="btn btn-circle btn-ghost btn-xs">
-      <IconVue :icon="icon" class="text-lg cursor-pointer" />
+      <IconVue :icon="icon" class="cursor-pointer text-lg" />
     </div>
     <div
       tabindex="0"
-      class="card card-sm dropdown-content arrow bg-base-100 w-70 rounded-box z-1 shadow-sm border mt-2"
+      class="card card-sm dropdown-content arrow bg-base-100 rounded-box z-1 mt-2 w-70 border shadow-sm"
       :class="props.type === '' ? 'text-base-content/80 !font-medium' : ''"
     >
       <div tabindex="0" class="card-body">

@@ -49,17 +49,17 @@ onMounted(() => {
     <!-- Sidebar -->
     <div
       :class="[
-        'bg-linear-to-r from-base-200 to-base-200/40 backdrop-blur-md flex flex-col transition-all duration-300 shadow-lg items-center my-4 rounded-xl',
+        'from-base-200 to-base-200/40 my-4 flex flex-col items-center rounded-xl bg-linear-to-r shadow-lg backdrop-blur-md transition-all duration-300',
         collapsed ? 'w-16' : 'w-54',
       ]"
     >
       <!-- Toggle -->
-      <div class="flex justify-between items-center w-full" :class="{ 'flex-col': collapsed }">
+      <div class="flex w-full items-center justify-between" :class="{ 'flex-col': collapsed }">
         <a href="/" class="px-3 transition" :class="{ '!p-0': collapsed }">
           <img
             :src="collapsed ? '/sasso-icon.png' : '/sasso.png'"
             alt="Sasso Logo"
-            :class="{ 'h-8 my-1': collapsed }"
+            :class="{ 'my-1 h-8': collapsed }"
           />
         </a>
         <button
@@ -78,7 +78,7 @@ onMounted(() => {
       </div>
 
       <!-- Menu -->
-      <ul class="menu flex-1 gap-1 w-full">
+      <ul class="menu w-full flex-1 gap-1">
         <li v-for="(item, name) in menu" :key="name">
           <PanelLine :to="item.to" :icon="item.icon" :label="name" :collapsed="collapsed" />
         </li>
@@ -95,7 +95,7 @@ onMounted(() => {
 
       <!-- Footer actions -->
       <!-- TODO: user avatar for user settings -->
-      <div class="p-2 border-t border-base-300 w-full">
+      <div class="border-base-300 w-full border-t p-2">
         <PanelLine
           to="/settings"
           icon="material-symbols:settings"
@@ -104,7 +104,7 @@ onMounted(() => {
         />
         <button
           @click="logout()"
-          class="btn flex items-center gap-2 hover:bg-error-content rounded-full w-full font-semibold"
+          class="btn hover:bg-error-content flex w-full items-center gap-2 rounded-full font-semibold"
           :class="{ '!justify-center !rounded-2xl': collapsed }"
         >
           <IconVue icon="material-symbols:logout" class="text-xl" />

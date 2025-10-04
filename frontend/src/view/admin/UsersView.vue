@@ -25,7 +25,7 @@ onMounted(() => {
 <template>
   <div class="p-2">
     <AdminBreadcrumbs />
-    <table class="table w-full mt-2 p-2">
+    <table class="mt-2 table w-full p-2">
       <thead>
         <tr class="">
           <th class="">Username</th>
