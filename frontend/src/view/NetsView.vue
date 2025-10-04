@@ -40,7 +40,8 @@ onBeforeUnmount(() => {
 })
 
 function createNet() {
-  if (!newNetName.value || !newNetVlanAware.value) {
+  if (!newNetName.value) {
+    error.value = 'Please provide a valid network name'
     return
   }
 
