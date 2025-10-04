@@ -240,17 +240,26 @@ func createVMs() {
 		optionFull = 0
 	}
 
-	cloningOptions := gprox.VirtualMachineCloneOptions{
-		Full:   optionFull,
-		Target: cClone.TargetNode,
-		Name:   "sasso-001", // TODO: Find a meaningful name
-	}
-
 	for _, v := range vms {
 		if v.Status != string(VMStatusPreCreating) {
 			continue
 		}
 		logger.Debug("Cloning VM", "vmid", v.ID)
+
+		var vmName string
+		if cClone.UserVMNames {
+			vmName = v.Name
+		} else {
+			s := "sasso-%0" + strconv.Itoa(cClone.VMIDUserDigits) + "d"
+			vmName = fmt.Sprintf(s, v.VMUserID)
+		}
+
+		cloningOptions := gprox.VirtualMachineCloneOptions{
+			Full:   optionFull,
+			Target: cClone.TargetNode,
+			Name:   vmName,
+		}
+
 		// Create the VM in Proxmox
 		// Creation implies cloning a template
 		cloningOptions.NewID = int(v.ID)

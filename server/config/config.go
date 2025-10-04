@@ -53,6 +53,7 @@ type ProxmoxClone struct {
 	VMIDUserDigits int    `toml:"vmid_user_digits"`
 	VMIDVMDigits   int    `toml:"vmid_vm_digits"`
 	Full           bool   `toml:"full"`
+	UserVMNames    bool   `toml:"user_vm_names"`
 }
 
 type ProxmoxNetwork struct {

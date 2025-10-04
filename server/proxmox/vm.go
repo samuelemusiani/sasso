@@ -41,7 +41,7 @@ var (
 	ErrInvalidVMState error = errors.New("invalid VM state for this action")
 	ErrInvalidVMParam error = errors.New("invalid VM parameter")
 
-	vmNameRegex = regexp.MustCompile(`^\w+$`)
+	vmNameRegex = regexp.MustCompile(`^\w+(\w|-)*\w+$`)
 )
 
 type VM struct {
