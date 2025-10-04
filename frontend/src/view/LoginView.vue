@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { useRouter } from 'vue-router'
 import { login as _login } from '@/lib/api'
 import type { Realm } from '@/types'
+import type { AxiosError } from 'axios'
 
 const router = useRouter()
 
@@ -13,6 +14,8 @@ const password = ref('')
 const showPassword = ref(false)
 const realm = ref('Local')
 const realms = ref<Realm[]>([])
+
+const errorMessage = ref('')
 
 function fetchRealms() {
   api
@@ -29,6 +32,7 @@ async function login() {
   try {
     if (!username.value || !password.value) {
       console.error('Username and password are required')
+      errorMessage.value = 'Username and password are required'
       return
     }
     const realmID = realms.value.find((r) => r.name === realm.value)?.id
@@ -39,7 +43,15 @@ async function login() {
     await _login(username.value, password.value, realmID)
     router.push('/')
   } catch (error) {
+    const axiosError = error as AxiosError
     console.error('Login failed:', error)
+    if (axiosError.status === 401) {
+      errorMessage.value = 'Invalid username or password'
+    } else if (axiosError.status === 500) {
+      errorMessage.value = "There's a connection error, please try to refresh"
+    } else {
+      errorMessage.value = 'An error occurred during login'
+    }
   }
 }
 
@@ -99,10 +111,10 @@ onMounted(() => {
           </label>
         </div>
 
-        <div v-if="realms.length === 0" class="text-error">
-          There's a connection error, please try to refresh
+        <div v-if="errorMessage" class="text-error">
+          {{ errorMessage }}
         </div>
-        <fieldset v-else class="my-2 w-full">
+        <fieldset class="my-2 w-full">
           <legend class="label mb-1">Realms</legend>
           <select class="select rounded-lg">
             <template v-for="r in realms" :key="r.id">
