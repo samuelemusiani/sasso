@@ -112,6 +112,10 @@ func (a *LocalAuthenticator) Login(username, password string) (*db.User, error) 
 		}
 	}
 
+	if user.RealmID != 1 {
+		return nil, ErrUserNotFound
+	}
+
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
@@ -132,6 +136,7 @@ func (a *LocalAuthenticator) LoadConfigFromDB(realmID uint) error {
 }
 
 type LDAPAuthenticator struct {
+	ID              uint
 	URL             string
 	UserBaseDN      string
 	GroupBaseDN     string
@@ -242,7 +247,7 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 				Password: nil, // Password is not stored for external users
 				Email:    email,
 				Role:     role,
-				Realm:    db.LDAPRealmType,
+				RealmID:  a.ID,
 			}
 
 			err = db.CreateUser(&newUser)
@@ -277,6 +282,7 @@ func (a *LDAPAuthenticator) LoadConfigFromDB(realmID uint) error {
 		return err
 	}
 
+	a.ID = ldapRealm.ID
 	a.URL = ldapRealm.URL
 	a.UserBaseDN = ldapRealm.UserBaseDN
 	a.GroupBaseDN = ldapRealm.GroupBaseDN

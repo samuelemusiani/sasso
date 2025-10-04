@@ -19,10 +19,10 @@ function fetchUser() {
     .get(`/admin/users/${userId}`)
     .then((res) => {
       user.value = res.data as User
-      maxCores.value = user.value.max_cores
-      maxRAM.value = user.value.max_ram
-      maxDisk.value = user.value.max_disk
-      maxNets.value = user.value.max_nets
+      maxCores.value = user.value.max_cores ?? 0
+      maxRAM.value = user.value.max_ram ?? 0
+      maxDisk.value = user.value.max_disk ?? 0
+      maxNets.value = user.value.max_nets ?? 0
     })
     .catch((err) => {
       console.error('Failed to fetch user:', err)
