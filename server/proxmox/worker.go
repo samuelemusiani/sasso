@@ -50,6 +50,7 @@ func Worker() {
 
 		workerCycleDurationObserve("create_vnets", func() { createVNets(cluster) })
 		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(cluster) })
+		workerCycleDurationObserve("update_vnets", func() { updateVNets(cluster) })
 
 		workerCycleDurationObserve("create_vms", func() { createVMs() })
 		workerCycleDurationObserve("update_vms", func() { updateVMs(cluster) })
@@ -61,16 +62,16 @@ func Worker() {
 			continue
 		}
 
-		workerCycleDurationObserve("delete_vms", func() { deleteVMs(cluster, vmNodes) })
+		workerCycleDurationObserve("delete_vms", func() { deleteVMs(vmNodes) })
 		workerCycleDurationObserve("configure_ssh_keys", func() { configureSSHKeys(vmNodes) })
-		workerCycleDurationObserve("configure_vms", func() { configureVMs(cluster, vmNodes) })
+		workerCycleDurationObserve("configure_vms", func() { configureVMs(vmNodes) })
 
-		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(cluster, vmNodes) })
-		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(cluster, vmNodes) })
+		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(vmNodes) })
+		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(vmNodes) })
 
-		workerCycleDurationObserve("delete_backups", func() { deleteBackups(cluster, vmNodes) })
-		workerCycleDurationObserve("restore_backups", func() { restoreBackups(cluster, vmNodes) })
-		workerCycleDurationObserve("create_backups", func() { createBackups(cluster, vmNodes) })
+		workerCycleDurationObserve("delete_backups", func() { deleteBackups(vmNodes) })
+		workerCycleDurationObserve("restore_backups", func() { restoreBackups(vmNodes) })
+		workerCycleDurationObserve("create_backups", func() { createBackups(vmNodes) })
 
 		elapsed := time.Since(now)
 		workerCycleDuration.Observe(elapsed.Seconds())
@@ -293,7 +294,7 @@ func createVMs() {
 }
 
 // deleteVMs deletes VMs from proxmox that are in the 'pre-deleting' status.
-func deleteVMs(cluster *gprox.Cluster, VMLocation map[uint64]string) {
+func deleteVMs(VMLocation map[uint64]string) {
 	logger.Debug("Deleting VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
@@ -381,9 +382,74 @@ func deleteVMs(cluster *gprox.Cluster, VMLocation map[uint64]string) {
 	}
 }
 
+func updateVNets(cluster *gprox.Cluster) {
+	logger.Debug("Updating VNets in worker")
+
+	vnets, err := db.GetVNetsWithStatus(string(VNetStatusReconfiguring))
+	if err != nil {
+		logger.Error("Failed to get VNets with status", "status", VNetStatusReconfiguring, "error", err)
+		return
+	}
+
+	if len(vnets) == 0 {
+		return
+	}
+
+	for _, v := range vnets {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		vnet, err := cluster.SDNVNet(ctx, v.Name)
+		cancel()
+		if err != nil {
+			logger.With("vnet", v.Name, "error", err).Error("Failed to get VNet from Proxmox")
+			continue
+		}
+
+		if v.VlanAware {
+			vnet.VlanAware = 1
+		} else {
+			vnet.VlanAware = 0
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		err = cluster.UpdateSDNVNet(ctx, vnet)
+		cancel()
+		if err != nil {
+			logger.With("vnet", v.Name, "error", err).Error("Failed to update VNet in Proxmox")
+			continue
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	task, err := cluster.SDNApply(ctx)
+	cancel()
+	if err != nil {
+		logger.With("error", err).Error("Failed to apply SDN changes in Proxmox")
+		return
+	}
+
+	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	if isSuccessful {
+		logger.Debug("SDN changes applied successfully")
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusReady, "err", err).Error("Failed to update status of VNet")
+			}
+		}
+	} else {
+		logger.Error("Failed to apply SDN changes in Proxmox")
+		for _, v := range vnets {
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.With("vnet", v.Name, "new_status", VNetStatusUnknown, "err", err).Error("Failed to update status of VNet")
+			}
+		}
+	}
+}
+
 // This function configures VMs that are in the 'pre-configuring' status.
 // Configuration includes setting the number of cores, RAM and disk size
-func configureVMs(cluster *gprox.Cluster, vmNodes map[uint64]string) {
+func configureVMs(vmNodes map[uint64]string) {
 	logger.Debug("Configuring VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreConfiguring))
@@ -564,7 +630,7 @@ func updateVMs(cluster *gprox.Cluster) {
 	}
 }
 
-func createInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
+func createInterfaces(vmNodes map[uint64]string) {
 	logger.Debug("Configuring interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
@@ -632,9 +698,13 @@ func createInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 			continue
 		}
 
+		v := fmt.Sprintf("virtio,bridge=%s,firewall=1", vnet.Name)
+		if iface.VlanTag != 0 {
+			v = fmt.Sprintf("%s,tag=%d", v, iface.VlanTag)
+		}
 		o := gprox.VirtualMachineOption{
 			Name:  "net" + strconv.Itoa(firstEmptyIndex),
-			Value: fmt.Sprintf("virtio,bridge=%s,firewall=1", vnet.Name),
+			Value: v,
 		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
@@ -699,7 +769,7 @@ func createInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 	}
 }
 
-func deleteInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
+func deleteInterfaces(vmNodes map[uint64]string) {
 	logger.Debug("Configuring interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreDeleting))
@@ -765,7 +835,7 @@ func deleteInterfaces(cluster *gprox.Cluster, vmNodes map[uint64]string) {
 	}
 }
 
-func deleteBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
+func deleteBackups(mapVMContent map[uint64]string) {
 	logger.Debug("Deleting backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeDelete)
@@ -831,7 +901,7 @@ func deleteBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	}
 }
 
-func restoreBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
+func restoreBackups(mapVMContent map[uint64]string) {
 	logger.Debug("Restoring backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeRestore)
@@ -900,7 +970,7 @@ func restoreBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
 	}
 }
 
-func createBackups(cluster *gprox.Cluster, mapVMContent map[uint64]string) {
+func createBackups(mapVMContent map[uint64]string) {
 	logger.Debug("Creating backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeCreate)

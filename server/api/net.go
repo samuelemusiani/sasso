@@ -28,11 +28,7 @@ type returnNet struct {
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Failed to get user ID from context", http.StatusUnauthorized)
-		return
-	}
+	userID := mustGetUserIDFromContext(r)
 
 	var req createNetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -67,11 +63,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 }
 
 func listNets(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Failed to get user ID from context", http.StatusUnauthorized)
-		return
-	}
+	userID := mustGetUserIDFromContext(r)
 
 	nets, err := db.GetNetsByUserID(userID)
 	if err != nil {
@@ -121,6 +113,37 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func updateNet(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	vnetIDStr := chi.URLParam(r, "id")
+	vnetID, err := strconv.ParseUint(vnetIDStr, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+		return
+	}
+
+	var req createNetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = proxmox.UpdateNet(userID, uint(vnetID), req.Name, req.VlanAware)
+	if err != nil {
+		if err == proxmox.ErrVNetNotFound {
+			http.Error(w, "Net not found", http.StatusNotFound)
+		} else if err == proxmox.ErrVNetNameExists {
+			http.Error(w, "Net name already exists", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Failed to update net", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func internalListNets(w http.ResponseWriter, r *http.Request) {
