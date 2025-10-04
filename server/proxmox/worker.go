@@ -218,6 +218,10 @@ func createVMs() {
 		return
 	}
 
+	if len(vms) == 0 {
+		return
+	}
+
 	node, err := getProxmoxNode(client, cTemplate.Node)
 	if err != nil {
 		return
