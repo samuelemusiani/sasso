@@ -104,12 +104,16 @@ type LocalAuthenticator struct{}
 func (a *LocalAuthenticator) Login(username, password string) (*db.User, error) {
 	user, err := db.GetUserByUsername(username)
 	if err != nil {
-		if err == db.ErrNotFound && user.RealmID != 1 {
+		if err == db.ErrNotFound {
 			return nil, ErrUserNotFound
 		} else {
 			logger.Error("failed to get user by username", "error", err)
 			return nil, err
 		}
+	}
+
+	if user.RealmID != 1 {
+		return nil, ErrUserNotFound
 	}
 
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
