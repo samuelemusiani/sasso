@@ -12,6 +12,8 @@ type Realm struct {
 	Name        string `gorm:"uniqueIndex;not null"`
 	Description string `gorm:"not null"`
 	Type        string `gorm:"not null;default:'local'"`
+
+	Users []User `gorm:"foreignKey:RealmID"`
 }
 
 type LDAPRealm struct {

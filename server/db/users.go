@@ -24,7 +24,7 @@ type User struct {
 	Username string `gorm:"uniqueIndex;not null"`
 	Password []byte
 	Email    string   `gorm:"uniqueIndex;not null"`
-	Realm    string   `gorm:"default:'local'"`
+	RealmID  uint     `gorm:"not null"`
 	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','maintainer')"`
 
 	MaxCores uint `gorm:"not null;default:2"`
@@ -54,10 +54,6 @@ func (u *User) BeforeSave(tx *gorm.DB) error {
 	if !u.Role.IsValid() {
 		return ErrInvalidUserRole
 	}
-
-	if u.Realm == "local" && len(u.Password) == 0 {
-		return ErrPasswordRequired
-	}
 	return nil
 }
 
@@ -82,7 +78,7 @@ func initUsers() error {
 	adminUser = User{
 		Username: "admin",
 		Email:    "admin@local",
-		Realm:    "local",
+		RealmID:  1, // local realm: should have ID 1 as it's the first realm created
 		Role:     RoleAdmin,
 	}
 

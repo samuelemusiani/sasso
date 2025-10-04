@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
@@ -24,12 +25,12 @@ type returnUser struct {
 	ID       uint        `json:"id"`
 	Username string      `json:"username"`
 	Email    string      `json:"email"`
-	Realm    string      `json:"realm"`
+	Realm    string      `json:"realm,omitempty"`
 	Role     db.UserRole `json:"role"`
-	MaxCores uint        `json:"max_cores"`
-	MaxRAM   uint        `json:"max_ram"`
-	MaxDisk  uint        `json:"max_disk"`
-	MaxNets  uint        `json:"max_nets"`
+	MaxCores uint        `json:"max_cores,omitempty"`
+	MaxRAM   uint        `json:"max_ram,omitempty"`
+	MaxDisk  uint        `json:"max_disk,omitempty"`
+	MaxNets  uint        `json:"max_nets,omitempty"`
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -99,17 +100,20 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realm, err := db.GetRealmByID(user.RealmID)
+	if err != nil {
+		logger.Error("failed to get realm by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Realm:    user.Realm,
+		Realm:    realm.Name,
 		Role:     user.Role,
-		MaxCores: user.MaxCores,
-		MaxRAM:   user.MaxRAM,
-		MaxDisk:  user.MaxDisk,
-		MaxNets:  user.MaxNets,
 	}
 
 	err = json.NewEncoder(w).Encode(returnUser)
@@ -128,13 +132,30 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realms, err := db.GetAllRealms()
+	if err != nil {
+		logger.Error("failed to get all realms", "error", err)
+		http.Error(w, "Failed to get realms", http.StatusInternalServerError)
+		return
+	}
+
+	var realmMap map[uint]string = make(map[uint]string)
+	for _, realm := range realms {
+		realmMap[realm.ID] = realm.Name
+	}
+
 	returnUsers := make([]returnUser, len(users))
 	for i, user := range users {
+		realm, ok := realmMap[user.RealmID]
+		if !ok {
+			slog.Error("realm not found for user", "userID", user.ID, "realmID", user.RealmID)
+			realm = "unknown"
+		}
 		returnUsers[i] = returnUser{
 			ID:       user.ID,
 			Username: user.Username,
 			Email:    user.Email,
-			Realm:    user.Realm,
+			Realm:    realm,
 			Role:     user.Role,
 			MaxCores: user.MaxCores,
 			MaxRAM:   user.MaxRAM,
@@ -171,11 +192,18 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realm, err := db.GetRealmByID(user.RealmID)
+	if err != nil {
+		logger.Error("failed to get realm by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Realm:    user.Realm,
+		Realm:    realm.Name,
 		Role:     user.Role,
 		MaxCores: user.MaxCores,
 		MaxRAM:   user.MaxRAM,

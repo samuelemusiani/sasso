@@ -104,7 +104,7 @@ type LocalAuthenticator struct{}
 func (a *LocalAuthenticator) Login(username, password string) (*db.User, error) {
 	user, err := db.GetUserByUsername(username)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if err == db.ErrNotFound && user.RealmID != 1 {
 			return nil, ErrUserNotFound
 		} else {
 			logger.Error("failed to get user by username", "error", err)
@@ -132,6 +132,7 @@ func (a *LocalAuthenticator) LoadConfigFromDB(realmID uint) error {
 }
 
 type LDAPAuthenticator struct {
+	ID              uint
 	URL             string
 	UserBaseDN      string
 	GroupBaseDN     string
@@ -242,7 +243,7 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 				Password: nil, // Password is not stored for external users
 				Email:    email,
 				Role:     role,
-				Realm:    db.LDAPRealmType,
+				RealmID:  a.ID,
 			}
 
 			err = db.CreateUser(&newUser)
@@ -277,6 +278,7 @@ func (a *LDAPAuthenticator) LoadConfigFromDB(realmID uint) error {
 		return err
 	}
 
+	a.ID = ldapRealm.ID
 	a.URL = ldapRealm.URL
 	a.UserBaseDN = ldapRealm.UserBaseDN
 	a.GroupBaseDN = ldapRealm.GroupBaseDN
