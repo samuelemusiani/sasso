@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"path"
 
@@ -239,12 +240,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 			return
 		}
 
-		switch path.Ext(p) {
-		case ".js":
-			w.Header().Set("Content-Type", "text/javascript")
-		case ".css":
-			w.Header().Set("Content-Type", "text/css")
-		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(p)))
 		w.Write(f)
 	}
 }
