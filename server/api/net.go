@@ -105,7 +105,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 		if err == proxmox.ErrVNetNotFound {
 			http.Error(w, "Net not found", http.StatusNotFound)
 		} else if err == proxmox.ErrVNetHasActiveInterfaces {
-			http.Error(w, "Net has active interfaces", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
 		}
@@ -135,8 +135,8 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == proxmox.ErrVNetNotFound {
 			http.Error(w, "Net not found", http.StatusNotFound)
-		} else if err == proxmox.ErrVNetNameExists {
-			http.Error(w, "Net name already exists", http.StatusBadRequest)
+		} else if err == proxmox.ErrVNetNameExists || err == proxmox.ErrVNetHasTaggedInterfaces {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "Failed to update net", http.StatusInternalServerError)
 		}
