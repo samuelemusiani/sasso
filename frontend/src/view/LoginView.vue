@@ -104,7 +104,7 @@ onMounted(() => {
         </div>
         <fieldset v-else class="my-2 w-full">
           <legend class="label mb-1">Realms</legend>
-          <select class="flex flex-col items-center select rounded-lg">
+          <select class="select rounded-lg">
             <template v-for="r in realms" :key="r.id">
               <option class="block px-4 py-2" @click="realm = r.name">
                 {{ r.name }}
