@@ -85,7 +85,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 		iface, err := db.GetPeerByID(ln.PeerID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get peer from DB")
+			logger.Error("Failed to get peer from DB while disabling nets", "error", err, "peer_id", ln.PeerID)
 			continue
 		}
 		err = shorewall.RemoveRule(shorewall.Rule{
@@ -119,7 +119,7 @@ func createPeers(logger *slog.Logger, users []internal.User) error {
 		_, err := db.GetPeerByUserID(u.ID)
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.With("error", err).Error("Failed to get peer from DB")
+			logger.Error("Failed to get peer from DB for creation", "error", err, "user_id", u.ID)
 			continue
 		} else if err == nil {
 			// peer already exists, skip
@@ -226,7 +226,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		iface, err := db.GetPeerByUserID(n.UserID)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get peer from DB")
+			logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", n.UserID)
 			continue
 		}
 
