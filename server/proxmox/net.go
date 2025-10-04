@@ -188,12 +188,18 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 		return ErrVNetNameExists
 	}
 
-	net.Alias = name
+	changed := false
+
+	if name != "" {
+		net.Alias = name
+		changed = true
+	}
 	if net.VlanAware != vlanware {
 		// If vlanaware is changed, we need to set the status to reconfiguring
 		// so that the worker will apply the change
 		net.Status = string(VNetStatusReconfiguring)
 		net.VlanAware = vlanware
+		changed = true
 	}
 
 	if !vlanware {
@@ -205,6 +211,10 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 		if n {
 			return ErrVNetHasTaggedInterfaces
 		}
+	}
+
+	if !changed {
+		return nil
 	}
 
 	if err := db.UpdateVNet(net); err != nil {
