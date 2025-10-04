@@ -3,15 +3,17 @@ package proxmox
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"samuelemusiani/sasso/server/db"
 	"time"
 )
 
 var (
-	VNetStatusUnknown VMStatus = "unknown"
-	VNetStatusPending VMStatus = "pending"
-	VNetStatusReady   VMStatus = "ready"
+	VNetStatusUnknown       VMStatus = "unknown"
+	VNetStatusPending       VMStatus = "pending"
+	VNetStatusReady         VMStatus = "ready"
+	VNetStatusReconfiguring VMStatus = "reconfiguring"
 
 	// The pre-status is before the main worker has acknowledged the creation or
 	// deletion
@@ -25,6 +27,8 @@ var (
 
 	ErrVNetNotFound            error = errors.New("VNet not found")
 	ErrVNetHasActiveInterfaces error = errors.New("VNet has active interfaces")
+	ErrVNetNameExists          error = errors.New("VNet name already exists")
+	ErrVNetHasTaggedInterfaces error = errors.New("VNet has tagged interfaces")
 )
 
 func TestEndpointNetZone() {
@@ -103,6 +107,11 @@ func AssignNewNetToUser(userID uint, name string, vlanaware bool) (*db.Net, erro
 		return nil, ErrInsufficientResources
 	}
 
+	if slices.IndexFunc(nets, func(n db.Net) bool { return n.Alias == name }) != -1 {
+		logger.With("userID", userID, "name", name).Error("Network name already exists for user")
+		return nil, ErrVNetNameExists
+	}
+
 	tag, err := db.GetRandomAvailableTagByZone(cNetwork.SDNZone, cNetwork.VXLANIDStart, cNetwork.VXLANIDEnd)
 	if err != nil {
 		logger.With("userID", userID, "error", err).Error("Failed to get available tag for creating network")
@@ -149,6 +158,67 @@ func DeleteNet(userID uint, netID uint) error {
 
 	if err := db.UpdateVNetStatus(netID, string(VNetStatusPreDeleting)); err != nil {
 		logger.With("userID", userID, "netID", netID, "error", err).Error("Failed to update net status to pre-deleting")
+		return err
+	}
+
+	return nil
+}
+
+func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
+	net, err := db.GetNetByID(vnetID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			return ErrVNetNotFound
+		} else {
+			logger.With("userID", userID, "vnetID", vnetID, "error", err).Error("Failed to get net by ID")
+			return err
+		}
+	}
+	if net.UserID != userID {
+		return ErrVNetNotFound
+	}
+
+	nets, err := db.GetNetsByUserID(userID)
+	if err != nil {
+		logger.With("userID", userID, "error", err).Error("Failed to get nets by user ID")
+		return err
+	}
+
+	if slices.IndexFunc(nets, func(n db.Net) bool { return n.Alias == name && n.ID != vnetID }) != -1 {
+		return ErrVNetNameExists
+	}
+
+	changed := false
+
+	if name != "" {
+		net.Alias = name
+		changed = true
+	}
+	if net.VlanAware != vlanware {
+		// If vlanaware is changed, we need to set the status to reconfiguring
+		// so that the worker will apply the change
+		net.Status = string(VNetStatusReconfiguring)
+		net.VlanAware = vlanware
+		changed = true
+	}
+
+	if !vlanware {
+		n, err := db.AreThereInterfacesWithVlanTagsByVNetID(vnetID)
+		if err != nil {
+			logger.With("userID", userID, "vnetID", vnetID, "error", err).Error("Failed to check for interfaces with vlan tags")
+			return err
+		}
+		if n {
+			return ErrVNetHasTaggedInterfaces
+		}
+	}
+
+	if !changed {
+		return nil
+	}
+
+	if err := db.UpdateVNet(net); err != nil {
+		logger.With("userID", userID, "vnetID", vnetID, "error", err).Error("Failed to update net")
 		return err
 	}
 

@@ -95,3 +95,12 @@ func GetInterfacesByVNetID(vnetID uint) ([]Interface, error) {
 func DeleteAllInterfacesByVMID(vmID uint64) error {
 	return db.Where("vm_id = ?", vmID).Delete(&Interface{}).Error
 }
+
+func AreThereInterfacesWithVlanTagsByVNetID(vnetID uint) (bool, error) {
+	var count int64
+	if err := db.Model(&Interface{}).Where("v_net_id = ? AND vlan_tag != 0", vnetID).Count(&count).Error; err != nil {
+		logger.With("vnetID", vnetID, "error", err).Error("Failed to count interfaces with VLAN tag for VNet")
+		return false, err
+	}
+	return count > 0, nil
+}

@@ -118,6 +118,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Post("/net", createNet)
 		r.Get("/net", listNets)
+		r.Put("/net/{id}", updateNet)
 		r.Delete("/net/{id}", deleteNet)
 
 		r.Get("/ssh-keys", getSSHKeys)
