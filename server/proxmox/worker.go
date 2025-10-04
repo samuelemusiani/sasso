@@ -250,7 +250,7 @@ func createVMs() {
 		if cClone.UserVMNames {
 			vmName = v.Name
 		} else {
-			s := "sasso-%0" + strconv.Itoa(cClone.VMIDUserDigits) + "d"
+			s := "sasso-%0" + strconv.Itoa(cClone.VMIDVMDigits) + "d"
 			vmName = fmt.Sprintf(s, v.VMUserID)
 		}
 
