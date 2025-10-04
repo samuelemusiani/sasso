@@ -62,7 +62,7 @@ func Worker() {
 		}
 
 		workerCycleDurationObserve("delete_vms", func() { deleteVMs(cluster, vmNodes) })
-		workerCycleDurationObserve("configure_vms", func() { configureVMs(cluster, vmNodes) })
+		workerCycleDurationObserve("configure_ssh_keys", func() { configureSSHKeys(vmNodes) })
 		workerCycleDurationObserve("configure_vms", func() { configureVMs(cluster, vmNodes) })
 
 		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(cluster, vmNodes) })
