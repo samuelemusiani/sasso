@@ -31,6 +31,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	// Logger
 	logger = apiLogger
 
+	publicServerConfig = publicServer
+	privateServerConfig = privateServer
+
 	// Router
 	publicRouter = chi.NewRouter()
 	privateRouter = chi.NewRouter()
@@ -46,14 +49,14 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 	apiRouter := chi.NewRouter()
 
-	if publicServer.LogRequests {
+	if publicServerConfig.LogRequests {
 		apiRouter.Use(middleware.Logger)
 	}
 	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
-	if privateServer.LogRequests {
+	if privateServerConfig.LogRequests {
 		privateRouter.Use(middleware.Logger)
 	}
 	privateRouter.Use(middleware.Recoverer)
