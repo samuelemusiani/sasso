@@ -13,7 +13,8 @@ type Config struct {
 }
 
 type Server struct {
-	Bind string `toml:"bind"`
+	Bind        string `toml:"bind"`
+	LogRequests bool   `toml:"log_requests"`
 }
 
 type Database struct {

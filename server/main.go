@@ -131,8 +131,8 @@ func main() {
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS)
-	err = api.ListenAndServe(c.PublicServer, c.PrivateServer)
+	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer)
+	err = api.ListenAndServe()
 	if err != nil {
 		slog.With("error", err).Error("Failed to start API server")
 		os.Exit(1)

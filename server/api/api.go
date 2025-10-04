@@ -22,9 +22,12 @@ var (
 	logger        *slog.Logger = nil
 
 	tokenAuth *jwtauth.JWTAuth = nil
+
+	publicServerConfig  config.Server
+	privateServerConfig config.Server
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServer config.Server, privateServer config.Server) {
 	// Logger
 	logger = apiLogger
 
@@ -43,12 +46,16 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 
 	apiRouter := chi.NewRouter()
 
-	apiRouter.Use(middleware.Logger)
+	if publicServer.LogRequests {
+		apiRouter.Use(middleware.Logger)
+	}
 	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
-	privateRouter.Use(middleware.Logger)
+	if privateServer.LogRequests {
+		privateRouter.Use(middleware.Logger)
+	}
 	privateRouter.Use(middleware.Recoverer)
 	privateRouter.Use(prometheusHandler("/internal"))
 	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
@@ -168,7 +175,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS) {
 	publicRouter.Get("/*", frontHandler(frontFS))
 }
 
-func ListenAndServe(publicConfig, privateConfig config.Server) error {
+func ListenAndServe() error {
 	if publicRouter == nil {
 		panic("Router not initialized")
 	}
@@ -179,14 +186,14 @@ func ListenAndServe(publicConfig, privateConfig config.Server) error {
 	c := make(chan error, 1)
 
 	go func() {
-		logger.Info("Public router listening", "bind", publicConfig.Bind)
-		err := http.ListenAndServe(publicConfig.Bind, publicRouter)
+		logger.Info("Public router listening", "bind", publicServerConfig.Bind)
+		err := http.ListenAndServe(publicServerConfig.Bind, publicRouter)
 		c <- err
 	}()
 
 	go func() {
-		logger.Info("Private router listening", "bind", privateConfig.Bind)
-		err := http.ListenAndServe(privateConfig.Bind, privateRouter)
+		logger.Info("Private router listening", "bind", privateServerConfig.Bind)
+		err := http.ListenAndServe(privateServerConfig.Bind, privateRouter)
 		c <- err
 	}()
 
