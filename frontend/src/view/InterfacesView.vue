@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Interface, Net } from '@/types'
 import { api } from '@/lib/api'
@@ -76,9 +76,22 @@ function showEditForm(iface: Interface) {
   showAddForm.value = false
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchInterfaces()
+
+  intervalId = setInterval(() => {
+    fetchInterfaces()
+  }, 5000)
+
   fetchNets()
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
