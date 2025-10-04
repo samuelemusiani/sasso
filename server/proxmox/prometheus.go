@@ -21,6 +21,12 @@ var (
 			Help:    "Histogram of total latencies for worker cycles.",
 			Buckets: prometheus.ExponentialBuckets(0.032, 2, 14),
 		})
+
+	objectCount = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sasso_object_count",
+			Help: "Number of objects in the system.",
+		}, []string{"object"})
 )
 
 func workerCycleDurationObserve(function string, f func()) {
@@ -29,4 +35,8 @@ func workerCycleDurationObserve(function string, f func()) {
 		workerFunctionsDuration.WithLabelValues(function).Observe(time.Since(now).Seconds())
 	}()
 	f()
+}
+
+func objectCountSet(object string, count int64) {
+	objectCount.WithLabelValues(object).Set(float64(count))
 }

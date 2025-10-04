@@ -104,3 +104,12 @@ func AreThereInterfacesWithVlanTagsByVNetID(vnetID uint) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func CountInterfaces() (int64, error) {
+	var count int64
+	if err := db.Model(&Interface{}).Count(&count).Error; err != nil {
+		logger.With("error", err).Error("Failed to count interfaces")
+		return 0, err
+	}
+	return count, nil
+}

@@ -181,3 +181,12 @@ func GetVNetBySubnet(subnet string) (*Net, error) {
 	}
 	return &net, nil
 }
+
+func CountVNets() (int64, error) {
+	var count int64
+	if err := db.Model(&Net{}).Count(&count).Error; err != nil {
+		logger.With("error", err).Error("Failed to count VNets")
+		return 0, err
+	}
+	return count, nil
+}

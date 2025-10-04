@@ -143,3 +143,12 @@ func DeletePortForward(pfID uint) error {
 	}
 	return nil
 }
+
+func CountPortForwards() (int64, error) {
+	var count int64
+	if err := db.Model(&PortForward{}).Count(&count).Error; err != nil {
+		logger.With("error", err).Error("Failed to count port forwards")
+		return 0, err
+	}
+	return count, nil
+}

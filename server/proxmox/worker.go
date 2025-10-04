@@ -41,6 +41,34 @@ func Worker() {
 			continue
 		}
 
+		vmsCount, err := db.CountVMs()
+		if err != nil {
+			logger.With("error", err).Error("Failed to count VMs in DB")
+		} else {
+			objectCountSet("vms", vmsCount)
+		}
+
+		interfacesCount, err := db.CountInterfaces()
+		if err != nil {
+			logger.With("error", err).Error("Failed to count interfaces in DB")
+		} else {
+			objectCountSet("interfaces", interfacesCount)
+		}
+
+		netsCount, err := db.CountVNets()
+		if err != nil {
+			logger.With("error", err).Error("Failed to count VNets in DB")
+		} else {
+			objectCountSet("vnets", netsCount)
+		}
+
+		countPortFowards, err := db.CountPortForwards()
+		if err != nil {
+			logger.With("error", err).Error("Failed to count port forwards in DB")
+		} else {
+			objectCountSet("port_forwards", countPortFowards)
+		}
+
 		cluster, err := getProxmoxCluster(client)
 		if err != nil {
 			logger.With("error", err).Error("Failed to get Proxmox cluster")
