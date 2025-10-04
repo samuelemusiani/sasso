@@ -315,7 +315,17 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 		return ErrTaskFailed
 	}
 
-	if err := db.UpdateVMStatus(vmID, string(VMStatusRunning)); err != nil {
+	var vmStatus VMStatus
+	switch action {
+	case "start":
+		vmStatus = VMStatusRunning
+	case "stop":
+		vmStatus = VMStatusStopped
+	case "restart":
+		vmStatus = VMStatusRunning
+	}
+
+	if err := db.UpdateVMStatus(vmID, string(vmStatus)); err != nil {
 		logger.With("userID", userID, "vmID", vmID, "error", err).
 			Error("Failed to update VM status from database")
 		return err
