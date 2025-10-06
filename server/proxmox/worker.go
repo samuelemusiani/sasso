@@ -54,8 +54,22 @@ func ShutdownWorker() error {
 }
 
 func worker(ctx context.Context) error {
-	time.Sleep(10 * time.Second)
-	logger.Info("Starting Proxmox worker")
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(10 * time.Second):
+		// Just a small delay to let other components start
+	}
+
+	logger.Info("Proxmox worker started")
+
+	// elapsed := time.Since(now)
+	// workerCycleDuration.Observe(elapsed.Seconds())
+	// if elapsed < 10*time.Second {
+	// 	time.Sleep(10*time.Second - elapsed)
+	// }
+
+	timeToWait := 10 * time.Second
 
 	for {
 		// Handle graceful shutdown at the start of each cycle
@@ -63,10 +77,11 @@ func worker(ctx context.Context) error {
 		case <-ctx.Done():
 			logger.Info("Proxmox worker shutting down")
 			return ctx.Err()
-		default:
+		case <-time.After(timeToWait):
 		}
 
 		now := time.Now()
+
 		// For all VMs we must check the status and take the necessary actions
 		if !isProxmoxReachable {
 			time.Sleep(20 * time.Second)
@@ -110,7 +125,9 @@ func worker(ctx context.Context) error {
 		elapsed := time.Since(now)
 		workerCycleDuration.Observe(elapsed.Seconds())
 		if elapsed < 10*time.Second {
-			time.Sleep(10*time.Second - elapsed)
+			timeToWait = 10*time.Second - elapsed
+		} else {
+			timeToWait = 0
 		}
 	}
 }
