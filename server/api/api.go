@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -225,7 +226,7 @@ func Shutdown() error {
 	c := make(chan error, 2)
 	go func() {
 		logger.Info("Shutting down public server...")
-		err := publicServer.Shutdown(nil)
+		err := publicServer.Shutdown(context.Background())
 		if err != nil {
 			slog.Error("Public server shutdown failed", "err", err)
 		} else {
@@ -236,7 +237,7 @@ func Shutdown() error {
 
 	go func() {
 		logger.Info("Shutting down private server...")
-		err := privateServer.Shutdown(nil)
+		err := privateServer.Shutdown(context.Background())
 		if err != nil {
 			slog.Error("Private server shutdown failed", "err", err)
 		} else {

@@ -156,7 +156,7 @@ func main() {
 		os.Exit(1)
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
-		waitGroup := sync.WaitGroup{}
+		var waitGroup sync.WaitGroup
 		waitGroup.Add(2)
 
 		go func() {
