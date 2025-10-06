@@ -157,21 +157,24 @@ func main() {
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
 		waitGroup := sync.WaitGroup{}
-		waitGroup.Go(func() {
+		waitGroup.Add(2)
+
+		go func() {
 			defer waitGroup.Done()
 			err := api.Shutdown()
 			if err != nil {
 				slog.Error("Failed to shut down API server", "error", err)
 			}
-		})
+		}()
 
-		waitGroup.Go(func() {
+		go func() {
 			defer waitGroup.Done()
+
 			err = proxmox.ShutdownWorker()
 			if err != nil {
 				slog.Error("Failed to shut down Proxmox worker", "error", err)
 			}
-		})
+		}()
 
 		waitGroup.Wait()
 	}
