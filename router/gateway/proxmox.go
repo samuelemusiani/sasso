@@ -55,7 +55,7 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 	version, err := pg.client.Version(ctx)
 	cancel()
 	if err != nil {
-		logger.With("err", err).Error("Reading Proxmox API version endpoint")
+		logger.Error("Reading Proxmox API version endpoint", "err", err)
 		return err
 	}
 	logger.Info("Proxmox version", "version", version.Version)
@@ -86,7 +86,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 		i++
 	}
 	slices.Sort(snet)
-	logger.With("mnets", mnets, "snet", snet).Debug("Current network interfaces on Proxmox VM")
+	logger.Debug("Current network interfaces on Proxmox VM", "mnets", mnets, "snet", snet)
 
 	var firstEmptyIndex int = -1
 	for i := range snet {
@@ -104,7 +104,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 
 	for i := range mnets {
 		if strings.Contains(mnets[i], fmt.Sprintf("bridge=%s", vnet)) {
-			logger.With("vnet", vnet, "bridge", mnets[i]).Warn("Network interface already exists on Proxmox VM")
+			logger.Warn("Network interface already exists on Proxmox VM", "vnet", vnet, "bridge", mnets[i])
 			needToAddInterfaceOnProxmox = false
 
 			// Extract the index from the interface name
@@ -129,12 +129,12 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 		t, err := vm.Config(ctx, o)
 		cancel()
 		if err != nil {
-			logger.With("error", err).Error("Failed to add network interface to Proxmox VM")
+			logger.Error("Failed to add network interface to Proxmox VM", "error", err)
 			return nil, err
 		}
 		_, _, err = waitForTaskCompletion(t)
 		if err != nil {
-			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
 			return nil, err
 		}
 	}
@@ -144,7 +144,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 
 	for i := range ipConfigs {
 		if strings.Contains(ipConfigs[i], fmt.Sprintf("ip=%s", routerIP)) {
-			logger.With("routerIP", routerIP, "ipconfig", ipConfigs[i]).Warn("IP configuration already exists on Proxmox VM")
+			logger.Warn("IP configuration already exists on Proxmox VM", "routerIP", routerIP, "ipconfig", ipConfigs[i])
 			needToConfigureInterfaceOnProxmox = false
 		}
 	}
@@ -159,19 +159,19 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 		t, err := vm.Config(ctx, o2)
 		cancel()
 		if err != nil {
-			logger.With("error", err).Error("Failed to configure network interface on Proxmox VM")
+			logger.Error("Failed to configure network interface on Proxmox VM", "error", err)
 			return nil, err
 		}
 		_, _, err = waitForTaskCompletion(t)
 		if err != nil {
-			logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
 			return nil, err
 		}
 	}
 
 	newVM, err := pg.getVM()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox VM")
+		logger.Error("Failed to get Proxmox VM", "error", err)
 		return nil, err
 	}
 
@@ -182,25 +182,25 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	newInterface := newVM.VirtualMachineConfig.Nets["net"+strconv.Itoa(interfaceIndex)]
 	mac, err := extractMacFromInterfaceString(newInterface)
 	if err != nil {
-		logger.With("error", err, "interface", newInterface).Error("Failed to extract MAC address from interface string")
+		logger.Error("Failed to extract MAC address from interface string", "error", err, "interface", newInterface)
 		return nil, err
 	}
 
 	localIface, err := getLinkByMAC(mac)
 	if err != nil {
-		logger.With("err", err).Error("Failed to get link by mac address")
+		logger.Error("Failed to get link by mac address", "err", err)
 		return nil, err
 	}
 
 	ipAddress, err := netlink.ParseAddr(routerIP)
 	if err != nil {
-		logger.With("error", err, "routerIP", routerIP).Error("Failed to parse router IP address")
+		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
 		return nil, err
 	}
 
 	addressedConfiguredOnSystem, err := netlink.AddrList(*localIface, netlink.FAMILY_V4)
 	if err != nil {
-		logger.With("error", err, "iface", (*localIface).Attrs().Name).Error("Failed to list addresses on network interface on router")
+		logger.Error("Failed to list addresses on network interface on router", "error", err, "iface", (*localIface).Attrs().Name)
 		return nil, err
 	}
 
@@ -208,7 +208,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 
 	for i := range addressedConfiguredOnSystem {
 		if addressedConfiguredOnSystem[i].IPNet.String() == ipAddress.IPNet.String() {
-			logger.With("ipAddress", ipAddress, "iface", (*localIface).Attrs().Name).Info("IP address already configured on network interface on router")
+			logger.Info("IP address already configured on network interface on router", "ipAddress", ipAddress, "iface", (*localIface).Attrs().Name)
 			needToAddAddressOnSystem = false
 		}
 	}
@@ -216,14 +216,14 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	if needToAddAddressOnSystem {
 		err = netlink.AddrAdd(*localIface, ipAddress)
 		if err != nil {
-			logger.With("error", err, "ipAddress", ipAddress, "iface", (*localIface).Attrs().Name).Error("Failed to add IP address to network interface on router")
+			logger.Error("Failed to add IP address to network interface on router", "error", err, "ipAddress", ipAddress, "iface", (*localIface).Attrs().Name)
 			return nil, err
 		}
 	}
 
 	err = netlink.LinkSetUp(*localIface)
 	if err != nil {
-		logger.With("error", err, "iface", (*localIface).Attrs().Name).Error("Failed to bring up network interface on router")
+		logger.Error("Failed to bring up network interface on router", "error", err, "iface", (*localIface).Attrs().Name)
 		return nil, err
 	}
 
@@ -243,7 +243,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 func (pg *ProxmoxGateway) RemoveInterface(id uint) error {
 	vm, err := pg.getVM()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox VM")
+		logger.Error("Failed to get Proxmox VM", "error", err)
 		return err
 	}
 
@@ -254,13 +254,13 @@ func (pg *ProxmoxGateway) RemoveInterface(id uint) error {
 	})
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to remove network interface from Proxmox VM")
+		logger.Error("Failed to remove network interface from Proxmox VM", "error", err)
 		return err
 	}
 
 	_, _, err = waitForTaskCompletion(t)
 	if err != nil {
-		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		logger.Error("Failed to wait for Proxmox task completion", "error", err)
 		return err
 	}
 
@@ -273,7 +273,7 @@ func (pg *ProxmoxGateway) getVM() (*proxmox.VirtualMachine, error) {
 	cluster, err := pg.client.Cluster(ctx)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		logger.Error("Failed to get Proxmox cluster", "error", err)
 		return nil, err
 	}
 
@@ -297,7 +297,7 @@ func (pg *ProxmoxGateway) getVM() (*proxmox.VirtualMachine, error) {
 	node, err := pg.client.Node(ctx, vmNode)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox node")
+		logger.Error("Failed to get Proxmox node", "error", err)
 		return nil, err
 	}
 
@@ -305,7 +305,7 @@ func (pg *ProxmoxGateway) getVM() (*proxmox.VirtualMachine, error) {
 	vm, err := node.VirtualMachine(ctx, int(pg.vmid))
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox VM")
+		logger.Error("Failed to get Proxmox VM", "error", err)
 		return nil, err
 	}
 
@@ -317,7 +317,7 @@ func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 120, 1)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		logger.Error("Failed to wait for Proxmox task completion", "error", err)
 		return false, false, err
 	}
 
@@ -348,7 +348,7 @@ func extractMacFromInterfaceString(iface string) (string, error) {
 func getLinkByMAC(mac string) (*netlink.Link, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
-		logger.With("error", err).Error("Failed to list network interfaces on router")
+		logger.Error("Failed to list network interfaces on router", "error", err)
 		return nil, err
 	}
 

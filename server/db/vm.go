@@ -32,7 +32,7 @@ type VM struct {
 func initVMs() error {
 	err := db.AutoMigrate(&VM{})
 	if err != nil {
-		logger.With("error", err).Error("Failed to migrate VMs table")
+		logger.Error("Failed to migrate VMs table", "error", err)
 		return err
 	}
 	return nil

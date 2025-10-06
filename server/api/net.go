@@ -149,7 +149,7 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 func internalListNets(w http.ResponseWriter, r *http.Request) {
 	nets, err := db.GetVNetsWithStatus(string(proxmox.VNetStatusReady))
 	if err != nil {
-		slog.With("err", err).Error("Failed to get all nets")
+		slog.Error("Failed to get all nets", "err", err)
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
 		return
 	}
@@ -171,7 +171,7 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(returnNets)
 	if err != nil {
-		slog.With("err", err).Error("Failed to encode nets")
+		slog.Error("Failed to encode nets", "err", err)
 		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
 		return
 	}
@@ -181,21 +181,21 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		slog.With("err", err).Error("Invalid net ID")
+		slog.Error("Invalid net ID", "err", err)
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
 		return
 	}
 
 	var n internal.Net
 	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
-		slog.With("err", err).Error("Failed to decode net")
+		slog.Error("Failed to decode net", "err", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	dbNet, err := db.GetNetByID(uint(id))
 	if err != nil {
-		slog.With("netID", id, "err", err).Error("Failed to get net by ID")
+		slog.Error("Failed to get net by ID", "netID", id, "err", err)
 		http.Error(w, "Net not found", http.StatusNotFound)
 		return
 	}
@@ -205,7 +205,7 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	dbNet.Broadcast = n.Broadcast
 
 	if err := db.UpdateVNet(dbNet); err != nil {
-		slog.With("netID", id, "err", err).Error("Failed to update net")
+		slog.Error("Failed to update net", "netID", id, "err", err)
 		http.Error(w, "Failed to update net", http.StatusInternalServerError)
 		return
 	}

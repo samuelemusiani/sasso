@@ -11,7 +11,7 @@ import (
 func updateVPNConfig(w http.ResponseWriter, r *http.Request) {
 	var vpnUpdate internal.VPNUpdate
 	if err := json.NewDecoder(r.Body).Decode(&vpnUpdate); err != nil {
-		logger.With("error", err).Error("Failed to decode VPN update request")
+		logger.Error("Failed to decode VPN update request", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -24,7 +24,7 @@ func updateVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	err := db.UpdateVPNConfig(vpnUpdate.VPNConfig, vpnUpdate.UserID)
 	if err != nil {
-		logger.With("error", err).Error("Failed to update VPN config in DB")
+		logger.Error("Failed to update VPN config in DB", "error", err)
 		http.Error(w, "Failed to update VPN config", http.StatusInternalServerError)
 		return
 	}
@@ -33,7 +33,7 @@ func updateVPNConfig(w http.ResponseWriter, r *http.Request) {
 func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	vpnConfigs, err := db.GetAllVPNConfigs()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get VPN configs from DB")
+		logger.Error("Failed to get VPN configs from DB", "error", err)
 		http.Error(w, "Failed to get VPN configs", http.StatusInternalServerError)
 		return
 	}
@@ -48,7 +48,7 @@ func getVPNConfigs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(vpns); err != nil {
-		logger.With("error", err).Error("Failed to encode VPN configs")
+		logger.Error("Failed to encode VPN configs", "error", err)
 		http.Error(w, "Failed to encode VPN configs", http.StatusInternalServerError)
 		return
 	}
@@ -59,7 +59,7 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	user, err := db.GetUserByID(userID)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get user from DB")
+		logger.Error("Failed to get user from DB", "userID", userID, "error", err)
 		http.Error(w, "Failed to get user", http.StatusInternalServerError)
 		return
 	}

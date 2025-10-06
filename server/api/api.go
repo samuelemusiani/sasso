@@ -227,7 +227,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 					if errors.Is(err, fs.ErrNotExist) {
 						http.Error(w, "", http.StatusNotFound)
 					} else {
-						slog.With("err", err).Error("Reading index.html")
+						slog.Error("Reading index.html", "err", err)
 						http.Error(w, "", http.StatusInternalServerError)
 					}
 					return
@@ -236,7 +236,7 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 				w.Write(f)
 				return
 			}
-			slog.With("path", p, "err", err).Error("Reading file")
+			slog.Error("Reading file", "path", p, "err", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

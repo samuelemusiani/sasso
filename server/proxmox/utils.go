@@ -140,7 +140,7 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 240, 1)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to wait for Proxmox task completion")
+		logger.Error("Failed to wait for Proxmox task completion", "error", err)
 		return false, err
 	}
 
@@ -161,7 +161,7 @@ func getProxmoxCluster(client *proxmox.Client) (*proxmox.Cluster, error) {
 	cluster, err := client.Cluster(ctx)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox cluster")
+		logger.Error("Failed to get Proxmox cluster", "error", err)
 		return nil, err
 	}
 	return cluster, nil
@@ -172,7 +172,7 @@ func getProxmoxNode(client *proxmox.Client, nodeName string) (*proxmox.Node, err
 	node, err := client.Node(ctx, nodeName)
 	cancel()
 	if err != nil {
-		logger.With("error", err).With("node", nodeName).Error("Failed to get Proxmox node")
+		logger.Error("Failed to get Proxmox node", "error", err, "node", nodeName)
 		return nil, err
 	}
 	return node, nil
@@ -183,7 +183,7 @@ func getProxmoxVM(node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error)
 	vm, err := node.VirtualMachine(ctx, vmid)
 	cancel()
 	if err != nil {
-		logger.With("error", err).With("node", node.Name).With("vmid", vmid).Error("Failed to get Proxmox VM")
+		logger.Error("Failed to get Proxmox VM", "error", err, "node", node.Name, "vmid", vmid)
 		return nil, err
 	}
 	return vm, nil
@@ -194,7 +194,7 @@ func getProxmoxResources(cluster *proxmox.Cluster, filters ...string) (proxmox.C
 	resources, err := cluster.Resources(ctx, filters...)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get Proxmox resources")
+		logger.Error("Failed to get Proxmox resources", "error", err)
 		return nil, err
 	}
 	return resources, nil
@@ -205,7 +205,7 @@ func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption
 	task, err := vm.Config(ctx, config)
 	cancel()
 	if err != nil {
-		logger.With("error", err).With("vmid", vm.VMID).Error("Failed to set VM config")
+		logger.Error("Failed to set VM config", "error", err, "vmid", vm.VMID)
 		return false, err
 	}
 

@@ -41,7 +41,7 @@ func GetLastSSHKeyUpdate() time.Time {
 func initSSHKeys() error {
 	err := db.AutoMigrate(&SSHKey{})
 	if err != nil {
-		logger.With("error", err).Error("Failed to migrate SSHKeys table")
+		logger.Error("Failed to migrate SSHKeys table", "error", err)
 		return err
 	}
 	return nil

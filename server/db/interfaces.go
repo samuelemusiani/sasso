@@ -17,7 +17,7 @@ type Interface struct {
 
 func initInterfaces() error {
 	if err := db.AutoMigrate(&Interface{}); err != nil {
-		logger.With("error", err).Error("Failed to migrate interfaces table")
+		logger.Error("Failed to migrate interfaces table", "error", err)
 		return err
 	}
 	logger.Debug("Interfaces table migrated successfully")
@@ -27,7 +27,7 @@ func initInterfaces() error {
 func GetInterfaceByID(ID uint) (*Interface, error) {
 	var iface Interface
 	if err := db.First(&iface, ID).Error; err != nil {
-		logger.With("ifaceID", ID, "error", err).Error("Failed to find interface by ID")
+		logger.Error("Failed to find interface by ID", "ifaceID", ID, "error", err)
 		return nil, err
 	}
 	return &iface, nil
@@ -36,7 +36,7 @@ func GetInterfaceByID(ID uint) (*Interface, error) {
 func GetInterfacesByVMID(vmID uint64) ([]Interface, error) {
 	var ifaces []Interface
 	if err := db.Where("vm_id = ?", vmID).Find(&ifaces).Error; err != nil {
-		logger.With("vmID", vmID, "error", err).Error("Failed to get interfaces for VM")
+		logger.Error("Failed to get interfaces for VM", "vmID", vmID, "error", err)
 		return nil, err
 	}
 	return ifaces, nil
@@ -45,7 +45,7 @@ func GetInterfacesByVMID(vmID uint64) ([]Interface, error) {
 func GetInterfacesWithStatus(status string) ([]Interface, error) {
 	var ifaces []Interface
 	if err := db.Where("status = ?", status).Find(&ifaces).Error; err != nil {
-		logger.With("status", status, "error", err).Error("Failed to get interfaces with status")
+		logger.Error("Failed to get interfaces with status", "status", status, "error", err)
 		return nil, err
 	}
 	return ifaces, nil
@@ -86,7 +86,7 @@ func DeleteInterface(iface *Interface) error {
 func GetInterfacesByVNetID(vnetID uint) ([]Interface, error) {
 	var ifaces []Interface
 	if err := db.Where("v_net_id = ?", vnetID).Find(&ifaces).Error; err != nil {
-		logger.With("vnetID", vnetID, "error", err).Error("Failed to get interfaces for VNet")
+		logger.Error("Failed to get interfaces for VNet", "vnetID", vnetID, "error", err)
 		return nil, err
 	}
 	return ifaces, nil
@@ -99,7 +99,7 @@ func DeleteAllInterfacesByVMID(vmID uint64) error {
 func AreThereInterfacesWithVlanTagsByVNetID(vnetID uint) (bool, error) {
 	var count int64
 	if err := db.Model(&Interface{}).Where("v_net_id = ? AND vlan_tag != 0", vnetID).Count(&count).Error; err != nil {
-		logger.With("vnetID", vnetID, "error", err).Error("Failed to count interfaces with VLAN tag for VNet")
+		logger.Error("Failed to count interfaces with VLAN tag for VNet", "vnetID", vnetID, "error", err)
 		return false, err
 	}
 	return count > 0, nil
@@ -108,7 +108,7 @@ func AreThereInterfacesWithVlanTagsByVNetID(vnetID uint) (bool, error) {
 func CountInterfaces() (int64, error) {
 	var count int64
 	if err := db.Model(&Interface{}).Count(&count).Error; err != nil {
-		logger.With("error", err).Error("Failed to count interfaces")
+		logger.Error("Failed to count interfaces", "error", err)
 		return 0, err
 	}
 	return count, nil

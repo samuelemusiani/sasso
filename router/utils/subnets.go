@@ -26,17 +26,17 @@ func Init(l *slog.Logger, c config.Network) error {
 
 	_, n, err := net.ParseCIDR(c.UsableSubnet)
 	if err != nil {
-		logger.With("subnet", c.UsableSubnet).Error("Invalid usable subnet in config")
+		logger.Error("Invalid usable subnet in config", "subnet", c.UsableSubnet)
 		return err
 	}
 
 	if c.NewSubnetPrefix > 30 {
-		logger.With("prefix", c.NewSubnetPrefix).Error("New subnet prefix too large, must be <= 30")
+		logger.Error("New subnet prefix too large, must be <= 30", "prefix", c.NewSubnetPrefix)
 		return ErrPrefixTooLarge
 	}
 	ones, _ := n.Mask.Size()
 	if c.NewSubnetPrefix < ones {
-		logger.With("prefix", c.NewSubnetPrefix, "usable_subnet", c.UsableSubnet).Error("New subnet prefix too small, must be >= usable subnet prefix")
+		logger.Error("New subnet prefix too small, must be >= usable subnet prefix", "prefix", c.NewSubnetPrefix, "usable_subnet", c.UsableSubnet)
 		return ErrPrefixTooLarge
 	}
 
@@ -72,9 +72,9 @@ func NextAvailableSubnet() (string, error) {
 	}
 
 	usedSubnets, err := db.GetAllUsedSubnets()
-	logger.With("used_subnets", usedSubnets).Debug("Used subnets from database")
+	logger.Debug("Used subnets from database", "used_subnets", usedSubnets)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get all used subnets from database")
+		logger.Error("Failed to get all used subnets from database", "error", err)
 		return "", err
 	}
 
@@ -101,7 +101,7 @@ func NextAvailableSubnet() (string, error) {
 func GatewayAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
-		logger.With("subnet", subnet).Error("Invalid subnet")
+		logger.Error("Invalid subnet", "subnet", subnet)
 		return "", errors.New("Invalid subnet")
 	}
 
@@ -111,7 +111,7 @@ func GatewayAddressFromSubnet(subnet string) (string, error) {
 func GetBroadcastAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
-		logger.With("subnet", subnet).Error("Invalid subnet")
+		logger.Error("Invalid subnet", "subnet", subnet)
 		return "", errors.New("Invalid subnet")
 	}
 

@@ -60,7 +60,7 @@ func (u *User) BeforeSave(tx *gorm.DB) error {
 func initUsers() error {
 	err := db.AutoMigrate(&User{})
 	if err != nil {
-		logger.With("error", err).Error("Failed to migrate Users table")
+		logger.Error("Failed to migrate Users table", "error", err)
 		return err
 	}
 
@@ -71,7 +71,7 @@ func initUsers() error {
 		return nil
 	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// Some other error occurred
-		logger.With("error", result.Error).Error("Failed to check for admin user")
+		logger.Error("Failed to check for admin user", "error", result.Error)
 		return result.Error
 	}
 
@@ -85,16 +85,16 @@ func initUsers() error {
 	passwd := rand.Text()
 	adminUser.Password, err = bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost)
 	if err != nil {
-		logger.With("error", err).Error("Failed to hash password")
+		logger.Error("Failed to hash password", "error", err)
 		return err
 	}
 
 	if err := db.Create(&adminUser).Error; err != nil {
-		logger.With("error", err).Error("Failed to create admin user")
+		logger.Error("Failed to create admin user", "error", err)
 		return err
 	}
 
-	logger.With("password", passwd).Debug("Admin user created successfully")
+	logger.Debug("Admin user created successfully", "password", passwd)
 	return nil
 }
 
@@ -105,7 +105,7 @@ func GetUserByUsername(username string) (User, error) {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return User{}, ErrNotFound
 		} else {
-			logger.With("error", result.Error).Error("Failed to retrieve user by username")
+			logger.Error("Failed to retrieve user by username", "error", result.Error)
 			return User{}, result.Error
 		}
 	}
@@ -120,7 +120,7 @@ func GetUserByID(id uint) (User, error) {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return User{}, ErrNotFound
 		} else {
-			logger.With("error", result.Error).Error("Failed to retrieve user by ID")
+			logger.Error("Failed to retrieve user by ID", "error", result.Error)
 			return User{}, result.Error
 		}
 	}
@@ -132,7 +132,7 @@ func GetAllUsers() ([]User, error) {
 	var users []User
 	result := db.Find(&users)
 	if result.Error != nil {
-		logger.With("error", result.Error).Error("Failed to retrieve all users")
+		logger.Error("Failed to retrieve all users", "error", result.Error)
 		return nil, result.Error
 	}
 
@@ -142,7 +142,7 @@ func GetAllUsers() ([]User, error) {
 func CreateUser(user *User) error {
 	result := db.Create(user)
 	if result.Error != nil {
-		logger.With("error", result.Error).Error("Failed to create user")
+		logger.Error("Failed to create user", "error", result.Error)
 		return result.Error
 	}
 	return nil
@@ -151,7 +151,7 @@ func CreateUser(user *User) error {
 func UpdateUser(user *User) error {
 	result := db.Save(user)
 	if result.Error != nil {
-		logger.With("error", result.Error).Error("Failed to update user")
+		logger.Error("Failed to update user", "error", result.Error)
 		return result.Error
 	}
 	return nil
@@ -160,7 +160,7 @@ func UpdateUser(user *User) error {
 func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, maxNets uint) error {
 	var user User
 	if err := db.First(&user, userID).Error; err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to find user by ID")
+		logger.Error("Failed to find user by ID", "userID", userID, "error", err)
 		return err
 	}
 
@@ -173,7 +173,7 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 			MaxNets:  maxNets,
 		})
 	if result.Error != nil {
-		logger.With("error", result.Error).Error("Failed to update user limits")
+		logger.Error("Failed to update user limits", "error", result.Error)
 		return result.Error
 	}
 	return nil
@@ -182,7 +182,7 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 func UpdateVPNConfig(config string, userID uint) error {
 	var user User
 	if err := db.First(&user, userID).Error; err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to find user by ID")
+		logger.Error("Failed to find user by ID", "userID", userID, "error", err)
 		return err
 	}
 
@@ -191,7 +191,7 @@ func UpdateVPNConfig(config string, userID uint) error {
 		Updates(&User{
 			VPNConfig: &config,
 		}).Error; err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to update VPN config")
+		logger.Error("Failed to update VPN config", "userID", userID, "error", err)
 		return err
 	}
 
@@ -201,7 +201,7 @@ func UpdateVPNConfig(config string, userID uint) error {
 func GetAllVPNConfigs() ([]User, error) {
 	var users []User
 	if err := db.Model(&User{}).Where("vpn_config IS NOT NULL").Select("id", "vpn_config").Find(&users).Error; err != nil {
-		logger.With("error", err).Error("Failed to retrieve VPN configs")
+		logger.Error("Failed to retrieve VPN configs", "error", err)
 		return nil, err
 	}
 	return users, nil
