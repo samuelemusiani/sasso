@@ -41,7 +41,7 @@ function createVM() {
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
-      error.value = 'Failed to create VM: ' + err.message
+      error.value = 'Failed to create VM: ' + err.response.data
     })
 }
 

@@ -109,7 +109,7 @@ function makeBackup() {
       fetchBackupsRequests()
     })
     .catch((err) => {
-      error.value = 'Failed to create backup: ' + err.message
+      error.value = 'Failed to create backup: ' + err.response.data
       console.error('Failed to create backup:', err)
       alert(`Failed to create backup`)
     })
