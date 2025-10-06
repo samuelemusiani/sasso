@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"embed"
@@ -8,6 +9,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
@@ -122,6 +125,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	crx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer cancel()
+
 	slog.Debug("Starting background proxmox tasks")
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
@@ -132,9 +138,29 @@ func main() {
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
 	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer)
-	err = api.ListenAndServe()
-	if err != nil {
-		slog.Error("Failed to start API server", "error", err)
+
+	channelError := make(chan error, 1)
+
+	go func() {
+		err = api.ListenAndServe()
+		if err != nil {
+			slog.Error("Failed to start API server", "error", err)
+		}
+		channelError <- err
+	}()
+
+	select {
+	case err := <-channelError:
+		slog.Error("Server error", "error", err)
 		os.Exit(1)
+	case <-crx.Done():
+		slog.Info("Received termination signal, shutting down...")
+		err := api.Shutdown()
+		if err != nil {
+			slog.Error("Failed to shut down API server", "error", err)
+			os.Exit(1)
+		}
 	}
+	slog.Info("Server shut down gracefully")
+	os.Exit(0)
 }
