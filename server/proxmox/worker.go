@@ -613,7 +613,15 @@ func updateVMs(cluster *gprox.Cluster) {
 			}
 		} else if !slices.Contains(allVMStatus, r.Status) {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
-			if exists && time.Since(vmStatusTimeMapEntry.Time) < 1*time.Minute && vmStatusTimeMapEntry.Value == r.Status {
+
+			timeToWait := 1 * time.Minute
+			// VMs can be in the 'prelaunch' status during a backup, so we give it more time
+			// before setting the status to unknown
+			if exists && vmStatusTimeMapEntry.Value == "prelaunch" {
+				timeToWait = 5 * time.Minute
+			}
+
+			if exists && time.Since(vmStatusTimeMapEntry.Time) < timeToWait && vmStatusTimeMapEntry.Value == r.Status {
 				logger.Error("VM status unrecognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 				err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
