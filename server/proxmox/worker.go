@@ -63,12 +63,6 @@ func worker(ctx context.Context) error {
 
 	logger.Info("Proxmox worker started")
 
-	// elapsed := time.Since(now)
-	// workerCycleDuration.Observe(elapsed.Seconds())
-	// if elapsed < 10*time.Second {
-	// 	time.Sleep(10*time.Second - elapsed)
-	// }
-
 	timeToWait := 10 * time.Second
 
 	for {
