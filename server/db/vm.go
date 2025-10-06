@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -153,12 +154,18 @@ func GetVMsWithStates(states []string) ([]VM, error) {
 }
 
 func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
-	var t time.Time
-	result := db.Where("status IN ?", states).Order("created_at DESC").Select("created_at").Limit(1).Scan(&t)
+	var vm VM
+	result := db.Where("status IN ?", states).
+		Order("created_at DESC").
+		Limit(1).
+		First(&vm)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return time.Time{}, nil // No VMs found with the specified states
+		}
 		return time.Time{}, result.Error
 	}
-	return t, nil
+	return vm.CreatedAt, nil
 }
 
 func GetAllActiveVMs() ([]VM, error) {
