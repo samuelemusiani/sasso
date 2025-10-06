@@ -1087,6 +1087,10 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		return
 	}
 
+	// TODO: We could optimize this further by checking why the ssh keys table
+	// changed and only updating the VMs of the users that had changes (unless
+	// global keys changed)
+
 	vms, err := db.GetVMsWithStates(states)
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VMs with 'stopped' status")
