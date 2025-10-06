@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -24,20 +25,28 @@ var (
 
 	tokenAuth *jwtauth.JWTAuth = nil
 
-	publicServerConfig  config.Server
-	privateServerConfig config.Server
+	privateServer *http.Server = nil
+	publicServer  *http.Server = nil
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServer config.Server, privateServer config.Server) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server) {
 	// Logger
 	logger = apiLogger
-
-	publicServerConfig = publicServer
-	privateServerConfig = privateServer
 
 	// Router
 	publicRouter = chi.NewRouter()
 	privateRouter = chi.NewRouter()
+
+	// Servers
+	publicServer = &http.Server{
+		Addr:    publicServerConf.Bind,
+		Handler: publicRouter,
+	}
+
+	privateServer = &http.Server{
+		Addr:    privateServerConf.Bind,
+		Handler: privateRouter,
+	}
 
 	// Middleware
 	publicRouter.Use(middleware.RealIP)
@@ -50,14 +59,14 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 	apiRouter := chi.NewRouter()
 
-	if publicServerConfig.LogRequests {
+	if publicServerConf.LogRequests {
 		apiRouter.Use(middleware.Logger)
 	}
 	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
-	if privateServerConfig.LogRequests {
+	if privateServerConf.LogRequests {
 		privateRouter.Use(middleware.Logger)
 	}
 	privateRouter.Use(middleware.Recoverer)
@@ -191,18 +200,53 @@ func ListenAndServe() error {
 	c := make(chan error, 1)
 
 	go func() {
-		logger.Info("Public router listening", "bind", publicServerConfig.Bind)
-		err := http.ListenAndServe(publicServerConfig.Bind, publicRouter)
+		logger.Info("Public router listening", "bind", publicServer.Addr)
+		// err := http.ListenAndServe(publicServerConfig.Bind, publicRouter)
+		err := publicServer.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Public server error", "err", err)
+			c <- err
+		}
+	}()
+
+	go func() {
+		logger.Info("Private router listening", "bind", privateServer.Addr)
+		// err := http.ListenAndServe(privateServerConfig.Bind, privateRouter)
+		err := privateServer.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Private server error", "err", err)
+			c <- err
+		}
+	}()
+
+	return <-c
+}
+
+func Shutdown() error {
+	c := make(chan error, 2)
+	go func() {
+		logger.Info("Shutting down public server...")
+		err := publicServer.Shutdown(context.Background())
+		if err != nil {
+			slog.Error("Public server shutdown failed", "err", err)
+		} else {
+			logger.Info("Public server shut down")
+		}
 		c <- err
 	}()
 
 	go func() {
-		logger.Info("Private router listening", "bind", privateServerConfig.Bind)
-		err := http.ListenAndServe(privateServerConfig.Bind, privateRouter)
+		logger.Info("Shutting down private server...")
+		err := privateServer.Shutdown(context.Background())
+		if err != nil {
+			slog.Error("Private server shutdown failed", "err", err)
+		} else {
+			logger.Info("Private server shut down")
+		}
 		c <- err
 	}()
 
-	return <-c
+	return errors.Join(<-c, <-c)
 }
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {
