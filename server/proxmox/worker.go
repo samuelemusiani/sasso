@@ -665,6 +665,9 @@ func updateVMs(cluster *gprox.Cluster) {
 		if found {
 			continue
 		}
+		if activeVMs[i].Status == string(VMStatusUnknown) {
+			continue
+		}
 
 		logger.Error("VM not found on proxmox but is on sasso. Setting status to unknown", "vmid", vmid, "status", activeVMs[i].Status)
 
