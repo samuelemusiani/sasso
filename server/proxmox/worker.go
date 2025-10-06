@@ -621,7 +621,7 @@ func updateVMs(cluster *gprox.Cluster) {
 				timeToWait = 5 * time.Minute
 			}
 
-			if exists && time.Since(vmStatusTimeMapEntry.Time) < timeToWait && vmStatusTimeMapEntry.Value == r.Status {
+			if exists && time.Since(vmStatusTimeMapEntry.Time) > timeToWait && vmStatusTimeMapEntry.Value == r.Status {
 				logger.Error("VM status unrecognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 				err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
@@ -637,9 +637,16 @@ func updateVMs(cluster *gprox.Cluster) {
 		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
-			err := db.UpdateVMStatus(r.VMID, r.Status)
+			allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+			status := r.Status
+			if !slices.Contains(allVMStatus, r.Status) {
+				logger.Error("VM status not recognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
+				status = string(VMStatusUnknown)
+			}
+
+			err := db.UpdateVMStatus(r.VMID, status)
 			if err != nil {
-				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", r.Status, "err", err)
+				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", status, "err", err)
 			}
 		}
 	}
