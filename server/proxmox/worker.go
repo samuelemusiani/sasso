@@ -27,6 +27,8 @@ type stringTime struct {
 
 var (
 	vmStatusTimeMap map[uint64]stringTime = make(map[uint64]stringTime)
+
+	lastConfigureSSHKeysTime time.Time = time.Time{}
 )
 
 func Worker() {
@@ -1069,7 +1071,23 @@ func createBackups(mapVMContent map[uint64]string) {
 func configureSSHKeys(vmNodes map[uint64]string) {
 	logger.Debug("Configuring SSH keys in worker")
 
-	vms, err := db.GetVMsWithStatuses([]string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)})
+	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)}
+
+	ssht := db.GetLastSSHKeyUpdate()
+	vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get time of last created VM with states")
+		return
+	}
+
+	// Every 6 hours we force a reconfiguration of SSH keys
+	if !lastConfigureSSHKeysTime.Before(time.Now().Add(-6*time.Hour)) &&
+		lastConfigureSSHKeysTime.Before(ssht) && lastConfigureSSHKeysTime.Before(vmt) {
+		logger.Debug("No need to configure SSH keys. No new SSH keys or VMs")
+		return
+	}
+
+	vms, err := db.GetVMsWithStates(states)
 	if err != nil {
 		logger.With("error", err).Error("Failed to get VMs with 'stopped' status")
 		return
@@ -1140,4 +1158,6 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			logger.With("vmid", v.ID, "err", err).Error("Failed to regenerate cloud init image on VM")
 		}
 	}
+
+	lastConfigureSSHKeysTime = time.Now()
 }

@@ -143,13 +143,22 @@ func GetVMsWithStatus(status string) ([]VM, error) {
 	return vms, nil
 }
 
-func GetVMsWithStatuses(statuses []string) ([]VM, error) {
+func GetVMsWithStates(states []string) ([]VM, error) {
 	var vms []VM
-	result := db.Where("status IN ?", statuses).Find(&vms)
+	result := db.Where("status IN ?", states).Find(&vms)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return vms, nil
+}
+
+func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
+	var t time.Time
+	result := db.Where("status IN ?", states).Order("created_at DESC").Select("created_at").Limit(1).Scan(&t)
+	if result.Error != nil {
+		return time.Time{}, result.Error
+	}
+	return t, nil
 }
 
 func GetAllActiveVMs() ([]VM, error) {
