@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type SSHKey struct {
 	ID        uint `gorm:"primaryKey"`
@@ -11,6 +15,27 @@ type SSHKey struct {
 	Key    string `gorm:"type:text;not null"`
 	UserID uint   `gorm:"not null"`
 	Global bool   `gorm:"default:false"`
+}
+
+var lastSSHKeyTableUpdate time.Time = time.Time{}
+
+func (s *SSHKey) AfterUpdate(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func (s *SSHKey) AfterCreate(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func (s *SSHKey) AfterDelete(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func GetLastSSHKeyUpdate() time.Time {
+	return lastSSHKeyTableUpdate
 }
 
 func initSSHKeys() error {
