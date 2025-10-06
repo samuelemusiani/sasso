@@ -225,22 +225,27 @@ func Shutdown() error {
 	c := make(chan error, 2)
 	go func() {
 		logger.Info("Shutting down public server...")
-		err := publicServer.Close()
+		err := publicServer.Shutdown(nil)
+		if err != nil {
+			slog.Error("Public server shutdown failed", "err", err)
+		} else {
+			logger.Info("Public server shut down")
+		}
 		c <- err
-		logger.Info("Public server shut down")
 	}()
 
 	go func() {
 		logger.Info("Shutting down private server...")
-		err := privateServer.Close()
+		err := privateServer.Shutdown(nil)
+		if err != nil {
+			slog.Error("Private server shutdown failed", "err", err)
+		} else {
+			logger.Info("Private server shut down")
+		}
 		c <- err
-		logger.Info("Private server shut down")
 	}()
 
-	err1 := <-c
-	err2 := <-c
-
-	return errors.Join(err1, err2)
+	return errors.Join(<-c, <-c)
 }
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {
