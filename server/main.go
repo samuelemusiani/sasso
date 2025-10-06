@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"samuelemusiani/sasso/server/api"
@@ -125,14 +126,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	crx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer cancel()
 
 	slog.Debug("Starting background proxmox tasks")
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
 	go proxmox.TestEndpointNetZone()
-	go proxmox.Worker()
+	proxmox.StartWorker()
 
 	// API
 	slog.Debug("Initializing API server")
@@ -153,13 +154,26 @@ func main() {
 	case err := <-channelError:
 		slog.Error("Server error", "error", err)
 		os.Exit(1)
-	case <-crx.Done():
+	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
-		err := api.Shutdown()
-		if err != nil {
-			slog.Error("Failed to shut down API server", "error", err)
-			os.Exit(1)
-		}
+		waitGroup := sync.WaitGroup{}
+		waitGroup.Go(func() {
+			defer waitGroup.Done()
+			err := api.Shutdown()
+			if err != nil {
+				slog.Error("Failed to shut down API server", "error", err)
+			}
+		})
+
+		waitGroup.Go(func() {
+			defer waitGroup.Done()
+			err = proxmox.ShutdownWorker()
+			if err != nil {
+				slog.Error("Failed to shut down Proxmox worker", "error", err)
+			}
+		})
+
+		waitGroup.Wait()
 	}
 	slog.Info("Server shut down gracefully")
 	os.Exit(0)

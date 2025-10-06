@@ -29,13 +29,38 @@ var (
 	vmStatusTimeMap map[uint64]stringTime = make(map[uint64]stringTime)
 
 	lastConfigureSSHKeysTime time.Time = time.Time{}
+
+	workerContext    context.Context    = nil
+	workerCancelFunc context.CancelFunc = nil
+	workerReturnChan chan error         = make(chan error, 1)
 )
 
-func Worker() {
+func StartWorker() {
+	workerContext, workerCancelFunc = context.WithCancel(context.Background())
+	go func() {
+		workerReturnChan <- worker(workerContext)
+		close(workerReturnChan)
+	}()
+}
+
+func ShutdownWorker() error {
+	workerCancelFunc()
+	return <-workerReturnChan
+}
+
+func worker(ctx context.Context) error {
 	time.Sleep(10 * time.Second)
 	logger.Info("Starting Proxmox worker")
 
 	for {
+		// Handle graceful shutdown at the start of each cycle
+		select {
+		case <-ctx.Done():
+			logger.Info("Proxmox worker shutting down")
+			return ctx.Err()
+		default:
+		}
+
 		now := time.Now()
 		// For all VMs we must check the status and take the necessary actions
 		if !isProxmoxReachable {
@@ -43,33 +68,7 @@ func Worker() {
 			continue
 		}
 
-		vmsCount, err := db.CountVMs()
-		if err != nil {
-			logger.Error("Failed to count VMs in DB", "error", err)
-		} else {
-			objectCountSet("vms", vmsCount)
-		}
-
-		interfacesCount, err := db.CountInterfaces()
-		if err != nil {
-			logger.Error("Failed to count interfaces in DB", "error", err)
-		} else {
-			objectCountSet("interfaces", interfacesCount)
-		}
-
-		netsCount, err := db.CountVNets()
-		if err != nil {
-			logger.Error("Failed to count VNets in DB", "error", err)
-		} else {
-			objectCountSet("vnets", netsCount)
-		}
-
-		countPortFowards, err := db.CountPortForwards()
-		if err != nil {
-			logger.Error("Failed to count port forwards in DB", "error", err)
-		} else {
-			objectCountSet("port_forwards", countPortFowards)
-		}
+		objectCountHelper()
 
 		cluster, err := getProxmoxCluster(client)
 		if err != nil {
@@ -108,6 +107,36 @@ func Worker() {
 		if elapsed < 10*time.Second {
 			time.Sleep(10*time.Second - elapsed)
 		}
+	}
+}
+
+func objectCountHelper() {
+	vmsCount, err := db.CountVMs()
+	if err != nil {
+		logger.Error("Failed to count VMs in DB", "error", err)
+	} else {
+		objectCountSet("vms", vmsCount)
+	}
+
+	interfacesCount, err := db.CountInterfaces()
+	if err != nil {
+		logger.Error("Failed to count interfaces in DB", "error", err)
+	} else {
+		objectCountSet("interfaces", interfacesCount)
+	}
+
+	netsCount, err := db.CountVNets()
+	if err != nil {
+		logger.Error("Failed to count VNets in DB", "error", err)
+	} else {
+		objectCountSet("vnets", netsCount)
+	}
+
+	countPortFowards, err := db.CountPortForwards()
+	if err != nil {
+		logger.Error("Failed to count port forwards in DB", "error", err)
+	} else {
+		objectCountSet("port_forwards", countPortFowards)
 	}
 }
 
