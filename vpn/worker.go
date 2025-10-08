@@ -340,7 +340,7 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 		peer, err := db.GetPeerByID(s.PeerID)
 		if err != nil {
 			logger.With("error", err).Error("Failed to get peer from DB")
-			return err
+			continue
 		}
 
 		rule := util.CreateRule(fwConfig, "ACCEPT", peer.Address, s.Subnet)
@@ -366,7 +366,7 @@ func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
 			err = shorewall.AddRule(rule)
 			if err != nil {
 				logger.With("error", err).Error("Failed to add firewall rule")
-				return err
+				continue
 			}
 			reloadFirewall = true
 		}
