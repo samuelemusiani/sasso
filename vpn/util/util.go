@@ -16,7 +16,7 @@ func Init(l *slog.Logger, s string) error {
 
 	_, _, err := net.ParseCIDR(subnet)
 	if err != nil {
-		logger.With("subnet", subnet).Error("Invalid usable subnet in config")
+		logger.Error("Invalid usable subnet in config", "subnet", subnet)
 		return err
 	}
 	return nil

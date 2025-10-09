@@ -9,9 +9,9 @@ import (
 
 func NextAvailableAddress() (string, error) {
 	usedAddresses, err := db.GetAllAddresses()
-	slog.With("used_addresses", usedAddresses).Debug("Used addresses from database")
+	slog.Debug("Used addresses from database", "used_addresses", usedAddresses)
 	if err != nil {
-		slog.With("error", err).Error("Failed to get all used addresses from database")
+		slog.Error("Failed to get all used addresses from database", "error", err)
 		return "", err
 	}
 
