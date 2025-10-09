@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
+	"sort"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -26,6 +26,14 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		err := checkPeers(logger)
 		if err != nil {
 			logger.Error("Failed to check peers", "error", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		// check firewall
+		err = checkFiewall(logger, fwConfig)
+		if err != nil {
+			logger.With("error", err).Error("Failed to check firewall")
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -83,16 +91,12 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 		logger.Info("Deleting net", "subnet", ln.Subnet)
 
-		iface, err := db.GetPeerByID(ln.PeerID)
+		peer, err := db.GetPeerByID(ln.PeerID)
 		if err != nil {
 			logger.Error("Failed to get peer from DB while disabling nets", "error", err, "peer_id", ln.PeerID)
 			continue
 		}
-		err = shorewall.RemoveRule(shorewall.Rule{
-			Action:      "ACCEPT",
-			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
-			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, ln.Subnet),
-		})
+		err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, ln.Subnet))
 		if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
 			logger.Error("Failed to delete firewall rule", "error", err)
 			continue
@@ -224,17 +228,13 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		logger.Debug("Enabling net", "net", n.Subnet)
 
-		iface, err := db.GetPeerByUserID(n.UserID)
+		peer, err := db.GetPeerByUserID(n.UserID)
 		if err != nil {
 			logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", n.UserID)
 			continue
 		}
 
-		err = shorewall.AddRule(shorewall.Rule{
-			Action:      "ACCEPT",
-			Source:      fmt.Sprintf("%s:%s", fwConfig.VPNZone, iface.Address),
-			Destination: fmt.Sprintf("%s:%s", fwConfig.SassoZone, n.Subnet),
-		})
+		err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, n.Subnet))
 
 		if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
 			logger.Error("Failed to add firewall rule", "error", err)
@@ -246,14 +246,14 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			continue
 		}
 
-		wgIface := wg.PeerFromDB(iface)
+		wgIface := wg.PeerFromDB(peer)
 		err = wg.CreatePeer(&wgIface)
 		if err != nil {
 			logger.Error("Failed to create WireGuard peer", "error", err)
 			continue
 		}
 
-		err = db.NewSubnet(n.Subnet, iface.ID)
+		err = db.NewSubnet(n.Subnet, peer.ID)
 		if err != nil {
 			logger.Error("Failed to save subnet to database", "error", err)
 			continue
@@ -304,6 +304,81 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 			UserID:    v.UserID,
 			VPNConfig: base64Conf,
 		})
+	}
+
+	return nil
+}
+
+func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
+	// for all subnets in the db, check if there is a rule in shorewall
+	subnets, err := db.GetAllSubnets()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all subnets from DB")
+		return err
+	}
+
+	fwRules, err := shorewall.GetRules()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get firewall rules")
+		return err
+	}
+
+	// sort rules by Source
+	sort.Slice(fwRules, func(i, j int) bool {
+		if fwRules[i].Action != fwRules[j].Action {
+			return fwRules[i].Action < fwRules[j].Action
+		}
+		if fwRules[i].Source != fwRules[j].Source {
+			return fwRules[i].Source < fwRules[j].Source
+		}
+		return fwRules[i].Destination < fwRules[j].Destination
+	})
+
+	reloadFirewall := false
+
+	for _, s := range subnets {
+		peer, err := db.GetPeerByID(s.PeerID)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get peer from DB")
+			continue
+		}
+
+		rule := util.CreateRule(fwConfig, "ACCEPT", peer.Address, s.Subnet)
+
+		// check if the rule exists in fwRules
+		// using binary search since fwRules is sorted by Source
+		index := sort.Search(len(fwRules), func(i int) bool {
+			if fwRules[i].Action != rule.Action {
+				return fwRules[i].Action > rule.Action
+			}
+			if fwRules[i].Source != rule.Source {
+				return fwRules[i].Source > rule.Source
+			}
+			return fwRules[i].Destination >= rule.Destination
+		})
+
+		exists := index < len(fwRules) &&
+			fwRules[index].Action == rule.Action &&
+			fwRules[index].Source == rule.Source &&
+			fwRules[index].Destination == rule.Destination
+		if !exists {
+			logger.Info("Firewall rule missing, adding it", "rule", rule)
+			err = shorewall.AddRule(rule)
+			if err != nil {
+				logger.With("error", err).Error("Failed to add firewall rule")
+				continue
+			}
+			reloadFirewall = true
+		}
+	}
+
+	// reload shorewall to apply changes
+	if reloadFirewall {
+		err = shorewall.Reload()
+		if err != nil {
+			logger.With("error", err).Error("Failed to reload firewall")
+			return err
+		}
 	}
 
 	return nil
