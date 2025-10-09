@@ -19,10 +19,10 @@ function fetchUser() {
     .get(`/admin/users/${userId}`)
     .then((res) => {
       user.value = res.data as User
-      maxCores.value = user.value.max_cores
-      maxRAM.value = user.value.max_ram
-      maxDisk.value = user.value.max_disk
-      maxNets.value = user.value.max_nets
+      maxCores.value = user.value.max_cores ?? 0
+      maxRAM.value = user.value.max_ram ?? 0
+      maxDisk.value = user.value.max_disk ?? 0
+      maxNets.value = user.value.max_nets ?? 0
     })
     .catch((err) => {
       console.error('Failed to fetch user:', err)
@@ -68,7 +68,7 @@ onMounted(() => {
       <p><strong>Realm</strong> {{ user.realm }}</p>
       <p><strong>Role</strong> {{ user.role }}</p>
 
-      <h3 class="text-xl font-bold mt-6">Resource Limits</h3>
+      <h3 class="mt-6 text-xl font-bold">Resource Limits</h3>
       <form @submit.prevent="updateLimits" class="mt-4 space-y-4">
         <div>
           <label for="maxCores" class="block text-sm font-medium">Max Cores</label>

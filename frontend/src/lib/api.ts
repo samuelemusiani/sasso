@@ -47,7 +47,9 @@ api.interceptors.response.use(
       // Token expired or invalid
       localStorage.removeItem('jwt_token')
       // Redirect to login page
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   },

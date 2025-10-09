@@ -4,7 +4,7 @@ type Subnet struct {
 	ID     uint   `gorm:"primaryKey"`
 	Subnet string `gorm:"not null;unique"`
 
-	PeerID uint `gorm:"index"`
+	PeerID uint `gorm:"index; not null"`
 }
 
 func initSubnets() error {

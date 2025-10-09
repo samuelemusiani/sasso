@@ -28,7 +28,7 @@ type Interface struct {
 func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway string) (*Interface, error) {
 	iface, err := db.NewInterface(VMID, vnetID, vlanTag, ipAdd, gateway, string(InterfaceStatusPreCreating))
 	if err != nil {
-		logger.With("error", err).Error("Failed to create new interface")
+		logger.Error("Failed to create new interface", "error", err)
 		return nil, err
 	}
 	return InterfaceFromDB(iface), nil
@@ -49,7 +49,7 @@ func InterfaceFromDB(dbIface *db.Interface) *Interface {
 func DeleteInterface(id uint) error {
 	err := db.UpdateInterfaceStatus(id, string(InterfaceStatusPreDeleting))
 	if err != nil {
-		logger.With("interfaceID", id, "error", err).Error("Failed to set interface status to pre-deleting")
+		logger.Error("Failed to set interface status to pre-deleting", "interfaceID", id, "error", err)
 		return err
 	}
 	return nil

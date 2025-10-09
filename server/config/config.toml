@@ -2,9 +2,11 @@
 
 [public_server]
 bind = ":8080"
+log_requests = true
 
 [internal_server]
 bind = ":8081"
+log_requests = false
 
 [database]
 user = "user"
@@ -52,6 +54,10 @@ vmid_vm_digits = 2
 
 # Do a full clone or a linked clone
 full = true
+
+# VM names on proxmox are the taken from the user. If false vms will be named
+# sasso-<id>
+user_vm_names = true
 
 [proxmox.network]
 sdn_zone = "sasso"

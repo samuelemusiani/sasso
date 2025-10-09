@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Interface, Net } from '@/types'
 import { api } from '@/lib/api'
@@ -76,14 +76,27 @@ function showEditForm(iface: Interface) {
   showAddForm.value = false
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchInterfaces()
+
+  intervalId = setInterval(() => {
+    fetchInterfaces()
+  }, 5000)
+
   fetchNets()
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
+  <div class="flex flex-col gap-2 p-2">
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
 
     <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
@@ -95,7 +108,7 @@ onMounted(() => {
       @cancel="handleCancel"
     />
 
-    <div class="alert alert-warning p-4 flex flex-col w-max" role="alert">
+    <div class="alert alert-warning flex w-max flex-col p-4" role="alert">
       <p class="font-bold">Adding interfaces to a running VM</p>
       <ul class="list-disc pl-5">
         <li>You can attach new interfaces while the VM is running.</li>
@@ -127,12 +140,12 @@ onMounted(() => {
             <td class="">{{ iface.ip_add }}</td>
             <td class="">{{ iface.gateway }}</td>
             <td class="">{{ iface.status }}</td>
-            <td class="text-right text-sm font-medium flex gap-2 justify-end">
+            <td class="flex justify-end gap-2 text-right text-sm font-medium">
               <!-- FIXME: editing will show another"CreateNew" component filled -->
-              <button @click="showEditForm(iface)" class="btn btn-primary p-2 rounded-lg">
+              <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
                 Edit
               </button>
-              <button @click="deleteInterface(iface.id)" class="btn btn-error p-2 rounded-lg">
+              <button @click="deleteInterface(iface.id)" class="btn btn-error rounded-lg p-2">
                 Delete
               </button>
             </td>

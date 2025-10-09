@@ -134,13 +134,13 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- TODO: go back to vm -->
-  <div class="flex gap-2 flex-col">
+  <div class="flex flex-col gap-2">
     <h2 class="text-2xl font-bold">Create a Backup</h2>
     <CreateNew :create="makeBackup" title="New Backup" :error="error">
       <label class="label">Backup Name</label>
-      <input type="text" placeholder="Name" v-model="name" class="input rounded-lg w-full" />
+      <input type="text" placeholder="Name" v-model="name" class="input w-full rounded-lg" />
       <label class="label">Backup Notes</label>
-      <textarea placeholder="Notes" v-model="notes" class="input rounded-lg w-full h-32"></textarea>
+      <textarea placeholder="Notes" v-model="notes" class="input h-32 w-full rounded-lg"></textarea>
     </CreateNew>
     <div v-show="pendingBackupRequests.length > 0">
       <!-- TODO: quando ne crei uno resta in pending per un po' e non si vede subito nella tabella -->
@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
             <!-- TODO: fix with some fancy notes -->
             <td>{{ bk.notes }}</td>
             <td>{{ bk.protected }}</td>
-            <td class="text-right text-sm font-medium flex gap-2 justify-end">
+            <td class="flex justify-end gap-2 text-right text-sm font-medium">
               <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->
               <button
                 @click="protectBackup(bk.id, !bk.protected)"

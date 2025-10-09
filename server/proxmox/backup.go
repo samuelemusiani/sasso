@@ -328,7 +328,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 	isSuccessful, err := s.ChangeProtection(ctx, protected, volid)
 	cancel()
 	if err != nil {
-		logger.With("error", err).Error("Failed to change backup protection")
+		logger.Error("Failed to change backup protection", "error", err)
 		return false, err
 	}
 	if !isSuccessful {

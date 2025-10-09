@@ -17,14 +17,14 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 
 	bks, err := proxmox.ListBackups(vm.ID, vm.CreatedAt)
 	if err != nil {
-		logger.With("userID", userID, "vmID", vm.ID, "error", err).Error("Failed to list backups")
+		logger.Error("Failed to list backups", "userID", userID, "vmID", vm.ID, "error", err)
 		http.Error(w, "Failed to list backups", http.StatusInternalServerError)
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(bks)
 	if err != nil {
-		logger.With("userID", userID, "vmID", vm.ID, "error", err).Error("Failed to encode backups to JSON")
+		logger.Error("Failed to encode backups to JSON", "userID", userID, "vmID", vm.ID, "error", err)
 		http.Error(w, "Failed to encode backups to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -54,14 +54,14 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
 			return
 		}
-		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to restore backup")
+		logger.Error("Failed to restore backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
 		http.Error(w, "Failed to restore backup", http.StatusInternalServerError)
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(createBackupRequest{ID: id})
 	if err != nil {
-		logger.With("error", err).Error("Failed to encode restore backup response to JSON")
+		logger.Error("Failed to encode restore backup response to JSON", "error", err)
 		http.Error(w, "Failed to encode restore backup response to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -100,14 +100,14 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Backup notes too long", http.StatusBadRequest)
 			return
 		}
-		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
+		logger.Error("Failed to delete backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(createBackupRequest{ID: id})
 	if err != nil {
-		logger.With("error", err).Error("Failed to encode delete backup response to JSON")
+		logger.Error("Failed to encode delete backup response to JSON", "error", err)
 		http.Error(w, "Failed to encode delete backup response to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -132,14 +132,14 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to delete backup")
+		logger.Error("Failed to delete backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
 		http.Error(w, "Failed to delete backup", http.StatusInternalServerError)
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(createBackupRequest{ID: id})
 	if err != nil {
-		logger.With("error", err).Error("Failed to encode delete backup response to JSON")
+		logger.Error("Failed to encode delete backup response to JSON", "error", err)
 		http.Error(w, "Failed to encode delete backup response to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -159,7 +159,7 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 
 	bkr, err := db.GetBackupRequestsByUserID(userID)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to list backup requests")
+		logger.Error("Failed to list backup requests", "userID", userID, "error", err)
 		http.Error(w, "Failed to list backup requests", http.StatusInternalServerError)
 		return
 	}
@@ -176,7 +176,7 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to encode backup requests to JSON")
+		logger.Error("Failed to encode backup requests to JSON", "userID", userID, "error", err)
 		http.Error(w, "Failed to encode backup requests to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -198,7 +198,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
 			return
 		}
-		logger.With("userID", userID, "bkrID", bkrID, "error", err).Error("Failed to get backup request")
+		logger.Error("Failed to get backup request", "userID", userID, "bkrID", bkrID, "error", err)
 		http.Error(w, "Failed to get backup request", http.StatusInternalServerError)
 		return
 	}
@@ -212,7 +212,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		logger.With("userID", userID, "bkrID", bkrID, "error", err).Error("Failed to encode backup request to JSON")
+		logger.Error("Failed to encode backup request to JSON", "userID", userID, "bkrID", bkrID, "error", err)
 		http.Error(w, "Failed to encode backup request to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -244,7 +244,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Max protected backups reached", http.StatusBadRequest)
 			return
 		}
-		logger.With("userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err).Error("Failed to protect backup")
+		logger.Error("Failed to protect backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
 		http.Error(w, "Failed to protect backup", http.StatusInternalServerError)
 		return
 	}

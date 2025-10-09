@@ -28,11 +28,7 @@ type returnNet struct {
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Failed to get user ID from context", http.StatusUnauthorized)
-		return
-	}
+	userID := mustGetUserIDFromContext(r)
 
 	var req createNetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -67,11 +63,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 }
 
 func listNets(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Failed to get user ID from context", http.StatusUnauthorized)
-		return
-	}
+	userID := mustGetUserIDFromContext(r)
 
 	nets, err := db.GetNetsByUserID(userID)
 	if err != nil {
@@ -113,7 +105,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 		if err == proxmox.ErrVNetNotFound {
 			http.Error(w, "Net not found", http.StatusNotFound)
 		} else if err == proxmox.ErrVNetHasActiveInterfaces {
-			http.Error(w, "Net has active interfaces", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
 		}
@@ -123,10 +115,41 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func updateNet(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	vnetIDStr := chi.URLParam(r, "id")
+	vnetID, err := strconv.ParseUint(vnetIDStr, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+		return
+	}
+
+	var req createNetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = proxmox.UpdateNet(userID, uint(vnetID), req.Name, req.VlanAware)
+	if err != nil {
+		if err == proxmox.ErrVNetNotFound {
+			http.Error(w, "Net not found", http.StatusNotFound)
+		} else if err == proxmox.ErrVNetNameExists || err == proxmox.ErrVNetHasTaggedInterfaces {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, "Failed to update net", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func internalListNets(w http.ResponseWriter, r *http.Request) {
 	nets, err := db.GetVNetsWithStatus(string(proxmox.VNetStatusReady))
 	if err != nil {
-		slog.With("err", err).Error("Failed to get all nets")
+		slog.Error("Failed to get all nets", "err", err)
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +171,7 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(returnNets)
 	if err != nil {
-		slog.With("err", err).Error("Failed to encode nets")
+		slog.Error("Failed to encode nets", "err", err)
 		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
 		return
 	}
@@ -158,21 +181,21 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		slog.With("err", err).Error("Invalid net ID")
+		slog.Error("Invalid net ID", "err", err)
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
 		return
 	}
 
 	var n internal.Net
 	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
-		slog.With("err", err).Error("Failed to decode net")
+		slog.Error("Failed to decode net", "err", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	dbNet, err := db.GetNetByID(uint(id))
 	if err != nil {
-		slog.With("netID", id, "err", err).Error("Failed to get net by ID")
+		slog.Error("Failed to get net by ID", "netID", id, "err", err)
 		http.Error(w, "Net not found", http.StatusNotFound)
 		return
 	}
@@ -182,7 +205,7 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	dbNet.Broadcast = n.Broadcast
 
 	if err := db.UpdateVNet(dbNet); err != nil {
-		slog.With("netID", id, "err", err).Error("Failed to update net")
+		slog.Error("Failed to update net", "netID", id, "err", err)
 		http.Error(w, "Failed to update net", http.StatusInternalServerError)
 		return
 	}

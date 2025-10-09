@@ -40,7 +40,8 @@ onBeforeUnmount(() => {
 })
 
 function createNet() {
-  if (!newNetName.value || !newNetVlanAware.value) {
+  if (!newNetName.value) {
+    error.value = 'Please provide a valid network name'
     return
   }
 
@@ -76,8 +77,8 @@ function deleteNet(id: number) {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
-    <h1 class="text-3xl font-bold mb-2">My Networks</h1>
+  <div class="flex flex-col gap-2 p-2">
+    <h1 class="mb-2 text-3xl font-bold">My Networks</h1>
 
     <CreateNew title="Network" :create="createNet" :error="error">
       <div class="flex flex-col gap-2">
@@ -87,17 +88,17 @@ function deleteNet(id: number) {
           v-model="newNetName"
           type="text"
           placeholder="Network Name"
-          class="p-2 border border-primary rounded-lg"
+          class="border-primary rounded-lg border p-2"
         />
 
-        <label class="cursor-pointer flex items-center gap-3">
+        <label class="flex cursor-pointer items-center gap-3">
           <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
           <span class="label-text text-base-content">Enable VLAN support</span>
         </label>
       </div>
     </CreateNew>
 
-    <table class="table table-auto w-full">
+    <table class="table w-full table-auto">
       <thead>
         <tr>
           <th class="">Name</th>
@@ -111,7 +112,7 @@ function deleteNet(id: number) {
       <tbody>
         <tr v-for="net in nets" :key="net.id">
           <td class="">{{ net.name }}</td>
-          <td class="capitalize font-semibold" :class="getStatusClass(net.status)">
+          <td class="font-semibold capitalize" :class="getStatusClass(net.status)">
             {{ net.status }}
           </td>
           <td class="">{{ net.vlanaware }}</td>
@@ -121,7 +122,7 @@ function deleteNet(id: number) {
             <button
               v-if="net.status === 'ready'"
               @click="deleteNet(net.id)"
-              class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>

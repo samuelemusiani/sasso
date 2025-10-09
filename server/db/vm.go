@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,7 +32,7 @@ type VM struct {
 func initVMs() error {
 	err := db.AutoMigrate(&VM{})
 	if err != nil {
-		logger.With("error", err).Error("Failed to migrate VMs table")
+		logger.Error("Failed to migrate VMs table", "error", err)
 		return err
 	}
 	return nil
@@ -143,13 +144,28 @@ func GetVMsWithStatus(status string) ([]VM, error) {
 	return vms, nil
 }
 
-func GetVMsWithStatuses(statuses []string) ([]VM, error) {
+func GetVMsWithStates(states []string) ([]VM, error) {
 	var vms []VM
-	result := db.Where("status IN ?", statuses).Find(&vms)
+	result := db.Where("status IN ?", states).Find(&vms)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return vms, nil
+}
+
+func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
+	var vm VM
+	result := db.Where("status IN ?", states).
+		Order("created_at DESC").
+		Limit(1).
+		First(&vm)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return time.Time{}, nil // No VMs found with the specified states
+		}
+		return time.Time{}, result.Error
+	}
+	return vm.CreatedAt, nil
 }
 
 func GetAllActiveVMs() ([]VM, error) {
@@ -206,4 +222,13 @@ func GetResorcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
 	}
 
 	return result.Cores, result.RAM, result.Disk, nil
+}
+
+func CountVMs() (int64, error) {
+	var count int64
+	result := db.Model(&VM{}).Count(&count)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return count, nil
 }

@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { useRouter } from 'vue-router'
 import { login as _login } from '@/lib/api'
 import type { Realm } from '@/types'
+import type { AxiosError } from 'axios'
 
 const router = useRouter()
 
@@ -12,6 +13,8 @@ const password = ref('')
 const showPassword = ref(false)
 const realm = ref('Local')
 const realms = ref<Realm[]>([])
+
+const errorMessage = ref('')
 
 function fetchRealms() {
   api
@@ -32,6 +35,7 @@ async function login() {
   try {
     if (!username.value || !password.value) {
       console.error('Username and password are required')
+      errorMessage.value = 'Username and password are required'
       return
     }
     const realmID = realms.value.find((r) => r.name === realm.value)?.id
@@ -43,7 +47,15 @@ async function login() {
     await _login(username.value, password.value, realmID)
     router.push('/')
   } catch (error) {
+    const axiosError = error as AxiosError
     console.error('Login failed:', error)
+    if (axiosError.status === 401) {
+      errorMessage.value = 'Invalid username or password'
+    } else if (axiosError.status === 500) {
+      errorMessage.value = "There's a connection error, please try to refresh"
+    } else {
+      errorMessage.value = 'An error occurred during login'
+    }
   }
 }
 
@@ -56,13 +68,13 @@ onMounted(() => {
   <div class="flex-1 overflow-auto">
     <div class="grid h-screen place-items-center">
       <div class="flex flex-col items-center gap-2">
-        <div class="text-center flex items-center gap-2">
-          Login into <img src="/public/sasso.png" class="h-20" />
+        <div class="flex items-center gap-2 text-center">
+          Login into <img src="/sasso.png" class="h-20" />
         </div>
         <div class="w-full">
           <legend class="label mb-1">Username</legend>
           <label class="input validator rounded-lg">
-            <IconVue icon="material-symbols:person" class="h-[1em] opacity-50 text-lg" />
+            <IconVue icon="material-symbols:person" class="h-[1em] text-lg opacity-50" />
             <input
               type="text"
               v-model="username"
@@ -79,7 +91,7 @@ onMounted(() => {
         <div class="w-full">
           <legend class="label mb-1">Password</legend>
           <label class="input rounded-lg">
-            <IconVue icon="material-symbols:lock" class="h-[1em] opacity-50 text-lg" />
+            <IconVue icon="material-symbols:lock" class="h-[1em] text-lg opacity-50" />
             <input
               required
               v-model="password"
@@ -90,22 +102,22 @@ onMounted(() => {
             <button
               type="button"
               @click="showPassword = !showPassword"
-              class="btn btn-ghost btn-circle w-auto h-auto hover:bg-transparent hover:border-0"
+              class="btn btn-ghost btn-circle h-auto w-auto hover:border-0 hover:bg-transparent"
             >
               <IconVue
                 :icon="
                   showPassword ? 'material-symbols:visibility-off' : 'material-symbols:visibility'
                 "
-                class="text-lg text-base-content/50"
+                class="text-base-content/50 text-lg"
               />
             </button>
           </label>
         </div>
 
-        <div v-if="realms.length === 0" class="text-error">
-          There's a connection error, please try to refresh
+        <div v-if="errorMessage" class="text-error">
+          {{ errorMessage }}
         </div>
-        <fieldset v-else class="my-2 w-full">
+        <fieldset class="my-2 w-full">
           <legend class="label mb-1">Realms</legend>
           <select v-model="realm" class="select rounded-lg w-full">
             <option v-for="r in realms" :key="r.id" :value="r.name">
@@ -113,10 +125,10 @@ onMounted(() => {
             </option>
           </select>
         </fieldset>
-        <button class="btn btn-primary p-2 rounded-lg w-full" @click="login()">Login</button>
+        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">Login</button>
       </div>
     </div>
-    <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8">
+    <p class="text-base-content/50 absolute inset-x-0 bottom-8 text-center">
       by
       <a href="https://students.cs.unibo.it" class="text-primary">
         <img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff" />

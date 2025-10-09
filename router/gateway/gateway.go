@@ -42,7 +42,7 @@ func Init(l *slog.Logger, c config.Gateway) error {
 		pg := NewProxmoxGateway()
 		err := pg.Init(c)
 		if err != nil {
-			logger.With("error", err).Error("Failed to initialize Proxmox gateway")
+			logger.Error("Failed to initialize Proxmox gateway", "error", err)
 			return err
 		}
 		globalGateway = pg
@@ -50,12 +50,12 @@ func Init(l *slog.Logger, c config.Gateway) error {
 		lg := NewLinuxGateway()
 		err := lg.Init(c)
 		if err != nil {
-			logger.With("error", err).Error("Failed to initialize Linux gateway")
+			logger.Error("Failed to initialize Linux gateway", "error", err)
 			return err
 		}
 		globalGateway = lg
 	default:
-		logger.With("type", c.Type).Error("Unsupported gateway type")
+		logger.Error("Unsupported gateway type", "type", c.Type)
 		return ErrUnsupportedGatewayType
 	}
 
@@ -78,9 +78,9 @@ func (i *Interface) SaveToDB() error {
 	var err error
 	inter, err := db.GetInterfaceByVNet(i.VNet)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		logger.With("error", err, "vnet", i.VNet).Error("Failed to get interface from database")
+		logger.Error("Failed to get interface from database", "error", err, "vnet", i.VNet)
 	} else if inter != nil {
-		logger.With("vnet", i.VNet).Debug("Interface already exists in database")
+		logger.Debug("Interface already exists in database", "vnet", i.VNet)
 
 		inter.LocalID = i.LocalID
 		inter.VNetID = i.VNetID

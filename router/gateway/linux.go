@@ -45,24 +45,24 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	}
 	err := netlink.LinkAdd(link)
 	if err != nil {
-		logger.With("error", err).Error("Failed to create VxLAN interface")
+		logger.Error("Failed to create VxLAN interface", "error", err)
 		return nil, err
 	}
 	ipAddr, err := netlink.ParseAddr(routerIP)
 	if err != nil {
-		logger.With("error", err, "routerIP", routerIP).Error("Failed to parse router IP address")
+		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
 		return nil, err
 	}
 
 	err = netlink.AddrAdd(link, ipAddr)
 	if err != nil {
-		logger.With("error", err, "ipAddress", ipAddr, "iface", link.Name).Error("Failed to add IP address to network interface on router")
+		logger.Error("Failed to add IP address to network interface on router", "error", err, "ipAddress", ipAddr, "iface", link.Name)
 		return nil, err
 	}
 
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		slog.With("error", err).Error("Failed to set interface up")
+		slog.Error("Failed to set interface up", "error", err)
 		panic(err)
 	}
 
@@ -78,7 +78,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 			Family:       unix.AF_BRIDGE,
 		})
 		if err != nil {
-			slog.With("error", err, "p", p.String(), "LinkIndex", link.Index).Error("Failed to add neighbor")
+			slog.Error("Failed to add neighbor", "error", err, "p", p.String(), "LinkIndex", link.Index)
 			return nil, err
 		}
 	}
@@ -99,7 +99,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 func (lg *LinuxGateway) RemoveInterface(id uint) error {
 	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(id)}})
 	if err != nil && !errors.Is(err, unix.ENODEV) {
-		logger.With("error", err, "id", id).Error("Failed to remove VxLAN interface")
+		logger.Error("Failed to remove VxLAN interface", "error", err, "id", id)
 		return err
 	}
 	return nil
@@ -117,7 +117,7 @@ func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	}
 
 	if err != nil {
-		logger.With("error", err, "id", iface.LocalID).Error("Failed to get Link")
+		logger.Error("Failed to get Link", "error", err, "id", iface.LocalID)
 		return false, err
 	}
 

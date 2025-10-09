@@ -29,7 +29,7 @@ func Init(l *slog.Logger, c config.Firewall) error {
 			VMZone:       c.Shorewall.VMZone,
 		}
 	default:
-		logger.With("type", c.Type).Error("Unsupported firewall type")
+		logger.Error("Unsupported firewall type", "type", c.Type)
 		return ErrUnsupportedFirewallType
 	}
 

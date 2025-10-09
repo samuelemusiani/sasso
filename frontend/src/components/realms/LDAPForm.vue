@@ -75,13 +75,13 @@ function updateRealm() {
   <div>
     <div class="text-2xl font-bold">LDAP Realm</div>
     <p>{{ $props.realm ? 'Edit LDAP Realm' : 'Add LDAP Realm' }}</p>
-    <form class="flex gap-2 flex-col mt-2">
+    <form class="mt-2 flex flex-col gap-2">
       <label class="label">Name</label>
       <input
         v-model="name"
         type="text"
         placeholder="My LDAP Realm"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Description</label>
@@ -89,7 +89,7 @@ function updateRealm() {
         v-model="description"
         type="text"
         placeholder="A description of my LDAP Realm"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">URL</label>
@@ -97,7 +97,7 @@ function updateRealm() {
         v-model="url"
         type="text"
         placeholder="ldap://server.test.com:389"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">User Base DN</label>
@@ -105,7 +105,7 @@ function updateRealm() {
         v-model="userBaseDN"
         type="text"
         placeholder="ou=people,dc=example,dc=com"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Group Base DN</label>
@@ -113,7 +113,7 @@ function updateRealm() {
         v-model="groupBaseDN"
         type="text"
         placeholder="ou=group,dc=example,dc=com"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Admin Group</label>
@@ -121,7 +121,7 @@ function updateRealm() {
         v-model="adminGroup"
         type="text"
         placeholder="sasso_admin"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Maintainer Group</label>
@@ -129,7 +129,7 @@ function updateRealm() {
         v-model="maintainerGroup"
         type="text"
         placeholder="sasso_maintainer"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Bind DN</label>
@@ -137,7 +137,7 @@ function updateRealm() {
         v-model="bindDN"
         type="text"
         placeholder="cn=admin,dc=example,dc=com"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
 
       <label class="label">Bind Password</label>
@@ -145,19 +145,19 @@ function updateRealm() {
         v-model="bindPassword"
         type="password"
         :placeholder="$props.realm ? 'Unchanged' : 'Pour bind password'"
-        class="input rounded-lg w-full"
+        class="input w-full rounded-lg"
       />
       <button @click.prevent="addRealm()" v-if="!editing" class="btn btn-primary w-full rounded-lg">
         Create Realm
       </button>
-      <div v-else class="flex gap-2 grow">
+      <div v-else class="flex grow gap-2">
         <RouterLink
           to="/admin/realms"
-          class="btn btn-error btn-outline text-center w-1/2 rounded-lg"
+          class="btn btn-error btn-outline w-1/2 rounded-lg text-center"
         >
           Cancel
         </RouterLink>
-        <button @click.prevent="updateRealm()" class="btn btn-primary text-center w-1/2 rounded-lg">
+        <button @click.prevent="updateRealm()" class="btn btn-primary w-1/2 rounded-lg text-center">
           Update Realm
         </button>
       </div>

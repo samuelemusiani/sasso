@@ -19,7 +19,8 @@ function fetchVMs() {
   api
     .get('/vm')
     .then((res) => {
-      vms.value = res.data as VM[]
+      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
+      vms.value = tmp as VM[]
     })
     .catch((err) => {
       console.error('Failed to fetch VMs:', err)
@@ -108,8 +109,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
-    <h1 class="text-3xl font-bold flex items-center gap-2">
+  <div class="flex flex-col gap-2 p-2">
+    <h1 class="flex items-center gap-2 text-3xl font-bold">
       <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
     </h1>
 
@@ -121,7 +122,7 @@ onBeforeUnmount(() => {
           type="text"
           id="name"
           v-model="name"
-          class="input w-full border p-2 rounded-lg w-24"
+          class="input w-24 w-full rounded-lg border p-2"
         />
       </div>
       <div>
@@ -130,7 +131,7 @@ onBeforeUnmount(() => {
           type="number"
           id="cores"
           v-model="cores"
-          class="input w-full border p-2 rounded-lg w-24"
+          class="input w-24 w-full rounded-lg border p-2"
         />
       </div>
       <div>
@@ -139,14 +140,14 @@ onBeforeUnmount(() => {
           type="number"
           id="ram"
           v-model="ram"
-          class="input w-full border p-2 rounded-lg w-24"
+          class="input w-24 w-full rounded-lg border p-2"
         />
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-full border rounded-lg w-24" />
+        <input type="number" id="disk" v-model="disk" class="input w-24 w-full rounded-lg border" />
       </div>
-      <div class="flex items-center justify-between w-full">
+      <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
           <input
             type="checkbox"
@@ -162,9 +163,9 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="flex flex-col w-full">
+      <div class="flex w-full flex-col">
         <label for="cores">Notes</label>
-        <textarea class="w-full textarea" placeholder="VM Notes" v-model="notes"></textarea>
+        <textarea class="textarea w-full" placeholder="VM Notes" v-model="notes"></textarea>
       </div>
     </CreateNew>
 
@@ -186,22 +187,22 @@ onBeforeUnmount(() => {
           <td class="">{{ vm.cores }}</td>
           <td class="">{{ vm.ram }}</td>
           <td class="">{{ vm.disk }}</td>
-          <td class="capitalize font-semibold" :class="getStatusClass(vm.status)">
+          <td class="font-semibold capitalize" :class="getStatusClass(vm.status)">
             {{ vm.status }}
           </td>
           <td>
-            <div v-if="vm.notes" class="text-xs bg-base-100 p-2 rounded-lg w-max text-pretty">
+            <div v-if="vm.notes" class="bg-base-100 w-max rounded-lg p-2 text-xs text-pretty">
               {{ vm.notes }}
             </div>
           </td>
 
           <td>
-            <div class="grid grid-cols-2 2xl:grid-cols-3 gap-2 max-w-3/5">
-              <div class="grid grid-cols-3 gap-2 col-span-2 *:btn-sm items-center">
+            <div class="grid max-w-3/5 grid-cols-2 gap-2 2xl:grid-cols-3">
+              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2">
                 <button
                   v-if="vm.status === 'stopped'"
                   @click="startVM(vm.id)"
-                  class="col-span-2 btn btn-success btn-outline rounded-lg"
+                  class="btn btn-success btn-outline col-span-2 rounded-lg"
                 >
                   <IconVue icon="material-symbols:play-arrow" class="text-lg" />
                   <span class="hidden md:inline">Start</span>
@@ -230,7 +231,7 @@ onBeforeUnmount(() => {
                   <span class="hidden md:inline">Delete</span>
                 </button>
               </div>
-              <div class="flex gap-2 items-center">
+              <div class="flex items-center gap-2">
                 <RouterLink
                   :to="`/vm/${vm.id}/interfaces`"
                   class="btn btn-primary btn-sm md:btn-md rounded-lg"

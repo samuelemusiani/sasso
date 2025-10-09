@@ -23,14 +23,14 @@ const colorClasses: Record<string, { bg: string; text: string; inner: string }> 
 </script>
 <template>
   <div
-    class="flex flex-row justify-around items-center p-4 gap-1 rounded-xl shadow-md min-w-54 grow"
+    class="flex min-w-54 grow flex-row items-center justify-around gap-1 rounded-xl p-4 shadow-md"
     :class="`bg-base-100 ${colorClasses[props.stat.color].text}`"
   >
-    <div class="flex items-center flex-col gap-2">
+    <div class="flex flex-col items-center gap-2">
       <IconVue class="text-4xl" :icon="props.stat.icon" />
       <span class="font-semibold">{{ props.stat.item }}</span>
     </div>
-    <div class="flex flex-row gap-2 items-center">
+    <div class="flex flex-row items-center gap-2">
       <div class="flex items-start">
         <span class="text-xl font-bold">{{ props.stat.allocated }} </span>
         <span v-if="props.stat.item === 'RAM' || props.stat.item === 'Disk'">GB</span>
@@ -44,7 +44,7 @@ const colorClasses: Record<string, { bg: string; text: string; inner: string }> 
     <!-- TODO: change color base on props -->
     <div class="relative flex items-center justify-center">
       <div
-        class="radial-progress absolute text-base-300"
+        class="radial-progress text-base-300 absolute"
         style="--value: 100; --size: 5.5rem; --thickness: 4px"
         role="progressbar"
       ></div>

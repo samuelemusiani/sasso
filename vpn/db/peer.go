@@ -7,7 +7,7 @@ type Peer struct {
 	Address    string `gorm:"not null;unique"`
 	UserID     uint   `gorm:"index"`
 
-	Subnet []Subnet
+	Subnet []Subnet `gorm:"constraint:OnDelete:CASCADE;foreignKey:PeerID"`
 }
 
 func initPeers() error {

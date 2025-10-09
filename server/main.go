@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"embed"
@@ -8,6 +9,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
@@ -49,7 +53,7 @@ func main() {
 	slog.Debug("Parsing config file", "path", os.Args[1])
 	err := config.Parse(os.Args[1])
 	if err != nil {
-		slog.With("error", err).Error("Failed to parse config file")
+		slog.Error("Failed to parse config file", "error", err)
 		os.Exit(1)
 	}
 
@@ -59,27 +63,27 @@ func main() {
 	if c.Secrets.Key != "" {
 		slog.Info("Using secrets key provided in config file")
 	} else if c.Secrets.Path != "" {
-		slog.With("path", c.Secrets.Path).Debug("Trying to load secrets key from file")
+		slog.Debug("Trying to load secrets key from file", "path", c.Secrets.Path)
 		base64key, err := os.ReadFile(c.Secrets.Path)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				slog.With("error", err).Error("Failed to read secrets key file")
+				slog.Error("Failed to read secrets key file", "error", err)
 				os.Exit(1)
 			}
 
-			slog.With("path", c.Secrets.Path).Info("Secrets key file does not exist, generating new key")
+			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
 			_, key, err := ed25519.GenerateKey(rand.Reader)
 			if err != nil {
-				slog.With("error", err).Error("Failed to generate new secrets key")
+				slog.Error("Failed to generate new secrets key", "error", err)
 				os.Exit(1)
 			}
 
 			base64key = []byte(base64.StdEncoding.EncodeToString(key))
 
-			slog.With("path", c.Secrets.Path).Info("Saving key to file")
+			slog.Info("Saving key to file", "path", c.Secrets.Path)
 			err = os.WriteFile(c.Secrets.Path, base64key, 0600)
 			if err != nil {
-				slog.With("error", err).Error("Failed to write secrets key to file")
+				slog.Error("Failed to write secrets key to file", "error", err)
 				os.Exit(1)
 			}
 
@@ -94,13 +98,13 @@ func main() {
 
 	real_key, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
 	if err != nil {
-		slog.With("error", err).Error("Failed to decode secrets key")
+		slog.Error("Failed to decode secrets key", "error", err)
 		os.Exit(1)
 	}
 
 	frontFS, err := fs.Sub(frontFS, "_front")
 	if err != nil {
-		slog.With("err", err).Error("Initializing change base path for front fs")
+		slog.Error("Initializing change base path for front fs", "err", err)
 		os.Exit(1)
 	}
 
@@ -118,23 +122,62 @@ func main() {
 	proxmoxLogger := slog.With("module", "proxmox")
 	err = proxmox.Init(proxmoxLogger, c.Proxmox)
 	if err != nil {
-		slog.With("error", err).Error("Failed to initialize Proxmox client")
+		slog.Error("Failed to initialize Proxmox client", "error", err)
 		os.Exit(1)
 	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer cancel()
 
 	slog.Debug("Starting background proxmox tasks")
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
 	go proxmox.TestEndpointNetZone()
-	go proxmox.Worker()
+	proxmox.StartWorker()
 
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS)
-	err = api.ListenAndServe(c.PublicServer, c.PrivateServer)
-	if err != nil {
-		slog.With("error", err).Error("Failed to start API server")
+	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer)
+
+	channelError := make(chan error, 1)
+
+	go func() {
+		err = api.ListenAndServe()
+		if err != nil {
+			slog.Error("Failed to start API server", "error", err)
+		}
+		channelError <- err
+	}()
+
+	select {
+	case err := <-channelError:
+		slog.Error("Server error", "error", err)
 		os.Exit(1)
+	case <-ctx.Done():
+		slog.Info("Received termination signal, shutting down...")
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(2)
+
+		go func() {
+			defer waitGroup.Done()
+			err := api.Shutdown()
+			if err != nil {
+				slog.Error("Failed to shut down API server", "error", err)
+			}
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			err = proxmox.ShutdownWorker()
+			if err != nil {
+				slog.Error("Failed to shut down Proxmox worker", "error", err)
+			}
+		}()
+
+		waitGroup.Wait()
 	}
+	slog.Info("Server shut down gracefully")
+	os.Exit(0)
 }

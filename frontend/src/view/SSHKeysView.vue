@@ -59,8 +59,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
-    <h1 class="text-3xl font-bold text-base-content flex items-center gap-2">
+  <div class="flex flex-col gap-2 p-2">
+    <h1 class="text-base-content flex items-center gap-2 text-3xl font-bold">
       <IconVue icon="material-symbols:key" class="text-primary" />
       SSH Keys
     </h1>
@@ -71,7 +71,7 @@ onMounted(() => {
           v-model="name"
           type="text"
           placeholder="Key Name"
-          class="input w-full p-2 border border-primary rounded-lg"
+          class="input border-primary w-full rounded-lg border p-2"
         />
 
         <label for="key">Key</label>
@@ -79,7 +79,7 @@ onMounted(() => {
           v-model="key"
           type="text"
           placeholder="SSH Public Key"
-          class="input w-full p-2 border border-primary rounded-lg"
+          class="input border-primary w-full rounded-lg border p-2"
         />
       </div>
     </CreateNew>
@@ -101,7 +101,7 @@ onMounted(() => {
             <td class="text-right text-sm font-medium">
               <button
                 @click="deleteSSHKey(sshKey.id)"
-                class="btn btn-error rounded-lg btn-sm md:btn-md btn-outline"
+                class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
               >
                 <IconVue icon="material-symbols:delete" class="text-lg"></IconVue>
                 <p class="hidden md:inline">Delete</p>

@@ -17,13 +17,13 @@ import (
 func getUserIDFromContext(r *http.Request) (uint, error) {
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
-		logger.With("error", err).Error("Failed to get claims from context")
+		logger.Error("Failed to get claims from context", "error", err)
 		return 0, err
 	}
 	// All JSON numbers are decoded into float64 by default
 	userID, ok := claims[CLAIM_USER_ID].(float64)
 	if !ok {
-		logger.With("claims", claims[CLAIM_USER_ID]).Error("User ID claim not found or not a float64")
+		logger.Error("User ID claim not found or not a float64", "claims", claims[CLAIM_USER_ID])
 		return 0, errors.New("user ID claim not found or not a float64")
 	}
 
@@ -112,6 +112,10 @@ func (a *LocalAuthenticator) Login(username, password string) (*db.User, error) 
 		}
 	}
 
+	if user.RealmID != 1 {
+		return nil, ErrUserNotFound
+	}
+
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
@@ -132,6 +136,7 @@ func (a *LocalAuthenticator) LoadConfigFromDB(realmID uint) error {
 }
 
 type LDAPAuthenticator struct {
+	ID              uint
 	URL             string
 	UserBaseDN      string
 	GroupBaseDN     string
@@ -144,14 +149,14 @@ type LDAPAuthenticator struct {
 func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 	l, err := ldap.DialURL(a.URL)
 	if err != nil {
-		logger.With("url", a.URL, "error", err).Error("Failed to connect to LDAP server")
+		logger.Error("Failed to connect to LDAP server", "url", a.URL, "error", err)
 		return nil, err
 	}
 	defer l.Close()
 
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
-		logger.With("bindDN", a.BindDN, "error", err).Error("Failed to bind to LDAP server")
+		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
 		return nil, err
 	}
 
@@ -165,7 +170,7 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		logger.With("baseDN", a.UserBaseDN, "username", username, "error", err).Error("Failed to search for user in LDAP")
+		logger.Error("Failed to search for user in LDAP", "baseDN", a.UserBaseDN, "username", username, "error", err)
 		return nil, err
 	}
 
@@ -185,7 +190,7 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
-		logger.With("bindDN", a.BindDN, "error", err).Error("Failed to bind to LDAP server")
+		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
 		return nil, err
 	}
 
@@ -201,14 +206,14 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 		)
 		src, err := l.Search(searchRequestGroup)
 		if err != nil {
-			logger.With("baseDN", a.UserBaseDN, "group", a.AdminGroup, "error", err).Error("Failed to search for group in LDAP")
+			logger.Error("Failed to search for group in LDAP", "baseDN", a.UserBaseDN, "group", a.AdminGroup, "error", err)
 			return nil, err
 		}
 
 		if len(src.Entries) == 1 {
 			role = db.RoleAdmin
 		} else {
-			logger.With("err", err).Debug("Ldap search for admin group returned no entries")
+			logger.Debug("Ldap search for admin group returned no entries", "err", err)
 		}
 	}
 	if a.MaintainerGroup != "" && role == db.RoleUser {
@@ -221,38 +226,38 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 		)
 		src, err := l.Search(searchRequestGroup)
 		if err != nil {
-			logger.With("baseDN", a.UserBaseDN, "group", a.MaintainerGroup, "error", err).Error("Failed to search for group in LDAP")
+			logger.Error("Failed to search for group in LDAP", "baseDN", a.UserBaseDN, "group", a.MaintainerGroup, "error", err)
 			return nil, err
 		}
 
 		if len(src.Entries) == 1 {
 			role = db.RoleMaintainer
 		} else {
-			logger.With("err", err).Debug("Ldap search for maintainer group returned no entries")
+			logger.Debug("Ldap search for maintainer group returned no entries", "err", err)
 		}
 	}
 
 	user, err := db.GetUserByUsername(username)
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.With("username", username).Info("User not found in local DB, creating new user")
+			logger.Info("User not found in local DB, creating new user", "username", username)
 
 			newUser := db.User{
 				Username: username,
 				Password: nil, // Password is not stored for external users
 				Email:    email,
 				Role:     role,
-				Realm:    db.LDAPRealmType,
+				RealmID:  a.ID,
 			}
 
 			err = db.CreateUser(&newUser)
 			if err != nil {
-				logger.With("username", username, "error", err).Error("Failed to create new user in local DB")
+				logger.Error("Failed to create new user in local DB", "username", username, "error", err)
 				return nil, err
 			}
 			return &newUser, nil
 		}
-		logger.With("username", username, "error", err).Error("Failed to get user by username from local DB")
+		logger.Error("Failed to get user by username from local DB", "username", username, "error", err)
 		return nil, err
 	}
 
@@ -263,7 +268,7 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 		err = db.UpdateUser(&user)
 		if err != nil {
 			// Log the error but continue, as the user is authenticated
-			logger.With("error", err, "username", username, "role", role).Error("Failed to update user email")
+			logger.Error("Failed to update user email", "error", err, "username", username, "role", role)
 		}
 	}
 
@@ -273,10 +278,11 @@ func (a *LDAPAuthenticator) Login(username, password string) (*db.User, error) {
 func (a *LDAPAuthenticator) LoadConfigFromDB(realmID uint) error {
 	ldapRealm, err := db.GetLDAPRealmByID(realmID)
 	if err != nil {
-		logger.With("realmID", realmID, "error", err).Error("Failed to get LDAP realm by ID")
+		logger.Error("Failed to get LDAP realm by ID", "realmID", realmID, "error", err)
 		return err
 	}
 
+	a.ID = ldapRealm.ID
 	a.URL = ldapRealm.URL
 	a.UserBaseDN = ldapRealm.UserBaseDN
 	a.GroupBaseDN = ldapRealm.GroupBaseDN
@@ -291,32 +297,32 @@ func (a *LDAPAuthenticator) LoadConfigFromDB(realmID uint) error {
 func authenticator(username, password string, realm uint) (*db.User, error) {
 	dbRealm, err := db.GetRealmByID(realm)
 	if err != nil {
-		logger.With("realmID", realm, "error", err).Error("Failed to get realm by ID")
+		logger.Error("Failed to get realm by ID", "realmID", realm, "error", err)
 		return nil, err
 	}
 
 	var l Authenticator
 	switch dbRealm.Type {
 	case db.LocalRealmType:
-		logger.With("realmID", realm).Debug("Using local authentication for realm")
+		logger.Debug("Using local authentication for realm", "realmID", realm)
 		l = &LocalAuthenticator{}
 	case db.LDAPRealmType:
-		logger.With("realmID", realm).Debug("Using LDAP authentication for realm")
+		logger.Debug("Using LDAP authentication for realm", "realmID", realm)
 		l = &LDAPAuthenticator{}
 	default:
-		logger.With("realmType", dbRealm.Type).Error("Unsupported realm type for authentication")
+		logger.Error("Unsupported realm type for authentication", "realmType", dbRealm.Type)
 		return nil, errors.New("unsupported realm type for authentication")
 	}
 
 	err = l.LoadConfigFromDB(realm)
 	if err != nil {
-		logger.With("realmID", realm, "error", err).Error("Failed to load realm configuration from database")
+		logger.Error("Failed to load realm configuration from database", "realmID", realm, "error", err)
 		return nil, err
 	}
 
 	user, err := l.Login(username, password)
 	if err != nil {
-		logger.With("username", username, "realmID", realm, "error", err).Error("Failed to authenticate user")
+		logger.Error("Failed to authenticate user", "username", username, "realmID", realm, "error", err)
 		return nil, err
 	}
 

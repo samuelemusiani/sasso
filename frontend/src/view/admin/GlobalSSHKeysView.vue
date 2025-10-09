@@ -45,7 +45,7 @@ onMounted(getKeys)
     <AdminBreadcrumbs />
     <div class="sm:flex sm:items-center">
       <div class="sm:flex-auto">
-        <h1 class="text-2xl font-bold leading-6">Global SSH Keys</h1>
+        <h1 class="text-2xl leading-6 font-bold">Global SSH Keys</h1>
         <p class="mt-2 text-sm">A list of all the global SSH keys in the system.</p>
       </div>
     </div>
@@ -54,37 +54,37 @@ onMounted(getKeys)
         <div class="flow-root">
           <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <div class="overflow-hidden shadow ring-1 ring-primary ring-opacity-5 sm:rounded-lg">
+              <div class="ring-primary ring-opacity-5 overflow-hidden shadow ring-1 sm:rounded-lg">
                 <table class="table min-w-full divide-y">
                   <thead class="">
                     <tr>
                       <th
                         scope="col"
-                        class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-6"
+                        class="py-3.5 pr-3 pl-4 text-left text-sm font-semibold sm:pl-6"
                       >
                         ID
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold">Name</th>
-                      <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                      <th scope="col" class="relative py-3.5 pr-4 pl-3 sm:pr-6">
                         <span class="sr-only">Delete</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody class="divide-y">
                     <tr v-if="keys.length === 0">
-                      <td colspan="3" class="whitespace-nowrap px-3 py-4 text-sm text-center">
+                      <td colspan="3" class="px-3 py-4 text-center text-sm whitespace-nowrap">
                         No keys found.
                       </td>
                     </tr>
                     <tr v-for="key in keys" :key="key.id">
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6">
+                      <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap sm:pl-6">
                         {{ key.id }}
                       </td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm">
+                      <td class="px-3 py-4 text-sm whitespace-nowrap">
                         {{ key.name }}
                       </td>
                       <td
-                        class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
+                        class="relative py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6"
                       >
                         <button @click="deleteKey(key.id)" class="btn btn-error">Delete</button>
                       </td>
@@ -97,9 +97,9 @@ onMounted(getKeys)
         </div>
       </div>
       <div class="lg:col-span-1">
-        <div class="shadow sm:rounded-lg border border-primary border-opacity-10 rounded-lg">
+        <div class="border-primary border-opacity-10 rounded-lg border shadow sm:rounded-lg">
           <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg font-medium leading-6">Add a new key</h3>
+            <h3 class="text-lg leading-6 font-medium">Add a new key</h3>
             <form @submit.prevent="addKey" class="mt-5 space-y-4">
               <div>
                 <label for="name" class="block text-sm font-medium"> Name </label>
@@ -128,7 +128,7 @@ onMounted(getKeys)
                 </div>
               </div>
               <div>
-                <button type="submit" class="w-full btn btn-primary rounded-lg">Add Key</button>
+                <button type="submit" class="btn btn-primary w-full rounded-lg">Add Key</button>
               </div>
             </form>
           </div>

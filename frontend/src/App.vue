@@ -4,7 +4,7 @@ import { RouterView } from 'vue-router'
 
 <template>
   <main
-    class="flex w-full h-screen overflow-auto bg-[url(/sasso-pattern.png)] bg-base-300 bg-center bg-repeat bg-size-[3000px]"
+    class="bg-base-300 flex h-screen w-full overflow-auto bg-[url(/sasso-pattern.png)] bg-size-[3000px] bg-center bg-repeat"
   >
     <RouterView />
   </main>

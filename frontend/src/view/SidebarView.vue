@@ -6,7 +6,7 @@ import { RouterView } from 'vue-router'
 <template>
   <SidePanel />
   <div class="flex-1 overflow-auto">
-    <div class="bg-base-200 p-4 rounded-2xl m-6">
+    <div class="bg-base-200 m-6 rounded-2xl p-4">
       <RouterView />
     </div>
   </div>

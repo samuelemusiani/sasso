@@ -43,61 +43,61 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		),
 	})
 	if err != nil {
-		logger.With("error", err).Error("Failed to connect to database")
+		logger.Error("Failed to connect to database", "error", err)
 		return err
 	}
 
 	err = initGlobals()
 	if err != nil {
-		logger.With("error", err).Error("Failed to set globals in database")
+		logger.Error("Failed to set globals in database", "error", err)
 		return err
 	}
 
 	err = initRealms()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize realms in database")
+		logger.Error("Failed to initialize realms in database", "error", err)
 		return err
 	}
 
 	err = initBackupRequests()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize backup requests in database")
+		logger.Error("Failed to initialize backup requests in database", "error", err)
 		return err
 	}
 
 	err = initUsers()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize users in database")
+		logger.Error("Failed to initialize users in database", "error", err)
 		return err
 	}
 
 	err = initVMs()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize VMs in database")
+		logger.Error("Failed to initialize VMs in database", "error", err)
 		return err
 	}
 
 	err = initPortForwards()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize port forwards in database")
+		logger.Error("Failed to initialize port forwards in database", "error", err)
 		return err
 	}
 
 	err = initNetworks()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize networks in database")
+		logger.Error("Failed to initialize networks in database", "error", err)
 		return err
 	}
 
 	err = initInterfaces()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize interfaces in database")
+		logger.Error("Failed to initialize interfaces in database", "error", err)
 		return err
 	}
 
 	err = initSSHKeys()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize ssh keys in database")
+		logger.Error("Failed to initialize ssh keys in database", "error", err)
 		return err
 	}
 
@@ -120,11 +120,11 @@ func initGlobals() error {
 		return nil
 	}
 
-	logger.With("old", globals.Version, "current", currentVersion).Info("Database version mismatch")
+	logger.Info("Database version mismatch", "old", globals.Version, "current", currentVersion)
 	globals.Version = currentVersion
 	err := db.Save(&globals).Error
 	if err != nil {
-		logger.With("error", err).Error("Failed to update database version")
+		logger.Error("Failed to update database version", "error", err)
 		return err
 	}
 

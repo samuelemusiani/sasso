@@ -15,7 +15,7 @@ func getSSHKeys(w http.ResponseWriter, r *http.Request) {
 
 	keys, err := db.GetSSHKeysByUserID(userID)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get SSH keys")
+		logger.Error("Failed to get SSH keys", "userID", userID, "error", err)
 		http.Error(w, "Failed to get SSH keys", http.StatusInternalServerError)
 		return
 	}
@@ -31,7 +31,7 @@ func getSSHKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.With("error", err).Error("Failed to encode SSH keys to JSON")
+		logger.Error("Failed to encode SSH keys to JSON", "error", err)
 		http.Error(w, "Failed to encode SSH keys to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -71,7 +71,7 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := db.CreateSSHKey(req.Name, req.Key, userID)
 	if err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to add new SSH key")
+		logger.Error("Failed to add new SSH key", "userID", userID, "error", err)
 		http.Error(w, "Failed to add new SSH key", http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +84,7 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.With("error", err).Error("Failed to encode new SSH key to JSON")
+		logger.Error("Failed to encode new SSH key to JSON", "error", err)
 		http.Error(w, "Failed to encode new SSH key to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -98,13 +98,13 @@ func deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	keyID, err := strconv.ParseUint(skeyID, 10, 64)
 	if err != nil {
-		logger.With("userID", userID, "keyID", skeyID, "error", err).Error("Invalid SSH key ID format")
+		logger.Error("Invalid SSH key ID format", "userID", userID, "keyID", skeyID, "error", err)
 		http.Error(w, "Invalid SSH key ID format", http.StatusBadRequest)
 		return
 	}
 
 	if err := db.DeleteSSHKey(uint(keyID), userID); err != nil {
-		logger.With("userID", userID, "keyID", keyID, "error", err).Error("Failed to delete SSH key")
+		logger.Error("Failed to delete SSH key", "userID", userID, "keyID", keyID, "error", err)
 		http.Error(w, "Failed to delete SSH key", http.StatusInternalServerError)
 		return
 	}
@@ -115,7 +115,7 @@ func deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 func getGlobalSSHKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := db.GetGlobalSSHKeys()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get global SSH keys")
+		logger.Error("Failed to get global SSH keys", "error", err)
 		http.Error(w, "Failed to get global SSH keys", http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +132,7 @@ func getGlobalSSHKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.With("error", err).Error("Failed to encode global SSH keys to JSON")
+		logger.Error("Failed to encode global SSH keys to JSON", "error", err)
 		http.Error(w, "Failed to encode global SSH keys to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -147,7 +147,7 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := db.CreateGlobalSSHKey(req.Name, req.Key)
 	if err != nil {
-		logger.With("error", err).Error("Failed to add new global SSH key")
+		logger.Error("Failed to add new global SSH key", "error", err)
 		http.Error(w, "Failed to add new global SSH key", http.StatusInternalServerError)
 		return
 	}
@@ -161,7 +161,7 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.With("error", err).Error("Failed to encode new global SSH key to JSON")
+		logger.Error("Failed to encode new global SSH key to JSON", "error", err)
 		http.Error(w, "Failed to encode new global SSH key to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -174,13 +174,13 @@ func deleteGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	keyID, err := strconv.ParseUint(skeyID, 10, 64)
 	if err != nil {
-		logger.With("keyID", skeyID, "error", err).Error("Invalid SSH key ID format")
+		logger.Error("Invalid SSH key ID format", "keyID", skeyID, "error", err)
 		http.Error(w, "Invalid SSH key ID format", http.StatusBadRequest)
 		return
 	}
 
 	if err := db.DeleteGlobalSSHKey(uint(keyID)); err != nil {
-		logger.With("keyID", keyID, "error", err).Error("Failed to delete global SSH key")
+		logger.Error("Failed to delete global SSH key", "keyID", keyID, "error", err)
 		http.Error(w, "Failed to delete global SSH key", http.StatusInternalServerError)
 		return
 	}
