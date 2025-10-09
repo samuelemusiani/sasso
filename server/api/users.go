@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
@@ -24,12 +25,12 @@ type returnUser struct {
 	ID       uint        `json:"id"`
 	Username string      `json:"username"`
 	Email    string      `json:"email"`
-	Realm    string      `json:"realm"`
+	Realm    string      `json:"realm,omitempty"`
 	Role     db.UserRole `json:"role"`
-	MaxCores uint        `json:"max_cores"`
-	MaxRAM   uint        `json:"max_ram"`
-	MaxDisk  uint        `json:"max_disk"`
-	MaxNets  uint        `json:"max_nets"`
+	MaxCores uint        `json:"max_cores,omitempty"`
+	MaxRAM   uint        `json:"max_ram,omitempty"`
+	MaxDisk  uint        `json:"max_disk,omitempty"`
+	MaxNets  uint        `json:"max_nets,omitempty"`
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -99,17 +100,20 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realm, err := db.GetRealmByID(user.RealmID)
+	if err != nil {
+		logger.Error("failed to get realm by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Realm:    user.Realm,
+		Realm:    realm.Name,
 		Role:     user.Role,
-		MaxCores: user.MaxCores,
-		MaxRAM:   user.MaxRAM,
-		MaxDisk:  user.MaxDisk,
-		MaxNets:  user.MaxNets,
 	}
 
 	err = json.NewEncoder(w).Encode(returnUser)
@@ -128,13 +132,30 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realms, err := db.GetAllRealms()
+	if err != nil {
+		logger.Error("failed to get all realms", "error", err)
+		http.Error(w, "Failed to get realms", http.StatusInternalServerError)
+		return
+	}
+
+	var realmMap map[uint]string = make(map[uint]string)
+	for _, realm := range realms {
+		realmMap[realm.ID] = realm.Name
+	}
+
 	returnUsers := make([]returnUser, len(users))
 	for i, user := range users {
+		realm, ok := realmMap[user.RealmID]
+		if !ok {
+			slog.Error("realm not found for user", "userID", user.ID, "realmID", user.RealmID)
+			realm = "unknown"
+		}
 		returnUsers[i] = returnUser{
 			ID:       user.ID,
 			Username: user.Username,
 			Email:    user.Email,
-			Realm:    user.Realm,
+			Realm:    realm,
 			Role:     user.Role,
 			MaxCores: user.MaxCores,
 			MaxRAM:   user.MaxRAM,
@@ -171,11 +192,18 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	realm, err := db.GetRealmByID(user.RealmID)
+	if err != nil {
+		logger.Error("failed to get realm by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Realm:    user.Realm,
+		Realm:    realm.Name,
 		Role:     user.Role,
 		MaxCores: user.MaxCores,
 		MaxRAM:   user.MaxRAM,
@@ -212,4 +240,56 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type returnUserResources struct {
+	MaxCores       uint `json:"max_cores"`
+	MaxRAM         uint `json:"max_ram"`
+	MaxDisk        uint `json:"max_disk"`
+	MaxNets        uint `json:"max_nets"`
+	AllocatedCores uint `json:"allocated_cores"`
+	AllocatedRAM   uint `json:"allocated_ram"`
+	AllocatedDisk  uint `json:"allocated_disk"`
+	AllocatedNets  uint `json:"allocated_nets"`
+	ActiveVMsCores uint `json:"active_vms_cores"`
+	ActiveVMsRAM   uint `json:"active_vms_ram"`
+	ActiveVMsDisk  uint `json:"active_vms_disk"`
+}
+
+func getUserResources(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+	var userResources returnUserResources
+	var err error
+
+	user, err := db.GetUserByID(userID)
+	if err != nil {
+		logger.Error("failed to get user by ID", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	userResources.MaxCores = user.MaxCores
+	userResources.MaxRAM = user.MaxRAM
+	userResources.MaxDisk = user.MaxDisk
+	userResources.MaxNets = user.MaxNets
+
+	userResources.AllocatedCores, userResources.AllocatedRAM, userResources.AllocatedDisk, err = db.GetVMResourcesByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get VM resources by user ID", "error", err)
+		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
+		return
+	}
+	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
+
+	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResorcesActiveVMsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get active VM resources by user ID", "error", err)
+		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(userResources); err != nil {
+		logger.Error("failed to encode resources to JSON", "error", err)
+		http.Error(w, "Failed to encode resources to JSON", http.StatusInternalServerError)
+		return
+	}
 }

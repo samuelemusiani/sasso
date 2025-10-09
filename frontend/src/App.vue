@@ -3,7 +3,11 @@ import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <RouterView />
+  <main
+    class="bg-base-300 flex h-screen w-full overflow-auto bg-[url(/sasso-pattern.png)] bg-size-[3000px] bg-center bg-repeat"
+  >
+    <RouterView />
+  </main>
 </template>
 
-<style scoped></style>
+<!-- TODO: ip/24 converter -->

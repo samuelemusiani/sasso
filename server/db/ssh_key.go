@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type SSHKey struct {
 	ID        uint `gorm:"primaryKey"`
@@ -13,10 +17,31 @@ type SSHKey struct {
 	Global bool   `gorm:"default:false"`
 }
 
+var lastSSHKeyTableUpdate time.Time = time.Time{}
+
+func (s *SSHKey) AfterUpdate(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func (s *SSHKey) AfterCreate(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func (s *SSHKey) AfterDelete(tx *gorm.DB) (err error) {
+	lastSSHKeyTableUpdate = time.Now()
+	return nil
+}
+
+func GetLastSSHKeyUpdate() time.Time {
+	return lastSSHKeyTableUpdate
+}
+
 func initSSHKeys() error {
 	err := db.AutoMigrate(&SSHKey{})
 	if err != nil {
-		logger.With("error", err).Error("Failed to migrate SSHKeys table")
+		logger.Error("Failed to migrate SSHKeys table", "error", err)
 		return err
 	}
 	return nil

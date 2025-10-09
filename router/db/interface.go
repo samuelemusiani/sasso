@@ -52,7 +52,7 @@ func GetInterfaceByVNet(vnet string) (*Interface, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
-		logger.With("error", err).Error("Failed to retrieve interface by VNet")
+		logger.Error("Failed to retrieve interface by VNet", "error", err)
 		return nil, err
 	}
 	return &iface, nil
@@ -64,7 +64,7 @@ func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
-		logger.With("error", err).Error("Failed to retrieve interface by VNet ID")
+		logger.Error("Failed to retrieve interface by VNet ID", "error", err)
 		return nil, err
 	}
 	return &iface, nil

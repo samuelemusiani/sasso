@@ -15,29 +15,39 @@ import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
+import SettingsView from '@/view/SettingsView.vue'
+import SidebarView from '@/view/SidebarView.vue'
+import GlobalSSHKeysView from '@/view/admin/GlobalSSHKeysView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', component: HomeView },
     { path: '/login', component: LoginView },
-    { path: '/vm', component: VMView },
-    { path: '/vm/:vmid/interfaces', component: InterfacesView },
-    { path: '/vm/:vmid/backups', component: BackupsView },
-    { path: '/net', component: NetsView },
-    { path: '/ssh-keys', component: SSHKeysView },
-    { path: '/vpn', component: VPNView },
-    { path: '/port-forwards', component: PortForwardsView },
     {
-      path: '/admin',
+      path: '/',
+      component: SidebarView,
       children: [
-        { path: '', component: AdminView },
-        { path: 'users', component: AdminUsersView },
-        { path: 'users/:id', component: UserDetailView },
-        { path: 'realms', component: AdminRealmsView },
-        { path: 'realms/:id', component: RealmsMultiplexer },
-        { path: 'ssh-keys', component: () => import('../view/admin/GlobalSSHKeysView.vue') },
-        { path: 'port-forwards', component: AdminPortForwardsView },
+        { path: '', component: HomeView },
+        { path: '/vm', component: VMView },
+        { path: '/vm/:vmid/interfaces', component: InterfacesView },
+        { path: '/vm/:vmid/backups', component: BackupsView },
+        { path: '/net', component: NetsView },
+        { path: '/ssh-keys', component: SSHKeysView },
+        { path: '/vpn', component: VPNView },
+        { path: '/port-forwards', component: PortForwardsView },
+        { path: '/settings', component: SettingsView },
+        {
+          path: '/admin',
+          children: [
+            { path: '', component: AdminView },
+            { path: 'users', component: AdminUsersView },
+            { path: 'users/:id', component: UserDetailView },
+            { path: 'realms', component: AdminRealmsView },
+            { path: 'realms/:id', component: RealmsMultiplexer },
+            { path: 'ssh-keys', component: GlobalSSHKeysView },
+            { path: 'port-forwards', component: AdminPortForwardsView },
+          ],
+        },
       ],
     },
   ],

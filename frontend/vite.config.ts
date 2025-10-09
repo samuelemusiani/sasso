@@ -20,11 +20,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: "https://sasso.mini.students.cs.unibo.it",
-        changeOrigin: true,
-        headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTkxMzUzNDQsImlhdCI6MTc1OTA5MjE0NCwidXNlcl9pZCI6Mn0.w-U-AkqhCCt-lgpzdpfT0PGmHdhdIB9VDKQVhAmjFsM'
-        }
+        target: "http://localhost:8080",
+        changeOrigin: true
       }
     }
   }

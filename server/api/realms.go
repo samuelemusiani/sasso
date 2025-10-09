@@ -46,7 +46,7 @@ type LDAPRealm struct {
 func listRealms(w http.ResponseWriter, r *http.Request) {
 	realms, err := db.GetAllRealms()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get realms")
+		logger.Error("Failed to get realms", "error", err)
 		http.Error(w, "Failed to get realms", http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +63,7 @@ func listRealms(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(returnedRealms); err != nil {
-		logger.With("error", err).Error("Failed to encode realms to JSON")
+		logger.Error("Failed to encode realms to JSON", "error", err)
 		http.Error(w, "Failed to encode realms to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -72,14 +72,14 @@ func listRealms(w http.ResponseWriter, r *http.Request) {
 func addRealm(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.With("error", err).Error("Failed to read request body")
+		logger.Error("Failed to read request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	var newRealm Realm
 	if err := json.Unmarshal(body, &newRealm); err != nil {
-		logger.With("error", err).Error("Failed to unmarshal request body into Realm")
+		logger.Error("Failed to unmarshal request body into Realm", "error", err)
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
@@ -98,7 +98,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 	case "ldap":
 		var ldapRealm LDAPRealm
 		if err := json.Unmarshal(body, &ldapRealm); err != nil {
-			logger.With("error", err).Error("Failed to unmarshal request body into LDAPRealm")
+			logger.Error("Failed to unmarshal request body into LDAPRealm", "error", err)
 			http.Error(w, "Invalid JSON format for LDAP realm", http.StatusBadRequest)
 			return
 		}
@@ -111,30 +111,30 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 
 		ldapURL, err := url.Parse(ldapRealm.URL)
 		if err != nil || (ldapURL.Scheme != "ldap" && ldapURL.Scheme != "ldaps") {
-			logger.With("ldapURL", ldapRealm.URL).Error("Invalid LDAP URL")
+			logger.Error("Invalid LDAP URL", "ldapURL", ldapRealm.URL)
 			http.Error(w, "Invalid LDAP URL", http.StatusBadRequest)
 			return
 		}
 
 		if ldapRealm.MaintainerGroup != "" && !groupRegex.MatchString(ldapRealm.MaintainerGroup) {
-			logger.With("maintainerGroup", ldapRealm.MaintainerGroup).Error("Invalid maintainer group format")
+			logger.Error("Invalid maintainer group format", "maintainerGroup", ldapRealm.MaintainerGroup)
 			http.Error(w, "Invalid maintainer group format", http.StatusBadRequest)
 			return
 		}
 
 		if ldapRealm.AdminGroup != "" && !groupRegex.MatchString(ldapRealm.AdminGroup) {
-			logger.With("adminGroup", ldapRealm.AdminGroup).Error("Invalid admin group format")
+			logger.Error("Invalid admin group format", "adminGroup", ldapRealm.AdminGroup)
 			http.Error(w, "Invalid admin group format", http.StatusBadRequest)
 			return
 		}
 
 		if (ldapRealm.MaintainerGroup != "" || ldapRealm.AdminGroup != "") && ldapRealm.GroupBaseDN == "" {
-			logger.With("groupBaseDN", ldapRealm.GroupBaseDN).Error("empty group base dn")
+			logger.Error("empty group base dn", "groupBaseDN", ldapRealm.GroupBaseDN)
 			http.Error(w, "Invalid group format", http.StatusBadRequest)
 			return
 		}
 
-		logger.With("ldapRealm", ldapRealm).Info("Adding new LDAP realm")
+		logger.Info("Adding new LDAP realm", "ldapRealm", ldapRealm)
 		dbRealm := db.LDAPRealm{
 			Realm: db.Realm{
 				Name:        newRealm.Name,
@@ -150,7 +150,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 			AdminGroup:      ldapRealm.AdminGroup,
 		}
 		if err := db.AddLDAPRealm(dbRealm); err != nil {
-			logger.With("error", err).Error("Failed to add LDAP realm")
+			logger.Error("Failed to add LDAP realm", "error", err)
 			http.Error(w, "Failed to add LDAP realm", http.StatusInternalServerError)
 			return
 		}
@@ -168,7 +168,7 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 	srealmID := chi.URLParam(r, "id")
 	realmID, err := strconv.ParseUint(srealmID, 10, 64)
 	if err != nil {
-		logger.With("userID", userID, "srealmID", srealmID, "error", err).Error("Invalid Realm ID format")
+		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)
 		return
 	}
@@ -176,11 +176,11 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.With("userID", userID, "realmID", realmID).Error("Realm not found")
+			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 			return
 		}
-		logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to get Realm by ID")
+		logger.Error("Failed to get Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 		http.Error(w, "Failed to get Realm by ID", http.StatusInternalServerError)
 		return
 	}
@@ -200,11 +200,11 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 		ldapRealm, err := db.GetLDAPRealmByID(uint(realmID))
 		if err != nil {
 			if err == db.ErrNotFound {
-				logger.With("userID", userID, "realmID", realmID).Error("LDAP Realm not found")
+				logger.Error("LDAP Realm not found", "userID", userID, "realmID", realmID)
 				http.Error(w, "LDAP Realm not found", http.StatusNotFound)
 				return
 			}
-			logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to get LDAP Realm by ID")
+			logger.Error("Failed to get LDAP Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 			http.Error(w, "Failed to get LDAP Realm by ID", http.StatusInternalServerError)
 			return
 		}
@@ -219,14 +219,14 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 			AdminGroup:      ldapRealm.AdminGroup,
 		}
 	default:
-		logger.With("userID", userID, "realmID", realmID).Error("Unsupported realm type")
+		logger.Error("Unsupported realm type", "userID", userID, "realmID", realmID)
 		http.Error(w, "Unsupported realm type", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(returnedRealm); err != nil {
-		logger.With("error", err).Error("Failed to encode Realm to JSON")
+		logger.Error("Failed to encode Realm to JSON", "error", err)
 		http.Error(w, "Failed to encode Realm to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -238,7 +238,7 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 	srealmID := chi.URLParam(r, "id")
 	realmID, err := strconv.ParseUint(srealmID, 10, 64)
 	if err != nil {
-		logger.With("userID", userID, "srealmID", srealmID, "error", err).Error("Invalid Realm ID format")
+		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)
 		return
 	}
@@ -246,17 +246,17 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.With("userID", userID, "realmID", realmID).Error("Realm not found")
+			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 			return
 		}
-		logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to get Realm by ID")
+		logger.Error("Failed to get Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 		http.Error(w, "Failed to get Realm by ID", http.StatusInternalServerError)
 		return
 	}
 
 	if realm.Type == "local" {
-		logger.With("userID", userID, "realmID", realmID).Error("Cannot delete local realm via API")
+		logger.Error("Cannot delete local realm via API", "userID", userID, "realmID", realmID)
 		http.Error(w, "Cannot delete local realm via API", http.StatusBadRequest)
 		return
 	}
@@ -264,15 +264,15 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 	err = db.DeleteRealmByID(uint(realmID))
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.With("userID", userID, "realmID", realmID).Error("Realm not found")
+			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 			return
 		}
-		logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to delete Realm by ID")
+		logger.Error("Failed to delete Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 		http.Error(w, "Failed to delete Realm by ID", http.StatusInternalServerError)
 		return
 	}
-	logger.With("userID", userID, "realmID", realmID).Info("Realm deleted successfully")
+	logger.Info("Realm deleted successfully", "userID", userID, "realmID", realmID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -282,14 +282,14 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 	srealmID := chi.URLParam(r, "id")
 	realmID, err := strconv.ParseUint(srealmID, 10, 64)
 	if err != nil {
-		logger.With("userID", userID, "srealmID", srealmID, "error", err).Error("Invalid Realm ID format")
+		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.With("error", err).Error("Failed to read request body")
+		logger.Error("Failed to read request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -297,11 +297,11 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.With("userID", userID, "realmID", realmID).Error("Realm not found")
+			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 			return
 		}
-		logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to get Realm by ID")
+		logger.Error("Failed to get Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 		http.Error(w, "Failed to get Realm by ID", http.StatusInternalServerError)
 		return
 	}
@@ -314,11 +314,11 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 		ldapRealm, err := db.GetLDAPRealmByID(uint(realmID))
 		if err != nil {
 			if err == db.ErrNotFound {
-				logger.With("userID", userID, "realmID", realmID).Error("LDAP Realm not found")
+				logger.Error("LDAP Realm not found", "userID", userID, "realmID", realmID)
 				http.Error(w, "LDAP Realm not found", http.StatusNotFound)
 				return
 			}
-			logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to get LDAP Realm by ID")
+			logger.Error("Failed to get LDAP Realm by ID", "userID", userID, "realmID", realmID, "error", err)
 			http.Error(w, "Failed to get LDAP Realm by ID", http.StatusInternalServerError)
 			return
 		}
@@ -327,7 +327,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 
 		err = json.Unmarshal(body, &clientLdapRealm)
 		if err != nil {
-			logger.With("error", err).Error("Failed to unmarshal request body into Realm")
+			logger.Error("Failed to unmarshal request body into Realm", "error", err)
 			http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 			return
 		}
@@ -341,7 +341,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 		if clientLdapRealm.URL != "" {
 			ldapURL, err := url.Parse(clientLdapRealm.URL)
 			if err != nil || (ldapURL.Scheme != "ldap" && ldapURL.Scheme != "ldaps") {
-				logger.With("ldapURL", clientLdapRealm.URL).Error("Invalid LDAP URL")
+				logger.Error("Invalid LDAP URL", "ldapURL", clientLdapRealm.URL)
 				http.Error(w, "Invalid LDAP URL", http.StatusBadRequest)
 				return
 			}
@@ -367,14 +367,14 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := db.UpdateLDAPRealm(*ldapRealm); err != nil {
-			logger.With("userID", userID, "realmID", realmID, "error", err).Error("Failed to update LDAP Realm")
+			logger.Error("Failed to update LDAP Realm", "userID", userID, "realmID", realmID, "error", err)
 			http.Error(w, "Failed to update LDAP Realm", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
-		logger.With("userID", userID, "realmID", realmID).Error("Unsupported realm type")
+		logger.Error("Unsupported realm type", "userID", userID, "realmID", realmID)
 		http.Error(w, "Unsupported realm type", http.StatusInternalServerError)
 		return
 	}

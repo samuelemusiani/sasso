@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { onMounted, ref, onBeforeUnmount } from 'vue'
+import CreateNew from '@/components/CreateNew.vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
+import { getStatusClass } from '@/const'
+import BubbleAlert from '@/components/BubbleAlert.vue'
 
 const vms = ref<VM[]>([])
 const name = ref('')
-const notes = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const notes = ref('')
 const include_global_ssh_keys = ref(true)
+const error = ref('')
 
 function fetchVMs() {
   api
     .get('/vm')
     .then((res) => {
-      vms.value = res.data as VM[]
+      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
+      vms.value = tmp as VM[]
     })
     .catch((err) => {
       console.error('Failed to fetch VMs:', err)
@@ -26,17 +31,18 @@ function createVM() {
   api
     .post('/vm', {
       name: name.value,
-      notes: notes.value,
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
       include_global_ssh_keys: include_global_ssh_keys.value,
+      notes: notes.value,
     })
     .then(() => {
       fetchVMs()
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
+      error.value = 'Failed to create VM: ' + err.message
     })
 }
 
@@ -103,146 +109,149 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
-    <div>This is the VM view for <b>sasso</b>!</div>
-    <div class="flex gap-2 items-center">
-      <label for="name">Name:</label>
-      <input type="text" id="name" v-model="name" class="border p-2 rounded-lg w-48" />
-      <label for="notes">Notes:</label>
-      <input type="text" id="notes" v-model="notes" class="border p-2 rounded-lg w-48" />
-      <label for="cores">Cores:</label>
-      <input type="number" id="cores" v-model="cores" class="border p-2 rounded-lg w-24" />
-      <label for="ram">RAM (MB):</label>
-      <input type="number" id="ram" v-model="ram" class="border p-2 rounded-lg w-24" />
-      <label for="disk">Disk (GB):</label>
-      <input type="number" id="disk" v-model="disk" class="border p-2 rounded-lg w-24" />
-      <div class="flex items-center">
-        <input
-          type="checkbox"
-          id="include_global_ssh_keys"
-          v-model="include_global_ssh_keys"
-          class="border p-2 rounded-lg"
-        />
-        <label for="include_global_ssh_keys" class="ml-2">Include Global SSH Keys</label>
-      </div>
-      <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="createVM()">
-        Create VM
-      </button>
-    </div>
-    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
-      <p class="font-bold">Information</p>
-      <p>
-        Including the global SSH keys will allow for better troubleshooting if something is not
-        working.
-      </p>
-    </div>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
-      <p class="font-bold">Warning</p>
-      <p>
-        Stopping and restarting VMs is like pulling the power cord, it is not a graceful shutdown.
-        Use with caution and only if necessary (like when the VM is not responding).
-      </p>
-    </div>
+  <div class="flex flex-col gap-2 p-2">
+    <h1 class="flex items-center gap-2 text-3xl font-bold">
+      <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
+    </h1>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Name
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Notes
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Cores
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              RAM (MB)
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Disk (GB)
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Status
-            </th>
-            <th scope="col" class="relative px-6 py-3">
-              <span class="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="vm in vms" :key="vm.id">
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.notes }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.cores }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.ram }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.disk }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ vm.status }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <RouterLink
-                :to="`/vm/${vm.id}/interfaces`"
-                class="text-indigo-600 hover:text-indigo-900 mr-4"
-                >Interfaces
-              </RouterLink>
-              <RouterLink
-                :to="`/vm/${vm.id}/backups`"
-                class="text-orange-600 hover:text-orange-900 mr-4"
-                >Backups
-              </RouterLink>
-              <button
-                v-if="vm.status === 'stopped'"
-                @click="startVM(vm.id)"
-                class="bg-green-400 p-2 rounded-lg hover:bg-green-300 mr-2"
-              >
-                Start
-              </button>
-              <button
-                v-if="vm.status === 'running'"
-                @click="stopVM(vm.id)"
-                class="bg-yellow-400 p-2 rounded-lg hover:bg-yellow-300 mr-2"
-              >
-                Stop
-              </button>
-              <button
-                v-if="vm.status === 'running'"
-                @click="restartVM(vm.id)"
-                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 mr-2"
-              >
-                Restart
-              </button>
-              <button @click="deleteVM(vm.id)" class="bg-red-400 p-2 rounded-lg hover:bg-red-300">
-                Delete
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <CreateNew title="New VM" :create="createVM" :error="error">
+      <div>
+        <label for="cores">Name</label>
+        <input
+          required
+          type="text"
+          id="name"
+          v-model="name"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
+      </div>
+      <div>
+        <label for="cores">CPU Cores</label>
+        <input
+          type="number"
+          id="cores"
+          v-model="cores"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
+      </div>
+      <div>
+        <label for="ram">RAM (MB)</label>
+        <input
+          type="number"
+          id="ram"
+          v-model="ram"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
+      </div>
+      <div>
+        <label for="disk">Disk (GB)</label>
+        <input type="number" id="disk" v-model="disk" class="input w-24 w-full rounded-lg border" />
+      </div>
+      <div class="flex w-full items-center justify-between">
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="include_global_ssh_keys"
+            v-model="include_global_ssh_keys"
+            class="checkbox checkbox-primary"
+          />
+          <label for="include_global_ssh_keys">Include Global SSH Keys</label>
+          <BubbleAlert type="info">
+            Including the global SSH keys will allow for better troubleshooting if something is not
+            working.
+          </BubbleAlert>
+        </div>
+      </div>
+
+      <div class="flex w-full flex-col">
+        <label for="cores">Notes</label>
+        <textarea class="textarea w-full" placeholder="VM Notes" v-model="notes"></textarea>
+      </div>
+    </CreateNew>
+
+    <table class="table table-auto divide-y">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Cores</th>
+          <th scope="col">RAM (MB)</th>
+          <th scope="col">Disk (GB)</th>
+          <th scope="col">Status</th>
+          <th scope="col">Notes</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <tr v-for="vm in vms" :key="vm.id">
+          <td class="text-lg">{{ vm.name }}</td>
+          <td class="">{{ vm.cores }}</td>
+          <td class="">{{ vm.ram }}</td>
+          <td class="">{{ vm.disk }}</td>
+          <td class="font-semibold capitalize" :class="getStatusClass(vm.status)">
+            {{ vm.status }}
+          </td>
+          <td>
+            <div v-if="vm.notes" class="bg-base-100 w-max rounded-lg p-2 text-xs text-pretty">
+              {{ vm.notes }}
+            </div>
+          </td>
+
+          <td>
+            <div class="grid max-w-3/5 grid-cols-2 gap-2 2xl:grid-cols-3">
+              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2">
+                <button
+                  v-if="vm.status === 'stopped'"
+                  @click="startVM(vm.id)"
+                  class="btn btn-success btn-outline col-span-2 rounded-lg"
+                >
+                  <IconVue icon="material-symbols:play-arrow" class="text-lg" />
+                  <span class="hidden md:inline">Start</span>
+                </button>
+
+                <button
+                  v-if="vm.status === 'running'"
+                  @click="stopVM(vm.id)"
+                  class="btn btn-warning btn-outline rounded-lg"
+                >
+                  <IconVue icon="material-symbols:stop" class="text-lg" />
+                  <span class="hidden md:inline">Stop</span>
+                </button>
+
+                <button
+                  v-if="vm.status === 'running'"
+                  @click="restartVM(vm.id)"
+                  class="btn btn-info btn-outline rounded-lg"
+                >
+                  <IconVue icon="codicon:debug-restart" class="text-lg" />
+                  <span class="hidden md:inline">Restart</span>
+                </button>
+
+                <button @click="deleteVM(vm.id)" class="btn btn-error btn-outline rounded-lg">
+                  <IconVue icon="material-symbols:delete" class="text-lg" />
+                  <span class="hidden md:inline">Delete</span>
+                </button>
+              </div>
+              <div class="flex items-center gap-2">
+                <RouterLink
+                  :to="`/vm/${vm.id}/interfaces`"
+                  class="btn btn-primary btn-sm md:btn-md rounded-lg"
+                >
+                  <IconVue icon="material-symbols:network-node" class="text-lg" />
+                  <span class="hidden md:inline">Interfaces</span>
+                </RouterLink>
+
+                <RouterLink
+                  :to="`/vm/${vm.id}/backups`"
+                  class="btn btn-secondary btn-sm md:btn-md rounded-lg"
+                >
+                  <IconVue icon="material-symbols:backup" class="text-lg" />
+                  <span class="hidden md:inline">Backup</span>
+                </RouterLink>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

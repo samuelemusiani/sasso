@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Interface, Net } from '@/types'
 import { api } from '@/lib/api'
@@ -76,127 +76,76 @@ function showEditForm(iface: Interface) {
   showAddForm.value = false
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchInterfaces()
+
+  intervalId = setInterval(() => {
+    fetchInterfaces()
+  }, 5000)
+
   fetchNets()
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
+  <div class="flex flex-col gap-2 p-2">
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
-    <RouterLink
-      class="bg-gray-400 hover:bg-gray-300 p-2 rounded-lg w-64 block text-center"
-      to="/vm"
-    >
-      Back to VMs
-    </RouterLink>
 
-    <div class="my-4">
-      <button
-        v-if="!showAddForm && !editingInterface"
-        @click="showAddForm = true"
-        class="bg-green-400 p-2 rounded-lg hover:bg-green-300"
-      >
-        Add New Interface
-      </button>
-      <InterfaceForm
-        v-if="showAddForm"
-        :vmid="vmid"
-        @interface-added="handleInterfaceAdded"
-        @cancel="handleCancel"
-      />
-      <InterfaceForm
-        v-if="editingInterface"
-        :vmid="vmid"
-        :interface="editingInterface"
-        @interface-updated="handleInterfaceUpdated"
-        @cancel="handleCancel"
-      />
-    </div>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
-      <p class="font-bold">Warning</p>
-      <p>
-        Adding interfaces while the VM is running is possible. The VM will see the interface, but it
-        will not be configured inside the VM. To have the interface configured, you will need to
-        restart the VM.
-      </p>
-    </div>
-    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
-      <p class="font-bold">Information</p>
-      <p>
-        The VLAN tag is optional. If you don't know what to put here, leave it at zero. It could be
-        used to separate different VMs at layer 2. Interfaces with the same VLAN tag can communicate
-        with each other but not with interfaces with different VLAN tags. The gateway is on the
-        untagged vlan (vlan 0). If you want to reach the internet with a VM, it needs to have at
-        least one interface with vlan tag 0.
-      </p>
+    <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
+    <InterfaceForm
+      v-if="editingInterface"
+      :vmid="vmid"
+      :interface="editingInterface"
+      @interface-updated="handleInterfaceUpdated"
+      @cancel="handleCancel"
+    />
+
+    <div class="alert alert-warning flex w-max flex-col p-4" role="alert">
+      <p class="font-bold">Adding interfaces to a running VM</p>
+      <ul class="list-disc pl-5">
+        <li>You can attach new interfaces while the VM is running.</li>
+        <li>
+          The VM will detect them, but <strong>they will not be configured automatically</strong>.
+        </li>
+        <li>To apply configuration, you need to restart the VM.</li>
+      </ul>
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="table min-w-full divide-y">
+        <thead>
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Network
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              VLAN Tag
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              IP Address
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Gateway
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Status
-            </th>
-            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+            <th scope="col">ID</th>
+            <th scope="col">Network</th>
+            <th scope="col">VLAN Tag</th>
+            <th scope="col">IP Address</th>
+            <th scope="col">Gateway</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="relative"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="iface in interfaces" :key="iface.id">
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ netMap.get(iface.vnet_id) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.vlan_tag }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.ip_add }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.gateway }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ iface.status }}</td>
-            <td
-              class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end"
-            >
-              <button
-                @click="showEditForm(iface)"
-                class="bg-blue-400 p-2 rounded-lg hover:bg-blue-300 text-white"
-              >
+            <td class="">{{ iface.id }}</td>
+            <td class="">{{ netMap.get(iface.vnet_id) }}</td>
+            <td class="">{{ iface.vlan_tag }}</td>
+            <td class="">{{ iface.ip_add }}</td>
+            <td class="">{{ iface.gateway }}</td>
+            <td class="">{{ iface.status }}</td>
+            <td class="flex justify-end gap-2 text-right text-sm font-medium">
+              <!-- FIXME: editing will show another"CreateNew" component filled -->
+              <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
                 Edit
               </button>
-              <button
-                @click="deleteInterface(iface.id)"
-                class="bg-red-400 p-2 rounded-lg hover:bg-red-300 text-white"
-              >
+              <button @click="deleteInterface(iface.id)" class="btn btn-error rounded-lg p-2">
                 Delete
               </button>
             </td>

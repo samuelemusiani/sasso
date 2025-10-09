@@ -38,15 +38,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.With("path", os.Args[1]).Debug("Parsing config file")
+	slog.Debug("Parsing config file", "path", os.Args[1])
 	err := config.Parse(os.Args[1])
 	if err != nil {
-		slog.With("error", err).Error("Error parsing config file")
+		slog.Error("Error parsing config file", "error", err)
 		os.Exit(1)
 	}
 
 	c := config.Get()
-	slog.With("config", c).Debug("Config file parsed successfully")
+	slog.Debug("Config file parsed successfully", "config", c)
 
 	slog.Debug("Initializing Wireguard")
 	wireguardLogger := slog.With("module", "wireguard")

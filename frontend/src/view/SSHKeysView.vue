@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 import type { SSHKey } from '@/types'
 import { api } from '@/lib/api'
+import CreateNew from '@/components/CreateNew.vue'
 
 const keys = ref<SSHKey[]>([])
 const name = ref('')
 const key = ref('')
+const error = ref('')
 
 function fetchSSHKeys() {
   api
@@ -14,6 +16,7 @@ function fetchSSHKeys() {
       keys.value = res.data as SSHKey[]
     })
     .catch((err) => {
+      error.value = 'Failed to fetch SSH keys: ' + err.response.data
       console.error('Failed to fetch SSH keys:', err)
     })
 }
@@ -30,6 +33,8 @@ function addSSHKey() {
       key.value = ''
     })
     .catch((err) => {
+      console.log('Error details:', err.response.data)
+      error.value = 'Failed to add SSH key: ' + err.response.data
       console.error('Failed to add SSH key:', err)
     })
 }
@@ -42,6 +47,7 @@ function deleteSSHKey(id: number) {
         fetchSSHKeys()
       })
       .catch((err) => {
+        error.value = 'Failed to delete SSH key: ' + err.response.data
         console.error('Failed to delete SSH key:', err)
       })
   }
@@ -53,56 +59,52 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-2 flex flex-col gap-2">
-    <div>This is the SSH keys view for <b>sasso</b>!</div>
-    <div class="flex gap-2 items-center">
-      <label for="name">Name:</label>
-      <input type="text" id="name" v-model="name" class="border p-2 rounded-lg w-48" />
-      <label for="key">Key:</label>
-      <input type="text" id="key" v-model="key" class="border p-2 rounded-lg w-96" />
-      <button class="bg-green-400 p-2 rounded-lg hover:bg-green-300" @click="addSSHKey()">
-        Add Key
-      </button>
-    </div>
+  <div class="flex flex-col gap-2 p-2">
+    <h1 class="text-base-content flex items-center gap-2 text-3xl font-bold">
+      <IconVue icon="material-symbols:key" class="text-primary" />
+      SSH Keys
+    </h1>
+    <CreateNew title="SSH Key" :create="addSSHKey" :error="error">
+      <div class="flex flex-col gap-2">
+        <label for="name">Name</label>
+        <input
+          v-model="name"
+          type="text"
+          placeholder="Key Name"
+          class="input border-primary w-full rounded-lg border p-2"
+        />
 
+        <label for="key">Key</label>
+        <input
+          v-model="key"
+          type="text"
+          placeholder="SSH Public Key"
+          class="input border-primary w-full rounded-lg border p-2"
+        />
+      </div>
+    </CreateNew>
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="table min-w-full divide-y divide-gray-200">
+        <thead class="">
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Name
-            </th>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Key
-            </th>
+            <th scope="col" class="">Name</th>
+            <th scope="col" class="">Key</th>
             <th scope="col" class="relative px-6 py-3">
               <span class="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y">
           <tr v-for="sshKey in keys" :key="sshKey.id">
-            <td class="px-6 py-4 whitespace-nowrap">{{ sshKey.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ sshKey.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ sshKey.key }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <td class="whitespace-nowrap">{{ sshKey.name }}</td>
+            <td class="whitespace-nowrap">{{ sshKey.key }}</td>
+            <td class="text-right text-sm font-medium">
               <button
                 @click="deleteSSHKey(sshKey.id)"
-                class="bg-red-400 p-2 rounded-lg hover:bg-red-300"
+                class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
               >
-                Delete
+                <IconVue icon="material-symbols:delete" class="text-lg"></IconVue>
+                <p class="hidden md:inline">Delete</p>
               </button>
             </td>
           </tr>

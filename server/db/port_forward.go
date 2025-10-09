@@ -34,17 +34,17 @@ type PortForwardWithUsername struct {
 
 func initPortForwards() error {
 	if err := db.AutoMigrate(&PortForward{}); err != nil {
-		logger.With("error", err).Error("Failed to migrate port forwards table")
+		logger.Error("Failed to migrate port forwards table", "error", err)
 		return err
 	}
-	logger.Info("Port forwards table migrated successfully")
+	logger.Debug("Port forwards table migrated successfully")
 	return nil
 }
 
 func GetPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Find(&pfs).Error; err != nil {
-		logger.With("error", err).Error("Failed to get all port forwards")
+		logger.Error("Failed to get all port forwards", "error", err)
 		return nil, err
 	}
 	return pfs, nil
@@ -55,7 +55,7 @@ func GetPortForwardsWithUsernames() ([]PortForwardWithUsername, error) {
 	if err := db.Table("port_forwards pf").Select("pf.*, u.username").
 		Joins("left join users u on pf.user_id = u.id").
 		Scan(&pfs).Error; err != nil {
-		logger.With("error", err).Error("Failed to get port forwards with usernames")
+		logger.Error("Failed to get port forwards with usernames", "error", err)
 		return nil, err
 	}
 	return pfs, nil
@@ -64,7 +64,7 @@ func GetPortForwardsWithUsernames() ([]PortForwardWithUsername, error) {
 func GetApprovedPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Where("approved = ?", true).Find(&pfs).Error; err != nil {
-		logger.With("error", err).Error("Failed to get approved port forwards")
+		logger.Error("Failed to get approved port forwards", "error", err)
 		return nil, err
 	}
 	return pfs, nil
@@ -73,7 +73,7 @@ func GetApprovedPortForwards() ([]PortForward, error) {
 func GetPortForwardByID(ID uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, ID).Error; err != nil {
-		logger.With("pfID", ID, "error", err).Error("Failed to find port forward by ID")
+		logger.Error("Failed to find port forward by ID", "pfID", ID, "error", err)
 		return nil, err
 	}
 	return &pf, nil
@@ -82,7 +82,7 @@ func GetPortForwardByID(ID uint) (*PortForward, error) {
 func GetPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Where("user_id = ?", userID).Find(&pfs).Error; err != nil {
-		logger.With("userID", userID, "error", err).Error("Failed to get port forwards for user")
+		logger.Error("Failed to get port forwards for user", "userID", userID, "error", err)
 		return nil, err
 	}
 	return pfs, nil
@@ -92,7 +92,7 @@ func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint
 
 	net, err := GetVNetBySubnet(subnet)
 	if err != nil {
-		logger.With("subnet", subnet, "error", err).Error("Failed to find VNet by subnet")
+		logger.Error("Failed to find VNet by subnet", "subnet", subnet, "error", err)
 		return nil, err
 	}
 
@@ -105,7 +105,7 @@ func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint
 		VNetID:   net.ID,
 	}
 	if err := db.Create(pf).Error; err != nil {
-		logger.With("error", err).Error("Failed to create port forward")
+		logger.Error("Failed to create port forward", "error", err)
 		return nil, err
 	}
 	return pf, nil
@@ -113,7 +113,7 @@ func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint
 
 func UpdatePortForwardApproval(pfID uint, approve bool) error {
 	if err := db.Model(&PortForward{}).Where("id = ?", pfID).Update("approved", approve).Error; err != nil {
-		logger.With("pfID", pfID, "error", err).Error("Failed to update port forward approval")
+		logger.Error("Failed to update port forward approval", "pfID", pfID, "error", err)
 		return err
 	}
 	return nil
@@ -130,7 +130,7 @@ func GetRandomAvailableOutPort(start, end uint16) (uint16, error) {
 	`
 	err := db.Raw(query, start, end).Scan(&outPort).Error
 	if err != nil {
-		logger.With("error", err).Error("Failed to get random available out port")
+		logger.Error("Failed to get random available out port", "error", err)
 		return 0, err
 	}
 	return uint16(outPort), nil
@@ -138,8 +138,17 @@ func GetRandomAvailableOutPort(start, end uint16) (uint16, error) {
 
 func DeletePortForward(pfID uint) error {
 	if err := db.Delete(&PortForward{}, pfID).Error; err != nil {
-		logger.With("pfID", pfID, "error", err).Error("Failed to delete port forward")
+		logger.Error("Failed to delete port forward", "pfID", pfID, "error", err)
 		return err
 	}
 	return nil
+}
+
+func CountPortForwards() (int64, error) {
+	var count int64
+	if err := db.Model(&PortForward{}).Count(&count).Error; err != nil {
+		logger.Error("Failed to count port forwards", "error", err)
+		return 0, err
+	}
+	return count, nil
 }

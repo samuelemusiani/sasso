@@ -42,19 +42,19 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		),
 	})
 	if err != nil {
-		logger.With("error", err).Error("Failed to connect to database")
+		logger.Error("Failed to connect to database", "error", err)
 		return err
 	}
 
 	err = initInterfaces()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize subnets in database")
+		logger.Error("Failed to initialize subnets in database", "error", err)
 		return err
 	}
 
 	err = initPortForwards()
 	if err != nil {
-		logger.With("error", err).Error("Failed to initialize port forwards in database")
+		logger.Error("Failed to initialize port forwards in database", "error", err)
 		return err
 	}
 

@@ -1,12 +1,12 @@
 export interface VM {
   id: number
   name: string
-  notes: string
   cores: number
   ram: number
   disk: number
   status: string
   include_global_ssh_keys: boolean
+  notes: string
 }
 
 export interface User {
@@ -15,10 +15,10 @@ export interface User {
   email: string
   realm: string
   role: string
-  max_cores: number
-  max_ram: number
-  max_disk: number
-  max_nets: number
+  max_cores?: number
+  max_ram?: number
+  max_disk?: number
+  max_nets?: number
 }
 
 export interface Realm {
@@ -96,4 +96,18 @@ export interface BackupRequest {
   type: string
   status: string
   vmid: number
+}
+
+export interface Stat {
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
+  allocated_cores: number
+  allocated_ram: number
+  allocated_disk: number
+  allocated_nets: number
+  active_vms_cores: number
+  active_vms_ram: number
+  active_vms_disk: number
 }
