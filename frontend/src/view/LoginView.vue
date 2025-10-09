@@ -119,7 +119,7 @@ onMounted(() => {
         </div>
         <fieldset class="my-2 w-full">
           <legend class="label mb-1">Realms</legend>
-          <select v-model="realm" class="select rounded-lg w-full">
+          <select v-model="realm" class="select w-full rounded-lg">
             <option v-for="r in realms" :key="r.id" :value="r.name">
               {{ r.name }}
             </option>
@@ -131,7 +131,7 @@ onMounted(() => {
     <p class="text-base-content/50 absolute inset-x-0 bottom-8 text-center">
       by
       <a href="https://students.cs.unibo.it" class="text-primary">
-        <img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff" />
+        <img src="/ADMStaff.svg" class="inline h-8 opacity-70" alt="ADMStaff" />
       </a>
     </p>
   </div>

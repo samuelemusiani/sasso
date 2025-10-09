@@ -50,21 +50,21 @@ const goBack = (): void => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center w-full">
+  <div class="flex min-h-screen w-full items-center justify-center">
     <div class="card w-full max-w-2xl shadow-2xl">
       <div class="card-body items-center text-center">
         <img src="/sasso-error.png" alt="sasso-error" class="w-64" />
 
-        <div class="card-title text-3xl mb-4">
+        <div class="card-title mb-4 text-3xl">
           <h1
-            class="text-5xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-none"
+            class="from-primary to-secondary bg-gradient-to-r bg-clip-text text-5xl leading-none font-black text-transparent"
           >
             {{ errorCode }}
           </h1>
           {{ errorTitle }}
         </div>
 
-        <p class="text-base-content/70 text-lg mb-2">
+        <p class="text-base-content/70 mb-2 text-lg">
           {{ errorMessage }}
         </p>
 
@@ -72,15 +72,15 @@ const goBack = (): void => {
 
         <div
           v-show="props.buttons"
-          class="card-actions flex-col sm:flex-row gap-3 w-full sm:w-auto"
+          class="card-actions w-full flex-col gap-3 sm:w-auto sm:flex-row"
         >
           <router-link to="/" class="btn btn-primary btn-lg gap-2 rounded-lg">
-            <IconVue icon="mdi:home" class="w-5 h-5" />
+            <IconVue icon="mdi:home" class="h-5 w-5" />
             Go Home
           </router-link>
 
           <button @click="goBack" class="btn btn-outline btn-lg gap-2 rounded-lg">
-            <IconVue icon="mdi:arrow-left" class="w-5 h-5" />
+            <IconVue icon="mdi:arrow-left" class="h-5 w-5" />
             Go Back
           </button>
         </div>
