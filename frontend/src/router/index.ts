@@ -17,6 +17,7 @@ import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
 import SettingsView from '@/view/SettingsView.vue'
 import SidebarView from '@/view/SidebarView.vue'
+import ErrorPage from '@/view/ErrorPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,6 +49,19 @@ const router = createRouter({
         { path: 'ssh-keys', component: () => import('../view/admin/GlobalSSHKeysView.vue') },
         { path: 'port-forwards', component: AdminPortForwardsView },
       ],
+    },
+    {
+      path: '/error/:code',
+      name: 'Error',
+      component: ErrorPage,
+      props: true, // Pass route params as props
+    },
+    // 404 - Catch all (must be last!)
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: ErrorPage,
+      props: { code: 404 }, // Default to 404
     },
   ],
 })
