@@ -9,7 +9,6 @@ const router = useRouter()
 
 const username = ref('')
 const password = ref('')
-
 const showPassword = ref(false)
 const realm = ref('Local')
 const realms = ref<Realm[]>([])
@@ -18,7 +17,11 @@ function fetchRealms() {
   api
     .get('/login/realms')
     .then((res) => {
-      realms.value = res.data as Realm[]
+      realms.value = res.data
+      const savedRealm = localStorage.getItem('realm')
+      if (savedRealm) {
+        realm.value = savedRealm
+      }
     })
     .catch((err) => {
       console.error('Failed to fetch realms:', err)
@@ -36,6 +39,7 @@ async function login() {
       console.error('Selected realm not found')
       return
     }
+    localStorage.setItem('realm', realm.value)
     await _login(username.value, password.value, realmID)
     router.push('/')
   } catch (error) {
@@ -48,7 +52,6 @@ onMounted(() => {
 })
 </script>
 
-<!-- TODO: save login preference -->
 <template>
   <div class="flex-1 overflow-auto">
     <div class="grid h-screen place-items-center">
@@ -104,12 +107,10 @@ onMounted(() => {
         </div>
         <fieldset v-else class="my-2 w-full">
           <legend class="label mb-1">Realms</legend>
-          <select class="flex flex-col items-center select rounded-lg">
-            <template v-for="r in realms" :key="r.id">
-              <option class="block px-4 py-2" @click="realm = r.name">
-                {{ r.name }}
-              </option>
-            </template>
+          <select v-model="realm" class="select rounded-lg w-full">
+            <option v-for="r in realms" :key="r.id" :value="r.name">
+              {{ r.name }}
+            </option>
           </select>
         </fieldset>
         <button class="btn btn-primary p-2 rounded-lg w-full" @click="login()">Login</button>
@@ -117,12 +118,9 @@ onMounted(() => {
     </div>
     <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8">
       by
-      <a href="https://students.cs.unibo.it" class="text-primary"
-        ><img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff"
-      /></a>
+      <a href="https://students.cs.unibo.it" class="text-primary">
+        <img src="/ADMStaff.svg" class="opacity-70 h-8 inline" alt="ADMStaff" />
+      </a>
     </p>
-    <!--
-    <p class="text-center text-base-content/50 absolute inset-x-0 bottom-8 ">Developed by <a
-      href="https://students.cs.unibo.it" class="text-primary">ADMStaff</a></p> -->
   </div>
 </template>
