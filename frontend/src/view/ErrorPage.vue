@@ -11,7 +11,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   code: 404,
   message: '',
-  buttons: true
+  buttons: true,
 })
 
 const router = useRouter()
@@ -25,7 +25,7 @@ const errorTitle = computed<string>(() => {
     403: 'Forbidden',
     404: 'Page Not Found',
     500: 'Internal Server Error',
-    503: 'Service Unavailable'
+    503: 'Service Unavailable',
   }
   return titles[Number(errorCode.value)] || 'Oops! Something Went Wrong'
 })
@@ -36,10 +36,10 @@ const errorMessage = computed<string>(() => {
   const messages: Record<number, string> = {
     400: 'The request could not be understood by the server.',
     401: 'You need to be authenticated to access this page.',
-    403: 'You don\'t have permission to access this resource.',
-    404: 'The page you are looking for doesn\'t exist or has been moved.',
+    403: "You don't have permission to access this resource.",
+    404: "The page you are looking for doesn't exist or has been moved.",
     500: 'Something went wrong on our end. Please try again later.',
-    503: 'The service is temporarily unavailable. Please try again later.'
+    503: 'The service is temporarily unavailable. Please try again later.',
   }
   return messages[Number(errorCode.value)] || 'An unexpected error occurred.'
 })
@@ -57,7 +57,8 @@ const goBack = (): void => {
 
         <div class="card-title text-3xl mb-4">
           <h1
-            class="text-5xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-none">
+            class="text-5xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-none"
+          >
             {{ errorCode }}
           </h1>
           {{ errorTitle }}
@@ -69,7 +70,10 @@ const goBack = (): void => {
 
         <div v-show="props.buttons" class="divider"></div>
 
-        <div v-show="props.buttons" class="card-actions flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <div
+          v-show="props.buttons"
+          class="card-actions flex-col sm:flex-row gap-3 w-full sm:w-auto"
+        >
           <router-link to="/" class="btn btn-primary btn-lg gap-2 rounded-lg">
             <IconVue icon="mdi:home" class="w-5 h-5" />
             Go Home
