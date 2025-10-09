@@ -1,9 +1,12 @@
 package proxmox
 
 import (
+	"errors"
 	"slices"
 
 	"samuelemusiani/sasso/server/db"
+
+	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
 type InterfaceStatus string
@@ -17,6 +20,9 @@ var (
 	InterfaceStatusReady          InterfaceStatus = "ready"
 	InterfaceStatusPreConfiguring InterfaceStatus = "pre-configuring"
 	InterfaceStatusConfiguring    InterfaceStatus = "configuring"
+
+	ErrInterfaceNotFound      = errors.New("interface not found")
+	ErrInvalidInterfaceConfig = errors.New("invalid interface configuration")
 )
 
 type Interface struct {
@@ -65,6 +71,9 @@ func InterfaceFromDB(dbIface *db.Interface) *Interface {
 func DeleteInterface(id uint) error {
 	i, err := db.GetInterfaceByID(id)
 	if err != nil {
+		if err == db.ErrNotFound {
+			return ErrInterfaceNotFound
+		}
 		logger.Error("Failed to get interface by ID", "interfaceID", id, "error", err)
 		return err
 	}
@@ -83,5 +92,59 @@ func DeleteInterface(id uint) error {
 		logger.Error("Failed to set interface status to pre-deleting", "interfaceID", id, "error", err)
 		return err
 	}
+	return nil
+}
+
+func UpdateInterface(iface *Interface) error {
+	dbIface, err := db.GetInterfaceByID(iface.ID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			return ErrInterfaceNotFound
+		}
+		logger.Error("Failed to get interface by ID", "interfaceID", iface.ID, "error", err)
+		return err
+	}
+
+	dbIface.VNetID = iface.VNetID
+	dbIface.VlanTag = iface.VlanTag
+	dbIface.IPAdd = iface.IPAdd
+	dbIface.Gateway = iface.Gateway
+	// Status is not updated here
+
+	err = db.UpdateInterface(dbIface)
+	if err != nil {
+		logger.Error("Failed to update interface", "interfaceID", iface.ID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func InterfacesChecks(net *db.Net, iface *Interface) error {
+	if !net.VlanAware && iface.VlanTag != 0 {
+		return errors.New("vlan_tag must be 0 for non-vlan-aware vnets")
+	}
+
+	subnet := ipaddr.NewIPAddressString(net.Subnet)
+	reqIPAdd := ipaddr.NewIPAddressString(iface.IPAdd)
+
+	// TODO: Remove this after frontend check
+	// https://github.com/samuelemusiani/sasso/issues/63
+	if !subnet.Contains(reqIPAdd) {
+		return errors.New("ip_add not in the subnet of the vnet")
+	}
+
+	if !reqIPAdd.IsPrefixed() {
+		return errors.New("ip_add must have a subnet mask")
+	}
+
+	reqGateway := ipaddr.NewIPAddressString(iface.Gateway)
+	if !subnet.Contains(reqGateway) {
+		return errors.New("gateway not in the subnet of the vnet")
+	}
+
+	if reqGateway.IsPrefixed() {
+		return errors.New("gateway must not have a subnet mask")
+	}
+
 	return nil
 }
