@@ -733,6 +733,18 @@ func createInterfaces(vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
+
+		dbVM, err := db.GetVMByID(uint64(iface.VMID))
+		if err != nil {
+			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+			continue
+		}
+
+		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
+			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			continue
+		}
+
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
