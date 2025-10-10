@@ -184,3 +184,25 @@ func sendEmail(n *notification) error {
 	logger.Debug("Email sent successfully", "to", user.Email)
 	return nil
 }
+
+func SendVMStatusUpdateNotification(userID uint, vmName string, status string) error {
+	t := `Your VM "%s" status has changed to: %s
+
+The status was not changed by you but by an external event.
+If the status is "unknown" please contact an administrator.
+`
+
+	body := fmt.Sprintf(t, vmName, status)
+
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM Status Update",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save VM status update notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
