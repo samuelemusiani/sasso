@@ -1315,7 +1315,7 @@ func enforceVMLifetimes() {
 				if slices.ContainsFunc(notifications, fn(i)) {
 					break
 				}
-				if v.LifeTime.Before(time.Now().AddDate(0, 0, int(i))) && v.LifeTime.After(v.CreatedAt.AddDate(0, 0, int(i/2))) {
+				if v.LifeTime.Before(time.Now().AddDate(0, 0, int(i))) && v.LifeTime.After(v.CreatedAt.AddDate(0, 0, int(i))) {
 					// Send notification for i day before expiration
 					err := notify.SendVMExpirationNotification(v.UserID, v.Name, int(i))
 					if err != nil {
