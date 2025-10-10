@@ -1312,8 +1312,10 @@ func enforceVMLifetimes() {
 			}
 		} else {
 			for _, i := range []int64{1, 2, 4, 7, 15, 30, 60, 90} {
-				if v.LifeTime.Before(time.Now().Add(time.Duration(i)*24*time.Hour)) &&
-					!slices.ContainsFunc(notifications, fn(i)) {
+				if v.LifeTime.Before(time.Now().AddDate(0, 0, int(i))) &&
+					!slices.ContainsFunc(notifications, fn(i)) &&
+					v.LifeTime.Before(v.CreatedAt.AddDate(0, 0, int(i/2))) {
+
 					// Send notification for i day before expiration
 					err := notify.SendVMExpirationNotification(v.UserID, v.Name, int(i))
 					if err != nil {
@@ -1325,6 +1327,7 @@ func enforceVMLifetimes() {
 						logger.Error("Failed to create VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
 					}
 					break
+
 				}
 			}
 		}

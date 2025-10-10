@@ -272,7 +272,7 @@ At the next reboot you will probably get a warning from your SSH client about th
 }
 
 func SendVMExpirationNotification(userID uint, vmName string, daysLeft int) error {
-	t := `Your VM "%s" is going to expire in %d days.
+	t := `Your VM "%s" is going to expire in less than %d days.
 After the expiration date the VM will be deleted and all data will be lost.
 To extend the lifetime of your VM please login and extend it.
 `
