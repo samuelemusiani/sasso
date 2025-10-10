@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 interface Props {
-  code?: number | string
+  code?: number
   message?: string
   buttons?: boolean
 }
@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const router = useRouter()
 
-const errorCode = computed<number | string>(() => props.code)
+const errorCode = computed<number>(() => props.code)
 
 const errorTitle = computed<string>(() => {
   const titles: Record<number, string> = {
@@ -53,7 +53,8 @@ const goBack = (): void => {
   <div class="flex min-h-screen w-full items-center justify-center">
     <div class="card w-full max-w-2xl shadow-2xl">
       <div class="card-body items-center text-center">
-        <img src="/sasso-error.png" alt="sasso-error" class="w-64" />
+        <img v-if="errorCode >= 500" src="/sasso-error-2.png" alt="sasso-error" class="w-64" />
+        <img v-else src="/sasso-error.png" alt="sasso-error" class="w-64" />
 
         <div class="card-title mb-4 text-3xl">
           <h1

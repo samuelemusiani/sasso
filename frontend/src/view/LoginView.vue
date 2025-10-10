@@ -22,7 +22,7 @@ function fetchRealms() {
     .then((res) => {
       realms.value = res.data
       const savedRealm = localStorage.getItem('realm')
-      if (savedRealm) {
+      if (savedRealm && realms.value.some((r) => r.name === savedRealm)) {
         realm.value = savedRealm
       }
     })

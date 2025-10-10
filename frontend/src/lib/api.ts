@@ -43,13 +43,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    if (status === 401) {
       // Token expired or invalid
       localStorage.removeItem('jwt_token')
       // Redirect to login page
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
+    } else if (status > 401) {
+      const errorStatus = error.response?.status || 'network'
+      window.location.href = `/error/${errorStatus}`
     }
     return Promise.reject(error)
   },
