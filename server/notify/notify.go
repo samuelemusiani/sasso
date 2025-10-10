@@ -270,3 +270,58 @@ At the next reboot you will probably get a warning from your SSH client about th
 	}
 	return nil
 }
+
+func SendVMExpirationNotification(userID uint, vmName string, daysLeft int) error {
+	t := `Your VM "%s" is going to expire in %d days.
+After the expiration date the VM will be deleted and all data will be lost.
+To extend the lifetime of your VM please login and extend it.
+`
+	body := fmt.Sprintf(t, vmName, daysLeft)
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM Expiration Warning",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save VM expiration notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendVMEliminatedNotification(userID uint, vmName string) error {
+	t := `Your VM "%s" has been deleted. Its lifetime has expired.
+If you want to keep using our services please create a new VM.
+`
+	body := fmt.Sprintf(t, vmName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM Deleted",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save VM eliminated notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendVMStoppedNotification(userID uint, vmName string) error {
+	t := `Your VM "%s" has been stopped lifetime expiration.
+To use it again please login extend its lifetime.
+`
+	body := fmt.Sprintf(t, vmName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM Stopped",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save VM stopped notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}

@@ -26,12 +26,14 @@ func vms(w http.ResponseWriter, r *http.Request) {
 }
 
 type newVMRequest struct {
-	Name                 string `json:"name"`
-	Notes                string `json:"notes"`
-	Cores                uint   `json:"cores"`
-	RAM                  uint   `json:"ram"`
-	Disk                 uint   `json:"disk"`
-	IncludeGlobalSSHKeys bool   `json:"include_global_ssh_keys"`
+	Name  string `json:"name"`
+	Notes string `json:"notes"`
+	Cores uint   `json:"cores"`
+	RAM   uint   `json:"ram"`
+	Disk  uint   `json:"disk"`
+	// Number of months the VM should live
+	LifeTime             uint `json:"lifetime"`
+	IncludeGlobalSSHKeys bool `json:"include_global_ssh_keys"`
 }
 
 func newVM(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +49,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	vm, err := proxmox.NewVM(userID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.IncludeGlobalSSHKeys)
+	vm, err := proxmox.NewVM(userID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
@@ -126,4 +128,31 @@ func changeVMState(action string) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+type updateVMLifetimeRequest struct {
+	// Number of months to extend the VM lifetime
+	ExtendBy uint `json:"extend_by"`
+}
+
+func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
+	var request updateVMLifetimeRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	vmID := getVMFromContext(r).ID
+
+	err := proxmox.UpdateVMLifetime(vmID, request.ExtendBy)
+	if err != nil {
+		if errors.Is(err, proxmox.ErrInvalidVMParam) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		logger.Error("Failed to update VM lifetime", "vmID", vmID, "error", err)
+		http.Error(w, "Failed to update VM lifetime", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

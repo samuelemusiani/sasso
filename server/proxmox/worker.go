@@ -104,6 +104,8 @@ func worker(ctx context.Context) error {
 		workerCycleDurationObserve("create_vms", func() { createVMs() })
 		workerCycleDurationObserve("update_vms", func() { updateVMs(cluster) })
 
+		workerCycleDurationObserve("lifetime_vms", func() { enforceVMLifetimes() })
+
 		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 		if err != nil {
 			logger.Error("Failed to map VMID to Proxmox nodes", "error", err)
@@ -1260,4 +1262,71 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	}
 
 	lastConfigureSSHKeysTime = time.Now()
+}
+
+func enforceVMLifetimes() {
+	t := time.Now().AddDate(0, 3, 0) // 3 months from now
+	vms, err := db.GetVMsWithLifetimesLessThan(t)
+	if err != nil {
+		logger.Error("Failed to get VMs with lifetimes less than", "time", t, "error", err)
+		return
+	}
+
+	fn := func(n int64) func(not db.VMExpirationNotification) bool {
+		return func(not db.VMExpirationNotification) bool {
+			return int64(not.DaysBefore) == n
+		}
+	}
+
+	for _, v := range vms {
+		notifications, err := db.GetVMExpirationNotificationsByVMID(v.ID)
+		if err != nil {
+			logger.Error("Failed to get VM expiration notifications for VM", "vmid", v.ID, "error", err)
+			continue
+		}
+
+		if v.LifeTime.Before(time.Now().Add(-7 * 24 * time.Hour)) {
+			// The VM expired more than 7 days ago, we delete it
+			err := DeleteVM(v.UserID, v.ID)
+			if err != nil {
+				logger.Error("Failed to delete expired VM", "vmid", v.ID, "error", err)
+				continue
+			}
+
+			err = notify.SendVMEliminatedNotification(v.UserID, v.Name)
+			if err != nil {
+				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
+			}
+		} else if v.LifeTime.Before(time.Now()) {
+			// The VM expired, but less than 7 days ago, we send the last notification
+			// and stop the VM if it is running
+			err := ChangeVMStatus(v.UserID, v.ID, string(VMStatusStopped))
+			if err != nil {
+				logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
+				continue
+			}
+
+			err = notify.SendVMStoppedNotification(v.UserID, v.Name)
+			if err != nil {
+				logger.Error("Failed to send VM stopped notification", "vmid", v.ID, "error", err)
+			}
+		} else {
+			for _, i := range []int64{1, 2, 4, 7, 15, 30, 60, 90} {
+				if v.LifeTime.Before(time.Now().Add(time.Duration(i)*24*time.Hour)) &&
+					!slices.ContainsFunc(notifications, fn(i)) {
+					// Send notification for i day before expiration
+					err := notify.SendVMExpirationNotification(v.UserID, v.Name, int(i))
+					if err != nil {
+						logger.Error("Failed to send VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
+						continue
+					}
+					_, err = db.NewVMExpirationNotification(v.ID, uint(i))
+					if err != nil {
+						logger.Error("Failed to create VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
+					}
+					break
+				}
+			}
+		}
+	}
 }
