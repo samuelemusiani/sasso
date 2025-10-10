@@ -39,7 +39,7 @@ func Init(l *slog.Logger, c config.Email) error {
 	email = c.Username
 
 	var err error
-	emailClient, err = mail.NewClient(c.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Username), mail.WithPassword(c.Password))
+	emailClient, err = mail.NewClient(c.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Username), mail.WithPassword(c.Password), mail.WithPort(465))
 	if err != nil {
 		slog.Error("Failed to create mail client", "error", err)
 		return err
