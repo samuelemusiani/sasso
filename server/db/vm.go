@@ -24,9 +24,12 @@ type VM struct {
 	RAM   uint   `gorm:"not null;default:1024"`
 	Disk  uint   `gorm:"not null;default:4"`
 
+	LifeTime time.Time `gorm:"not null"`
+
 	IncludeGlobalSSHKeys bool `gorm:"not null"`
 
-	Interfaces []Interface `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
+	Interfaces              []Interface                `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
+	ExpirationNotifications []VMExpirationNotification `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
 }
 
 func initVMs() error {
@@ -47,6 +50,7 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	return vms, nil
 }
 
+// Returns true if a VM with the given userID and name exists
 func ExistsVMWithUserIdAndName(userID uint, name string) (bool, error) {
 	var count int64
 	result := db.Model(&VM{}).Where("user_id = ? AND name = ?", userID, name).Count(&count)
@@ -56,7 +60,7 @@ func ExistsVMWithUserIdAndName(userID uint, name string) (bool, error) {
 	return count > 0, nil
 }
 
-func NewVM(ID uint64, userID uint, vmUserID uint, status string, name string, notes string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+func NewVM(ID uint64, userID uint, vmUserID uint, status string, name string, notes string, cores uint, ram uint, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
 	vm := &VM{
 		ID:                   ID,
 		UserID:               userID,
@@ -67,6 +71,7 @@ func NewVM(ID uint64, userID uint, vmUserID uint, status string, name string, no
 		Cores:                cores,
 		RAM:                  ram,
 		Disk:                 disk,
+		LifeTime:             lifeTime,
 		IncludeGlobalSSHKeys: includeGlobalSSHKeys,
 	}
 	result := db.Create(vm)
@@ -231,4 +236,61 @@ func CountVMs() (int64, error) {
 		return 0, result.Error
 	}
 	return count, nil
+}
+
+func GetVMsWithLifetimesLessThan(t time.Time) ([]VM, error) {
+	var vms []VM
+	result := db.Where("life_time < ?", t).Find(&vms)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vms, nil
+}
+
+func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
+	result := db.Model(&VM{}).Where("id = ?", vmID).Update("life_time", newLifetime)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return ErrNotFound
+		}
+		return result.Error
+	}
+
+	return nil
+}
+
+type VMExpirationNotification struct {
+	ID         uint64 `gorm:"primaryKey"`
+	VMID       uint64 `gorm:"not null;index"`
+	DaysBefore uint   `gorm:"not null"`
+}
+
+func initVMExpirationNotifications() error {
+	err := db.AutoMigrate(&VMExpirationNotification{})
+	if err != nil {
+		logger.Error("Failed to migrate VMExpirationNotifications table", "error", err)
+		return err
+	}
+	return nil
+}
+
+func NewVMExpirationNotification(vmID uint64, daysBefore uint) (*VMExpirationNotification, error) {
+	notification := &VMExpirationNotification{
+		VMID:       vmID,
+		DaysBefore: daysBefore,
+	}
+	result := db.Create(notification)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return notification, nil
+}
+
+func GetVMExpirationNotificationsByVMID(vmID uint64) ([]VMExpirationNotification, error) {
+	var notifications []VMExpirationNotification
+	result := db.Where("vm_id = ?", vmID).Find(&notifications)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return notifications, nil
 }
