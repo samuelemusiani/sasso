@@ -5,6 +5,7 @@ export interface VM {
   ram: number
   disk: number
   status: string
+  lifetime: string
   include_global_ssh_keys: boolean
   notes: string
 }

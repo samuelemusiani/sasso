@@ -11,6 +11,7 @@ const name = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
 const error = ref('')
@@ -34,6 +35,7 @@ function createVM() {
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
+      lifetime: lifetime.value,
       include_global_ssh_keys: include_global_ssh_keys.value,
       notes: notes.value,
     })
@@ -147,6 +149,15 @@ onBeforeUnmount(() => {
         <label for="disk">Disk (GB)</label>
         <input type="number" id="disk" v-model="disk" class="input w-24 w-full rounded-lg border" />
       </div>
+      <div>
+        <label for="lifetime">Lifetime</label>
+        <select class="select w-24 w-full rounded-lg border" v-model="lifetime">
+          <option value="1" selected>1 Month</option>
+          <option value="3">3 Months</option>
+          <option value="6">6 Months</option>
+          <option value="12">12 Months</option>
+        </select>
+      </div>
       <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
           <input
@@ -177,6 +188,7 @@ onBeforeUnmount(() => {
           <th scope="col">RAM (MB)</th>
           <th scope="col">Disk (GB)</th>
           <th scope="col">Status</th>
+          <th scope="col">Lifetime</th>
           <th scope="col">Notes</th>
           <th scope="col"></th>
         </tr>
@@ -190,6 +202,7 @@ onBeforeUnmount(() => {
           <td class="font-semibold capitalize" :class="getStatusClass(vm.status)">
             {{ vm.status }}
           </td>
+          <td>{{ vm.lifetime }}</td>
           <td>
             <div v-if="vm.notes" class="bg-base-100 w-max rounded-lg p-2 text-xs text-pretty">
               {{ vm.notes }}
