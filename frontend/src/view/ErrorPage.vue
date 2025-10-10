@@ -53,8 +53,11 @@ const goBack = (): void => {
   <div class="flex min-h-screen w-full items-center justify-center">
     <div class="card w-full max-w-2xl shadow-2xl">
       <div class="card-body items-center text-center">
-        <img v-if="errorCode >= 500" src="/sasso-error-2.png" alt="sasso-error" class="w-64" />
-        <img v-else src="/sasso-error.png" alt="sasso-error" class="w-64" />
+        <img
+          :src="errorCode >= 500 ? '/sasso-error-2.png' : '/sasso-error.png'"
+          alt="sasso-error"
+          class="w-64"
+        />
 
         <div class="card-title mb-4 text-3xl">
           <h1
