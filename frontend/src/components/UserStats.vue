@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 const props = defineProps<{
   stats: Array<{
     item: string
@@ -80,7 +78,7 @@ const colorClasses: Record<
   <!-- Cards View -->
   <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
     <div
-      v-for="stat in stats"
+      v-for="stat in props.stats"
       :key="stat.item"
       class="group bg-base-100 border-base-300/20 hover:border-base-300/40 relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-sm hover:shadow-2xl"
     >
