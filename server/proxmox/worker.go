@@ -1297,7 +1297,7 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
-		} else if v.LifeTime.Before(time.Now()) {
+		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
 			err := ChangeVMStatus(v.UserID, v.ID, "stop")
