@@ -231,6 +231,11 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 		return ErrInvalidVMState
 	}
 
+	if (action == "start" || action == "restart") && vm.LifeTime.Before(time.Now()) {
+		logger.Warn("VM lifetime has expired, cannot start or restart", "userID", userID, "vmID", vmID, "lifetime", vm.LifeTime)
+		return errors.Join(ErrInvalidVMState, errors.New("vm lifetime has expired; cannot start or restart"))
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	clustr, err := client.Cluster(ctx)
 	cancel()
