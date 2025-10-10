@@ -16,6 +16,8 @@ const notes = ref('')
 const include_global_ssh_keys = ref(true)
 const error = ref('')
 
+const extendBy = ref(1)
+
 function fetchVMs() {
   api
     .get('/vm')
@@ -92,6 +94,22 @@ function restartVM(vmid: number) {
     .catch((err) => {
       console.error('Failed to restart VM:', err)
     })
+}
+
+function updateLifetime(vmid: number, extend_by: number) {
+  api
+    .patch(`/vm/${vmid}/lifetime`, { extend_by })
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to update VM lifetime:', err)
+    })
+}
+
+function isExpired(lifetime: string): boolean {
+  // TODO: Check with timezones
+  return new Date(lifetime) < new Date()
 }
 
 let intervalId: number | null = null
@@ -201,7 +219,27 @@ onBeforeUnmount(() => {
 
           <td>
             <div class="grid max-w-3/5 grid-cols-2 gap-2 2xl:grid-cols-3">
-              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2">
+              <div
+                v-if="isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-3 grid grid-cols-3 items-center gap-2"
+              >
+                <select class="select" v-model.number="extendBy">
+                  <option value="1" selected>Extend 1 Month</option>
+                  <option value="2">Extend 2 Months</option>
+                  <option value="3">Extend 3 Months</option>
+                </select>
+                <button
+                  @click="updateLifetime(vm.id, extendBy)"
+                  class="btn btn-primary btn-sm rounded-lg"
+                >
+                  <IconVue icon="material-symbols:update" class="text-lg" />
+                  <span class="hidden md:inline">Extend</span>
+                </button>
+              </div>
+              <div
+                v-if="!isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2"
+              >
                 <button
                   v-if="vm.status === 'stopped'"
                   @click="startVM(vm.id)"
@@ -234,7 +272,7 @@ onBeforeUnmount(() => {
                   <span class="hidden md:inline">Delete</span>
                 </button>
               </div>
-              <div class="flex items-center gap-2">
+              <div v-if="!isExpired(vm.lifetime)" class="flex items-center gap-2">
                 <RouterLink
                   :to="`/vm/${vm.id}/interfaces`"
                   class="btn btn-primary btn-sm md:btn-md rounded-lg"
