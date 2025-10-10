@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 
 	gprox "github.com/luthermonson/go-proxmox"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
@@ -44,8 +45,13 @@ func StartWorker() {
 }
 
 func ShutdownWorker() error {
-	workerCancelFunc()
-	err := <-workerReturnChan
+	if workerCancelFunc != nil {
+		workerCancelFunc()
+	}
+	var err error = nil
+	if workerReturnChan != nil {
+		err = <-workerReturnChan
+	}
 	if err != nil && err != context.Canceled {
 		return err
 	} else {
@@ -656,6 +662,12 @@ func updateVMs(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
+
+			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, r.Status)
+			if err != nil {
+				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", r.Status, "err", err)
+			}
+
 		} else if !slices.Contains(allVMStatus, r.Status) {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
@@ -671,7 +683,12 @@ func updateVMs(cluster *gprox.Cluster) {
 
 				err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
 				if err != nil {
-					logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", VMStatusDeleting, "err", err)
+					logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
+				}
+
+				err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, string(VMStatusUnknown))
+				if err != nil {
+					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
 			} else {
 				vmStatusTimeMap[r.VMID] = stringTime{
@@ -682,7 +699,6 @@ func updateVMs(cluster *gprox.Cluster) {
 		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
-			allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 			status := r.Status
 			if !slices.Contains(allVMStatus, r.Status) {
 				logger.Error("VM status not recognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
@@ -692,6 +708,11 @@ func updateVMs(cluster *gprox.Cluster) {
 			err := db.UpdateVMStatus(r.VMID, status)
 			if err != nil {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", status, "err", err)
+			}
+
+			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, status)
+			if err != nil {
+				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", status, "err", err)
 			}
 		}
 	}

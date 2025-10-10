@@ -52,6 +52,7 @@ require (
 	github.com/seancfoley/bintree v1.3.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
+	github.com/wneessen/go-mail v0.7.2 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
