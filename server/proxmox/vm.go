@@ -390,7 +390,7 @@ func UpdateVMLifetime(VMID uint64, extendBy uint) error {
 
 	months := int(extendBy / 2)
 	days := int((extendBy % 2) * 15)
-	if vm.LifeTime.Before(time.Now().AddDate(0, months, days)) {
+	if vm.LifeTime.After(time.Now().AddDate(0, months, days)) {
 		return errors.Join(ErrInvalidVMParam, errors.New("cannot update lifetime. Too soon"))
 	}
 
