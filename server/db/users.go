@@ -207,3 +207,12 @@ func GetAllVPNConfigs() ([]User, error) {
 	}
 	return users, nil
 }
+
+func GetAllUserEmails() ([]string, error) {
+	var emails []string
+	if err := db.Model(&User{}).Where("id != ?", 1).Pluck("email", &emails).Error; err != nil {
+		logger.Error("Failed to retrieve all user emails", "error", err)
+		return nil, err
+	}
+	return emails, nil
+}

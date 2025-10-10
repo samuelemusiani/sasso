@@ -158,6 +158,14 @@ Destination IP: %s
 }
 
 func sendEmail(n *notification) error {
+	if n.UserID == 0 {
+		return sendBulkEmail(n)
+	} else {
+		return sendSingleEmail(n)
+	}
+}
+
+func sendSingleEmail(n *notification) error {
 	user, err := db.GetUserByID(n.UserID)
 	if err != nil {
 		logger.Error("Failed to get user for notification", "userID", n.UserID, "error", err)
@@ -185,6 +193,43 @@ func sendEmail(n *notification) error {
 	return nil
 }
 
+func sendBulkEmail(n *notification) error {
+	emails, err := db.GetAllUserEmails()
+	if err != nil {
+		logger.Error("Failed to get user for notification", "userID", n.UserID, "error", err)
+		return err
+	}
+
+	messages := make([]*mail.Msg, 0, len(emails))
+	for _, e := range emails {
+		message := mail.NewMsg()
+		if err := message.From(email); err != nil {
+			logger.Error("Invalid 'From' address", "error", err)
+			return err
+		}
+		if err := message.To(e); err != nil {
+			logger.Error("Invalid 'To' address", "error", err)
+			return err
+		}
+		message.Subject(n.Subject)
+		message.SetBodyString(mail.TypeTextPlain, n.Body)
+
+		message.SetMessageID()
+		message.SetBulk()
+		message.SetDate()
+
+		messages = append(messages, message)
+	}
+
+	if err := emailClient.DialAndSend(messages...); err != nil {
+		logger.Error("Failed to send emails", "error", err)
+		return err
+	}
+
+	logger.Debug("Emails sent successfully everyone")
+	return nil
+}
+
 func SendVMStatusUpdateNotification(userID uint, vmName string, status string) error {
 	t := `Your VM "%s" status has changed to: %s
 
@@ -202,6 +247,25 @@ If the status is "unknown" please contact an administrator.
 	err := n.save()
 	if err != nil {
 		logger.Error("Failed to save VM status update notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendGlobalSSHKeysChangeNotification() error {
+	t := `The global SSH keys have been changed.
+This means that if you had VMs with public keys included the VMs public key signature is changed.
+At the next reboot you will probably get a warning from your SSH client about the host key being changed.
+`
+
+	n := &notification{
+		UserID:  0, // 0 means all users
+		Subject: "Global SSH Keys Changed",
+		Body:    t,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save global SSH keys change notification", "error", err)
 		return err
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -167,6 +168,11 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+
+	err = notify.SendGlobalSSHKeysChangeNotification()
+	if err != nil {
+		logger.Error("Failed to send global SSH keys change notification", "error", err)
+	}
 }
 
 func deleteGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
@@ -186,4 +192,9 @@ func deleteGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+
+	err = notify.SendGlobalSSHKeysChangeNotification()
+	if err != nil {
+		logger.Error("Failed to send global SSH keys change notification", "error", err)
+	}
 }
