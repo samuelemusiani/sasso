@@ -114,8 +114,9 @@ func sendNotifications() {
 
 	for _, n := range ntfs {
 		tmpN := notification{
-			UserID: n.UserID,
-			Body:   n.Body,
+			UserID:  n.UserID,
+			Subject: n.Subject,
+			Body:    n.Body,
 		}
 
 		err := sendEmail(&tmpN)
