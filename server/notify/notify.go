@@ -131,8 +131,7 @@ func sendNotifications() {
 }
 
 func (n *notification) save() error {
-	// Save The notification to the database
-	return nil
+	return db.InsertNotification(n.UserID, n.Subject, n.Body)
 }
 
 func SendPortForwardNotification(userID uint, pf db.PortForward) error {
@@ -150,7 +149,12 @@ Destination IP: %s
 		Subject: "Port Forwarding Status Update",
 		Body:    body,
 	}
-	return n.save()
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save port forward notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
 }
 
 func sendEmail(n *notification) error {

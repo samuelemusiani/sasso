@@ -39,3 +39,18 @@ func SetNotificationAsSent(id uint) error {
 	}
 	return nil
 }
+
+func InsertNotification(userID uint, subject string, body string) error {
+	ntf := Notification{
+		UserID:  userID,
+		Subject: subject,
+		Body:    body,
+		Status:  "pending",
+	}
+
+	if err := db.Create(&ntf).Error; err != nil {
+		logger.Error("Failed to insert notification", "error", err)
+		return err
+	}
+	return nil
+}
