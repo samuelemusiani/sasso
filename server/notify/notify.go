@@ -39,7 +39,7 @@ func Init(l *slog.Logger, c config.Email) error {
 	email = c.Username
 
 	var err error
-	emailClient, err = mail.NewClient(c.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Username), mail.WithPassword(c.Password), mail.WithPort(465))
+	emailClient, err = mail.NewClient(c.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Username), mail.WithPassword(c.Password), mail.WithSSL(), mail.WithPort(465))
 	if err != nil {
 		slog.Error("Failed to create mail client", "error", err)
 		return err
@@ -136,8 +136,7 @@ func (n *notification) save() error {
 }
 
 func SendPortForwardNotification(userID uint, pf db.PortForward) error {
-	t := `
-Your port forwarding request has been %s!
+	t := `Your port forwarding request has been %s!
 Outside port: %d
 Destination port: %d
 Destination IP: %s
