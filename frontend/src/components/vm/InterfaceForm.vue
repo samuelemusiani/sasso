@@ -59,7 +59,7 @@ function fetchNets() {
     })
     .catch((err) => {
       console.error('Failed to fetch nets:', err)
-      error.value = 'Failed to fetch networks: ' + err.message
+      error.value = 'Failed to fetch networks: ' + err.response.data
     })
 }
 
@@ -79,7 +79,7 @@ function addInterface() {
     })
     .catch((err) => {
       console.error('Failed to add interface:', err)
-      error.value = 'Failed to add interface: ' + err.message
+      error.value = 'Failed to add interface: ' + err.response.data
     })
 }
 
@@ -92,6 +92,7 @@ function updateInterface() {
     })
     .catch((err) => {
       console.error('Failed to update interface:', err)
+      error.value = 'Failed to update interface: ' + err.response.data
     })
 }
 
