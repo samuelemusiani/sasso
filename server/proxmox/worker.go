@@ -44,8 +44,13 @@ func StartWorker() {
 }
 
 func ShutdownWorker() error {
-	workerCancelFunc()
-	err := <-workerReturnChan
+	if workerCancelFunc != nil {
+		workerCancelFunc()
+	}
+	var err error = nil
+	if workerReturnChan != nil {
+		err = <-workerReturnChan
+	}
 	if err != nil && err != context.Canceled {
 		return err
 	} else {

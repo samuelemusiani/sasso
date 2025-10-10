@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 	"strconv"
 	"sync"
 
@@ -226,7 +227,19 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to approve port forward", http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
+
+	pf, err := db.GetPortForwardByID(uint(portForwardID))
+	if err != nil {
+		logger.Error("Failed to get port forward after approval", "pfID", portForwardID, "error", err)
+		return
+	}
+
+	err = notify.SendPortForwardNotification(pf.UserID, *pf)
+	if err != nil {
+		logger.Error("Failed to send port forward notification", "userID", pf.UserID, "pfID", portForwardID, "error", err)
+	}
 }
 
 func listAllPortForwards(w http.ResponseWriter, r *http.Request) {

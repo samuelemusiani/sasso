@@ -65,6 +65,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initNotifications()
+	if err != nil {
+		logger.Error("Failed to initialize notifications in database", "error", err)
+		return err
+	}
+
 	err = initUsers()
 	if err != nil {
 		logger.Error("Failed to initialize users in database", "error", err)

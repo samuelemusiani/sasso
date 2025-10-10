@@ -16,6 +16,7 @@ import (
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 	"samuelemusiani/sasso/server/proxmox"
 )
 
@@ -135,6 +136,11 @@ func main() {
 	go proxmox.TestEndpointNetZone()
 	proxmox.StartWorker()
 
+	// Notifications
+	notifyLogger := slog.With("module", "notify")
+	err = notify.Init(notifyLogger, c.Email)
+	notify.StartWorker()
+
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
@@ -157,7 +163,7 @@ func main() {
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
 		var waitGroup sync.WaitGroup
-		waitGroup.Add(2)
+		waitGroup.Add(3)
 
 		go func() {
 			defer waitGroup.Done()
@@ -173,6 +179,15 @@ func main() {
 			err = proxmox.ShutdownWorker()
 			if err != nil {
 				slog.Error("Failed to shut down Proxmox worker", "error", err)
+			}
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			err = notify.ShutdownWorker()
+			if err != nil {
+				slog.Error("Failed to shut down notifications worker", "error", err)
 			}
 		}()
 

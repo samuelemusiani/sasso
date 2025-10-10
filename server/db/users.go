@@ -39,6 +39,7 @@ type User struct {
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
 	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
 	BackupRequests []BackupRequest `gorm:"foreignKey:UserID"`
+	Notifications  []Notification  `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {
