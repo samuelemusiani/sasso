@@ -15,6 +15,7 @@ const menu = {
   'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
   'Port Forward': { icon: 'material-symbols:router', to: '/port-forwards' },
+  'Telegram Bots': { icon: 'mdi:telegram', to: '/telegram' },
 }
 
 function logout() {

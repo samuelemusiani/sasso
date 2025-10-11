@@ -112,3 +112,11 @@ export interface Stat {
   active_vms_ram: number
   active_vms_disk: number
 }
+
+export interface TelegramBot {
+  id: number
+  name: string
+  notes: string
+  token: string
+  chat_id: string
+}
