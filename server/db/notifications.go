@@ -114,3 +114,12 @@ func DeleteTelegramBot(id uint, userID uint) error {
 	}
 	return nil
 }
+
+func GetUsersWithTelegramBots() ([]uint, error) {
+	var userIDs []uint
+	if err := db.Model(&TelegramBot{}).Distinct().Pluck("user_id", &userIDs).Error; err != nil {
+		logger.Error("Failed to get users with telegram bots", "error", err)
+		return nil, err
+	}
+	return userIDs, nil
+}
