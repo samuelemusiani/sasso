@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -107,4 +108,37 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+}
+
+func testTelegramBot(w http.ResponseWriter, r *http.Request) {
+	sbotID := chi.URLParam(r, "id")
+	botID, err := strconv.ParseUint(sbotID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
+		return
+	}
+
+	userID := mustGetUserIDFromContext(r)
+	bot, err := db.GetTelegramBotByID(uint(botID))
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Telegram bot not found", http.StatusNotFound)
+		} else {
+			logger.Error("Failed to retrieve telegram bot", "botID", botID, "userID", userID, "error", err)
+			http.Error(w, "Failed to retrieve telegram bot", http.StatusInternalServerError)
+		}
+		return
+	}
+	if bot.UserID != userID {
+		http.Error(w, "Telegram bot not found", http.StatusNotFound)
+		return
+	}
+
+	err = notify.SendTestBotNotification(bot, "Test notification from Sasso")
+	if err != nil {
+		logger.Error("Failed to send test notification", "botID", botID, "userID", userID, "error", err)
+		http.Error(w, "Failed to send test notification", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

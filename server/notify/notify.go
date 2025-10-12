@@ -261,40 +261,47 @@ func sendSingleTelegram(n *notification) error {
 	}
 
 	for _, bot := range bots {
-		url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, bots[0].Token)
-		msg := telegramMessage{
-			ChatID: bot.ChatID,
-			Text:   n.Body,
-		}
-
-		jsonMessage, err := json.Marshal(msg)
+		err := sendTelegramMessage(&bot, n.Body)
 		if err != nil {
-			logger.Error("Failed to marshal telegram message", "error", err)
-			continue
+			logger.Error("Failed to send telegram message", "userID", n.UserID, "botID", bot.ID, "error", err)
 		}
-
-		client := &http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonMessage))
-		if err != nil {
-			logger.Error("Failed to create telegram request", "error", err)
-			continue
-		}
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := client.Do(req)
-		if err != nil {
-			logger.Error("Failed to send telegram message", "error", err)
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			logger.Error("Telegram API returned non-OK status", "status", resp.Status)
-			continue
-		}
-		logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
-
 		time.Sleep(150 * time.Millisecond)
 	}
 
+	return nil
+}
+
+func sendTelegramMessage(bot *db.TelegramBot, text string) error {
+	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, bot.Token)
+	msg := telegramMessage{
+		ChatID: bot.ChatID,
+		Text:   text,
+	}
+
+	jsonMessage, err := json.Marshal(msg)
+	if err != nil {
+		logger.Error("Failed to marshal telegram message", "error", err)
+		return err
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonMessage))
+	if err != nil {
+		logger.Error("Failed to create telegram request", "error", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Error("Failed to send telegram message", "error", err)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.Error("Telegram API returned non-OK status", "status", resp.Status)
+		return fmt.Errorf("telegram API returned status: %s", resp.Status)
+	}
+	logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
 	return nil
 }
 
@@ -409,4 +416,12 @@ To use it again please login extend its lifetime.
 		return err
 	}
 	return nil
+}
+
+func SendTestBotNotification(bot *db.TelegramBot, text string) error {
+	err := sendTelegramMessage(bot, text)
+	if err != nil {
+		logger.Error("Failed to send test telegram message", "botID", bot.ID, "error", err)
+	}
+	return err
 }

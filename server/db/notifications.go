@@ -123,3 +123,15 @@ func GetUsersWithTelegramBots() ([]uint, error) {
 	}
 	return userIDs, nil
 }
+
+func GetTelegramBotByID(id uint) (*TelegramBot, error) {
+	var bot TelegramBot
+	if err := db.Where("id = ?", id).First(&bot).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		logger.Error("Failed to get telegram bot by ID", "id", id, "error", err)
+		return nil, err
+	}
+	return &bot, nil
+}

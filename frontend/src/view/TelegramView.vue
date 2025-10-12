@@ -54,6 +54,17 @@ function deleteTelegramBot(id: number) {
   }
 }
 
+function testTelegramBot(id: number) {
+  api
+    .post(`/notify/telegram/${id}/test`)
+    .then(() => {
+      alert('Test notification sent!')
+    })
+    .catch((err) => {
+      console.error('Failed to send test notification:', err)
+    })
+}
+
 onMounted(() => {
   fetchTelegramBots()
 })
@@ -104,6 +115,13 @@ onMounted(() => {
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
+            </button>
+            <button
+              @click="testTelegramBot(bot.id)"
+              class="btn btn-primary btn-sm md:btn-md btn-outline ml-2 rounded-lg"
+            >
+              <IconVue icon="material-symbols:experiment" class="text-lg" />
+              <p>Test</p>
             </button>
           </td>
         </tr>
