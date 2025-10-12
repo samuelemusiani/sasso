@@ -1,9 +1,12 @@
 package notify
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
 	"time"
@@ -21,6 +24,13 @@ var (
 	workerCancelFunc context.CancelFunc
 	workerReturnChan chan error = make(chan error, 1)
 )
+
+const telegramAPIURL = "https://api.telegram.org/bot"
+
+type telegramMessage struct {
+	ChatID string `json:"chat_id"`
+	Text   string `json:"text"`
+}
 
 type notification struct {
 	UserID  uint
@@ -124,6 +134,11 @@ func sendNotifications() {
 			logger.Error("Failed to send notification email", "userID", n.UserID, "error", err)
 		}
 
+		err = sendTelegram(&tmpN)
+		if err != nil {
+			logger.Error("Failed to send notification telegram", "userID", n.UserID, "error", err)
+		}
+
 		err = db.SetNotificationAsSent(n.ID)
 		if err != nil {
 			logger.Error("Failed to set notification as sent", "notificationID", n.ID, "error", err)
@@ -162,6 +177,14 @@ func sendEmail(n *notification) error {
 		return sendBulkEmail(n)
 	} else {
 		return sendSingleEmail(n)
+	}
+}
+
+func sendTelegram(n *notification) error {
+	if n.UserID == 0 {
+		return sendBulkTelegram(n)
+	} else {
+		return sendSingleTelegram(n)
 	}
 }
 
@@ -227,6 +250,75 @@ func sendBulkEmail(n *notification) error {
 	}
 
 	logger.Debug("Emails sent successfully everyone")
+	return nil
+}
+
+func sendSingleTelegram(n *notification) error {
+	bots, err := db.GetEnabledTelegramBotsByUserID(n.UserID)
+	if err != nil {
+		logger.Error("Failed to get telegram bots for user", "userID", n.UserID, "error", err)
+		return err
+	}
+
+	for _, bot := range bots {
+		err := sendTelegramMessage(&bot, n.Body)
+		if err != nil {
+			logger.Error("Failed to send telegram message", "userID", n.UserID, "botID", bot.ID, "error", err)
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	return nil
+}
+
+func sendTelegramMessage(bot *db.TelegramBot, text string) error {
+	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, bot.Token)
+	msg := telegramMessage{
+		ChatID: bot.ChatID,
+		Text:   text,
+	}
+
+	jsonMessage, err := json.Marshal(msg)
+	if err != nil {
+		logger.Error("Failed to marshal telegram message", "error", err)
+		return err
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonMessage))
+	if err != nil {
+		logger.Error("Failed to create telegram request", "error", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Error("Failed to send telegram message", "error", err)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.Error("Telegram API returned non-OK status", "status", resp.Status)
+		return fmt.Errorf("telegram API returned status: %s", resp.Status)
+	}
+	logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
+	return nil
+}
+
+func sendBulkTelegram(n *notification) error {
+	users, err := db.GetUsersWithTelegramBots()
+	if err != nil {
+		logger.Error("Failed to get users with telegram bots", "error", err)
+		return err
+	}
+
+	for _, user := range users {
+		n.UserID = user
+		err := sendSingleTelegram(n)
+		if err != nil {
+			logger.Error("Failed to send telegram message to user", "userID", user, "error", err)
+		}
+	}
 	return nil
 }
 
@@ -324,4 +416,12 @@ To use it again please login extend its lifetime.
 		return err
 	}
 	return nil
+}
+
+func SendTestBotNotification(bot *db.TelegramBot, text string) error {
+	err := sendTelegramMessage(bot, text)
+	if err != nil {
+		logger.Error("Failed to send test telegram message", "botID", bot.ID, "error", err)
+	}
+	return err
 }

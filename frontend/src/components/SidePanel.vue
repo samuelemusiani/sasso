@@ -15,6 +15,7 @@ const menu = {
   'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
   'Port Forward': { icon: 'material-symbols:router', to: '/port-forwards' },
+  'Telegram Bots': { icon: 'mdi:telegram', to: '/telegram' },
 }
 
 function logout() {
@@ -50,7 +51,7 @@ onMounted(() => {
     <div
       :class="[
         'from-base-200 to-base-200/40 my-4 flex flex-col items-center rounded-xl bg-linear-to-r shadow-lg backdrop-blur-md transition-all duration-300',
-        collapsed ? 'w-16' : 'w-54',
+        collapsed ? 'w-16' : 'w-56',
       ]"
     >
       <!-- Toggle -->

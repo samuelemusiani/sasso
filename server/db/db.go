@@ -113,6 +113,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initTelegramBots()
+	if err != nil {
+		logger.Error("Failed to initialize telegram bots in database", "error", err)
+		return err
+	}
+
 	return nil
 }
 

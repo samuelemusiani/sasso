@@ -41,6 +41,7 @@ type User struct {
 	BackupRequests []BackupRequest `gorm:"foreignKey:UserID"`
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications
+	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {

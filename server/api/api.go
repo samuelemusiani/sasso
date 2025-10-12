@@ -143,6 +143,13 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Delete("/port-forwards/{id}", deletePortForward)
 
 		r.Get("/resources", getUserResources)
+
+		r.Get("/notify/telegram", listTelegramBots)
+		r.Post("/notify/telegram", createTelegramBot)
+		r.Patch("/notify/telegram/{id}", enableDisableTelegramBot)
+		r.Delete("/notify/telegram/{id}", deleteTelegramBot)
+		r.Post("/notify/telegram/{id}/test", testTelegramBot)
+
 	})
 
 	// Admin Auth routes
