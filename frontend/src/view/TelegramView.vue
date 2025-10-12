@@ -14,7 +14,8 @@ function fetchTelegramBots() {
   api
     .get('/notify/telegram')
     .then((res) => {
-      bots.value = res.data as TelegramBot[]
+      const tmp = res.data.sort((a: TelegramBot, b: TelegramBot) => a.id - b.id)
+      bots.value = tmp as TelegramBot[]
     })
     .catch((err) => {
       console.error('Failed to fetch Telegram Bots:', err)
@@ -65,6 +66,17 @@ function testTelegramBot(id: number) {
     })
 }
 
+function toggleEnableDisable(id: number, enabled: boolean) {
+  api
+    .patch(`/notify/telegram/${id}`, { enabled: enabled })
+    .then(() => {
+      fetchTelegramBots()
+    })
+    .catch((err) => {
+      console.error('Failed to toggle enable/disable:', err)
+    })
+}
+
 onMounted(() => {
   fetchTelegramBots()
 })
@@ -108,20 +120,31 @@ onMounted(() => {
           <td class="whitespace-nowrap">{{ bot.name }}</td>
           <td class="whitespace-nowrap">{{ bot.notes }}</td>
           <td class="whitespace-nowrap">{{ bot.chat_id }}</td>
-          <td class="whitespace-nowrap">
-            <button
-              @click="deleteTelegramBot(bot.id)"
-              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-            >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
-              <p class="hidden md:inline">Delete</p>
-            </button>
+          <td class="flex gap-2">
             <button
               @click="testTelegramBot(bot.id)"
               class="btn btn-primary btn-sm md:btn-md btn-outline ml-2 rounded-lg"
             >
               <IconVue icon="material-symbols:experiment" class="text-lg" />
               <p>Test</p>
+            </button>
+            <button
+              @click="toggleEnableDisable(bot.id, !bot.enabled)"
+              :class="bot.enabled ? 'btn btn-warning' : 'btn btn-success'"
+              class="btn btn-sm md:btn-md btn-outline rounded-lg"
+            >
+              <IconVue
+                :icon="bot.enabled ? 'material-symbols:toggle-on' : 'material-symbols:toggle-off'"
+                class="text-lg"
+              />
+              <p class="hidden md:inline">{{ bot.enabled ? 'Disable' : 'Enable' }}</p>
+            </button>
+            <button
+              @click="deleteTelegramBot(bot.id)"
+              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+            >
+              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <p class="hidden md:inline">Delete</p>
             </button>
           </td>
         </tr>

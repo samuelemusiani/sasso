@@ -119,4 +119,5 @@ export interface TelegramBot {
   notes: string
   token: string
   chat_id: string
+  enabled: boolean
 }
