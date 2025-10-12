@@ -77,3 +77,16 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func getGroup(w http.ResponseWriter, r *http.Request) {
+	group := getGroupFromContext(r)
+	returnGroup := returnGroup{
+		ID:          group.ID,
+		Name:        group.Name,
+		Description: group.Description,
+	}
+	if err := json.NewEncoder(w).Encode(returnGroup); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
