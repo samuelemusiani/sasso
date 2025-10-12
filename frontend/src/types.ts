@@ -121,3 +121,9 @@ export interface TelegramBot {
   chat_id: string
   enabled: boolean
 }
+
+export interface Group {
+  id: number
+  name: string
+  description: string
+}

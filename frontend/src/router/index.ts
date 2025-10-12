@@ -20,6 +20,8 @@ import SidebarView from '@/view/SidebarView.vue'
 import ErrorPage from '../view/ErrorPage.vue'
 import GlobalSSHKeysView from '@/view/admin/GlobalSSHKeysView.vue'
 import TelegramView from '@/view/TelegramView.vue'
+import GroupsView from '@/view/GroupsView.vue'
+import SingleGroupView from '@/view/SingleGroupView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -39,6 +41,13 @@ const router = createRouter({
         { path: '/port-forwards', component: PortForwardsView },
         { path: '/telegram', component: TelegramView },
         { path: '/settings', component: SettingsView },
+        {
+          path: '/group',
+          children: [
+            { path: '', component: GroupsView },
+            { path: ':id', component: SingleGroupView },
+          ],
+        },
         {
           path: '/admin',
           children: [

@@ -16,6 +16,7 @@ const menu = {
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
   'Port Forward': { icon: 'material-symbols:router', to: '/port-forwards' },
   'Telegram Bots': { icon: 'mdi:telegram', to: '/telegram' },
+  Groups: { icon: 'material-symbols:group-rounded', to: '/group' },
 }
 
 function logout() {
