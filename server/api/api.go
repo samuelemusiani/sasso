@@ -150,6 +150,12 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Delete("/notify/telegram/{id}", deleteTelegramBot)
 		r.Post("/notify/telegram/{id}/test", testTelegramBot)
 
+		r.Get("/groups", listUserGroups)
+		r.Post("/groups", createGroup)
+		r.Route("/groups/{id}", func(r chi.Router) {
+			r.Use(validateGroupOwnership())
+			r.Delete("/", deleteGroup)
+		})
 	})
 
 	// Admin Auth routes

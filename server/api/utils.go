@@ -424,3 +424,68 @@ func getInterfaceFromContext(r *http.Request) *db.Interface {
 	}
 	return iface
 }
+
+func validateGroupOwnership() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hfn := func(w http.ResponseWriter, r *http.Request) {
+			userID, err := getUserIDFromContext(r)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			sgroupID := chi.URLParam(r, "gruopid")
+			groupID, err := strconv.ParseUint(sgroupID, 10, 32)
+			if err != nil {
+				http.Error(w, "invalid group id", http.StatusBadRequest)
+				return
+			}
+
+			group, err := db.GetGroupByID(uint(groupID))
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					http.Error(w, "group not found", http.StatusBadRequest)
+					return
+				}
+				logger.Error("failed to get group by id", "error", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			userRole, err := db.GetUserRoleInGroup(userID, group.ID)
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					http.Error(w, "user is not a member of the group", http.StatusForbidden)
+					return
+				}
+				logger.Error("failed to get user role in group", "error", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "group", group)
+			ctx = context.WithValue(ctx, "group_user_role", userRole)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+
+		return http.HandlerFunc(hfn)
+	}
+}
+
+func getGroupFromContext(r *http.Request) *db.Group {
+	group, ok := r.Context().Value("group").(*db.Group)
+	if !ok {
+		panic("getGroupFromContext: group not found in context")
+	}
+	return group
+}
+
+func getUserRoleInGroupFromContext(r *http.Request) string {
+	role, ok := r.Context().Value("group_user_role").(string)
+	if !ok {
+		panic("getUserRoleInGroupFromContext: group_user_role not found in context")
+	}
+	return role
+}
