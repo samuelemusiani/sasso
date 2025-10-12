@@ -19,7 +19,7 @@ func listUserGroups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve groups", http.StatusInternalServerError)
 		return
 	}
-	var returnGroups []returnGroup
+	returnGroups := make([]returnGroup, 0, len(groups))
 	for _, group := range groups {
 		returnGroups = append(returnGroups, returnGroup{
 			ID:          group.ID,
