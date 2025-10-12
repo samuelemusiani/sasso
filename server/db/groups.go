@@ -32,9 +32,9 @@ func CreateGroup(name, description string, userID uint) error {
 			Name:        name,
 			Description: description,
 		}
-		if err := tx.Create(&group); err != nil {
-			logger.Error("Failed to create group", "error", err.Error)
-			return err.Error
+		if err := tx.Create(&group).Error; err != nil {
+			logger.Error("Failed to create group", "error", err)
+			return err
 		}
 
 		userGroup := UserGroup{
@@ -42,9 +42,9 @@ func CreateGroup(name, description string, userID uint) error {
 			GroupID: group.ID,
 			Role:    "owner",
 		}
-		if err := tx.Create(&userGroup); err != nil {
-			logger.Error("Failed to add user to group", "error", err.Error)
-			return err.Error
+		if err := tx.Create(&userGroup).Error; err != nil {
+			logger.Error("Failed to add user to group", "error", err)
+			return err
 		}
 		return nil
 	})
