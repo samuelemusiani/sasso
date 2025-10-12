@@ -434,7 +434,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			sgroupID := chi.URLParam(r, "gruopid")
+			sgroupID := chi.URLParam(r, "groupid")
 			groupID, err := strconv.ParseUint(sgroupID, 10, 32)
 			if err != nil {
 				http.Error(w, "invalid group id", http.StatusBadRequest)

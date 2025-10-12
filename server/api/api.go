@@ -152,7 +152,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/groups", listUserGroups)
 		r.Post("/groups", createGroup)
-		r.Route("/groups/{id}", func(r chi.Router) {
+		r.Route("/groups/{groupid}", func(r chi.Router) {
 			r.Use(validateGroupOwnership())
 			r.Delete("/", deleteGroup)
 		})
