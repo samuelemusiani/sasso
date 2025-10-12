@@ -3,10 +3,16 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+)
+
+var (
+	telegramBotTokenRegex  = regexp.MustCompile(`^\d{10}:(\w|-){35}$`)
+	telegramBotChatIDRegex = regexp.MustCompile(`^-?\d{5,20}$`)
 )
 
 type returnedTelegramBot struct {
@@ -54,6 +60,21 @@ func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 	var req createTelegramBotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.Token == "" || req.ChatID == "" {
+		http.Error(w, "Name, token, and chat_id are required", http.StatusBadRequest)
+		return
+	}
+
+	if !telegramBotTokenRegex.MatchString(req.Token) {
+		http.Error(w, "Invalid Telegram bot token format", http.StatusBadRequest)
+		return
+	}
+
+	if !telegramBotChatIDRegex.MatchString(req.ChatID) {
+		http.Error(w, "Invalid Telegram chat ID format", http.StatusBadRequest)
 		return
 	}
 
