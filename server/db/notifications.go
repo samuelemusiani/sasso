@@ -68,6 +68,7 @@ type TelegramBot struct {
 	Token     string `gorm:"type:varchar(255);not null"`
 	ChatID    string `gorm:"type:varchar(255);not null"`
 	UserID    uint   `gorm:"not null"`
+	Enabled   bool   `gorm:"not null;default:true"`
 }
 
 func initTelegramBots() error {
@@ -83,6 +84,15 @@ func GetTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
 	var bots []TelegramBot
 	if err := db.Where("user_id = ?", userID).Find(&bots).Error; err != nil {
 		logger.Error("Failed to get telegram bots by user ID", "userID", userID, "error", err)
+		return nil, err
+	}
+	return bots, nil
+}
+
+func GetEnabledTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
+	var bots []TelegramBot
+	if err := db.Where("user_id = ? AND enabled = ?", userID, true).Find(&bots).Error; err != nil {
+		logger.Error("Failed to get enabled telegram bots by user ID", "userID", userID, "error", err)
 		return nil, err
 	}
 	return bots, nil
@@ -117,7 +127,7 @@ func DeleteTelegramBot(id uint, userID uint) error {
 
 func GetUsersWithTelegramBots() ([]uint, error) {
 	var userIDs []uint
-	if err := db.Model(&TelegramBot{}).Distinct().Pluck("user_id", &userIDs).Error; err != nil {
+	if err := db.Model(&TelegramBot{}).Where("enabled = ?", true).Distinct().Pluck("user_id", &userIDs).Error; err != nil {
 		logger.Error("Failed to get users with telegram bots", "error", err)
 		return nil, err
 	}
@@ -134,4 +144,15 @@ func GetTelegramBotByID(id uint) (*TelegramBot, error) {
 		return nil, err
 	}
 	return &bot, nil
+}
+
+func ChangeTelegramBotEnabled(id uint, userID uint, enabled bool) error {
+	if err := db.Model(&TelegramBot{}).Where("id = ? AND user_id = ?", id, userID).Update("enabled", enabled).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrNotFound
+		}
+		logger.Error("Failed to change telegram bot enabled status", "id", id, "enabled", enabled, "error", err)
+		return err
+	}
+	return nil
 }

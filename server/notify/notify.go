@@ -254,7 +254,7 @@ func sendBulkEmail(n *notification) error {
 }
 
 func sendSingleTelegram(n *notification) error {
-	bots, err := db.GetTelegramBotsByUserID(n.UserID)
+	bots, err := db.GetEnabledTelegramBotsByUserID(n.UserID)
 	if err != nil {
 		logger.Error("Failed to get telegram bots for user", "userID", n.UserID, "error", err)
 		return err
