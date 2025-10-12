@@ -146,7 +146,7 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 }
 
 type toggleTelegramBotRequest struct {
-	Enable bool `json:"enable"`
+	Enabled bool `json:"enabled"`
 }
 
 func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +164,7 @@ func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := mustGetUserIDFromContext(r)
-	err = db.ChangeTelegramBotEnabled(uint(botID), userID, req.Enable)
+	err = db.ChangeTelegramBotEnabled(uint(botID), userID, req.Enabled)
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "Telegram bot not found", http.StatusNotFound)
