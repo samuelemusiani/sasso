@@ -119,6 +119,9 @@ func GetUserRoleInGroup(userID, groupID uint) (string, error) {
 	var userGroup UserGroup
 	err := db.First(&userGroup, "user_id = ? AND group_id = ?", userID, groupID).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", ErrNotFound
+		}
 		logger.Error("Failed to retrieve user role in group", "error", err)
 		return "", err
 	}
