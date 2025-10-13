@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
                   <span class="hidden md:inline">Delete</span>
                 </button>
               </div>
-              <div class="flex items-center gap-2">
+              <div v-show="vm.status !== 'unknown'" class="flex items-center gap-2">
                 <RouterLink
                   :to="`/vm/${vm.id}/interfaces`"
                   class="btn btn-primary btn-sm md:btn-md rounded-lg"
