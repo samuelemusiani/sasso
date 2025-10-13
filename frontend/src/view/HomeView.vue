@@ -43,7 +43,7 @@ async function fetchResourceStats() {
           active: 0,
           max: data.max_nets,
           allocated: data.allocated_nets,
-          color: 'orange',
+          color: 'orange-400',
         },
       ]
     })

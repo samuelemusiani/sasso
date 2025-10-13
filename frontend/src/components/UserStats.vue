@@ -11,66 +11,15 @@ const props = defineProps<{
   }>
 }>()
 
-const colorClasses: Record<
-  string,
-  { bg: string; text: string; inner: string; hex: string; gradient: string }
-> = {
-  primary: {
-    bg: 'bg-primary/20',
-    text: '!text-primary',
-    inner: '!text-primary-content',
-    hex: '#365fab',
-    gradient: 'from-primary/20 to-primary/5',
-  },
-  secondary: {
-    bg: 'bg-secondary/20',
-    text: 'text-secondary',
-    inner: 'text-secondary-content',
-    hex: '#f000b8',
-    gradient: 'from-secondary/20 to-secondary/5',
-  },
-  orange: {
-    bg: 'bg-orange-400/20',
-    text: 'text-orange-400',
-    inner: 'text-orange-400-content',
-    hex: '#F7996E',
-    gradient: 'from-orange-400/20 to-orange-400/5',
-  },
-  accent: {
-    bg: 'bg-accent/20',
-    text: 'text-accent',
-    inner: 'text-accent-content',
-    hex: '#37cdbe',
-    gradient: 'from-accent/20 to-accent/5',
-  },
-  info: {
-    bg: 'bg-info/20',
-    text: 'text-info',
-    inner: 'text-info-content',
-    hex: '#3abff8',
-    gradient: 'from-info/20 to-info/5',
-  },
-  success: {
-    bg: 'bg-success/20',
-    text: 'text-success',
-    inner: 'text-success-content',
-    hex: '#36d399',
-    gradient: 'from-success/20 to-success/5',
-  },
-  warning: {
-    bg: 'bg-warning/20',
-    text: 'text-warning',
-    inner: 'text-warning-content',
-    hex: '#fbbd23',
-    gradient: 'from-warning/20 to-warning/5',
-  },
-  error: {
-    bg: 'bg-error/20',
-    text: 'text-error',
-    inner: 'text-error-content',
-    hex: '#f87272',
-    gradient: 'from-error/20 to-error/5',
-  },
+const colors: Record<string, string> = {
+  primary: '#365fab',
+  secondary: '#27457c',
+  'orange-400': '#f7996e',
+  accent: '#7ebdc3',
+  info: '#89d2dc',
+  success: '#a3f7b5',
+  warning: '#ffed65',
+  error: '#e87461',
 }
 </script>
 
@@ -87,7 +36,7 @@ const colorClasses: Record<
         <!-- Header with Icon and Title -->
         <div class="mb-6 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <IconVue :icon="stat.icon" class="text-3xl" :class="colorClasses[stat.color].text" />
+            <IconVue :icon="stat.icon" class="text-3xl" :class="`text-${stat.color}`" />
             <h3 class="text-base-content text-lg font-bold">{{ stat.item }}</h3>
           </div>
         </div>
@@ -95,7 +44,7 @@ const colorClasses: Record<
         <!-- Stats Numbers -->
         <div class="mb-6 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-3xl font-black" :class="colorClasses[stat.color].text">
+            <span class="text-3xl font-black" :class="`text-${stat.color}`">
               {{ stat.allocated }}
             </span>
             <div class="text-base-content/60">
@@ -130,7 +79,7 @@ const colorClasses: Record<
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.active / stat.max) * 100}%; background: linear-gradient(90deg, ${colorClasses[stat.color].hex}80, ${colorClasses[stat.color].hex})`"
+                :style="`width: ${(stat.active / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
@@ -147,7 +96,7 @@ const colorClasses: Record<
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.allocated / stat.max) * 100}%; background: linear-gradient(90deg, ${colorClasses[stat.color].hex}80, ${colorClasses[stat.color].hex})`"
+                :style="`width: ${(stat.allocated / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
