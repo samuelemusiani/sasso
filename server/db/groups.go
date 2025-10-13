@@ -14,6 +14,10 @@ type Group struct {
 
 	Name        string
 	Description string
+
+	// Read-only field populated via join
+	// Role of the user that is querying the groups
+	Role string `gorm:"->"`
 }
 
 type UserGroup struct {
@@ -71,7 +75,9 @@ func CreateGroup(name, description string, userID uint) error {
 
 func GetGroupsByUserID(userID uint) ([]Group, error) {
 	var groups []Group
-	err := db.Joins("JOIN user_groups ON user_groups.group_id = groups.id").
+	err := db.Table("groups").
+		Select("groups.*, user_groups.role as role").
+		Joins("JOIN user_groups ON user_groups.group_id = groups.id").
 		Where("user_groups.user_id = ?", userID).
 		Find(&groups).Error
 	if err != nil {

@@ -14,6 +14,8 @@ type returnGroup struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 
+	Role string `json:"role,omitempty"`
+
 	Members []returnGroupMember `json:"members,omitempty"`
 }
 
@@ -36,6 +38,7 @@ func listUserGroups(w http.ResponseWriter, r *http.Request) {
 			ID:          group.ID,
 			Name:        group.Name,
 			Description: group.Description,
+			Role:        group.Role,
 		})
 	}
 	if err := json.NewEncoder(w).Encode(returnGroups); err != nil {
