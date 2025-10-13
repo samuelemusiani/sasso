@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -234,7 +235,8 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 	}
 	err := db.Create(&invitation).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+		if strings.Contains(err.Error(), "duplicate key value") ||
+			strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return ErrAlreadyExists
 		}
 		logger.Error("Failed to create group invitation", "error", err)
