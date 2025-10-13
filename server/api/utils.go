@@ -455,7 +455,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			userRole, err := db.GetUserRoleInGroup(userID, group.ID)
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
-					http.Error(w, "user is not a member of the group", http.StatusForbidden)
+					http.Error(w, "group not found", http.StatusNotFound)
 					return
 				}
 				logger.Error("failed to get user role in group", "error", err)
