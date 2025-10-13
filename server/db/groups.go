@@ -149,8 +149,8 @@ func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
 	return invitations, nil
 }
 
-func DeclineGroupInvitation(userID, groupID uint) error {
-	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").
+func DeclineGroupInvitation(invitationID, userID uint) error {
+	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").
 		Update("state", "declined").Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -162,10 +162,10 @@ func DeclineGroupInvitation(userID, groupID uint) error {
 	return nil
 }
 
-func AcceptGroupInvitation(userID, groupID uint) error {
+func AcceptGroupInvitation(invitationID, userID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var invitation GroupInvitation
-		err := tx.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").First(&invitation).Error
+		err := tx.Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").First(&invitation).Error
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return ErrNotFound
@@ -177,7 +177,7 @@ func AcceptGroupInvitation(userID, groupID uint) error {
 		err = tx.Model(&invitation).Update("state", "accepted").Error
 		userGroup := UserGroup{
 			UserID:  userID,
-			GroupID: groupID,
+			GroupID: invitation.GroupID,
 			Role:    invitation.Role,
 		}
 		err = tx.Create(&userGroup).Error
