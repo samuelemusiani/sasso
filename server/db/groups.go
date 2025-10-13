@@ -137,7 +137,7 @@ func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
 	var invitations []GroupInvitation
 	err := db.Table("group_invitations as gi").
 		Joins("JOIN groups ON groups.id = gi.group_id JOIN users ON users.id = gi.user_id").
-		Select("gi.id, gi.group_id, groups.name as group_name, groups.description as group_description, gi.role, gi.state, users.username as user_name").
+		Select("gi.id, gi.group_id, groups.name as group_name, groups.description as group_description, gi.role, gi.state, users.username as username").
 		Where("gi.user_id = ? AND state = ?", userID, "pending").
 		Scan(&invitations).Error
 
@@ -203,7 +203,7 @@ func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error
 	var invitations []GroupInvitation
 	err := db.Table("group_invitations as gi").
 		Joins("JOIN users ON users.id = gi.user_id").
-		Select("gi.id, gi.group_id, users.username as user_name, gi.role, gi.state").
+		Select("gi.id, gi.group_id, users.username as username, gi.role, gi.state").
 		Where("gi.group_id = ? AND gi.state = ?", groupID, "pending").
 		Scan(&invitations).Error
 	if err != nil {
