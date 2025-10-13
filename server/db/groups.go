@@ -36,9 +36,9 @@ type GroupInvitation struct {
 	Role    string
 	State   string // e.g., "pending", "accepted", "declined"
 
-	Username         string `gorm:"-"`
-	GroupName        string `gorm:"-"`
-	GroupDescription string `gorm:"-"`
+	Username         string `gorm:"->"`
+	GroupName        string `gorm:"->"`
+	GroupDescription string `gorm:"->"`
 }
 
 func initGroups() error {
