@@ -228,9 +228,8 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 	return nil
 }
 
-func RevokeGroupInvitationToUser(userID, groupID uint) error {
-	err := db.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").
-		Delete(&GroupInvitation{}).Error
+func RevokeGroupInvitationToUser(inviteID, groupID uint) error {
+	err := db.Where("id = ? AND group_id = ? AND state = ?", inviteID, groupID, "pending").Delete(&GroupInvitation{}).Error
 	if err != nil {
 		logger.Error("Failed to revoke group invitation", "error", err)
 		return err

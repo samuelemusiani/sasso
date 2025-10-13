@@ -270,6 +270,11 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if getUserRoleInGroupFromContext(r) != "owner" {
+		http.Error(w, "Only group owners can revoke invitations", http.StatusForbidden)
+		return
+	}
+
 	if err := db.RevokeGroupInvitationToUser(uint(inviteID), group.ID); err != nil {
 		http.Error(w, "Failed to revoke invitation", http.StatusInternalServerError)
 		return
