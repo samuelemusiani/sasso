@@ -152,10 +152,27 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/groups", listUserGroups)
 		r.Post("/groups", createGroup)
+
+		// This route does not require group ownership, as it's used to accept invitations
+		r.Get("/groups/invite", listGroupInvitations)
+		r.Patch("/groups/invite/{inviteid}", manageInvitation)
+
 		r.Route("/groups/{groupid}", func(r chi.Router) {
 			r.Use(validateGroupOwnership())
 			r.Get("/", getGroup)
 			r.Delete("/", deleteGroup)
+
+			// Invitations
+
+			r.Get("/invite", getGroupPendingInvitations)
+			r.Post("/invite", inviteUserToGroup)
+			r.Delete("/invite/{inviteid}", revokeGroupInvitation)
+
+			// Members management
+			r.Get("/members", listGroupMembers)
+			r.Get("/members/me", getMyGroupMembership)
+			r.Delete("/members/me", leaveGroup)
+			r.Delete("/members/{userid}", removeUserFromGroup)
 		})
 	})
 

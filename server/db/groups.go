@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,8 +23,26 @@ type UserGroup struct {
 	Role      string // e.g., "member", "admin", "owner"
 }
 
+type GroupMemberWithUsername struct {
+	UserID   uint
+	Username string
+	Role     string
+}
+
+type GroupInvitation struct {
+	ID      uint `gorm:"primaryKey"`
+	GroupID uint
+	UserID  uint
+	Role    string
+	State   string // e.g., "pending", "accepted", "declined"
+
+	Username         string `gorm:"-"`
+	GroupName        string `gorm:"-"`
+	GroupDescription string `gorm:"-"`
+}
+
 func initGroups() error {
-	return db.AutoMigrate(&Group{}, &UserGroup{})
+	return db.AutoMigrate(&Group{}, &UserGroup{}, &GroupInvitation{})
 }
 
 func CreateGroup(name, description string, userID uint) error {
@@ -95,4 +114,136 @@ func GetUserRoleInGroup(userID, groupID uint) (string, error) {
 		return "", err
 	}
 	return userGroup.Role, nil
+}
+
+func GetGroupMembers(groupID uint) ([]GroupMemberWithUsername, error) {
+	var members []GroupMemberWithUsername
+	err := db.Table("user_groups").
+		Joins("JOIN users ON users.id = user_groups.user_id").
+		Where("user_groups.group_id = ?", groupID).
+		Select("users.id as user_id, users.username, user_groups.role").
+		Scan(&members).Error
+	if err != nil {
+		logger.Error("Failed to retrieve group members", "error", err)
+		return nil, err
+	}
+
+	return members, nil
+}
+
+// This functions is used to get pending invitations for a user along with group
+// details
+func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
+	var invitations []GroupInvitation
+	err := db.Table("group_invitations as gi").
+		Joins("JOIN groups ON groups.id = gi.group_id JOIN users ON users.id = gi.user_id").
+		Select("gi.id, gi.group_id, groups.name as group_name, groups.description as group_description, gi.role, gi.state, users.username as user_name").
+		Where("gi.user_id = ? AND state = ?", userID, "pending").
+		Scan(&invitations).Error
+
+	if err != nil {
+		logger.Error("Failed to retrieve group invitations", "error", err)
+		return nil, err
+	}
+
+	return invitations, nil
+}
+
+func DeclineGroupInvitation(userID, groupID uint) error {
+	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").
+		Update("state", "declined").Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil // No pending invitation found, nothing to do
+		}
+		logger.Error("Failed to decline invitation", "error", err)
+		return err
+	}
+	return nil
+}
+
+func AcceptGroupInvitation(userID, groupID uint) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var invitation GroupInvitation
+		err := tx.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").First(&invitation).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrNotFound
+			}
+			logger.Error("Failed to find invitation", "error", err)
+			return err
+		}
+
+		err = tx.Model(&invitation).Update("state", "accepted").Error
+		userGroup := UserGroup{
+			UserID:  userID,
+			GroupID: groupID,
+			Role:    invitation.Role,
+		}
+		err = tx.Create(&userGroup).Error
+		if err != nil {
+			logger.Error("Failed to update invitation state", "error", err)
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return ErrNotFound
+		}
+		logger.Error("Failed to accept invitation", "error", err)
+		return err
+	}
+	return nil
+}
+
+// This function is used to get pending invitations for a group along with
+// user details
+func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error) {
+	var invitations []GroupInvitation
+	err := db.Table("group_invitations as gi").
+		Joins("JOIN users ON users.id = gi.user_id").
+		Select("gi.id, gi.group_id, users.username as user_name, gi.role, gi.state").
+		Where("gi.group_id = ? AND gi.state = ?", groupID, "pending").
+		Scan(&invitations).Error
+	if err != nil {
+		logger.Error("Failed to retrieve group invitations", "error", err)
+		return nil, err
+	}
+	return invitations, nil
+}
+
+func InviteUserToGroup(userID, groupID uint, role string) error {
+	invitation := GroupInvitation{
+		UserID:  userID,
+		GroupID: groupID,
+		Role:    role,
+		State:   "pending",
+	}
+	err := db.Create(&invitation).Error
+	if err != nil {
+		logger.Error("Failed to create group invitation", "error", err)
+		return err
+	}
+	return nil
+}
+
+func RevokeGroupInvitationToUser(userID, groupID uint) error {
+	err := db.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").
+		Delete(&GroupInvitation{}).Error
+	if err != nil {
+		logger.Error("Failed to revoke group invitation", "error", err)
+		return err
+	}
+	return nil
+}
+
+func RemoveUserFromGroup(userID, groupID uint) error {
+	err := db.Where("user_id = ? AND group_id = ?", userID, groupID).
+		Delete(&UserGroup{}).Error
+	if err != nil {
+		logger.Error("Failed to remove user from group", "error", err)
+		return err
+	}
+	return nil
 }
