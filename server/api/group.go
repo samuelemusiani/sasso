@@ -158,12 +158,17 @@ func listGroupInvitations(w http.ResponseWriter, r *http.Request) {
 }
 
 type manageInvitationsRequest struct {
-	InvitationID uint   `json:"invitation_id"`
-	Action       string `json:"action"` // "accept" or "decline"
+	Action string `json:"action"` // "accept" or "decline"
 }
 
 func manageInvitation(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
+	sInvitationID := chi.URLParam(r, "inviteid")
+	invitationID, err := strconv.ParseUint(sInvitationID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid invitation ID", http.StatusBadRequest)
+		return
+	}
 
 	var req manageInvitationsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -171,19 +176,19 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.InvitationID == 0 || (req.Action != "accept" && req.Action != "decline") {
+	if req.Action != "accept" && req.Action != "decline" {
 		http.Error(w, "Invalid invitation ID or action", http.StatusBadRequest)
 		return
 	}
 
 	switch req.Action {
 	case "accept":
-		if err := db.AcceptGroupInvitation(req.InvitationID, userID); err != nil {
+		if err := db.AcceptGroupInvitation(uint(invitationID), userID); err != nil {
 			http.Error(w, "Failed to accept invitation", http.StatusInternalServerError)
 			return
 		}
 	case "decline":
-		if err := db.DeclineGroupInvitation(req.InvitationID, userID); err != nil {
+		if err := db.DeclineGroupInvitation(uint(invitationID), userID); err != nil {
 			http.Error(w, "Failed to decline invitation", http.StatusInternalServerError)
 			return
 		}
