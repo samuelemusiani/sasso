@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import type { Group } from '@/types'
+import type { Group, GroupInvite } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 
 const groups = ref<Group[]>([])
 const name = ref('')
 const description = ref('')
+
+const invitations = ref<GroupInvite[]>([])
 
 function fetchGroups() {
   api
@@ -17,6 +19,18 @@ function fetchGroups() {
     })
     .catch((err) => {
       console.error('Failed to fetch Groups:', err)
+    })
+}
+
+function fetchInvitations() {
+  api
+    .get('/groups/invites')
+    .then((res) => {
+      const tmp = res.data.sort((a: GroupInvite, b: GroupInvite) => a.id - b.id)
+      invitations.value = tmp as GroupInvite[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch Invitations:', err)
     })
 }
 
@@ -47,6 +61,18 @@ function deleteGroup(id: number) {
         console.error('Failed to delete Group:', err)
       })
   }
+}
+
+function manageInvitation(id: number, action: string) {
+  api
+    .post(`/groups/invites/${id}/${action}`, { action })
+    .then(() => {
+      fetchInvitations()
+      fetchGroups()
+    })
+    .catch((err) => {
+      console.error(`Failed to ${action} invitation:`, err)
+    })
 }
 
 onMounted(() => {
@@ -95,6 +121,48 @@ onMounted(() => {
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="divider my-4"></div>
+
+    <div>
+      <h2 class="mb-2 text-xl font-semibold">Group Invitations</h2>
+    </div>
+
+    <table class="table w-full table-auto">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Description</th>
+          <th scope="col">Role</th>
+          <th scope="col">State</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="i in invitations" :key="i.id">
+          <td class="whitespace-nowrap">{{ i.group_name }}</td>
+          <td class="whitespace-nowrap">{{ i.group_description }}</td>
+          <td class="whitespace-nowrap">{{ i.role }}</td>
+          <td class="whitespace-nowrap">{{ i.state }}</td>
+          <td class="flex gap-2">
+            <Button
+              @click="manageInvitation(i.id, 'accept')"
+              class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+            >
+              <IconVue icon="material-symbols:edit" class="text-lg" />
+              <p class="hidden md:inline">Accept</p>
+            </Button>
+            <button
+              @click="manageInvitation(i.id, 'decline')"
+              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+            >
+              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <p class="hidden md:inline">Decline</p>
             </button>
           </td>
         </tr>

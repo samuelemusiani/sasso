@@ -127,3 +127,20 @@ export interface Group {
   name: string
   description: string
 }
+
+export interface GroupInvite {
+  id: number
+  group_id: number
+  user_id: number
+  role: string
+  state: string
+  username: string
+  group_name: string
+  group_description: string
+}
+
+export interface GroupMember {
+  user_id: number
+  username: string
+  role: string
+}
