@@ -106,6 +106,9 @@ func GetGroupByID(groupID uint) (*Group, error) {
 	var group Group
 	err := db.First(&group, groupID).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
 		logger.Error("Failed to retrieve group by ID", "error", err)
 		return nil, err
 	}
