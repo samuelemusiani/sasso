@@ -258,7 +258,21 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	belongs, err := db.DoesUserBelongToGroup(u.ID, group.ID)
+	if err != nil {
+		http.Error(w, "Failed to check user group membership", http.StatusInternalServerError)
+		return
+	}
+	if belongs {
+		http.Error(w, "User already in group", http.StatusConflict)
+		return
+	}
+
 	if err := db.InviteUserToGroup(u.ID, group.ID, req.Role); err != nil {
+		if err == db.ErrAlreadyExists {
+			http.Error(w, "User already invited", http.StatusConflict)
+			return
+		}
 		http.Error(w, "Failed to invite user", http.StatusInternalServerError)
 		return
 	}

@@ -19,8 +19,9 @@ var (
 	db     *gorm.DB     = nil
 	logger *slog.Logger = nil
 
-	ErrNotFound  = errors.New("record not found")
-	ErrForbidden = errors.New("forbidden")
+	ErrNotFound      = errors.New("record not found")
+	ErrForbidden     = errors.New("forbidden")
+	ErrAlreadyExists = errors.New("record already exists")
 )
 
 func Init(dbLogger *slog.Logger, c config.Database) error {

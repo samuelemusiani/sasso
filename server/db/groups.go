@@ -35,8 +35,8 @@ type GroupMemberWithUsername struct {
 
 type GroupInvitation struct {
 	ID      uint `gorm:"primaryKey"`
-	GroupID uint
-	UserID  uint
+	GroupID uint `gorm:"uniqueIndex:idx_user_group"`
+	UserID  uint `gorm:"uniqueIndex:idx_user_group"`
 	Role    string
 	State   string // e.g., "pending", "accepted", "declined"
 
@@ -234,6 +234,9 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 	}
 	err := db.Create(&invitation).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrAlreadyExists
+		}
 		logger.Error("Failed to create group invitation", "error", err)
 		return err
 	}
@@ -257,4 +260,14 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 		return err
 	}
 	return nil
+}
+
+func DoesUserBelongToGroup(userID, groupID uint) (bool, error) {
+	var count int64
+	err := db.Model(&UserGroup{}).Where("user_id = ? AND group_id = ?", userID, groupID).Count(&count).Error
+	if err != nil {
+		logger.Error("Failed to check user membership in group", "error", err)
+		return false, err
+	}
+	return count > 0, nil
 }
