@@ -126,6 +126,8 @@ export interface Group {
   id: number
   name: string
   description: string
+  role?: string
+  members?: GroupMember[]
 }
 
 export interface GroupInvite {

@@ -65,7 +65,7 @@ function deleteGroup(id: number) {
 
 function manageInvitation(id: number, action: string) {
   api
-    .post(`/groups/invites/${id}/${action}`, { action })
+    .patch(`/groups/invites/${id}`, { action })
     .then(() => {
       fetchInvitations()
       fetchGroups()
@@ -77,6 +77,7 @@ function manageInvitation(id: number, action: string) {
 
 onMounted(() => {
   fetchGroups()
+  fetchInvitations()
 })
 </script>
 
@@ -113,9 +114,10 @@ onMounted(() => {
               class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:edit" class="text-lg" />
-              <p class="hidden md:inline">Edit</p>
+              <p class="hidden md:inline">Manage</p>
             </RouterLink>
             <button
+              v-show="g.role === 'owner'"
               @click="deleteGroup(g.id)"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
@@ -150,13 +152,13 @@ onMounted(() => {
           <td class="whitespace-nowrap">{{ i.role }}</td>
           <td class="whitespace-nowrap">{{ i.state }}</td>
           <td class="flex gap-2">
-            <Button
+            <button
               @click="manageInvitation(i.id, 'accept')"
               class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:edit" class="text-lg" />
               <p class="hidden md:inline">Accept</p>
-            </Button>
+            </button>
             <button
               @click="manageInvitation(i.id, 'decline')"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"

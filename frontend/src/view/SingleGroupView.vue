@@ -16,7 +16,7 @@ const username = ref('')
 const role = ref('member')
 
 const invitations = ref<GroupInvite[]>([])
-const members = ref<GroupMember[]>([])
+// const members = ref<GroupMember[]>([])
 
 const me = ref<GroupMember | null>(null)
 
@@ -81,7 +81,9 @@ function fetchMembers() {
     .get(`/groups/${groupId}/members`)
     .then((res) => {
       const tmp = res.data.sort((a: GroupMember, b: GroupMember) => a.user_id - b.user_id)
-      members.value = tmp as GroupMember[]
+      if (group.value) {
+        group.value.members = tmp as GroupMember[]
+      }
     })
     .catch((err) => {
       console.error('Failed to fetch Members:', err)
@@ -100,11 +102,24 @@ function fetchMe() {
 }
 
 function deleteMember(id: number) {
-  const msg = id === me.value?.user_id ? 'leave the group' : 'remove this member from the group'
+  let leave_me = false
+  let msg = ''
+  let id_path = id.toString()
+  if (id === me.value?.user_id) {
+    msg = 'leave the group'
+    id_path = 'me'
+    leave_me = true
+  } else {
+    msg = 'remove this member'
+  }
   if (confirm('Are you sure you want to ' + msg + '?')) {
     api
-      .delete(`/groups/${groupId}/members/${id}`)
+      .delete(`/groups/${groupId}/members/${id_path}`)
       .then(() => {
+        if (leave_me) {
+          router.push('/admin/groups')
+          return
+        }
         fetchMembers()
       })
       .catch((err) => {
@@ -129,7 +144,7 @@ function deleteGroup(id: number) {
 onMounted(() => {
   fetchMe()
   fetchGroup()
-  fetchMembers()
+  // fetchMembers()
   fetchInvitations()
 })
 </script>
@@ -180,7 +195,7 @@ onMounted(() => {
     <div>
       <h2 class="mb-2 text-xl font-semibold">Group Members</h2>
       <div>
-        <template v-if="members.length === 0">
+        <template v-if="group?.members?.length === 0">
           <p>No members in this group.</p>
         </template>
         <div v-else class="overflow-x-auto">
@@ -192,9 +207,9 @@ onMounted(() => {
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody v-if="group?.members">
               <tr
-                v-for="member in members"
+                v-for="member in group.members"
                 :key="member.user_id"
                 class="odd:bg-base-100 even:bg-base-200"
               >
