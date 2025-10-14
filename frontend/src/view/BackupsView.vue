@@ -5,6 +5,7 @@ import type { Backup, BackupRequest } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { useLoadingStore } from '@/stores/loading'
+import { getStatusClass } from '@/const'
 
 const backups = ref<Backup[]>([])
 
@@ -172,7 +173,9 @@ onBeforeUnmount(() => {
             <td>{{ bk.ctime }}</td>
             <!-- TODO: fix with some fancy notes -->
             <td>{{ bk.notes }}</td>
-            <td>{{ bk.protected }}</td>
+            <td class="font-semibold capitalize" :class="getStatusClass(bk.protected.toString())">
+              {{ bk.protected }}
+            </td>
             <td class="flex justify-end gap-2 text-right text-sm font-medium">
               <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->
               <button

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import type { Interface, Net } from '@/types'
 import { api } from '@/lib/api'
 import InterfaceForm from '@/components/vm/InterfaceForm.vue'
+import { getStatusClass } from '@/const'
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
@@ -139,7 +140,9 @@ onBeforeUnmount(() => {
             <td class="">{{ iface.vlan_tag }}</td>
             <td class="">{{ iface.ip_add }}</td>
             <td class="">{{ iface.gateway }}</td>
-            <td class="">{{ iface.status }}</td>
+            <td class="font-semibold capitalize" :class="getStatusClass(iface.status)">
+              {{ iface.status }}
+            </td>
             <td class="flex justify-end gap-2 text-right text-sm font-medium">
               <!-- FIXME: editing will show another"CreateNew" component filled -->
               <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
