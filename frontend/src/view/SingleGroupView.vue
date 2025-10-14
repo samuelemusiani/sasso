@@ -153,24 +153,26 @@ onMounted(() => {
   <div class="p-2">
     <AdminBreadcrumbs />
 
-    <CreateNew title="Invitation" :create="inviteUser">
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            v-model="username"
-            class="input w-48 rounded-lg border p-2"
-          />
-          <label for="role">Role</label>
-          <select id="role" v-model="role" class="input w-48 rounded-lg border p-2">
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
+    <div v-show="me && me.role == 'owner'">
+      <CreateNew title="Invitation" :create="inviteUser">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <label for="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              v-model="username"
+              class="input w-48 rounded-lg border p-2"
+            />
+            <label for="role">Role</label>
+            <select id="role" v-model="role" class="input w-48 rounded-lg border p-2">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
         </div>
-      </div>
-    </CreateNew>
+      </CreateNew>
+    </div>
 
     <div>
       <button

@@ -252,6 +252,11 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if getUserRoleInGroupFromContext(r) != "owner" {
+		http.Error(w, "Only group owners can invite users", http.StatusForbidden)
+		return
+	}
+
 	u, err := db.GetUserByUsername(req.Username)
 	if err != nil {
 		if err == db.ErrNotFound {
