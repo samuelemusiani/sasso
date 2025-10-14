@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import type { Backup, BackupRequest } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import { useLoadingStore } from '@/stores/loading'
 
 const backups = ref<Backup[]>([])
 
@@ -18,6 +19,8 @@ const backupRequests = ref<BackupRequest[]>([])
 const pendingBackupRequests = computed(() =>
   backupRequests.value.filter((req) => req.status === 'pending'),
 )
+
+const loading = useLoadingStore()
 
 function fetchBackupsRequests() {
   return api
@@ -84,6 +87,7 @@ function deleteBackup(backupID: string) {
 }
 
 function protectBackup(backupID: string, protect: boolean) {
+  loading.start('backup', backupID, 'protect')
   api
     .post(`/vm/${vmid}/backup/${backupID}/protect`, {
       protected: protect,
@@ -95,6 +99,9 @@ function protectBackup(backupID: string, protect: boolean) {
     .catch((err) => {
       console.error('Failed to toggle backup protection:', err)
       alert(`Failed to toggle backup protection for ${backupID}.`)
+    })
+    .finally(() => {
+      loading.stop('backup', backupID, 'protect')
     })
 }
 
@@ -171,7 +178,12 @@ onBeforeUnmount(() => {
               <button
                 @click="protectBackup(bk.id, !bk.protected)"
                 class="btn btn-primary rounded-lg"
+                :disabled="loading.is('backup', bk.id, 'protect')"
               >
+                <span
+                  v-show="loading.is('backup', bk.id, 'protect')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
                 {{ bk.protected ? 'Unprotect' : 'Protect' }}
               </button>
               <button @click="restoreBackup(bk.id)" class="btn btn-warning rounded-lg">

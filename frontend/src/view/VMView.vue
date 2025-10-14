@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
@@ -19,20 +20,8 @@ const error = ref('')
 const extendBy = ref(1)
 const showIds = ref(false)
 
-const loadingStates = ref<Set<string>>(new Set())
-
-const isLoading = (vmId: number, action: string) => {
-  return loadingStates.value.has(`${vmId}-${action}`)
-}
-
-const setLoading = (vmId: number, action: string, loading: boolean) => {
-  const key = `${vmId}-${action}`
-  if (loading) {
-    loadingStates.value.add(key)
-  } else {
-    loadingStates.value.delete(key)
-  }
-}
+const loading = useLoadingStore()
+const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
 function fetchVMs() {
   api
@@ -80,48 +69,30 @@ function deleteVM(vmid: number) {
 }
 
 function startVM(vmid: number) {
-  setLoading(vmid, 'start', true)
+  loading.start('vm', vmid, 'start')
   api
     .post(`/vm/${vmid}/start`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to start VM:', err)
-    })
-    .finally(() => {
-      setLoading(vmid, 'start', false)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to start VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'start'))
 }
 
 function stopVM(vmid: number) {
-  setLoading(vmid, 'stop', true)
+  loading.start('vm', vmid, 'stop')
   api
     .post(`/vm/${vmid}/stop`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to stop VM:', err)
-    })
-    .finally(() => {
-      setLoading(vmid, 'stop', false)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to stop VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'stop'))
 }
 
 function restartVM(vmid: number) {
-  setLoading(vmid, 'restart', true)
+  loading.start('vm', vmid, 'restart')
   api
     .post(`/vm/${vmid}/restart`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to restart VM:', err)
-    })
-    .finally(() => {
-      setLoading(vmid, 'restart', false)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to restart VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'restart'))
 }
 
 function updateLifetime(vmid: number, extend_by: number) {
@@ -153,6 +124,7 @@ onBeforeUnmount(() => {
   if (intervalId) {
     clearInterval(intervalId)
   }
+  loading.clear('vm')
 })
 </script>
 
