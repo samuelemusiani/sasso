@@ -12,14 +12,14 @@ const props = defineProps<{
 }>()
 
 const colors: Record<string, string> = {
-  primary: '#365fab',
-  secondary: '#27457c',
-  'orange-400': '#f7996e',
-  accent: '#7ebdc3',
-  info: '#89d2dc',
-  success: '#a3f7b5',
-  warning: '#ffed65',
-  error: '#e87461',
+  'text-primary': '#365fab',
+  'text-secondary': '#27457c',
+  'text-orange-400': '#f7996e',
+  'text-accent': '#7ebdc3',
+  'text-info': '#89d2dc',
+  'text-success': '#a3f7b5',
+  'text-warning': '#ffed65',
+  'text-error': '#e87461'
 }
 </script>
 
@@ -36,7 +36,7 @@ const colors: Record<string, string> = {
         <!-- Header with Icon and Title -->
         <div class="mb-6 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <IconVue :icon="stat.icon" class="text-3xl" :class="`text-${stat.color}`" />
+            <IconVue :icon="stat.icon" class="text-3xl" :class="`${stat.color}`" />
             <h3 class="text-base-content text-lg font-bold">{{ stat.item }}</h3>
           </div>
         </div>
@@ -44,7 +44,7 @@ const colors: Record<string, string> = {
         <!-- Stats Numbers -->
         <div class="mb-6 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-3xl font-black" :class="`text-${stat.color}`">
+            <span class="text-3xl font-black" :class="`${stat.color}`">
               {{ stat.allocated }}
             </span>
             <div class="text-base-content/60">

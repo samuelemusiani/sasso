@@ -19,7 +19,7 @@ async function fetchResourceStats() {
           active: data.active_vms_cores,
           max: data.max_cores,
           allocated: data.allocated_cores,
-          color: 'primary',
+          color: 'text-primary',
         },
         {
           item: 'RAM',
@@ -27,7 +27,7 @@ async function fetchResourceStats() {
           active: data.active_vms_ram / 1024,
           max: data.max_ram / 1024,
           allocated: data.allocated_ram / 1024,
-          color: 'success',
+          color: 'text-success',
         },
         {
           item: 'Disk',
@@ -35,7 +35,7 @@ async function fetchResourceStats() {
           active: data.active_vms_disk,
           max: data.max_disk,
           allocated: data.allocated_disk,
-          color: 'accent',
+          color: 'text-accent',
         },
         {
           item: 'Net',
@@ -43,7 +43,7 @@ async function fetchResourceStats() {
           active: 0,
           max: data.max_nets,
           allocated: data.allocated_nets,
-          color: 'orange-400',
+          color: 'text-orange-400',
         },
       ]
     })
