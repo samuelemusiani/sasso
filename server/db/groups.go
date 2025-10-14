@@ -93,9 +93,13 @@ func DeleteGroup(groupID uint) error {
 			logger.Error("Failed to delete user-group associations", "error", err)
 			return err
 		}
-		if err := tx.Delete(&Group{}, groupID).Error; err != nil {
-			logger.Error("Failed to delete group", "error", err)
-			return err
+		result := tx.Delete(&Group{}, groupID)
+		if result.Error != nil {
+			logger.Error("Failed to delete group", "error", result.Error)
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrNotFound
 		}
 		return nil
 	})
@@ -254,20 +258,26 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 }
 
 func RevokeGroupInvitationToUser(inviteID, groupID uint) error {
-	err := db.Where("id = ? AND group_id = ? AND state = ?", inviteID, groupID, "pending").Delete(&GroupInvitation{}).Error
-	if err != nil {
-		logger.Error("Failed to revoke group invitation", "error", err)
-		return err
+	result := db.Where("id = ? AND group_id = ? AND state = ?", inviteID, groupID, "pending").Delete(&GroupInvitation{})
+	if result.Error != nil {
+		logger.Error("Failed to revoke group invitation", "error", result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
 
 func RemoveUserFromGroup(userID, groupID uint) error {
-	err := db.Where("user_id = ? AND group_id = ?", userID, groupID).
-		Delete(&UserGroup{}).Error
-	if err != nil {
-		logger.Error("Failed to remove user from group", "error", err)
-		return err
+	result := db.Where("user_id = ? AND group_id = ?", userID, groupID).
+		Delete(&UserGroup{})
+	if result.Error != nil {
+		logger.Error("Failed to remove user from group", "error", result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
