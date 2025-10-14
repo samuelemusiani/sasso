@@ -234,7 +234,7 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var count int64
-		err := tx.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
+		err := tx.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
 		if err != nil {
 			logger.Error("Failed to check existing invitations", "error", err)
 			return err
