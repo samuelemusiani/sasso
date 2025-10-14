@@ -2,7 +2,6 @@ package db
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -36,8 +35,8 @@ type GroupMemberWithUsername struct {
 
 type GroupInvitation struct {
 	ID      uint `gorm:"primaryKey"`
-	GroupID uint `gorm:"uniqueIndex:idx_user_group"`
-	UserID  uint `gorm:"uniqueIndex:idx_user_group"`
+	GroupID uint
+	UserID  uint
 	Role    string
 	State   string // e.g., "pending", "accepted", "declined"
 
@@ -232,16 +231,26 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 		Role:    role,
 		State:   "pending",
 	}
-	err := db.Create(&invitation).Error
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value") ||
-			strings.Contains(err.Error(), "UNIQUE constraint failed") {
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var count int64
+		err := tx.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
+		if err != nil {
+			logger.Error("Failed to check existing invitations", "error", err)
+			return err
+		}
+		if count > 0 {
 			return ErrAlreadyExists
 		}
-		logger.Error("Failed to create group invitation", "error", err)
-		return err
-	}
-	return nil
+
+		err = db.Create(&invitation).Error
+		if err != nil {
+			logger.Error("Failed to create group invitation", "error", err)
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 func RevokeGroupInvitationToUser(inviteID, groupID uint) error {
