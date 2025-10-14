@@ -14,8 +14,8 @@ const disk = ref(4)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
 const error = ref('')
+const showIds = ref(false)
 
-// Composable per gestire gli stati di loading
 const loadingStates = ref<Set<string>>(new Set())
 
 const isLoading = (vmId: number, action: string) => {
@@ -182,17 +182,29 @@ onBeforeUnmount(() => {
     <table class="table table-auto divide-y">
       <thead>
         <tr>
+          <th v-show="showIds" scope="col">ID</th>
           <th scope="col">Name</th>
           <th scope="col">Cores</th>
           <th scope="col">RAM (MB)</th>
           <th scope="col">Disk (GB)</th>
           <th scope="col">Status</th>
           <th scope="col">Notes</th>
-          <th scope="col"></th>
+          <th scope="col" class="flex justify-end">
+            <button class="badge badge-warning rounded-lg" @click="showIds = !showIds">
+              <IconVue v-if="showIds" icon="material-symbols:visibility-off" class="text-xs" />
+              <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
+              {{ showIds ? 'Hide' : 'Show' }} IDs
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody class="divide-y">
         <tr v-for="vm in vms" :key="vm.id">
+          <Transition>
+            <td v-show="showIds">
+              {{ vm.id }}
+            </td>
+          </Transition>
           <td class="text-lg">{{ vm.name }}</td>
           <td class="">{{ vm.cores }}</td>
           <td class="">{{ vm.ram }}</td>
@@ -207,43 +219,43 @@ onBeforeUnmount(() => {
           </td>
 
           <td>
-            <div class="grid max-w-3/5 grid-cols-2 gap-2 2xl:grid-cols-3">
-              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2">
+            <div class="grid grid-cols-2 gap-2 max-w-full">
+              <div class="*:btn-sm col-span-2 xl:col-span-1 grid grid-cols-3 items-center gap-2">
                 <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)" :disabled="isLoading(vm.id, 'start')"
                   class="btn btn-success btn-outline col-span-2 rounded-lg">
                   <span v-if="isLoading(vm.id, 'start')" class="loading loading-spinner loading-xs"></span>
                   <IconVue v-else icon="material-symbols:play-arrow" class="text-lg" />
-                  <span class="hidden md:inline">Start</span>
+                  <span class="hidden lg:inline">Start</span>
                 </button>
 
                 <button v-if="vm.status === 'running'" @click="stopVM(vm.id)" :disabled="isLoading(vm.id, 'stop')"
                   class="btn btn-warning btn-outline rounded-lg">
                   <span v-if="isLoading(vm.id, 'stop')" class="loading loading-spinner loading-xs"></span>
                   <IconVue v-else icon="material-symbols:stop" class="text-lg" />
-                  <span class="hidden md:inline">Stop</span>
+                  <span class="hidden lg:inline">Stop</span>
                 </button>
 
                 <button v-if="vm.status === 'running'" @click="restartVM(vm.id)" :disabled="isLoading(vm.id, 'restart')"
                   class="btn btn-info btn-outline rounded-lg">
                   <span v-if="isLoading(vm.id, 'restart')" class="loading loading-spinner loading-xs"></span>
                   <IconVue v-else icon="codicon:debug-restart" class="text-lg" />
-                  <span class="hidden md:inline">Restart</span>
+                  <span class="hidden lg:inline">Restart</span>
                 </button>
 
                 <button @click="deleteVM(vm.id)" class="btn btn-error btn-outline rounded-lg">
                   <IconVue icon="material-symbols:delete" class="text-lg" />
-                  <span class="hidden md:inline">Delete</span>
+                  <span class="hidden lg:inline">Delete</span>
                 </button>
               </div>
-              <div v-show="vm.status !== 'unknown'" class="flex items-center gap-2">
+              <div v-show="vm.status !== 'unknown'" class="col-span-2 xl:col-span-1 grid grid-cols-2 items-center gap-2">
                 <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary btn-sm md:btn-md rounded-lg">
                   <IconVue icon="material-symbols:network-node" class="text-lg" />
-                  <span class="hidden md:inline">Interfaces</span>
+                  <span class="hidden lg:inline">Interfaces</span>
                 </RouterLink>
 
                 <RouterLink :to="`/vm/${vm.id}/backups`" class="btn btn-secondary btn-sm md:btn-md rounded-lg">
                   <IconVue icon="material-symbols:backup" class="text-lg" />
-                  <span class="hidden md:inline">Backup</span>
+                  <span class="hidden lg:inline">Backup</span>
                 </RouterLink>
               </div>
             </div>
