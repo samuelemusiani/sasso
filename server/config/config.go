@@ -10,6 +10,7 @@ type Config struct {
 	Database      Database `toml:"database"`
 	Secrets       Secrets  `toml:"secrets"`
 	Proxmox       Proxmox  `toml:"proxmox"`
+	Email         Email    `toml:"email"`
 }
 
 type Server struct {
@@ -64,6 +65,13 @@ type ProxmoxNetwork struct {
 
 type ProxmoxBackup struct {
 	Storage string `toml:"storage"`
+}
+
+type Email struct {
+	Enabled    bool   `toml:"enabled"`
+	Username   string `toml:"username"`
+	Password   string `toml:"password"`
+	SMTPServer string `toml:"smtp_server"`
 }
 
 var config Config = Config{}

@@ -65,6 +65,18 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initNotifications()
+	if err != nil {
+		logger.Error("Failed to initialize notifications in database", "error", err)
+		return err
+	}
+
+	err = initVMExpirationNotifications()
+	if err != nil {
+		logger.Error("Failed to initialize VM expiration notifications in database", "error", err)
+		return err
+	}
+
 	err = initUsers()
 	if err != nil {
 		logger.Error("Failed to initialize users in database", "error", err)
@@ -98,6 +110,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	err = initSSHKeys()
 	if err != nil {
 		logger.Error("Failed to initialize ssh keys in database", "error", err)
+		return err
+	}
+
+	err = initTelegramBots()
+	if err != nil {
+		logger.Error("Failed to initialize telegram bots in database", "error", err)
 		return err
 	}
 

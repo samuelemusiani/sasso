@@ -39,6 +39,9 @@ type User struct {
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
 	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
 	BackupRequests []BackupRequest `gorm:"foreignKey:UserID"`
+	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
+	// We can't have notifications here because we set UserID to 0 for global notifications
+	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {
@@ -205,4 +208,13 @@ func GetAllVPNConfigs() ([]User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+func GetAllUserEmails() ([]string, error) {
+	var emails []string
+	if err := db.Model(&User{}).Where("id != ?", 1).Pluck("email", &emails).Error; err != nil {
+		logger.Error("Failed to retrieve all user emails", "error", err)
+		return nil, err
+	}
+	return emails, nil
 }

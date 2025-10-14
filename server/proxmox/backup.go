@@ -8,8 +8,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"samuelemusiani/sasso/server/db"
+	"slices"
 	"time"
+
+	"samuelemusiani/sasso/server/db"
 
 	"github.com/luthermonson/go-proxmox"
 )
@@ -49,7 +51,19 @@ var (
 	ErrBackupNotesTooLong         = errors.New("backup_notes_too_long")
 )
 
+var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusSuspended}
+
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
+	vm, err := db.GetVMByID(vmID)
+	if err != nil {
+		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+		return nil, err
+	}
+	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
+		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
+		return nil, ErrInvalidVMState
+	}
+
 	_, _, _, mcontent, err := listBackups(vmID, since)
 	if err != nil {
 		return nil, err
@@ -102,6 +116,16 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 		return 0, ErrPendingBackupRequest
 	}
 
+	vm, err := db.GetVMByID(vmID)
+	if err != nil {
+		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+		return 0, err
+	}
+	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
+		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
+		return 0, ErrInvalidVMState
+	}
+
 	_, _, _, mcontent, err := listBackups(vmID, time.Time{})
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
@@ -141,6 +165,16 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		return 0, ErrPendingBackupRequest
 	}
 
+	vm, err := db.GetVMByID(vmID)
+	if err != nil {
+		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+		return 0, err
+	}
+	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
+		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
+		return 0, ErrInvalidVMState
+	}
+
 	volid, err := findVolid(vmID, backupid, since, true)
 	if err != nil {
 		return 0, err
@@ -162,6 +196,16 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 	}
 	if isPending {
 		return 0, ErrPendingBackupRequest
+	}
+
+	vm, err := db.GetVMByID(vmID)
+	if err != nil {
+		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+		return 0, err
+	}
+	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
+		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
+		return 0, ErrInvalidVMState
 	}
 
 	volid, err := findVolid(vmID, backupid, since, false)
@@ -284,6 +328,16 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 }
 
 func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
+	vm, err := db.GetVMByID(vmID)
+	if err != nil {
+		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+		return false, err
+	}
+	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
+		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
+		return false, ErrInvalidVMState
+	}
+
 	// We only need to check the upper limit if we are trying to protect a backup
 	_, node, _, mcontent, err := listBackups(vmID, since)
 	if err != nil {

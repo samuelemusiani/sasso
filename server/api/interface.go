@@ -2,11 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
-
-	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
 func getInterfaces(w http.ResponseWriter, r *http.Request) {
@@ -61,36 +60,25 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 		return
 	}
-	if !n.VlanAware && req.VlanTag != 0 {
-		http.Error(w, "vlan_tag must be 0 for non-vlan-aware vnets", http.StatusBadRequest)
-		return
+
+	tmpFace := proxmox.Interface{
+		VNetID:  req.VNetID,
+		VlanTag: req.VlanTag,
+		IPAdd:   req.IPAdd,
+		Gateway: req.Gateway,
 	}
 
-	subnet := ipaddr.NewIPAddressString(n.Subnet)
-	reqIPAdd := ipaddr.NewIPAddressString(req.IPAdd)
-	if !subnet.Contains(reqIPAdd) {
-		http.Error(w, "ip_add not in the subnet of the vnet", http.StatusBadRequest)
-		return
-	}
-
-	if !reqIPAdd.IsPrefixed() {
-		http.Error(w, "ip_add must have a subnet mask", http.StatusBadRequest)
-		return
-	}
-
-	reqGateway := ipaddr.NewIPAddressString(req.Gateway)
-	if !subnet.Contains(reqGateway) {
-		http.Error(w, "gateway not in the subnet of the vnet", http.StatusBadRequest)
-		return
-	}
-
-	if reqGateway.IsPrefixed() {
-		http.Error(w, "gateway must not have a subnet mask", http.StatusBadRequest)
+	if err := proxmox.InterfacesChecks(n, &tmpFace); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	iface, err := proxmox.NewInterface(uint(vm.ID), req.VNetID, req.VlanTag, req.IPAdd, req.Gateway)
 	if err != nil {
+		if errors.Is(err, proxmox.ErrInvalidVMState) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -114,20 +102,42 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.VNetID != nil {
-		iface.VNetID = *req.VNetID
-	}
-	if req.VlanTag != nil {
-		iface.VlanTag = *req.VlanTag
-	}
-	if req.IPAdd != nil {
-		iface.IPAdd = *req.IPAdd
-	}
-	if req.Gateway != nil {
-		iface.Gateway = *req.Gateway
+	userID := mustGetUserIDFromContext(r)
+
+	var piface = proxmox.Interface{
+		ID: iface.ID,
 	}
 
-	if err := db.UpdateInterface(iface); err != nil {
+	if req.VNetID != nil {
+		piface.VNetID = *req.VNetID
+	}
+	if req.VlanTag != nil {
+		piface.VlanTag = *req.VlanTag
+	}
+	if req.IPAdd != nil {
+		piface.IPAdd = *req.IPAdd
+	}
+	if req.Gateway != nil {
+		piface.Gateway = *req.Gateway
+	}
+
+	n, err := db.GetNetByID(piface.VNetID)
+	if err != nil {
+		http.Error(w, "vnet not found", http.StatusBadRequest)
+		return
+	}
+
+	if n.UserID != userID {
+		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+		return
+	}
+
+	if err := proxmox.InterfacesChecks(n, &piface); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := proxmox.UpdateInterface(&piface); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -138,6 +148,13 @@ func deleteInterface(w http.ResponseWriter, r *http.Request) {
 	iface := getInterfaceFromContext(r)
 
 	if err := proxmox.DeleteInterface(iface.ID); err != nil {
+		if errors.Is(err, proxmox.ErrInterfaceNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		} else if errors.Is(err, proxmox.ErrInvalidVMState) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -66,3 +66,9 @@ vxlan_id_end = 2000
 
 [proxmox.backup]
 storage = "local"
+
+[email]
+enabled = true
+username = "sasso@gmail.com"
+password = "app-password"
+smtp_server = "smtp.gmail.com"

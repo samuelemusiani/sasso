@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 
 	gprox "github.com/luthermonson/go-proxmox"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
@@ -44,8 +45,13 @@ func StartWorker() {
 }
 
 func ShutdownWorker() error {
-	workerCancelFunc()
-	err := <-workerReturnChan
+	if workerCancelFunc != nil {
+		workerCancelFunc()
+	}
+	var err error = nil
+	if workerReturnChan != nil {
+		err = <-workerReturnChan
+	}
 	if err != nil && err != context.Canceled {
 		return err
 	} else {
@@ -97,6 +103,8 @@ func worker(ctx context.Context) error {
 
 		workerCycleDurationObserve("create_vms", func() { createVMs() })
 		workerCycleDurationObserve("update_vms", func() { updateVMs(cluster) })
+
+		workerCycleDurationObserve("lifetime_vms", func() { enforceVMLifetimes() })
 
 		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 		if err != nil {
@@ -656,6 +664,12 @@ func updateVMs(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
+
+			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, r.Status)
+			if err != nil {
+				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", r.Status, "err", err)
+			}
+
 		} else if !slices.Contains(allVMStatus, r.Status) {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
@@ -671,7 +685,12 @@ func updateVMs(cluster *gprox.Cluster) {
 
 				err := db.UpdateVMStatus(r.VMID, string(VMStatusUnknown))
 				if err != nil {
-					logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", VMStatusDeleting, "err", err)
+					logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
+				}
+
+				err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, string(VMStatusUnknown))
+				if err != nil {
+					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
 			} else {
 				vmStatusTimeMap[r.VMID] = stringTime{
@@ -682,7 +701,6 @@ func updateVMs(cluster *gprox.Cluster) {
 		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
-			allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 			status := r.Status
 			if !slices.Contains(allVMStatus, r.Status) {
 				logger.Error("VM status not recognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
@@ -692,6 +710,11 @@ func updateVMs(cluster *gprox.Cluster) {
 			err := db.UpdateVMStatus(r.VMID, status)
 			if err != nil {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", status, "err", err)
+			}
+
+			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, status)
+			if err != nil {
+				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", status, "err", err)
 			}
 		}
 	}
@@ -733,6 +756,18 @@ func createInterfaces(vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
+
+		dbVM, err := db.GetVMByID(uint64(iface.VMID))
+		if err != nil {
+			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+			continue
+		}
+
+		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
+			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			continue
+		}
+
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
@@ -1227,4 +1262,73 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	}
 
 	lastConfigureSSHKeysTime = time.Now()
+}
+
+func enforceVMLifetimes() {
+	t := time.Now().AddDate(0, 3, 0) // 3 months from now
+	vms, err := db.GetVMsWithLifetimesLessThan(t)
+	if err != nil {
+		logger.Error("Failed to get VMs with lifetimes less than", "time", t, "error", err)
+		return
+	}
+
+	fn := func(n int64) func(not db.VMExpirationNotification) bool {
+		return func(not db.VMExpirationNotification) bool {
+			return int64(not.DaysBefore) == n
+		}
+	}
+
+	for _, v := range vms {
+		notifications, err := db.GetVMExpirationNotificationsByVMID(v.ID)
+		if err != nil {
+			logger.Error("Failed to get VM expiration notifications for VM", "vmid", v.ID, "error", err)
+			continue
+		}
+
+		if v.LifeTime.Before(time.Now().Add(-7 * 24 * time.Hour)) {
+			// The VM expired more than 7 days ago, we delete it
+			err := DeleteVM(v.UserID, v.ID)
+			if err != nil {
+				logger.Error("Failed to delete expired VM", "vmid", v.ID, "error", err)
+				continue
+			}
+
+			err = notify.SendVMEliminatedNotification(v.UserID, v.Name)
+			if err != nil {
+				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
+			}
+		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
+			// The VM expired, but less than 7 days ago, we send the last notification
+			// and stop the VM if it is running
+			err := ChangeVMStatus(v.UserID, v.ID, "stop")
+			if err != nil {
+				logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
+				continue
+			}
+
+			err = notify.SendVMStoppedNotification(v.UserID, v.Name)
+			if err != nil {
+				logger.Error("Failed to send VM stopped notification", "vmid", v.ID, "error", err)
+			}
+		} else {
+			for _, i := range []int64{1, 2, 4, 7, 15, 30, 60, 90} {
+				if slices.ContainsFunc(notifications, fn(i)) {
+					break
+				}
+				if v.LifeTime.Before(time.Now().AddDate(0, 0, int(i))) && v.LifeTime.After(v.CreatedAt.AddDate(0, 0, int(i))) {
+					// Send notification for i day before expiration
+					err := notify.SendVMExpirationNotification(v.UserID, v.Name, int(i))
+					if err != nil {
+						logger.Error("Failed to send VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
+						continue
+					}
+					_, err = db.NewVMExpirationNotification(v.ID, uint(i))
+					if err != nil {
+						logger.Error("Failed to create VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
+					}
+					break
+				}
+			}
+		}
+	}
 }

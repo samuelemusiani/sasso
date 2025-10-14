@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,16 +43,18 @@ var (
 	ErrInvalidVMParam error = errors.New("invalid VM parameter")
 
 	vmNameRegex = regexp.MustCompile(`^\w+(\w|-)*\w+$`)
+	vmLifeTimes = []uint{1, 3, 6, 12}
 )
 
 type VM struct {
-	ID     uint64 `json:"id"`
-	Status string `json:"status"`
-	Name   string `json:"name"`
-	Notes  string `json:"notes"`
-	Cores  uint   `json:"cores"`
-	RAM    uint   `json:"ram"`
-	Disk   uint   `json:"disk"`
+	ID       uint64    `json:"id"`
+	Status   string    `json:"status"`
+	Name     string    `json:"name"`
+	Notes    string    `json:"notes"`
+	Cores    uint      `json:"cores"`
+	RAM      uint      `json:"ram"`
+	Disk     uint      `json:"disk"`
+	LifeTime time.Time `json:"lifetime"`
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -72,6 +75,7 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		vms[i].Cores = db_vms[i].Cores
 		vms[i].RAM = db_vms[i].RAM
 		vms[i].Disk = db_vms[i].Disk
+		vms[i].LifeTime = db_vms[i].LifeTime
 	}
 
 	return vms, nil
@@ -95,7 +99,7 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 	return vmid, nil
 }
 
-func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk uint, includeGlobalSSHKeys bool) (*VM, error) {
+func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk uint, lifeTime uint, includeGlobalSSHKeys bool) (*VM, error) {
 
 	if !vmNameRegex.MatchString(name) || len(name) > 16 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
@@ -109,6 +113,11 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 	}
 	if disk < VMCloneDiskSizeGB {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
+	}
+
+	if !slices.Contains(vmLifeTimes, lifeTime) {
+		err := fmt.Errorf("lifetime must be one of the following values: %v", vmLifeTimes)
+		return nil, errors.Join(ErrInvalidVMParam, err)
 	}
 
 	user, err := db.GetUserByID(userID)
@@ -153,17 +162,21 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 	vmUserID++ // Increment the VM user ID for the new VM
 	VMID, err := generateFullVMID(userID, vmUserID)
 
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), name, notes, cores, ram, disk, includeGlobalSSHKeys)
+	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
 	if err != nil {
 		logger.Error("Failed to create new VM in database", "userID", userID, "vmUserID", vmUserID, "error", err)
 		return nil, err
 	}
 
 	vm := &VM{
-		ID:     db_vm.ID,
-		Status: string(db_vm.Status),
-		Name:   db_vm.Name,
-		Notes:  db_vm.Notes,
+		ID:       db_vm.ID,
+		Status:   string(db_vm.Status),
+		Name:     db_vm.Name,
+		Notes:    db_vm.Notes,
+		Cores:    db_vm.Cores,
+		RAM:      db_vm.RAM,
+		Disk:     db_vm.Disk,
+		LifeTime: db_vm.LifeTime,
 	}
 
 	return vm, nil
@@ -216,6 +229,11 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 		}
 	default:
 		return ErrInvalidVMState
+	}
+
+	if (action == "start" || action == "restart") && vm.LifeTime.Before(time.Now()) {
+		logger.Warn("VM lifetime has expired, cannot start or restart", "userID", userID, "vmID", vmID, "lifetime", vm.LifeTime)
+		return errors.Join(ErrInvalidVMState, errors.New("vm lifetime has expired; cannot start or restart"))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -357,4 +375,29 @@ func TestEndpointClone() {
 
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func UpdateVMLifetime(VMID uint64, extendBy uint) error {
+	vm, err := db.GetVMByID(VMID)
+	if err != nil {
+		logger.Error("Failed to get VM from database for updating lifetime", "vmID", VMID, "error", err)
+		return err
+	}
+
+	if extendBy == 0 || extendBy > 3 {
+		return errors.Join(ErrInvalidVMParam, errors.New("extend_by must be 1, 2 or 3"))
+	}
+
+	months := int(extendBy / 2)
+	days := int((extendBy % 2) * 15)
+	if vm.LifeTime.After(time.Now().AddDate(0, months, days)) {
+		return errors.Join(ErrInvalidVMParam, errors.New("cannot update lifetime. Too soon"))
+	}
+
+	err = db.UpdateVMLifetime(VMID, vm.LifeTime.AddDate(0, int(extendBy), 0))
+	if err != nil {
+		logger.Error("Failed to update VM lifetime in database", "vmID", VMID, "error", err)
+		return err
+	}
+	return nil
 }

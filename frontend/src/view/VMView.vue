@@ -11,9 +11,12 @@ const name = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
 const error = ref('')
+
+const extendBy = ref(1)
 const showIds = ref(false)
 
 const loadingStates = ref<Set<string>>(new Set())
@@ -50,6 +53,7 @@ function createVM() {
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
+      lifetime: lifetime.value,
       include_global_ssh_keys: include_global_ssh_keys.value,
       notes: notes.value,
     })
@@ -120,6 +124,22 @@ function restartVM(vmid: number) {
     })
 }
 
+function updateLifetime(vmid: number, extend_by: number) {
+  api
+    .patch(`/vm/${vmid}/lifetime`, { extend_by })
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to update VM lifetime:', err)
+    })
+}
+
+function isExpired(lifetime: string): boolean {
+  // TODO: Check with timezones
+  return new Date(lifetime) < new Date()
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
@@ -150,30 +170,29 @@ onBeforeUnmount(() => {
           type="text"
           id="name"
           v-model="name"
-          class="input w-24 w-full rounded-lg border p-2"
+          class="input w-24 rounded-lg border p-2"
         />
       </div>
       <div>
         <label for="cores">CPU Cores</label>
-        <input
-          type="number"
-          id="cores"
-          v-model="cores"
-          class="input w-24 w-full rounded-lg border p-2"
-        />
+        <input type="number" id="cores" v-model="cores" class="input w-24 rounded-lg border p-2" />
       </div>
       <div>
         <label for="ram">RAM (MB)</label>
-        <input
-          type="number"
-          id="ram"
-          v-model="ram"
-          class="input w-24 w-full rounded-lg border p-2"
-        />
+        <input type="number" id="ram" v-model="ram" class="input w-full rounded-lg border p-2" />
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-24 w-full rounded-lg border" />
+        <input type="number" id="disk" v-model="disk" class="input w-24 rounded-lg border" />
+      </div>
+      <div>
+        <label for="lifetime">Lifetime</label>
+        <select class="select w-24 rounded-lg border" v-model.number="lifetime">
+          <option value="1" selected>1 Month</option>
+          <option value="3">3 Months</option>
+          <option value="6">6 Months</option>
+          <option value="12">12 Months</option>
+        </select>
       </div>
       <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
@@ -206,6 +225,7 @@ onBeforeUnmount(() => {
           <th scope="col">RAM (MB)</th>
           <th scope="col">Disk (GB)</th>
           <th scope="col">Status</th>
+          <th scope="col">Lifetime</th>
           <th scope="col">Notes</th>
           <th scope="col" class="flex justify-end">
             <button class="badge badge-warning rounded-lg" @click="showIds = !showIds">
@@ -230,6 +250,7 @@ onBeforeUnmount(() => {
           <td class="font-semibold capitalize" :class="getStatusClass(vm.status)">
             {{ vm.status }}
           </td>
+          <td>{{ vm.lifetime }}</td>
           <td>
             <div v-if="vm.notes" class="bg-base-100 w-max rounded-lg p-2 text-xs text-pretty">
               {{ vm.notes }}
@@ -237,8 +258,29 @@ onBeforeUnmount(() => {
           </td>
 
           <td>
-            <div class="grid max-w-full grid-cols-2 gap-2">
-              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
+            <div class="grid max-w-full gap-2"
+            :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'">
+              <div
+                v-show="isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
+              >
+                <select class="select" v-model.number="extendBy">
+                  <option value="1" selected>Extend 1 Month</option>
+                  <option value="2">Extend 2 Months</option>
+                  <option value="3">Extend 3 Months</option>
+                </select>
+                <button
+                  @click="updateLifetime(vm.id, extendBy)"
+                  class="btn btn-primary btn-sm rounded-lg"
+                >
+                  <IconVue icon="material-symbols:update" class="text-lg" />
+                  <span class="hidden md:inline">Extend</span>
+                </button>
+              </div>
+              <div
+                v-show="!isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
+              >
                 <button
                   v-if="vm.status === 'stopped'"
                   @click="startVM(vm.id)"
@@ -287,7 +329,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div
-                v-show="vm.status !== 'unknown'"
+                v-show="!isExpired(vm.lifetime) || vm.status !== 'unknown'"
                 class="col-span-2 grid grid-cols-2 items-center gap-2 xl:col-span-1"
               >
                 <RouterLink
