@@ -70,7 +70,7 @@ const colors: Record<string, string> = {
           <!-- Usage Bar -->
           <div :class="{ invisible: stat.active == 0 }" class="space-y-2">
             <div class="text-base-content/70 flex justify-between text-xs">
-              <span>Active Usage</span>
+              <span>Active</span>
               <span
                 >{{ stat.active }} / {{ stat.allocated }}
                 {{ stat.item === 'RAM' || stat.item === 'Disk' ? 'GB' : stat.item }}</span
@@ -79,7 +79,7 @@ const colors: Record<string, string> = {
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.active / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
+                :style="`width: ${(stat.active / stat.allocated) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
