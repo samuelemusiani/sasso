@@ -170,12 +170,18 @@ onBeforeUnmount(() => {
           type="text"
           id="name"
           v-model="name"
-          class="input w-24 rounded-lg border p-2"
+          class="input w-full rounded-lg border p-2"
+          placeholder="My VM Name"
         />
       </div>
       <div>
         <label for="cores">CPU Cores</label>
-        <input type="number" id="cores" v-model="cores" class="input w-24 rounded-lg border p-2" />
+        <input
+          type="number"
+          id="cores"
+          v-model="cores"
+          class="input w-full rounded-lg border p-2"
+        />
       </div>
       <div>
         <label for="ram">RAM (MB)</label>
@@ -183,11 +189,11 @@ onBeforeUnmount(() => {
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-24 rounded-lg border" />
+        <input type="number" id="disk" v-model="disk" class="input w-full rounded-lg border" />
       </div>
       <div>
         <label for="lifetime">Lifetime</label>
-        <select class="select w-24 rounded-lg border" v-model.number="lifetime">
+        <select class="select w-full rounded-lg border" v-model.number="lifetime">
           <option value="1" selected>1 Month</option>
           <option value="3">3 Months</option>
           <option value="6">6 Months</option>
