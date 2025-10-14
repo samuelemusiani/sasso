@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
 import type { VM } from '@/types'
 import { api } from '@/lib/api'
@@ -17,6 +18,10 @@ const include_global_ssh_keys = ref(true)
 const error = ref('')
 
 const extendBy = ref(1)
+const showIds = ref(false)
+
+const loading = useLoadingStore()
+const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
 function fetchVMs() {
   api
@@ -64,36 +69,30 @@ function deleteVM(vmid: number) {
 }
 
 function startVM(vmid: number) {
+  loading.start('vm', vmid, 'start')
   api
     .post(`/vm/${vmid}/start`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to start VM:', err)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to start VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'start'))
 }
 
 function stopVM(vmid: number) {
+  loading.start('vm', vmid, 'stop')
   api
     .post(`/vm/${vmid}/stop`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to stop VM:', err)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to stop VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'stop'))
 }
 
 function restartVM(vmid: number) {
+  loading.start('vm', vmid, 'restart')
   api
     .post(`/vm/${vmid}/restart`)
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to restart VM:', err)
-    })
+    .then(() => fetchVMs())
+    .catch((err) => console.error('Failed to restart VM:', err))
+    .finally(() => loading.stop('vm', vmid, 'restart'))
 }
 
 function updateLifetime(vmid: number, extend_by: number) {
@@ -125,6 +124,7 @@ onBeforeUnmount(() => {
   if (intervalId) {
     clearInterval(intervalId)
   }
+  loading.clear('vm')
 })
 </script>
 
@@ -142,12 +142,18 @@ onBeforeUnmount(() => {
           type="text"
           id="name"
           v-model="name"
-          class="input w-24 rounded-lg border p-2"
+          class="input w-full rounded-lg border p-2"
+          placeholder="My VM Name"
         />
       </div>
       <div>
         <label for="cores">CPU Cores</label>
-        <input type="number" id="cores" v-model="cores" class="input w-24 rounded-lg border p-2" />
+        <input
+          type="number"
+          id="cores"
+          v-model="cores"
+          class="input w-full rounded-lg border p-2"
+        />
       </div>
       <div>
         <label for="ram">RAM (MB)</label>
@@ -155,11 +161,11 @@ onBeforeUnmount(() => {
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-24 rounded-lg border" />
+        <input type="number" id="disk" v-model="disk" class="input w-full rounded-lg border" />
       </div>
       <div>
         <label for="lifetime">Lifetime</label>
-        <select class="select w-24 rounded-lg border" v-model.number="lifetime">
+        <select class="select w-full rounded-lg border" v-model.number="lifetime">
           <option value="1" selected>1 Month</option>
           <option value="3">3 Months</option>
           <option value="6">6 Months</option>
@@ -191,6 +197,7 @@ onBeforeUnmount(() => {
     <table class="table table-auto divide-y">
       <thead>
         <tr>
+          <th v-show="showIds" scope="col">ID</th>
           <th scope="col">Name</th>
           <th scope="col">Cores</th>
           <th scope="col">RAM (MB)</th>
@@ -198,11 +205,22 @@ onBeforeUnmount(() => {
           <th scope="col">Status</th>
           <th scope="col">Lifetime</th>
           <th scope="col">Notes</th>
-          <th scope="col"></th>
+          <th scope="col" class="flex justify-end">
+            <button class="badge badge-warning rounded-lg" @click="showIds = !showIds">
+              <IconVue v-if="showIds" icon="material-symbols:visibility-off" class="text-xs" />
+              <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
+              {{ showIds ? 'Hide' : 'Show' }} IDs
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody class="divide-y">
         <tr v-for="vm in vms" :key="vm.id">
+          <Transition>
+            <td v-show="showIds">
+              {{ vm.id }}
+            </td>
+          </Transition>
           <td class="text-lg">{{ vm.name }}</td>
           <td class="">{{ vm.cores }}</td>
           <td class="">{{ vm.ram }}</td>
@@ -218,10 +236,13 @@ onBeforeUnmount(() => {
           </td>
 
           <td>
-            <div class="grid max-w-3/5 grid-cols-2 gap-2 2xl:grid-cols-3">
+            <div
+              class="grid max-w-full gap-2"
+              :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'"
+            >
               <div
-                v-if="isExpired(vm.lifetime)"
-                class="*:btn-sm col-span-3 grid grid-cols-3 items-center gap-2"
+                v-show="isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
               >
                 <select class="select" v-model.number="extendBy">
                   <option value="1" selected>Extend 1 Month</option>
@@ -237,48 +258,66 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div
-                v-if="!isExpired(vm.lifetime)"
-                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2"
+                v-show="!isExpired(vm.lifetime)"
+                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
               >
                 <button
                   v-if="vm.status === 'stopped'"
                   @click="startVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'start')"
                   class="btn btn-success btn-outline col-span-2 rounded-lg"
                 >
-                  <IconVue icon="material-symbols:play-arrow" class="text-lg" />
-                  <span class="hidden md:inline">Start</span>
+                  <span
+                    v-if="isLoading(vm.id, 'start')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <IconVue v-else icon="material-symbols:play-arrow" class="text-lg" />
+                  <span class="hidden lg:inline">Start</span>
                 </button>
 
                 <button
                   v-if="vm.status === 'running'"
                   @click="stopVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'stop')"
                   class="btn btn-warning btn-outline rounded-lg"
                 >
-                  <IconVue icon="material-symbols:stop" class="text-lg" />
-                  <span class="hidden md:inline">Stop</span>
+                  <span
+                    v-if="isLoading(vm.id, 'stop')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <IconVue v-else icon="material-symbols:stop" class="text-lg" />
+                  <span class="hidden lg:inline">Stop</span>
                 </button>
 
                 <button
                   v-if="vm.status === 'running'"
                   @click="restartVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'restart')"
                   class="btn btn-info btn-outline rounded-lg"
                 >
-                  <IconVue icon="codicon:debug-restart" class="text-lg" />
-                  <span class="hidden md:inline">Restart</span>
+                  <span
+                    v-if="isLoading(vm.id, 'restart')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <IconVue v-else icon="codicon:debug-restart" class="text-lg" />
+                  <span class="hidden lg:inline">Restart</span>
                 </button>
 
                 <button @click="deleteVM(vm.id)" class="btn btn-error btn-outline rounded-lg">
                   <IconVue icon="material-symbols:delete" class="text-lg" />
-                  <span class="hidden md:inline">Delete</span>
+                  <span class="hidden lg:inline">Delete</span>
                 </button>
               </div>
-              <div v-if="!isExpired(vm.lifetime)" class="flex items-center gap-2">
+              <div
+                v-show="!isExpired(vm.lifetime) || vm.status !== 'unknown'"
+                class="col-span-2 grid grid-cols-2 items-center gap-2 xl:col-span-1"
+              >
                 <RouterLink
                   :to="`/vm/${vm.id}/interfaces`"
                   class="btn btn-primary btn-sm md:btn-md rounded-lg"
                 >
                   <IconVue icon="material-symbols:network-node" class="text-lg" />
-                  <span class="hidden md:inline">Interfaces</span>
+                  <span class="hidden lg:inline">Interfaces</span>
                 </RouterLink>
 
                 <RouterLink
@@ -286,7 +325,7 @@ onBeforeUnmount(() => {
                   class="btn btn-secondary btn-sm md:btn-md rounded-lg"
                 >
                   <IconVue icon="material-symbols:backup" class="text-lg" />
-                  <span class="hidden md:inline">Backup</span>
+                  <span class="hidden lg:inline">Backup</span>
                 </RouterLink>
               </div>
             </div>
