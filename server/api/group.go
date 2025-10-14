@@ -86,6 +86,10 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.DeleteGroup(group.ID); err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Group not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed to delete group", http.StatusInternalServerError)
 		return
 	}
@@ -293,6 +297,10 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.RevokeGroupInvitationToUser(uint(inviteID), group.ID); err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Invitation not found or already processed", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed to revoke invitation", http.StatusInternalServerError)
 		return
 	}
@@ -333,6 +341,10 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.RemoveUserFromGroup(userID, group.ID); err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "You are not a member of this group", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed to leave group", http.StatusInternalServerError)
 		return
 	}
