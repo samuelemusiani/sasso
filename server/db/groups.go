@@ -41,9 +41,9 @@ type GroupInvitation struct {
 	Role    string
 	State   string // e.g., "pending", "accepted", "declined"
 
-	Username         string `gorm:"->"`
-	GroupName        string `gorm:"->"`
-	GroupDescription string `gorm:"->"`
+	Username         string `gorm:"->;-:migration"`
+	GroupName        string `gorm:"->;-:migration"`
+	GroupDescription string `gorm:"->;-:migration"`
 }
 
 func initGroups() error {
@@ -90,7 +90,6 @@ func GetGroupsByUserID(userID uint) ([]Group, error) {
 
 func DeleteGroup(groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-
 		if err := tx.Delete(&UserGroup{}, "group_id = ?", groupID).Error; err != nil {
 			logger.Error("Failed to delete user-group associations", "error", err)
 			return err
