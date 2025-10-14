@@ -90,7 +90,6 @@ function startVM(vmid: number) {
     })
 }
 
-
 function stopVM(vmid: number) {
   setLoading(vmid, 'stop', true)
   api
@@ -105,7 +104,6 @@ function stopVM(vmid: number) {
       setLoading(vmid, 'stop', false)
     })
 }
-
 
 function restartVM(vmid: number) {
   setLoading(vmid, 'restart', true)
@@ -147,15 +145,31 @@ onBeforeUnmount(() => {
     <CreateNew title="New VM" :create="createVM" :error="error">
       <div>
         <label for="cores">Name</label>
-        <input required type="text" id="name" v-model="name" class="input w-24 w-full rounded-lg border p-2" />
+        <input
+          required
+          type="text"
+          id="name"
+          v-model="name"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
       </div>
       <div>
         <label for="cores">CPU Cores</label>
-        <input type="number" id="cores" v-model="cores" class="input w-24 w-full rounded-lg border p-2" />
+        <input
+          type="number"
+          id="cores"
+          v-model="cores"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
       </div>
       <div>
         <label for="ram">RAM (MB)</label>
-        <input type="number" id="ram" v-model="ram" class="input w-24 w-full rounded-lg border p-2" />
+        <input
+          type="number"
+          id="ram"
+          v-model="ram"
+          class="input w-24 w-full rounded-lg border p-2"
+        />
       </div>
       <div>
         <label for="disk">Disk (GB)</label>
@@ -163,8 +177,12 @@ onBeforeUnmount(() => {
       </div>
       <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
-          <input type="checkbox" id="include_global_ssh_keys" v-model="include_global_ssh_keys"
-            class="checkbox checkbox-primary" />
+          <input
+            type="checkbox"
+            id="include_global_ssh_keys"
+            v-model="include_global_ssh_keys"
+            class="checkbox checkbox-primary"
+          />
           <label for="include_global_ssh_keys">Include Global SSH Keys</label>
           <BubbleAlert type="info">
             Including the global SSH keys will allow for better troubleshooting if something is not
@@ -219,25 +237,46 @@ onBeforeUnmount(() => {
           </td>
 
           <td>
-            <div class="grid grid-cols-2 gap-2 max-w-full">
-              <div class="*:btn-sm col-span-2 xl:col-span-1 grid grid-cols-3 items-center gap-2">
-                <button v-if="vm.status === 'stopped'" @click="startVM(vm.id)" :disabled="isLoading(vm.id, 'start')"
-                  class="btn btn-success btn-outline col-span-2 rounded-lg">
-                  <span v-if="isLoading(vm.id, 'start')" class="loading loading-spinner loading-xs"></span>
+            <div class="grid max-w-full grid-cols-2 gap-2">
+              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
+                <button
+                  v-if="vm.status === 'stopped'"
+                  @click="startVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'start')"
+                  class="btn btn-success btn-outline col-span-2 rounded-lg"
+                >
+                  <span
+                    v-if="isLoading(vm.id, 'start')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
                   <IconVue v-else icon="material-symbols:play-arrow" class="text-lg" />
                   <span class="hidden lg:inline">Start</span>
                 </button>
 
-                <button v-if="vm.status === 'running'" @click="stopVM(vm.id)" :disabled="isLoading(vm.id, 'stop')"
-                  class="btn btn-warning btn-outline rounded-lg">
-                  <span v-if="isLoading(vm.id, 'stop')" class="loading loading-spinner loading-xs"></span>
+                <button
+                  v-if="vm.status === 'running'"
+                  @click="stopVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'stop')"
+                  class="btn btn-warning btn-outline rounded-lg"
+                >
+                  <span
+                    v-if="isLoading(vm.id, 'stop')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
                   <IconVue v-else icon="material-symbols:stop" class="text-lg" />
                   <span class="hidden lg:inline">Stop</span>
                 </button>
 
-                <button v-if="vm.status === 'running'" @click="restartVM(vm.id)" :disabled="isLoading(vm.id, 'restart')"
-                  class="btn btn-info btn-outline rounded-lg">
-                  <span v-if="isLoading(vm.id, 'restart')" class="loading loading-spinner loading-xs"></span>
+                <button
+                  v-if="vm.status === 'running'"
+                  @click="restartVM(vm.id)"
+                  :disabled="isLoading(vm.id, 'restart')"
+                  class="btn btn-info btn-outline rounded-lg"
+                >
+                  <span
+                    v-if="isLoading(vm.id, 'restart')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
                   <IconVue v-else icon="codicon:debug-restart" class="text-lg" />
                   <span class="hidden lg:inline">Restart</span>
                 </button>
@@ -247,13 +286,22 @@ onBeforeUnmount(() => {
                   <span class="hidden lg:inline">Delete</span>
                 </button>
               </div>
-              <div v-show="vm.status !== 'unknown'" class="col-span-2 xl:col-span-1 grid grid-cols-2 items-center gap-2">
-                <RouterLink :to="`/vm/${vm.id}/interfaces`" class="btn btn-primary btn-sm md:btn-md rounded-lg">
+              <div
+                v-show="vm.status !== 'unknown'"
+                class="col-span-2 grid grid-cols-2 items-center gap-2 xl:col-span-1"
+              >
+                <RouterLink
+                  :to="`/vm/${vm.id}/interfaces`"
+                  class="btn btn-primary btn-sm md:btn-md rounded-lg"
+                >
                   <IconVue icon="material-symbols:network-node" class="text-lg" />
                   <span class="hidden lg:inline">Interfaces</span>
                 </RouterLink>
 
-                <RouterLink :to="`/vm/${vm.id}/backups`" class="btn btn-secondary btn-sm md:btn-md rounded-lg">
+                <RouterLink
+                  :to="`/vm/${vm.id}/backups`"
+                  class="btn btn-secondary btn-sm md:btn-md rounded-lg"
+                >
                   <IconVue icon="material-symbols:backup" class="text-lg" />
                   <span class="hidden lg:inline">Backup</span>
                 </RouterLink>

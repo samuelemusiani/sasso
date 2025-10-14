@@ -19,7 +19,7 @@ const colors: Record<string, string> = {
   'text-info': '#89d2dc',
   'text-success': '#a3f7b5',
   'text-warning': '#ffed65',
-  'text-error': '#e87461'
+  'text-error': '#e87461',
 }
 </script>
 

@@ -12,7 +12,7 @@ const icon = computed(() => {
       return 'material-symbols:info-outline'
     case 'warning':
       return 'mingcute:warning-line'
-    case 'error':i
+    case 'error':
       return 'mingcute:close-circle-line'
     default:
       return 'mingcute:question-line'
