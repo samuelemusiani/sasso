@@ -258,8 +258,10 @@ onBeforeUnmount(() => {
           </td>
 
           <td>
-            <div class="grid max-w-full gap-2"
-            :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'">
+            <div
+              class="grid max-w-full gap-2"
+              :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'"
+            >
               <div
                 v-show="isExpired(vm.lifetime)"
                 class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
