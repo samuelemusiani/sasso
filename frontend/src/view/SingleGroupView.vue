@@ -42,8 +42,8 @@ function inviteUser() {
       role: role.value,
     })
     .then(() => {
-      alert(`Invitation sent to ${username.value}`)
       username.value = ''
+      fetchInvitations()
     })
     .catch((err) => {
       console.error('Failed to invite user:', err)
@@ -117,7 +117,7 @@ function deleteMember(id: number) {
       .delete(`/groups/${groupId}/members/${id_path}`)
       .then(() => {
         if (leave_me) {
-          router.push('/admin/groups')
+          router.replace('/group')
           return
         }
         fetchMembers()
@@ -133,7 +133,7 @@ function deleteGroup(id: number) {
     api
       .delete(`/groups/${id}`)
       .then(() => {
-        router.push('/admin/groups')
+        router.push('/groups')
       })
       .catch((err) => {
         console.error('Failed to delete Group:', err)
