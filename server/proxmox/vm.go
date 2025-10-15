@@ -47,14 +47,31 @@ var (
 )
 
 type VM struct {
-	ID       uint64    `json:"id"`
-	Status   string    `json:"status"`
-	Name     string    `json:"name"`
-	Notes    string    `json:"notes"`
-	Cores    uint      `json:"cores"`
-	RAM      uint      `json:"ram"`
-	Disk     uint      `json:"disk"`
-	LifeTime time.Time `json:"lifetime"`
+	ID                   uint64    `json:"id"`
+	UserID               uint      `json:"user_id"`
+	Status               string    `json:"status"`
+	Name                 string    `json:"name"`
+	Notes                string    `json:"notes"`
+	Cores                uint      `json:"cores"`
+	RAM                  uint      `json:"ram"`
+	Disk                 uint      `json:"disk"`
+	LifeTime             time.Time `json:"lifetime"`
+	IncludeGlobalSSHKeys bool      `json:"include_global_ssh_keys"`
+}
+
+func convertDBVMToVM(db_vm *db.VM) *VM {
+	return &VM{
+		ID:                   db_vm.ID,
+		Status:               string(db_vm.Status),
+		Name:                 db_vm.Name,
+		Notes:                db_vm.Notes,
+		Cores:                db_vm.Cores,
+		RAM:                  db_vm.RAM,
+		Disk:                 db_vm.Disk,
+		LifeTime:             db_vm.LifeTime,
+		UserID:               db_vm.UserID,
+		IncludeGlobalSSHKeys: db_vm.IncludeGlobalSSHKeys,
+	}
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -67,18 +84,23 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	vms := make([]VM, len(db_vms))
 
 	for i := range vms {
-		vms[i].ID = db_vms[i].ID
-		// Status needs to be checked against the acctual Proxmox VM status
-		vms[i].Name = db_vms[i].Name
-		vms[i].Notes = db_vms[i].Notes
-		vms[i].Status = string(db_vms[i].Status)
-		vms[i].Cores = db_vms[i].Cores
-		vms[i].RAM = db_vms[i].RAM
-		vms[i].Disk = db_vms[i].Disk
-		vms[i].LifeTime = db_vms[i].LifeTime
+		vms[i] = *convertDBVMToVM(&db_vms[i])
 	}
 
 	return vms, nil
+}
+
+func GetVMByID(VMID uint64) (*VM, error) {
+	db_vm, err := db.GetVMByID(VMID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			return nil, ErrVMNotFound
+		}
+		logger.Error("Failed to get VM by ID", "vmID", VMID, "error", err)
+		return nil, err
+	}
+
+	return convertDBVMToVM(db_vm), nil
 }
 
 // Generate a full VM ID based on the user ID and VM user ID.
@@ -168,18 +190,7 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 		return nil, err
 	}
 
-	vm := &VM{
-		ID:       db_vm.ID,
-		Status:   string(db_vm.Status),
-		Name:     db_vm.Name,
-		Notes:    db_vm.Notes,
-		Cores:    db_vm.Cores,
-		RAM:      db_vm.RAM,
-		Disk:     db_vm.Disk,
-		LifeTime: db_vm.LifeTime,
-	}
-
-	return vm, nil
+	return convertDBVMToVM(db_vm), nil
 }
 
 func DeleteVM(userID uint, vmID uint64) error {

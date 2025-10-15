@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/proxmox"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -345,14 +346,9 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			vm, err := db.GetVMByID(vmID)
-			if err != nil {
-				http.Error(w, "vm not found", http.StatusBadRequest)
-				return
-			}
-
-			if vm.UserID != userID {
-				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+			vm, err := proxmox.GetVMByID(vmID)
+			if err != nil || vm.UserID != userID {
+				http.Error(w, "vm not found", http.StatusNotFound)
 				return
 			}
 
