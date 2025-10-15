@@ -26,6 +26,9 @@ type returnNet struct {
 
 	Subnet  string `json:"subnet"`
 	Gateway string `json:"gateway"`
+
+	GroupID   uint   `json:"group_id,omitempty"` // If the net belongs to a
+	GroupName string `json:"group_name,omitempty"`
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +84,28 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			VlanAware: net.VlanAware,
 			Subnet:    net.Subnet,
 			Gateway:   net.Gateway,
+		}
+	}
+
+	// TODO: Optimize this
+	groups, err := db.GetGroupsByUserID(userID)
+	for _, g := range groups {
+		groupNets, err := db.GetNetsByGroupID(g.ID)
+		if err != nil {
+			http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+			return
+		}
+		for _, net := range groupNets {
+			returnableNets = append(returnableNets, returnNet{
+				ID:        net.ID,
+				Name:      net.Alias,
+				Status:    net.Status,
+				VlanAware: net.VlanAware,
+				Subnet:    net.Subnet,
+				Gateway:   net.Gateway,
+				GroupID:   g.ID,
+				GroupName: g.Name,
+			})
 		}
 	}
 
