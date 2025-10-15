@@ -34,6 +34,8 @@ var (
 	ErrTaskFailed             = errors.New("task_failed")
 	ErrInvalidStorage         = errors.New("invalid_storage")
 	ErrCantGenerateNonce      = errors.New("cant_generate_nonce")
+	ErrPermissionDenied       = errors.New("permission_denied")
+	ErrNotFound               = errors.New("a resouces can't be found")
 
 	isProxmoxReachable = true
 	isGatewayReachable = true

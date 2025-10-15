@@ -90,25 +90,69 @@ func TestEndpointNetZone() {
 }
 
 // This Function only creates a network in the database.
-func AssignNewNetToUser(userID uint, name string, vlanaware bool) (*db.Net, error) {
+func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.Net, error) {
 	user, err := db.GetUserByID(userID)
 	if err != nil {
 		logger.Error("Failed to get user by ID", "userID", userID, "error", err)
 		return nil, err
 	}
 
-	nets, err := db.GetNetsByUserID(userID)
-	if err != nil {
-		logger.Error("Failed to get nets by user ID", "userID", userID, "error", err)
-		return nil, err
+	// It's a net group
+	if groupID != nil {
+		role, err := db.GetUserRoleInGroup(userID, *groupID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return nil, ErrNotFound
+			}
+			logger.Error("Failed to get user role in group", "userID", userID, "groupID", *groupID, "error", err)
+			return nil, err
+		}
+		if role != "admin" && role != "owner" {
+			return nil, ErrPermissionDenied
+		}
 	}
 
-	if len(nets) >= int(user.MaxNets) {
-		return nil, ErrInsufficientResources
+	var nets []db.Net
+
+	if groupID != nil {
+		nets, err = db.GetNetsByGroupID(*groupID)
+		if err != nil {
+			logger.Error("Failed to get nets by group ID", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+
+		if len(nets) >= 1 {
+			return nil, ErrInsufficientResources
+		}
+
+		nmembers, err := db.CountGroupMembers(*groupID)
+		if err != nil {
+			logger.Error("Failed to count group members", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+		// TODO: 2 is hardcoded, should be a config value. Or we can configure custom
+		// limits per group
+		if nmembers < 2 {
+			return nil, ErrInsufficientResources
+		}
+	} else {
+		nets, err = db.GetNetsByUserID(userID)
+		if err != nil {
+			logger.Error("Failed to get nets by user ID", "userID", userID, "error", err)
+			return nil, err
+		}
+
+		if len(nets) >= int(user.MaxNets) {
+			return nil, ErrInsufficientResources
+		}
 	}
 
+	l := logger
+	if groupID != nil {
+		l = logger.With("groupID", *groupID)
+	}
 	if slices.IndexFunc(nets, func(n db.Net) bool { return n.Alias == name }) != -1 {
-		logger.Error("Network name already exists for user", "userID", userID, "name", name)
+		l.Error("Network name already exists for user or group", "userID", userID, "name", name)
 		return nil, ErrVNetNameExists
 	}
 
@@ -125,10 +169,19 @@ func AssignNewNetToUser(userID uint, name string, vlanaware bool) (*db.Net, erro
 
 	netName := cNetwork.SDNZone[0:3] + EncodeBase62(uint32(tag))
 
-	net, err := db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, tag, vlanaware, string(VNetStatusPreCreating))
-	if err != nil {
-		logger.Error("Failed to create network for user", "userID", userID, "error", err)
-		return nil, err
+	var net *db.Net
+	if groupID != nil {
+		net, err = db.CreateNetForGroup(*groupID, netName, name, cNetwork.SDNZone, tag, vlanaware, string(VNetStatusPreCreating))
+		if err != nil {
+			logger.Error("Failed to create network for group", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+	} else {
+		net, err = db.CreateNetForUser(userID, netName, name, cNetwork.SDNZone, tag, vlanaware, string(VNetStatusPreCreating))
+		if err != nil {
+			logger.Error("Failed to create network for user", "userID", userID, "error", err)
+			return nil, err
+		}
 	}
 
 	return net, nil
@@ -147,12 +200,30 @@ func DeleteNet(userID uint, netID uint) error {
 		return err
 	}
 	if len(interfaces) > 0 {
-		logger.Error("Cannot delete net with active interfaces", "userID", userID, "netID", netID)
+		logger.Error("Cannot delete net with active interfaces", "ownerID", userID, "netID", netID)
 		return ErrVNetHasActiveInterfaces
 	}
 
-	if net.UserID != userID {
-		logger.Error("User is not the owner of the net", "userID", userID, "netID", netID)
+	switch net.OwnerType {
+	case "User":
+		if net.OwnerID != userID {
+			return ErrVNetNotFound
+		}
+	case "Group":
+		role, err := db.GetUserRoleInGroup(userID, net.OwnerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return ErrVNetNotFound
+			}
+			logger.Error("Failed to get user role in group", "userID", userID, "groupID", net.OwnerID, "netID", netID, "error", err)
+			return err
+		}
+
+		if role != "admin" && role != "owner" {
+			return ErrPermissionDenied
+		}
+	default:
+		logger.Error("Invalid net owner type", "ownerID", userID, "netID", netID, "ownerType", net.OwnerType)
 		return ErrVNetNotFound
 	}
 
@@ -174,14 +245,45 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 			return err
 		}
 	}
-	if net.UserID != userID {
+
+	switch net.OwnerType {
+	case "User":
+		if net.OwnerID != userID {
+			return ErrVNetNotFound
+		}
+
+	case "Group":
+		role, err := db.GetUserRoleInGroup(userID, net.OwnerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return ErrVNetNotFound
+			}
+			logger.Error("Failed to get user role in group", "userID", userID, "groupID", net.OwnerID, "netID", vnetID, "error", err)
+			return err
+		}
+
+		if role != "admin" && role != "owner" {
+			return ErrPermissionDenied
+		}
+	default:
+		logger.Error("Invalid net owner type", "ownerID", userID, "vnetID", vnetID, "ownerType", net.OwnerType)
+
 		return ErrVNetNotFound
 	}
 
-	nets, err := db.GetNetsByUserID(userID)
-	if err != nil {
-		logger.Error("Failed to get nets by user ID", "userID", userID, "error", err)
-		return err
+	var nets []db.Net
+	if net.OwnerType == "Group" {
+		nets, err = db.GetNetsByGroupID(net.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get nets by group ID", "groupID", net.OwnerID, "error", err)
+			return err
+		}
+	} else {
+		nets, err = db.GetNetsByUserID(userID)
+		if err != nil {
+			logger.Error("Failed to get nets by user ID", "userID", userID, "error", err)
+			return err
+		}
 	}
 
 	if slices.IndexFunc(nets, func(n db.Net) bool { return n.Alias == name && n.ID != vnetID }) != -1 {

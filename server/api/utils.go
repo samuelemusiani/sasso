@@ -398,7 +398,8 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			if n.UserID != userID {
+			// TODO: group vnets
+			if n.OwnerType == "User" && n.OwnerID != userID {
 				http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 				return
 			}

@@ -11,7 +11,7 @@ type Net struct {
 	Gateway   string `gorm:"not null"` // IP address of the gateway
 	Broadcast string `gorm:"not null"` // Broadcast address of the subnet
 
-	UserID uint `json:"user_id"` // ID of the user who owns this net
+	UserIDs []uint `json:"user_ids"` // IDs of users who have access to this network
 }
 
 type VPNUpdate struct {

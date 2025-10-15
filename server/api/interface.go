@@ -56,7 +56,8 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if n.UserID != userID {
+	// TODO: group vnets
+	if n.OwnerType == "User" && n.OwnerID != userID {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 		return
 	}
@@ -127,7 +128,8 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if n.UserID != userID {
+	// TODO: group vnets
+	if n.OwnerType == "User" && n.OwnerID != userID {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 		return
 	}

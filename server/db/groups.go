@@ -18,6 +18,8 @@ type Group struct {
 	// Read-only field populated via join
 	// Role of the user that is querying the groups
 	Role string `gorm:"->"`
+
+	Nets []Net `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 }
 
 type UserGroup struct {
@@ -290,4 +292,24 @@ func DoesUserBelongToGroup(userID, groupID uint) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func CountGroupMembers(groupID uint) (int64, error) {
+	var count int64
+	err := db.Model(&UserGroup{}).Where("group_id = ?", groupID).Count(&count).Error
+	if err != nil {
+		logger.Error("Failed to count group members", "error", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
+	var userIDs []uint
+	err := db.Model(&UserGroup{}).Where("group_id = ?", groupID).Pluck("user_id", &userIDs).Error
+	if err != nil {
+		logger.Error("Failed to get user IDs by group ID", "error", err)
+		return nil, err
+	}
+	return userIDs, nil
 }

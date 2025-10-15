@@ -228,17 +228,20 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		logger.Debug("Enabling net", "net", n.Subnet)
 
-		peer, err := db.GetPeerByUserID(n.UserID)
-		if err != nil {
-			logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", n.UserID)
-			continue
-		}
+		var peer *db.Peer
+		for _, userID := range n.UserIDs {
+			peer, err = db.GetPeerByUserID(userID)
+			if err != nil {
+				logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", userID)
+				continue
+			}
 
-		err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, n.Subnet))
+			err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, n.Subnet))
 
-		if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
-			logger.Error("Failed to add firewall rule", "error", err)
-			continue
+			if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
+				logger.Error("Failed to add firewall rule", "error", err)
+				continue
+			}
 		}
 
 		if err = shorewall.Reload(); err != nil {

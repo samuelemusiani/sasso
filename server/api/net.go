@@ -15,6 +15,7 @@ import (
 type createNetRequest struct {
 	Name      string `json:"name"`
 	VlanAware bool   `json:"vlanaware"`
+	GroupID   *uint  `json:"group_id,omitempty"`
 }
 
 type returnNet struct {
@@ -41,7 +42,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	net, err := proxmox.AssignNewNetToUser(userID, req.Name, req.VlanAware)
+	net, err := proxmox.CreateNewNet(userID, req.Name, req.VlanAware, req.GroupID)
 	if err != nil {
 		if err == proxmox.ErrInsufficientResources {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
@@ -156,6 +157,19 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 
 	var returnNets []internal.Net
 	for _, n := range nets {
+		var users []uint
+		if n.OwnerType == "Group" {
+			groupUsers, err := db.GetUserIDsByGroupID(n.OwnerID)
+			if err != nil {
+				slog.Error("Failed to get users by group ID", "groupID", n.OwnerID, "err", err)
+				http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+				return
+			}
+			users = append(users, groupUsers...)
+		} else {
+			// OwnerType == "User"
+			users = append(users, n.OwnerID)
+		}
 		returnNets = append(returnNets, internal.Net{
 			ID:        n.ID,
 			Zone:      n.Zone,
@@ -164,7 +178,7 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 			Subnet:    n.Subnet,
 			Gateway:   n.Gateway,
 			Broadcast: n.Broadcast,
-			UserID:    n.UserID,
+			UserIDs:   users,
 		})
 	}
 
