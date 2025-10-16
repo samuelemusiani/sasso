@@ -88,7 +88,7 @@ func GetNetsByGroupID(groupID uint) ([]Net, error) {
 // Only counts nets owned by users, not groups
 func CountNetsByUserID(userID uint) (uint, error) {
 	var count int64
-	if err := db.Model(&Net{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", userID, "User").Count(&count).Error; err != nil {
 		logger.Error("Failed to count nets for user", "userID", userID, "error", err)
 		return 0, err
 	}
@@ -107,7 +107,7 @@ func CountNetsByGroupID(groupID uint) (uint, error) {
 
 func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
-	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", userID, "User", "ready").Pluck("subnet", &subnets).Error; err != nil {
 		logger.Error("Failed to get subnets for user", "userID", userID, "error", err)
 		return nil, err
 	}
