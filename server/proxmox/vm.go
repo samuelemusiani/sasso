@@ -57,6 +57,7 @@ type VM struct {
 	Disk                 uint      `json:"disk"`
 	LifeTime             time.Time `json:"lifetime"`
 	IncludeGlobalSSHKeys bool      `json:"include_global_ssh_keys"`
+	CreatedAt            time.Time `json:"-"`
 }
 
 func convertDBVMToVM(db_vm *db.VM) *VM {
@@ -71,6 +72,7 @@ func convertDBVMToVM(db_vm *db.VM) *VM {
 		LifeTime:             db_vm.LifeTime,
 		UserID:               db_vm.UserID,
 		IncludeGlobalSSHKeys: db_vm.IncludeGlobalSSHKeys,
+		CreatedAt:            db_vm.CreatedAt,
 	}
 }
 

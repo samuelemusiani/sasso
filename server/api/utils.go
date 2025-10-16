@@ -362,8 +362,8 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getVMFromContext(r *http.Request) *db.VM {
-	vm, ok := r.Context().Value("vm_id").(*db.VM)
+func getVMFromContext(r *http.Request) *proxmox.VM {
+	vm, ok := r.Context().Value("vm_id").(*proxmox.VM)
 	if !ok {
 		panic("getVMFromContext: vm_id not found in context")
 	}
