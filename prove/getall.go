@@ -8,10 +8,6 @@ import (
 	"net/http"
 )
 
-var (
-	BaseUrl = "http://130.136.201.50:8081/api/v1/servers/localhost"
-	ApiKey  = "omar"
-)
 
 type Zone struct {
 	ID   string `json:"id"`

@@ -9,9 +9,24 @@ import (
 	"net/http"
 )
 
+
+var (
+	BaseIpAddress = "130.136.201.50"
+	BasePort = 8081
+	BaseUrl = fmt.Sprintf("http://%s:%d/api/v1/servers/localhost", BaseIpAddress, BasePort)
+	ApiKey  = "omar"
+)
+
 func main() {
 	// GetAll()
-	CreateNetwork()
+	//CreateNetwork()
+	fmt.Println("Running\n")
+	//err := AddZoneToView("client1", "example.org..trusted")
+	err := SetUpNetwork("18.18.18.18/32", "vermizio")
+	if err != nil{
+		fmt.Println("Error : ", err)
+	}
+
 
 }
 
