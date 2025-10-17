@@ -49,6 +49,12 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == proxmox.ErrInsufficientResources {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
+		} else if err == proxmox.ErrNotFound {
+			http.Error(w, "Group not found", http.StatusBadRequest)
+		} else if err == proxmox.ErrVNetNameExists {
+			http.Error(w, "Network name already exists", http.StatusBadRequest)
+		} else if err == proxmox.ErrPermissionDenied {
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		} else {
 			http.Error(w, "Failed to create network", http.StatusInternalServerError)
 		}
@@ -132,6 +138,8 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Net not found", http.StatusNotFound)
 		} else if err == proxmox.ErrVNetHasActiveInterfaces {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == proxmox.ErrPermissionDenied {
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		} else {
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
 		}
@@ -163,6 +171,8 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Net not found", http.StatusNotFound)
 		} else if err == proxmox.ErrVNetNameExists || err == proxmox.ErrVNetHasTaggedInterfaces {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else if err == proxmox.ErrPermissionDenied {
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		} else {
 			http.Error(w, "Failed to update net", http.StatusInternalServerError)
 		}
