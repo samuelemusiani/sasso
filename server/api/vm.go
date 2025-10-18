@@ -105,12 +105,20 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 func changeVMState(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := mustGetUserIDFromContext(r)
-		vmID := getVMFromContext(r).ID
+		vm := getVMFromContext(r)
+		vmID := vm.ID
+
+		ownerID := userID
+		isGroup := false
+		if vm.OwnerType == "Group" {
+			ownerID = vm.OwnerID
+			isGroup = true
+		}
 
 		var err error
 		switch action {
 		case "start", "stop", "restart":
-			err = proxmox.ChangeVMStatus(userID, vmID, action)
+			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
 			return

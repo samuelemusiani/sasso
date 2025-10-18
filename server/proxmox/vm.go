@@ -474,15 +474,36 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	return nil
 }
 
-func ChangeVMStatus(userID uint, vmID uint64, action string) error {
-	_, err := db.GetVMByUserIDAndVMID(userID, vmID)
+// If the VM belongs to a user, userID and ownerID are the same.
+func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string) error {
+	var err error
+	if group {
+		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+	} else {
+		_, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
+	}
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.Warn("VM not found for changing status", "userID", userID, "vmID", vmID)
+			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID)
 			return ErrVMNotFound
 		} else {
 			logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
 			return err
+		}
+	}
+
+	if group {
+		role, err := db.GetUserRoleInGroup(userID, ownerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
+				return ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+			return err
+		}
+		if group && role != "admin" && role != "owner" {
+			return ErrPermissionDenied
 		}
 	}
 
