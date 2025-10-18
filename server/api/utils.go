@@ -346,7 +346,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			vm, err := proxmox.GetVMByID(vmID)
+			vm, err := proxmox.GetVMByID(vmID, userID)
 			if err != nil {
 				http.Error(w, "vm not found", http.StatusNotFound)
 				return

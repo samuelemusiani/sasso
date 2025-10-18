@@ -58,11 +58,16 @@ type VM struct {
 	LifeTime             time.Time `json:"lifetime"`
 	IncludeGlobalSSHKeys bool      `json:"include_global_ssh_keys"`
 	OwnerID              uint      `json:"owner_id"`
-	OwnerType            string    `json:"owner_type"`
+	OwnerType            string    `json:"-"`
+
+	GroupName string `json:"group_name,omitempty"`
+	// User role in the group (e.g., "member", "admin").
+	// User is the one requesting the VM.
+	GroupRole string `json:"group_role,omitempty"`
 }
 
-func convertDBVMToVM(db_vm *db.VM) *VM {
-	return &VM{
+func convertDBVMToVM(db_vm *db.VM, groupName, groupRole *string) *VM {
+	vm := &VM{
 		ID:                   db_vm.ID,
 		CreatedAt:            db_vm.CreatedAt,
 		Status:               string(db_vm.Status),
@@ -74,8 +79,13 @@ func convertDBVMToVM(db_vm *db.VM) *VM {
 		LifeTime:             db_vm.LifeTime,
 		IncludeGlobalSSHKeys: db_vm.IncludeGlobalSSHKeys,
 		OwnerID:              db_vm.OwnerID,
-		OwnerType:            db_vm.OwnerType,
 	}
+
+	if groupName != nil && groupRole != nil {
+		vm.GroupName = *groupName
+		vm.GroupRole = *groupRole
+	}
+	return vm
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -85,26 +95,34 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		return nil, err
 	}
 
+	vms := make([]VM, len(db_vms))
+
+	for i := range vms {
+		vms[i] = *convertDBVMToVM(&db_vms[i], nil, nil)
+	}
+
 	groups, err := db.GetGroupsByUserID(userID)
 	for _, g := range groups {
-		vms, err := db.GetVMsByGroupID(g.ID)
+		gvms, err := db.GetVMsByGroupID(g.ID)
 		if err != nil {
 			logger.Error("Failed to get VMs by group ID", "groupID", g.ID, "error", err)
 			return nil, err
 		}
-		db_vms = append(db_vms, vms...)
-	}
+		role, err := db.GetUserRoleInGroup(userID, g.ID)
+		if err != nil {
+			logger.Error("Failed to get user role in group", "userID", userID, "groupID", g.ID, "error", err)
+			return nil, err
+		}
 
-	vms := make([]VM, len(db_vms))
-
-	for i := range vms {
-		vms[i] = *convertDBVMToVM(&db_vms[i])
+		for i := range gvms {
+			vms = append(vms, *convertDBVMToVM(&gvms[i], &g.Name, &role))
+		}
 	}
 
 	return vms, nil
 }
 
-func GetVMByID(VMID uint64) (*VM, error) {
+func GetVMByID(VMID uint64, userID uint) (*VM, error) {
 	db_vm, err := db.GetVMByID(VMID)
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -114,7 +132,26 @@ func GetVMByID(VMID uint64) (*VM, error) {
 		return nil, err
 	}
 
-	return convertDBVMToVM(db_vm), nil
+	var groupName, role *string
+	if db_vm.OwnerType == "Group" {
+		group, err := db.GetGroupByID(db_vm.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get group by ID for VM", "groupID", db_vm.OwnerID, "vmID", VMID, "error", err)
+			return nil, err
+		}
+		r, err := db.GetUserRoleInGroup(userID, group.ID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return nil, ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for VM", "userID", userID, "groupID", group.ID, "vmID", VMID, "error", err)
+			return nil, err
+		}
+		groupName = &group.Name
+		role = &r
+	}
+
+	return convertDBVMToVM(db_vm, groupName, role), nil
 }
 
 // Generate a full VM ID based on the user ID and VM user ID.
@@ -268,7 +305,18 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, err
 	}
 
-	return convertDBVMToVM(db_vm), nil
+	var groupName, role *string
+	if group != nil {
+		groupName = &group.Name
+		r, err := db.GetUserRoleInGroup(userID, group.ID)
+		if err != nil {
+			l.Error("Failed to get user role in group for new VM", "groupID", group.ID, "error", err)
+			return nil, err
+		}
+		role = &r
+	}
+
+	return convertDBVMToVM(db_vm, groupName, role), nil
 }
 
 func DeleteVM(userID uint, vmID uint64) error {
