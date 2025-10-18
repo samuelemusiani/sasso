@@ -1,10 +1,17 @@
 package db
 
+import "gorm.io/gorm"
+
 type Subnet struct {
 	ID     uint   `gorm:"primaryKey"`
 	Subnet string `gorm:"not null;unique"`
 
-	PeerID uint `gorm:"index; not null"`
+	Peers []Peer `gorm:"many2many:subnet_peers;constraint:OnDelete:CASCADE;"`
+}
+
+type SubnetPeer struct {
+	SubnetID uint `gorm:"primaryKey"`
+	PeerID   uint `gorm:"primaryKey"`
 }
 
 func initSubnets() error {
@@ -13,7 +20,7 @@ func initSubnets() error {
 
 func GetAllSubnets() ([]Subnet, error) {
 	var subnets []Subnet
-	if err := db.Find(&subnets).Error; err != nil {
+	if err := db.Preload("Peers").Find(&subnets).Error; err != nil {
 		return nil, err
 	}
 	return subnets, nil
@@ -28,14 +35,25 @@ func CheckSubnetExists(subnet string) (bool, error) {
 }
 
 func NewSubnet(subnet string, PeerID uint) error {
-	s := &Subnet{
-		Subnet: subnet,
-		PeerID: PeerID,
-	}
-	if err := db.Create(s).Error; err != nil {
-		return err
-	}
-	return nil
+	err := db.Transaction(func(tx *gorm.DB) error {
+		s := &Subnet{
+			Subnet: subnet,
+		}
+		if err := db.Create(s).Error; err != nil {
+			return err
+		}
+
+		sp := &SubnetPeer{
+			SubnetID: s.ID,
+			PeerID:   PeerID,
+		}
+		if err := db.Create(sp).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+	return err
 }
 
 func RemoveSubnet(subnet string) error {
