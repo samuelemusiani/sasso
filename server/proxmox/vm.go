@@ -565,25 +565,23 @@ func UpdateVMLifetime(VMID uint64, extendBy uint) error {
 // not need to know about that.
 func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
 	// like 600{{vmid}} or 60{{vmid}}0
-	first := strings.Index(cClone.IDTemplate, "{{vmid}}")
+	first := strings.Index("60{{vmid}}", "{{vmid}}") //3
 	if first == -1 {
 		panic("invalid clone ID template")
 	}
 
-	last := first + len("{{vmid}}")
-
 	var maxID uint = 0
 	for _, id := range ids {
 		sid := strconv.Itoa(int(id))
-		if len(sid) < last {
+		if len(sid) < 1+cClone.VMIDUserDigits {
 			logger.Error("VM ID in database is shorter than expected", "id", id)
 			continue
 		}
-
-		uniqueOwnerIDStr := sid[:first] + sid[last:]
-		uniqueOwnerID, err := strconv.ParseUint(uniqueOwnerIDStr, 10, 64)
+		sUniqueID := sid[1+cClone.VMIDUserDigits:]
+		uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 		if err != nil {
-			return 0, fmt.Errorf("invalid VM ID in database: %d", id)
+			logger.Error("Failed to convert unique owner ID to integer", "id", sid, "error", err)
+			continue
 		}
 
 		if uint(uniqueOwnerID) > maxID {
@@ -601,23 +599,15 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 		panic("invalid clone ID template")
 	}
 
-	last := first + len("{{vmid}}")
-
-	var maxID uint = 0
 	sid := strconv.Itoa(int(id))
-	if len(sid) < last {
-		logger.Error("VM ID in database is shorter than expected", "id", id)
+	if len(sid) < 1+cClone.VMIDUserDigits {
 		return 0, fmt.Errorf("invalid VM ID in database: %d", id)
 	}
 
-	uniqueOwnerIDStr := sid[:first] + sid[last:]
-	uniqueOwnerID, err := strconv.ParseUint(uniqueOwnerIDStr, 10, 64)
+	sUniqueID := sid[1+cClone.VMIDUserDigits:]
+	uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 	if err != nil {
-		return 0, fmt.Errorf("invalid VM ID in database: %d", id)
+		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
 	}
-
-	if uint(uniqueOwnerID) > maxID {
-		maxID = uint(uniqueOwnerID)
-	}
-	return maxID, nil
+	return uint(uniqueOwnerID), nil
 }
