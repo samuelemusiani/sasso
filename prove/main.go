@@ -22,7 +22,14 @@ func main() {
 	//CreateNetwork()
 	fmt.Println("Running\n")
 	//err := AddZoneToView("client1", "example.org..trusted")
-	err := SetUpNetwork("18.18.18.18/32", "vermizio")
+	//var net Network
+	//net.Network = "18.18.18.18/32"
+	//err := SetUpNetwork(net, "vermizio")
+	
+	var zone Zone
+	zone.ID = "zalone"
+
+	err := RemoveZoneFromView("checco", zone)
 	if err != nil{
 		fmt.Println("Error : ", err)
 	}
