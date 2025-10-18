@@ -34,7 +34,7 @@ type User struct {
 
 	VPNConfig *string `gorm:"default:null"`
 
-	VMs            []VM            `gorm:"foreignKey:UserID"`
+	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
 	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
