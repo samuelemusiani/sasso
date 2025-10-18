@@ -85,6 +85,16 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		return nil, err
 	}
 
+	groups, err := db.GetGroupsByUserID(userID)
+	for _, g := range groups {
+		vms, err := db.GetVMsByGroupID(g.ID)
+		if err != nil {
+			logger.Error("Failed to get VMs by group ID", "groupID", g.ID, "error", err)
+			return nil, err
+		}
+		db_vms = append(db_vms, vms...)
+	}
+
 	vms := make([]VM, len(db_vms))
 
 	for i := range vms {

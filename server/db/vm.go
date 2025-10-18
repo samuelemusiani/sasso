@@ -43,7 +43,7 @@ func initVMs() error {
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
 	var vms []VM
-	result := db.Where(&VM{OwnerID: userID, OwnerType: "Group"}).Find(&vms)
+	result := db.Where(&VM{OwnerID: userID, OwnerType: "User"}).Find(&vms)
 	if result.Error != nil {
 		return nil, result.Error
 	}
