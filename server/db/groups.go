@@ -345,6 +345,8 @@ type GroupResource struct {
 	Cores uint `gorm:"not null"`
 	RAM   uint `gorm:"not null"`
 	Disk  uint `gorm:"not null"`
+
+	Username string `gorm:"->;-:migration"`
 }
 
 func initGroupResources() error {
@@ -363,4 +365,18 @@ func GetGroupResourceLimits(groupID uint) (uint, uint, uint, error) {
 	}
 
 	return result.Cores, result.RAM, result.Disk, nil
+}
+
+func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
+	var resources []GroupResource
+	err := db.Table("group_resources as gr").
+		Joins("JOIN users ON users.id = gr.user_id").
+		Select("gr.group_id, gr.user_id, gr.cores, gr.ram, gr.disk, users.username as username").
+		Where("gr.group_id = ?", groupID).
+		Scan(&resources).Error
+	if err != nil {
+		logger.Error("Failed to get group resources by group ID", "error", err)
+		return nil, err
+	}
+	return resources, nil
 }

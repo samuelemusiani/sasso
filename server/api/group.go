@@ -16,13 +16,22 @@ type returnGroup struct {
 
 	Role string `json:"role,omitempty"`
 
-	Members []returnGroupMember `json:"members,omitempty"`
+	Members   []returnGroupMember `json:"members,omitempty"`
+	Resources []returnResource    `json:"resources,omitempty"`
 }
 
 type returnGroupMember struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
+}
+
+type returnResource struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Cores    uint   `json:"cores"`
+	RAM      uint   `json:"ram"`
+	Disk     uint   `json:"disk"`
 }
 
 func listUserGroups(w http.ResponseWriter, r *http.Request) {
@@ -115,6 +124,21 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 			UserID:   member.UserID,
 			Username: member.Username,
 			Role:     member.Role,
+		})
+	}
+
+	resources, err := db.GetGroupResourcesByGroupID(group.ID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve group resources", http.StatusInternalServerError)
+		return
+	}
+	returnGroup.Resources = make([]returnResource, 0, len(resources))
+	for _, res := range resources {
+		returnGroup.Resources = append(returnGroup.Resources, returnResource{
+			UserID:   res.UserID,
+			Username: res.Username,
+			Cores:    res.Cores,
+			RAM:      res.RAM, Disk: res.Disk,
 		})
 	}
 
