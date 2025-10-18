@@ -47,6 +47,8 @@ export interface Net {
   status: string
   subnet: string
   gateway: string
+  group_id?: number
+  group_name?: string
 }
 
 export interface SSHKey {
