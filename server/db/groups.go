@@ -20,6 +20,7 @@ type Group struct {
 	// Role of the user that is querying the groups
 	Role string `gorm:"->"`
 
+	VMs       []VM            `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 	Nets      []Net           `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 	Resources []GroupResource `gorm:"foreignKey:GroupID"`
 }
