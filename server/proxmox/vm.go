@@ -169,6 +169,7 @@ func generateFullVMID(group bool, ownerID uint, vmOwnerID uint) (uint64, error) 
 	svmid = strings.Replace(cClone.IDTemplate, "{{vmid}}", svmid, 1)
 
 	if len(svmid) < 3 || len(svmid) > 9 {
+		logger.Error("Invalid clone ID template length", "length", len(svmid), "vmid", svmid, "group", group, "ownerID", ownerID, "vmOwnerID", vmOwnerID)
 		return 0, fmt.Errorf("invalid clone ID template length: %d", len(svmid))
 	}
 
@@ -577,7 +578,7 @@ func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
 			logger.Error("VM ID in database is shorter than expected", "id", id)
 			continue
 		}
-		sUniqueID := sid[1+cClone.VMIDUserDigits:]
+		sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
 		uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 		if err != nil {
 			logger.Error("Failed to convert unique owner ID to integer", "id", sid, "error", err)
@@ -604,7 +605,7 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 		return 0, fmt.Errorf("invalid VM ID in database: %d", id)
 	}
 
-	sUniqueID := sid[1+cClone.VMIDUserDigits:]
+	sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
 	uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
