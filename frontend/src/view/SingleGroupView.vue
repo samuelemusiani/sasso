@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { Group, GroupInvite, GroupMember } from '@/types'
+import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
 import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 import CreateNew from '@/components/CreateNew.vue'
@@ -15,10 +15,34 @@ const groupId = Number(route.params.id)
 const username = ref('')
 const role = ref('member')
 
+const cores = ref(0)
+const ram = ref(0)
+const disk = ref(0)
+
 const invitations = ref<GroupInvite[]>([])
 // const members = ref<GroupMember[]>([])
 
 const me = ref<GroupMember | null>(null)
+
+function getResourcesForUser(userId: number): GroupResource | undefined {
+  return group.value?.resources?.find((r) => r.user_id === userId)
+}
+
+function saveResources() {
+  api
+    .post(`/groups/${groupId}/resources`, {
+      cores: cores.value,
+      ram: ram.value,
+      disk: disk.value,
+    })
+    .then(() => {
+      fetchGroup() // This will re-fetch group and resources
+    })
+    .catch((err) => {
+      console.error('Failed to save resources:', err)
+      alert('Failed to save resources. Please try again.')
+    })
+}
 
 function fetchGroup() {
   api
@@ -174,6 +198,34 @@ onMounted(() => {
       </CreateNew>
     </div>
 
+    <CreateNew title="Resource" :create="saveResources">
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <label for="cores">Cores</label>
+          <input
+            type="number"
+            id="cores"
+            v-model.number="cores"
+            class="input w-48 rounded-lg border p-2"
+          />
+          <label for="ram">RAM (MB)</label>
+          <input
+            type="number"
+            id="ram"
+            v-model.number="ram"
+            class="input w-48 rounded-lg border p-2"
+          />
+          <label for="disk">Disk (GB)</label>
+          <input
+            type="number"
+            id="disk"
+            v-model.number="disk"
+            class="input w-48 rounded-lg border p-2"
+          />
+        </div>
+      </div>
+    </CreateNew>
+
     <div>
       <button
         v-if="me && me.role != 'owner'"
@@ -206,6 +258,9 @@ onMounted(() => {
               <tr>
                 <th>Username</th>
                 <th>Role</th>
+                <th>Cores</th>
+                <th>RAM (MB)</th>
+                <th>Disk (GB)</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -217,6 +272,9 @@ onMounted(() => {
               >
                 <td>{{ member.username }}</td>
                 <td>{{ member.role }}</td>
+                <td>{{ getResourcesForUser(member.user_id)?.cores || 0 }}</td>
+                <td>{{ getResourcesForUser(member.user_id)?.ram || 0 }}</td>
+                <td>{{ getResourcesForUser(member.user_id)?.disk || 0 }}</td>
                 <td>
                   <button
                     v-show="me && me.role == 'owner' && member.user_id != me.user_id"

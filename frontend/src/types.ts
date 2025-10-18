@@ -8,6 +8,10 @@ export interface VM {
   lifetime: string
   include_global_ssh_keys: boolean
   notes: string
+
+  group_id?: number
+  group_name?: string
+  group_role?: string
 }
 
 export interface User {
@@ -43,7 +47,6 @@ export interface Net {
   id: number
   name: string
   vlanaware: boolean
-  userid: number
   status: string
   subnet: string
   gateway: string
@@ -131,6 +134,15 @@ export interface Group {
   description: string
   role?: string
   members?: GroupMember[]
+  resources?: GroupResource[]
+}
+
+export interface GroupResource {
+  user_id: number
+  username: string
+  cores: number
+  ram: number
+  disk: number
 }
 
 export interface GroupInvite {
