@@ -280,7 +280,7 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	}
 	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
 
-	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResorcesActiveVMsByUserID(userID)
+	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResourcesActiveVMsByUserID(userID)
 	if err != nil {
 		logger.Error("failed to get active VM resources by user ID", "error", err)
 		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)

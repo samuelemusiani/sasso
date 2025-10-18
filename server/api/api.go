@@ -173,6 +173,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Get("/members/me", getMyGroupMembership)
 			r.Delete("/members/me", leaveGroup)
 			r.Delete("/members/{userid}", removeUserFromGroup)
+
+			// Resources management
+			r.Post("/resources", addGroupResources)
 		})
 	})
 

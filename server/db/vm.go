@@ -229,15 +229,15 @@ func getVMResourcesByOwner(ownerID uint, ownerType string) (uint, uint, uint, er
 	return result.Cores, result.RAM, result.Disk, nil
 }
 
-func GetResorcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
-	return getResorcesActiveVMsByOwner(userID, "User")
+func GetResourcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
+	return getResourcesActiveVMsByOwner(userID, "User")
 }
 
-func GetResorcesActiveVMsByGroupID(groupID uint) (uint, uint, uint, error) {
-	return getResorcesActiveVMsByOwner(groupID, "Group")
+func GetResourcesActiveVMsByGroupID(groupID uint) (uint, uint, uint, error) {
+	return getResourcesActiveVMsByOwner(groupID, "Group")
 }
 
-func getResorcesActiveVMsByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
+func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
 	var result struct {
 		Cores uint
 		RAM   uint

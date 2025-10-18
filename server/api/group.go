@@ -432,3 +432,30 @@ func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+type addGroupResourcesRequest struct {
+	Cores uint `json:"cores"`
+	RAM   uint `json:"ram"`
+	Disk  uint `json:"disk"`
+}
+
+func addGroupResources(w http.ResponseWriter, r *http.Request) {
+	group := getGroupFromContext(r)
+
+	var req addGroupResourcesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	userID := mustGetUserIDFromContext(r)
+
+	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk); err != nil {
+		if err == db.ErrInsufficientResources {
+			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Failed to add resources to group member", http.StatusInternalServerError)
+		return
+	}
+}

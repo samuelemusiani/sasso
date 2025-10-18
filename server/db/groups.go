@@ -380,3 +380,57 @@ func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	}
 	return resources, nil
 }
+
+func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
+	groupResource := GroupResource{
+		GroupID: groupID,
+		UserID:  userID,
+		Cores:   cores,
+		RAM:     ram,
+		Disk:    disk,
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var used struct {
+			Cores uint
+			RAM   uint
+			Disk  uint
+		}
+		err := db.Model(&VM{}).
+			Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+			Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
+		if err != nil {
+			logger.Error("Failed to get user VM resources", "error", err)
+			return err
+		}
+
+		var u User
+		err = db.First(&u, userID).Error
+		if err != nil {
+			logger.Error("Failed to get user", "error", err)
+			return err
+		}
+		if used.Cores+cores > u.MaxCores || used.RAM+ram > u.MaxRAM || used.Disk+disk > u.MaxDisk {
+			return ErrInsufficientResources
+		}
+
+		err = tx.Create(&groupResource).Error
+		if err != nil {
+			logger.Error("Failed to create group resource", "error", err)
+			return err
+		}
+
+		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
+			Updates(map[string]clause.Expr{
+				"max_cores": gorm.Expr("max_cores - ?", cores),
+				"max_ram":   gorm.Expr("max_ram - ?", ram),
+				"max_disk":  gorm.Expr("max_disk - ?", disk),
+			}).Error
+		if err != nil {
+			logger.Error("Failed to update user limits", "error", err)
+			return err
+		}
+		return nil
+	})
+	return err
+}
