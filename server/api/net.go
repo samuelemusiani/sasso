@@ -29,6 +29,7 @@ type returnNet struct {
 
 	GroupID   uint   `json:"group_id,omitempty"` // If the net belongs to a
 	GroupName string `json:"group_name,omitempty"`
+	GroupRole string `json:"group_role,omitempty"`
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
@@ -111,6 +112,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 				Gateway:   net.Gateway,
 				GroupID:   g.ID,
 				GroupName: g.Name,
+				GroupRole: g.Role,
 			})
 		}
 	}
