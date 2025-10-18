@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import type { Group, Net } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
@@ -97,6 +97,10 @@ function deleteNet(id: number) {
       console.error(`Failed to delete network ${id}:`, err)
     })
 }
+
+const nonMemberGroups = computed(() => {
+  return groups.value.filter((group) => group.role !== 'member')
+})
 </script>
 
 <template>
@@ -119,7 +123,7 @@ function deleteNet(id: number) {
         <label for="group">Group (Optional)</label>
         <select v-model="newNetGroupId" class="select select-bordered">
           <option :value="undefined">Me</option>
-          <option v-for="group in groups" :key="group.id" :value="group.id">
+          <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
             {{ group.name }}
           </option>
         </select>
@@ -162,6 +166,7 @@ function deleteNet(id: number) {
             <button
               v-if="net.status === 'ready'"
               @click="deleteNet(net.id)"
+              :disabled="net.group_role === 'member'"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />

@@ -99,6 +99,10 @@ function updateInterface() {
 onMounted(() => {
   fetchNets()
 })
+
+const filteredNets = computed(() => {
+  return nets.value.filter((net) => net.group_role !== 'member')
+})
 </script>
 
 <template>
@@ -108,7 +112,7 @@ onMounted(() => {
       <div>
         <label for="net" class="block text-sm font-medium">Network</label>
         <select id="net" v-model="form.vnet_id" class="select w-full rounded-lg">
-          <option v-for="net in nets" :key="net.id" :value="net.id">
+          <option v-for="net in filteredNets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
         </select>

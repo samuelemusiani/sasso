@@ -49,6 +49,7 @@ export interface Net {
   gateway: string
   group_id?: number
   group_name?: string
+  group_role?: string
 }
 
 export interface SSHKey {
