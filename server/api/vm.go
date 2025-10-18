@@ -130,6 +130,8 @@ func changeVMState(action string) http.HandlerFunc {
 				http.Error(w, "Failed to change VM state", http.StatusNotFound)
 			} else if errors.Is(err, proxmox.ErrInvalidVMState) {
 				http.Error(w, "Invalid VM state for this action", http.StatusConflict)
+			} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+				http.Error(w, "Permission denied", http.StatusForbidden)
 			} else {
 				http.Error(w, "Failed to change VM state", http.StatusInternalServerError)
 			}
