@@ -421,7 +421,7 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
 		}
 
 		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
-			UpdateColumns(map[string]clause.Expr{
+			UpdateColumns(map[string]interface{}{
 				"max_cores": gorm.Expr("max_cores - ?", cores),
 				"max_ram":   gorm.Expr("max_ram - ?", ram),
 				"max_disk":  gorm.Expr("max_disk - ?", disk),
