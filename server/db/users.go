@@ -57,11 +57,8 @@ func (r UserRole) IsValid() bool {
 }
 
 func (u *User) BeforeSave(tx *gorm.DB) error {
-	// Only validate role if it's being changed
-	if tx.Statement.Changed("Role") {
-		if !u.Role.IsValid() {
-			return ErrInvalidUserRole
-		}
+	if !u.Role.IsValid() {
+		return ErrInvalidUserRole
 	}
 	return nil
 }
