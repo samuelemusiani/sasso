@@ -333,7 +333,7 @@ func NewVMExpirationNotification(vmID uint64, daysBefore uint) (*VMExpirationNot
 
 func GetVMExpirationNotificationsByVMID(vmID uint64) ([]VMExpirationNotification, error) {
 	var notifications []VMExpirationNotification
-	result := db.Model(&VM{ID: vmID}).Find(&notifications)
+	result := db.Model(&VMExpirationNotification{VMID: vmID}).Find(&notifications)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
