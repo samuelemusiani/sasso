@@ -101,7 +101,9 @@ function deleteNet(id: number) {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="mb-2 text-3xl font-bold">Networks</h1>
+    <h1 class="flex items-center gap-2 text-3xl font-bold">
+      <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
+    </h1>
 
     <CreateNew title="Network" :create="createNet" :error="error">
       <div class="flex flex-col gap-2">
