@@ -80,6 +80,7 @@ func convertDBVMToVM(db_vm *db.VM, groupID *uint, groupName, groupRole *string) 
 		LifeTime:             db_vm.LifeTime,
 		IncludeGlobalSSHKeys: db_vm.IncludeGlobalSSHKeys,
 		OwnerID:              db_vm.OwnerID,
+		OwnerType:            db_vm.OwnerType,
 	}
 
 	if groupID != nil && groupName != nil && groupRole != nil {
@@ -484,7 +485,7 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 	}
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID)
+			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", group)
 			return ErrVMNotFound
 		} else {
 			logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
