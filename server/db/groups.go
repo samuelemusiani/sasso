@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Group struct {
@@ -19,7 +20,8 @@ type Group struct {
 	// Role of the user that is querying the groups
 	Role string `gorm:"->"`
 
-	Nets []Net `gorm:"polymorphic:Owner;polymorphicValue:Group"`
+	Nets      []Net           `gorm:"polymorphic:Owner;polymorphicValue:Group"`
+	Resources []GroupResource `gorm:"foreignKey:GroupID"`
 }
 
 type UserGroup struct {
@@ -312,4 +314,52 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 		return nil, err
 	}
 	return userIDs, nil
+}
+
+func (g *Group) AfterDelete(tx *gorm.DB) (err error) {
+	var resources []GroupResource
+	err = tx.Model(&GroupResource{}).Where("group_id = ?", g.ID).Find(&resources).Error
+	if err != nil {
+		return err
+	}
+
+	for _, r := range resources {
+		err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
+			Updates(map[string]clause.Expr{
+				"max_cores": gorm.Expr("max_cores + ?", r.Cores),
+				"max_ram":   gorm.Expr("max_ram + ?", r.RAM),
+				"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
+			}).Error
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+type GroupResource struct {
+	GroupID uint `gorm:"primaryKey"`
+	UserID  uint `gorm:"primaryKey"`
+
+	Cores uint `gorm:"not null"`
+	RAM   uint `gorm:"not null"`
+	Disk  uint `gorm:"not null"`
+}
+
+func initGroupResources() error {
+	return db.AutoMigrate(&GroupResource{})
+}
+
+func GetGroupResourceLimits(groupID uint) (uint, uint, uint, error) {
+	var result GroupResource
+	err := db.First(&result, &GroupResource{GroupID: groupID}).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, 0, 0, nil
+		}
+		logger.Error("Failed to get group resource limits", "error", err)
+		return 0, 0, 0, err
+	}
+
+	return result.Cores, result.RAM, result.Disk, nil
 }

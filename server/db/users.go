@@ -43,7 +43,8 @@ type User struct {
 	// We can't have notifications here because we set UserID to 0 for global notifications
 	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
 
-	Groups []Group `gorm:"many2many:user_groups;"`
+	Groups        []Group         `gorm:"many2many:user_groups;"`
+	GroupResource []GroupResource `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
 
 func (r UserRole) IsValid() bool {

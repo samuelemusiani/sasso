@@ -34,6 +34,8 @@ type newVMRequest struct {
 	// Number of months the VM should live
 	LifeTime             uint `json:"lifetime"`
 	IncludeGlobalSSHKeys bool `json:"include_global_ssh_keys"`
+
+	GroupID *uint `json:"group_id,omitempty"`
 }
 
 func newVM(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +51,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	vm, err := proxmox.NewVM(userID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
+	vm, err := proxmox.NewVM(userID, req.GroupID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)

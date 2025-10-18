@@ -335,7 +335,12 @@ func createVMs() {
 			vmName = v.Name
 		} else {
 			s := "sasso-%0" + strconv.Itoa(cClone.VMIDVMDigits) + "d"
-			vmName = fmt.Sprintf(s, v.VMUserID)
+			uniqueID, err := getUniqueOwnerIDInVM(uint(v.ID))
+			if err != nil {
+				logger.Error("Failed to get unique owner ID for VM naming", "vmid", v.ID, "err", err)
+				continue
+			}
+			vmName = fmt.Sprintf(s, uniqueID)
 		}
 
 		cloningOptions := gprox.VirtualMachineCloneOptions{
@@ -665,7 +670,11 @@ func updateVMs(cluster *gprox.Cluster) {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
 
-			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, r.Status)
+			if vm.OwnerType == "Group" {
+				err = notify.SendVMStatusUpdateNotificationToGroup(vm.OwnerID, vm.Name, r.Status)
+			} else {
+				err = notify.SendVMStatusUpdateNotification(vm.OwnerID, vm.Name, r.Status)
+			}
 			if err != nil {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
@@ -688,7 +697,11 @@ func updateVMs(cluster *gprox.Cluster) {
 					logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
 
-				err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, string(VMStatusUnknown))
+				if vm.OwnerType == "Group" {
+					err = notify.SendVMStatusUpdateNotificationToGroup(vm.OwnerID, vm.Name, string(VMStatusUnknown))
+				} else {
+					err = notify.SendVMStatusUpdateNotification(vm.OwnerID, vm.Name, string(VMStatusUnknown))
+				}
 				if err != nil {
 					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
@@ -712,7 +725,11 @@ func updateVMs(cluster *gprox.Cluster) {
 				logger.Error("Failed to update status of VM", "vmid", r.VMID, "new_status", status, "err", err)
 			}
 
-			err = notify.SendVMStatusUpdateNotification(vm.UserID, vm.Name, status)
+			if vm.OwnerType == "Group" {
+				err = notify.SendVMStatusUpdateNotificationToGroup(vm.OwnerID, vm.Name, status)
+			} else {
+				err = notify.SendVMStatusUpdateNotification(vm.OwnerID, vm.Name, status)
+			}
 			if err != nil {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", status, "err", err)
 			}
@@ -1211,16 +1228,21 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			continue
 		}
 
-		sshKeys, err := db.GetSSHKeysByUserID(v.UserID)
+		var sshKeys []db.SSHKey
+		if v.OwnerType == "Group" {
+			sshKeys, err = db.GetSSHKeysByGroupID(v.OwnerID)
+		} else {
+			sshKeys, err = db.GetSSHKeysByUserID(v.OwnerID)
+		}
 		if err != nil {
-			logger.Error("Failed to get SSH keys for user", "vmid", v.ID, "userid", v.UserID, "err", err)
+			logger.Error("Failed to get SSH keys for user", "vmid", v.ID, "ownerID", v.OwnerID, "ownerType", v.OwnerType, "err", err)
 			continue
 		}
 
 		if v.IncludeGlobalSSHKeys {
 			globalKeys, err := db.GetGlobalSSHKeys()
 			if err != nil {
-				logger.Error("Failed to get global SSH keys", "vmid", v.ID, "userid", v.UserID, "err ", err)
+				logger.Error("Failed to get global SSH keys", "vmid", v.ID, "err ", err)
 				continue
 			}
 
@@ -1287,26 +1309,34 @@ func enforceVMLifetimes() {
 
 		if v.LifeTime.Before(time.Now().Add(-7 * 24 * time.Hour)) {
 			// The VM expired more than 7 days ago, we delete it
-			err := DeleteVM(v.UserID, v.ID)
+			err := deleteVMBypass(v.ID)
 			if err != nil {
 				logger.Error("Failed to delete expired VM", "vmid", v.ID, "error", err)
 				continue
 			}
 
-			err = notify.SendVMEliminatedNotification(v.UserID, v.Name)
+			if v.OwnerType == "Group" {
+				err = notify.SendVMEliminatedNotificationToGroup(v.OwnerID, v.Name)
+			} else {
+				err = notify.SendVMEliminatedNotification(v.OwnerID, v.Name)
+			}
 			if err != nil {
 				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
 		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
-			err := ChangeVMStatus(v.UserID, v.ID, "stop")
+			err := changeVMStatusBypass(v.ID, "stop")
 			if err != nil {
 				logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
 				continue
 			}
 
-			err = notify.SendVMStoppedNotification(v.UserID, v.Name)
+			if v.OwnerType == "Group" {
+				err = notify.SendVMStoppedNotificationToGroup(v.OwnerID, v.Name)
+			} else {
+				err = notify.SendVMStoppedNotification(v.OwnerID, v.Name)
+			}
 			if err != nil {
 				logger.Error("Failed to send VM stopped notification", "vmid", v.ID, "error", err)
 			}
@@ -1317,7 +1347,11 @@ func enforceVMLifetimes() {
 				}
 				if v.LifeTime.Before(time.Now().AddDate(0, 0, int(i))) && v.LifeTime.After(v.CreatedAt.AddDate(0, 0, int(i))) {
 					// Send notification for i day before expiration
-					err := notify.SendVMExpirationNotification(v.UserID, v.Name, int(i))
+					if v.OwnerType == "Group" {
+						err = notify.SendVMExpirationNotificationToGroup(v.OwnerID, v.Name, int(i))
+					} else {
+						err = notify.SendVMExpirationNotification(v.OwnerID, v.Name, int(i))
+					}
 					if err != nil {
 						logger.Error("Failed to send VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
 						continue

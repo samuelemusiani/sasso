@@ -347,9 +347,27 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			}
 
 			vm, err := proxmox.GetVMByID(vmID)
-			if err != nil || vm.UserID != userID {
+			if err != nil {
 				http.Error(w, "vm not found", http.StatusNotFound)
 				return
+			}
+
+			if vm.OwnerType == "User" && vm.OwnerID != userID {
+				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+				return
+			}
+			if vm.OwnerType == "Group" {
+				_, err := db.GetUserRoleInGroup(userID, vm.OwnerID)
+				if err != nil {
+					if errors.Is(err, db.ErrNotFound) {
+						http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+						return
+					}
+					logger.Error("failed to get user role in group", "error", err)
+					http.Error(w, "internal server error", http.StatusInternalServerError)
+					return
+				}
+				// TODO: check role permissions if needed?
 			}
 
 			ctx := r.Context()
