@@ -87,12 +87,22 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vmID := getVMFromContext(r).ID
+	vm := getVMFromContext(r)
+	vmID := vm.ID
 
-	if err := proxmox.DeleteVM(userID, vmID); err != nil {
+	ownerID := userID
+	isGroup := false
+	if vm.OwnerType == "Group" {
+		ownerID = vm.OwnerID
+		isGroup = true
+	}
+
+	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
 		if errors.Is(err, proxmox.ErrVMNotFound) {
 			http.Error(w, "Failed to delete VM", http.StatusNotFound)
+		} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		} else {
 			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
 		}

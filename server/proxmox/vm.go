@@ -325,8 +325,13 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	return convertDBVMToVM(db_vm, groupID, groupName, role), nil
 }
 
-func DeleteVM(userID uint, vmID uint64) error {
-	_, err := db.GetVMByUserIDAndVMID(userID, vmID)
+func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
+	var err error
+	if group {
+		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+	} else {
+		_, err = db.GetVMByUserIDAndVMID(userID, vmID)
+	}
 	if err != nil {
 		if err == db.ErrNotFound {
 			logger.Warn("VM not found for deletion", "userID", userID, "vmID", vmID)
@@ -334,6 +339,21 @@ func DeleteVM(userID uint, vmID uint64) error {
 		} else {
 			logger.Error("Failed to get VM from database for deletion", "userID", userID, "vmID", vmID, "error", err)
 			return err
+		}
+	}
+
+	if group {
+		role, err := db.GetUserRoleInGroup(userID, ownerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
+				return ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+			return err
+		}
+		if group && role != "admin" && role != "owner" {
+			return ErrPermissionDenied
 		}
 	}
 
