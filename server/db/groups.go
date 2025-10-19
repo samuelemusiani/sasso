@@ -469,7 +469,8 @@ func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 	err := tx.Where("group_id = ? AND user_id = ?", groupID, userID).First(&resource).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return ErrNotFound
+			// No resources to revoke
+			return nil
 		}
 		logger.Error("Failed to find group resource", "error", err)
 		return err
