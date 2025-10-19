@@ -94,6 +94,26 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c, err := db.CountGroupVMs(group.ID)
+	if err != nil {
+		http.Error(w, "Failed to check group VMs", http.StatusInternalServerError)
+		return
+	}
+	if c > 0 {
+		http.Error(w, "Cannot delete group: group has active VMs", http.StatusForbidden)
+		return
+	}
+
+	cn, err := db.CountNetsByGroupID(group.ID)
+	if err != nil {
+		http.Error(w, "Failed to check group networks", http.StatusInternalServerError)
+		return
+	}
+	if cn > 0 {
+		http.Error(w, "Cannot delete group: group has active networks", http.StatusForbidden)
+		return
+	}
+
 	if err := db.DeleteGroup(group.ID); err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "Group not found", http.StatusNotFound)

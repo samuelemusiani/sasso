@@ -342,3 +342,12 @@ func GetVMExpirationNotificationsByVMID(vmID uint64) ([]VMExpirationNotification
 	}
 	return notifications, nil
 }
+
+func CountGroupVMs(groupID uint) (int64, error) {
+	var count int64
+	result := db.Model(&VM{}).Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Count(&count)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return count, nil
+}

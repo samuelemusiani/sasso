@@ -32,6 +32,7 @@ type UserGroup struct {
 	Role      string // e.g., "member", "admin", "owner"
 }
 
+// This struct is only used for queries
 type GroupMemberWithUsername struct {
 	UserID   uint
 	Username string
@@ -94,15 +95,27 @@ func GetGroupsByUserID(userID uint) ([]Group, error) {
 
 func DeleteGroup(groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
+		// Delete all invitations for the group
+		if err := tx.Delete(&GroupInvitation{}, "group_id = ?", groupID).Error; err != nil {
+			logger.Error("Failed to delete group invitations", "error", err)
+			return err
+		}
+
+		// Remove every user from the group
 		if err := tx.Delete(&UserGroup{}, "group_id = ?", groupID).Error; err != nil {
 			logger.Error("Failed to delete user-group associations", "error", err)
 			return err
 		}
+
+		// Delete the group
 		result := tx.Delete(&Group{}, groupID)
 		if result.Error != nil {
 			logger.Error("Failed to delete group", "error", result.Error)
 			return result.Error
 		}
+
+		// Group resources will be deleted via the AfterDelete hook
+
 		if result.RowsAffected == 0 {
 			return ErrNotFound
 		}
