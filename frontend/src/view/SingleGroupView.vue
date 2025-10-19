@@ -5,6 +5,7 @@ import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
 import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 import CreateNew from '@/components/CreateNew.vue'
+import UserStats from '@/components/UserStats.vue'
 
 const group = ref<Group | null>(null)
 
@@ -24,6 +25,8 @@ const invitations = ref<GroupInvite[]>([])
 
 const me = ref<GroupMember | null>(null)
 
+const stats = ref()
+
 function getResourcesForUser(userId: number): GroupResource | undefined {
   return group.value?.resources?.find((r) => r.user_id === userId)
 }
@@ -37,6 +40,7 @@ function saveResources() {
     })
     .then(() => {
       fetchGroup() // This will re-fetch group and resources
+      fetchResourceStats()
     })
     .catch((err) => {
       console.error('Failed to save resources:', err)
@@ -165,11 +169,69 @@ function deleteGroup(id: number) {
   }
 }
 
+function revokeResource() {
+  api
+    .delete(`/groups/${groupId}/resources`)
+    .then(() => {
+      fetchGroup()
+    })
+    .catch((err) => {
+      console.error('Failed to revoke resources:', err)
+    })
+}
+
+// TODO: This is duplicated from HomeView.vue, we should refactor to avoid duplication
+async function fetchResourceStats() {
+  api
+    .get(`/groups/${groupId}/resources`)
+    .then((res) => {
+      const data = res.data
+      stats.value = [
+        {
+          item: 'CPU',
+          icon: 'heroicons-solid:chip',
+          active: data.active_vms_cores,
+          max: data.max_cores,
+          allocated: data.allocated_cores,
+          color: 'text-primary',
+        },
+        {
+          item: 'RAM',
+          icon: 'fluent:ram-20-regular',
+          active: data.active_vms_ram / 1024,
+          max: data.max_ram / 1024,
+          allocated: data.allocated_ram / 1024,
+          color: 'text-success',
+        },
+        {
+          item: 'Disk',
+          icon: 'mingcute:storage-line',
+          active: data.active_vms_disk,
+          max: data.max_disk,
+          allocated: data.allocated_disk,
+          color: 'text-accent',
+        },
+        {
+          item: 'Net',
+          icon: 'ph:network',
+          active: 0,
+          max: data.max_nets,
+          allocated: data.allocated_nets,
+          color: 'text-orange-400',
+        },
+      ]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch resource stats:', err)
+    })
+}
+
 onMounted(() => {
   fetchMe()
   fetchGroup()
   // fetchMembers()
   fetchInvitations()
+  fetchResourceStats()
 })
 </script>
 
@@ -227,6 +289,12 @@ onMounted(() => {
     </CreateNew>
 
     <div>
+      <button @click="revokeResource()" class="btn btn-warning rounded-lg">
+        Revoke My Resources
+      </button>
+    </div>
+
+    <div>
       <button
         v-if="me && me.role != 'owner'"
         @click="deleteMember(me.user_id)"
@@ -243,6 +311,8 @@ onMounted(() => {
       <h2 class="mb-2 text-xl font-semibold">{{ group.name }}</h2>
       <p class="mb-4 text-gray-600">{{ group.description }}</p>
     </div>
+
+    <UserStats v-if="stats" :stats="stats" />
 
     <div class="divider my-4"></div>
 
