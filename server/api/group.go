@@ -373,6 +373,9 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 		if err == db.ErrNotFound {
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
 			return
+		} else if err == db.ErrResourcesInUse {
+			http.Error(w, "Cannot leave group: resources are currently in use", http.StatusForbidden)
+			return
 		}
 		http.Error(w, "Failed to leave group", http.StatusInternalServerError)
 		return
@@ -399,6 +402,9 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	if err := db.RemoveUserFromGroup(uint(userID), group.ID); err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "User is not a member of this group", http.StatusNotFound)
+			return
+		} else if err == db.ErrResourcesInUse {
+			http.Error(w, "Cannot remove user: resources are currently in use", http.StatusForbidden)
 			return
 		}
 		http.Error(w, "Failed to remove user from group", http.StatusInternalServerError)
