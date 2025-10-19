@@ -107,6 +107,28 @@ func DeleteGroup(groupID uint) error {
 			return err
 		}
 
+		// Find all group resources and return them to users
+		var resources []GroupResource
+		err := tx.Model(&GroupResource{}).
+			Where("group_id = ?", groupID).
+			Find(&resources).Error
+		if err != nil {
+			return err
+		}
+
+		for _, r := range resources {
+			err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
+				Updates(map[string]clause.Expr{
+					"max_cores": gorm.Expr("max_cores + ?", r.Cores),
+					"max_ram":   gorm.Expr("max_ram + ?", r.RAM),
+					"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
+				}).Error
+			if err != nil {
+				return err
+			}
+		}
+		err = tx.Where("group_id = ?", groupID).Delete(&GroupResource{}).Error
+
 		// Delete the group
 		result := tx.Delete(&Group{}, groupID)
 		if result.Error != nil {
@@ -115,7 +137,6 @@ func DeleteGroup(groupID uint) error {
 		}
 
 		// Group resources will be deleted via the BeforeDelete hook
-
 		if result.RowsAffected == 0 {
 			return ErrNotFound
 		}
@@ -336,29 +357,6 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 		return nil, err
 	}
 	return userIDs, nil
-}
-
-func (g *Group) BeforeDelete(tx *gorm.DB) (err error) {
-	var resources []GroupResource
-	err = tx.Model(&GroupResource{}).Where("group_id = ?", g.ID).Find(&resources).Error
-	if err != nil {
-		return err
-	}
-
-	for _, r := range resources {
-		err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
-			Updates(map[string]clause.Expr{
-				"max_cores": gorm.Expr("max_cores + ?", r.Cores),
-				"max_ram":   gorm.Expr("max_ram + ?", r.RAM),
-				"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
-			}).Error
-		if err != nil {
-			return err
-		}
-
-	}
-	err = tx.Where("group_id = ?", g.ID).Delete(&GroupResource{}).Error
-	return err
 }
 
 type GroupResource struct {
