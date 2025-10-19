@@ -354,17 +354,22 @@ func initGroupResources() error {
 }
 
 func GetGroupResourceLimits(groupID uint) (uint, uint, uint, error) {
-	var result GroupResource
-	err := db.First(&result, &GroupResource{GroupID: groupID}).Error
+	var res struct {
+		Cores uint
+		RAM   uint
+		Disk  uint
+	}
+
+	err := db.Model(&GroupResource{}).
+		Where("group_id = ?", groupID).
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Scan(&res).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0, 0, 0, nil
-		}
-		logger.Error("Failed to get group resource limits", "error", err)
+		logger.Error("Failed to get group max resources", "error", err)
 		return 0, 0, 0, err
 	}
 
-	return result.Cores, result.RAM, result.Disk, nil
+	return res.Cores, res.RAM, res.Disk, nil
 }
 
 func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
