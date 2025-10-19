@@ -456,7 +456,7 @@ func RevokeGroupResources(groupID, userID uint) error {
 		var used usedResources
 		err = tx.Model(&VM{}).
 			Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
-			Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
+			Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Scan(&used).Error
 		if err != nil {
 			logger.Error("Failed to get user VM resources", "error", err)
 			return err
