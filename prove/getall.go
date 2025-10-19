@@ -8,43 +8,6 @@ import (
 	"net/http"
 )
 
-type Zone struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`
-}
-
-type Records struct {
-	Content  string `json:"content"`
-	Disabled bool   `json:"disabled"`
-}
-
-type RRSets struct {
-	Name     string    `json:"name"`
-	Records  []Records `json:"records"`
-	Type     string    `json:"type"`
-	TTL      int       `json:"ttl"`
-	Comments []string  `json:"comment"`
-}
-
-type RecordsResponse struct {
-	Name   string   `json:"name"`
-	RRSets []RRSets `json:"rrsets"`
-}
-
-type Network struct {
-	Network string `json:"network"`
-	View    string `json:"view"`
-}
-
-type NetworksResponse struct {
-	Networks []Network `json:"networks"`
-}
-
-type Views struct {
-	Views []string `json:"views"`
-}
-
 func GetAll() {
 	body, err := GetZones()
 	if err != nil {

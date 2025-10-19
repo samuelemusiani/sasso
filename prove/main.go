@@ -28,6 +28,20 @@ func main() {
 	var zone Zone
 	zone.ID = "zalone"
 
+	/*
+		Record := Records{
+			Content: "",
+			Disable: false,
+		}
+
+		RRSet := RRSet{
+			Name : "",
+			Records: []Record{Reocord},
+			Type: "A",
+			TTL: "112",
+		}
+
+	*/
 	err := RemoveZoneFromView("checco", zone)
 	if err != nil {
 		fmt.Println("Error : ", err)
