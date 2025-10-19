@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Interface, Net } from '@/types'
+import type { Interface, Net, VM } from '@/types'
 import { api } from '@/lib/api'
 import InterfaceForm from '@/components/vm/InterfaceForm.vue'
 import { getStatusClass } from '@/const'
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
+
+const vm = ref<VM>()
 
 const interfaces = ref<Interface[]>([])
 const nets = ref<Net[]>([])
@@ -77,16 +79,27 @@ function showEditForm(iface: Interface) {
   showAddForm.value = false
 }
 
+function fetchVM() {
+  api
+    .get(`/vm/${vmid}`)
+    .then((res) => {
+      vm.value = res.data as VM
+    })
+    .catch((err) => {
+      console.error('Failed to fetch VM:', err)
+    })
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
   fetchInterfaces()
+  fetchVM()
+  fetchNets()
 
   intervalId = setInterval(() => {
     fetchInterfaces()
   }, 5000)
-
-  fetchNets()
 })
 
 onBeforeUnmount(() => {
@@ -100,10 +113,15 @@ onBeforeUnmount(() => {
   <div class="flex flex-col gap-2 p-2">
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
 
-    <InterfaceForm :vmid="vmid" @interface-added="handleInterfaceAdded" @cancel="handleCancel" />
     <InterfaceForm
-      v-if="editingInterface"
-      :vmid="vmid"
+      v-if="vm && vm.group_role !== 'member'"
+      :vm="vm"
+      @interface-added="handleInterfaceAdded"
+      @cancel="handleCancel"
+    />
+    <InterfaceForm
+      v-if="editingInterface && vm && vm.group_role !== 'member'"
+      :vm="vm"
       :interface="editingInterface"
       @interface-updated="handleInterfaceUpdated"
       @cancel="handleCancel"
@@ -143,7 +161,10 @@ onBeforeUnmount(() => {
             <td class="font-semibold capitalize" :class="getStatusClass(iface.status)">
               {{ iface.status }}
             </td>
-            <td class="flex justify-end gap-2 text-right text-sm font-medium">
+            <td
+              v-if="vm && vm.group_role !== 'member'"
+              class="flex justify-end gap-2 text-right text-sm font-medium"
+            >
               <!-- FIXME: editing will show another"CreateNew" component filled -->
               <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
                 Edit
