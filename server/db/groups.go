@@ -119,7 +119,7 @@ func DeleteGroup(groupID uint) error {
 
 		for _, r := range resources {
 			err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
-				Updates(map[string]clause.Expr{
+				UpdateColumns(map[string]interface{}{
 					"max_cores": gorm.Expr("max_cores + ?", r.Cores),
 					"max_ram":   gorm.Expr("max_ram + ?", r.RAM),
 					"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
