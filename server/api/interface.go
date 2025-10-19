@@ -74,6 +74,13 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
 			return
 		}
+
+		// This check ensures that interfaces can only be added to VMs that belong
+		// to the same group as the vnet.
+		if vm.OwnerType != "Group" || vm.OwnerID != n.OwnerID {
+			http.Error(w, "VM does not belong to the same group as the vnet", http.StatusForbidden)
+			return
+		}
 	}
 
 	tmpFace := proxmox.Interface{
