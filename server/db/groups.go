@@ -485,7 +485,7 @@ func RevokeGroupResources(groupID, userID uint) error {
 		}
 
 		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
-			Updates(map[string]clause.Expr{
+			UpdateColumns(map[string]interface{}{
 				"max_cores": gorm.Expr("max_cores + ?", resource.Cores),
 				"max_ram":   gorm.Expr("max_ram + ?", resource.RAM),
 				"max_disk":  gorm.Expr("max_disk + ?", resource.Disk),
