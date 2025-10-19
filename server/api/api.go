@@ -176,6 +176,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 			// Resources management
 			r.Post("/resources", addGroupResources)
+			r.Delete("/resources", revokeGroupResources)
 		})
 	})
 

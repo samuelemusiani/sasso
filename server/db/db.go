@@ -23,6 +23,7 @@ var (
 	ErrForbidden             = errors.New("forbidden")
 	ErrAlreadyExists         = errors.New("record already exists")
 	ErrInsufficientResources = errors.New("insufficient resources")
+	ErrResourcesInUse        = errors.New("resources are in use")
 )
 
 func Init(dbLogger *slog.Logger, c config.Database) error {

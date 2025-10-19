@@ -459,3 +459,21 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
+	group := getGroupFromContext(r)
+	userID := mustGetUserIDFromContext(r)
+
+	err := db.RevokeGroupResources(group.ID, userID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "No resources found for group member", http.StatusNotFound)
+			return
+		} else if err == db.ErrResourcesInUse {
+			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Failed to revoke resources from group member", http.StatusInternalServerError)
+		return
+	}
+}
