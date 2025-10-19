@@ -161,7 +161,7 @@ function deleteGroup(id: number) {
     api
       .delete(`/groups/${id}`)
       .then(() => {
-        router.push('/groups')
+        router.push('/group')
       })
       .catch((err) => {
         console.error('Failed to delete Group:', err)
