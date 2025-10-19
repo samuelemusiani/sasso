@@ -477,3 +477,55 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func getGroupResources(w http.ResponseWriter, r *http.Request) {
+	group := getGroupFromContext(r)
+	var gResources returnUserResources
+	var err error
+
+	mc, mr, md, err := db.GetGroupResourceLimits(group.ID)
+	if err != nil {
+		logger.Error("failed to get group resource limits", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	gResources.MaxCores = mc
+	gResources.MaxRAM = mr
+	gResources.MaxDisk = md
+	gResources.MaxNets = 1
+
+	ac, ar, ad, err := db.GetVMResourcesByGroupID(group.ID)
+	if err != nil {
+		logger.Error("failed to get VM resources by group ID", "error", err)
+		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
+		return
+	}
+
+	gResources.AllocatedCores = ac
+	gResources.AllocatedRAM = ar
+	gResources.AllocatedDisk = ad
+	gResources.AllocatedNets, err = db.CountNetsByGroupID(group.ID)
+	if err != nil {
+		logger.Error("failed to count nets by group ID", "error", err)
+		http.Error(w, "Failed to get network resources", http.StatusInternalServerError)
+		return
+	}
+
+	ac, ar, ad, err = db.GetResourcesActiveVMsByGroupID(group.ID)
+	if err != nil {
+		logger.Error("failed to get active VM resources by group ID", "error", err)
+		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
+		return
+	}
+
+	gResources.ActiveVMsCores = ac
+	gResources.ActiveVMsRAM = ar
+	gResources.ActiveVMsDisk = ad
+
+	if err := json.NewEncoder(w).Encode(gResources); err != nil {
+		logger.Error("failed to encode resources to JSON", "error", err)
+		http.Error(w, "Failed to encode resources to JSON", http.StatusInternalServerError)
+		return
+	}
+}

@@ -279,6 +279,11 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to count networks by user ID", "error", err)
+		http.Error(w, "Failed to count networks", http.StatusInternalServerError)
+		return
+	}
 
 	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResourcesActiveVMsByUserID(userID)
 	if err != nil {
