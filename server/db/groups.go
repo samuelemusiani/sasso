@@ -355,7 +355,9 @@ func (g *Group) BeforeDelete(tx *gorm.DB) (err error) {
 		if err != nil {
 			return err
 		}
+
 	}
+	err = tx.Where("group_id = ?", g.ID).Delete(&GroupResource{}).Error
 	return err
 }
 
