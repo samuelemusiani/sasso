@@ -114,7 +114,7 @@ func DeleteGroup(groupID uint) error {
 			return result.Error
 		}
 
-		// Group resources will be deleted via the AfterDelete hook
+		// Group resources will be deleted via the BeforeDelete hook
 
 		if result.RowsAffected == 0 {
 			return ErrNotFound
@@ -338,7 +338,7 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 	return userIDs, nil
 }
 
-func (g *Group) AfterDelete(tx *gorm.DB) (err error) {
+func (g *Group) BeforeDelete(tx *gorm.DB) (err error) {
 	var resources []GroupResource
 	err = tx.Model(&GroupResource{}).Where("group_id = ?", g.ID).Find(&resources).Error
 	if err != nil {
