@@ -9,12 +9,11 @@ import (
 	"net/http"
 )
 
-
 var (
 	BaseIpAddress = "130.136.201.50"
-	BasePort = 8081
-	BaseUrl = fmt.Sprintf("http://%s:%d/api/v1/servers/localhost", BaseIpAddress, BasePort)
-	ApiKey  = "omar"
+	BasePort      = 8081
+	BaseUrl       = fmt.Sprintf("http://%s:%d/api/v1/servers/localhost", BaseIpAddress, BasePort)
+	ApiKey        = "omar"
 )
 
 func main() {
@@ -25,15 +24,14 @@ func main() {
 	//var net Network
 	//net.Network = "18.18.18.18/32"
 	//err := SetUpNetwork(net, "vermizio")
-	
+
 	var zone Zone
 	zone.ID = "zalone"
 
 	err := RemoveZoneFromView("checco", zone)
-	if err != nil{
+	if err != nil {
 		fmt.Println("Error : ", err)
 	}
-
 
 }
 
