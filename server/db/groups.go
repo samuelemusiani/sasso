@@ -113,6 +113,7 @@ func DeleteGroup(groupID uint) error {
 			Where("group_id = ?", groupID).
 			Find(&resources).Error
 		if err != nil {
+			logger.Error("Failed to retrieve group resources", "error", err)
 			return err
 		}
 
@@ -124,6 +125,7 @@ func DeleteGroup(groupID uint) error {
 					"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
 				}).Error
 			if err != nil {
+				logger.Error("Failed to return resources to user", "error", err)
 				return err
 			}
 		}
@@ -136,10 +138,6 @@ func DeleteGroup(groupID uint) error {
 			return result.Error
 		}
 
-		// Group resources will be deleted via the BeforeDelete hook
-		if result.RowsAffected == 0 {
-			return ErrNotFound
-		}
 		return nil
 	})
 }
