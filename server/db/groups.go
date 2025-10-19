@@ -464,7 +464,7 @@ func RevokeGroupResources(groupID, userID uint) error {
 
 		var maxResourceAvailable usedResources
 		err = tx.Model(&GroupResource{}).
-			Where("group_id = ?").
+			Where("group_id = ?", groupID).
 			Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 			Scan(&maxResourceAvailable).Error
 		if err != nil {
