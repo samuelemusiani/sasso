@@ -705,10 +705,14 @@ func updateVMs(cluster *gprox.Cluster) {
 				if err != nil {
 					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
-			} else {
+			} else if !exists || vmStatusTimeMapEntry.Value != r.Status {
+				t := time.Now()
+				if exists {
+					t = vmStatusTimeMapEntry.Time
+				}
 				vmStatusTimeMap[r.VMID] = stringTime{
 					Value: r.Status,
-					Time:  time.Now(),
+					Time:  t,
 				}
 			}
 		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
