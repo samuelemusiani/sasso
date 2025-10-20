@@ -162,6 +162,7 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 			Username: res.Username,
 			Cores:    res.Cores,
 			RAM:      res.RAM, Disk: res.Disk,
+			Nets: res.Nets,
 		})
 	}
 
