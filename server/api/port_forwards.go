@@ -31,6 +31,7 @@ func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {
 		DestPort: pf.DestPort,
 		DestIP:   pf.DestIP,
 		Approved: pf.Approved,
+		Name:     pf.Name,
 	}
 }
 
