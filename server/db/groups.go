@@ -99,6 +99,16 @@ func CreateGroup(name, description string, userID uint) error {
 			logger.Error("Failed to add user to group", "error", err)
 			return err
 		}
+
+		res := GroupResource{
+			GroupID: group.ID,
+			UserID:  1,
+			Nets:    1, // Allocate 1 net from admin to the group by default
+		}
+		if err := tx.Create(&res).Error; err != nil {
+			logger.Error("Failed to allocate default resources to group", "error", err)
+			return err
+		}
 		return nil
 	})
 }
