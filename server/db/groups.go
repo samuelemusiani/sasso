@@ -392,6 +392,7 @@ type GroupResource struct {
 	Cores uint `gorm:"not null"`
 	RAM   uint `gorm:"not null"`
 	Disk  uint `gorm:"not null"`
+	Nets  uint `gorm:"not null"`
 
 	Username string `gorm:"->;-:migration"`
 }
@@ -400,30 +401,31 @@ func initGroupResources() error {
 	return db.AutoMigrate(&GroupResource{})
 }
 
-func GetGroupResourceLimits(groupID uint) (uint, uint, uint, error) {
+func GetGroupResourceLimits(groupID uint) (uint, uint, uint, uint, error) {
 	var res struct {
 		Cores uint
 		RAM   uint
 		Disk  uint
+		Nets  uint
 	}
 
 	err := db.Model(&GroupResource{}).
 		Where("group_id = ?", groupID).
-		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
 		Scan(&res).Error
 	if err != nil {
 		logger.Error("Failed to get group max resources", "error", err)
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
-	return res.Cores, res.RAM, res.Disk, nil
+	return res.Cores, res.RAM, res.Disk, res.Nets, nil
 }
 
 func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	var resources []GroupResource
 	err := db.Table("group_resources as gr").
 		Joins("JOIN users ON users.id = gr.user_id").
-		Select("gr.group_id, gr.user_id, gr.cores, gr.ram, gr.disk, users.username as username").
+		Select("gr.group_id, gr.user_id, gr.cores, gr.ram, gr.disk, gr.nets, users.username as username").
 		Where("gr.group_id = ?", groupID).
 		Scan(&resources).Error
 	if err != nil {
@@ -433,13 +435,14 @@ func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	return resources, nil
 }
 
-func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
+func AddGroupResources(groupID, userID uint, cores, ram, disk, nets uint) error {
 	groupResource := GroupResource{
 		GroupID: groupID,
 		UserID:  userID,
 		Cores:   cores,
 		RAM:     ram,
 		Disk:    disk,
+		Nets:    nets,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -456,13 +459,22 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
 			return err
 		}
 
+		var usedNets int64
+		err = tx.Model(&Net{}).
+			Where(&Net{OwnerID: userID, OwnerType: "User"}).
+			Count(&usedNets).Error
+		if err != nil {
+			logger.Error("Failed to get user Net resources", "error", err)
+			return err
+		}
+
 		var u User
 		err = tx.First(&u, userID).Error
 		if err != nil {
 			logger.Error("Failed to get user", "error", err)
 			return err
 		}
-		if used.Cores+cores > u.MaxCores || used.RAM+ram > u.MaxRAM || used.Disk+disk > u.MaxDisk {
+		if used.Cores+cores > u.MaxCores || used.RAM+ram > u.MaxRAM || used.Disk+disk > u.MaxDisk || uint(usedNets)+nets > u.MaxNets {
 			return ErrInsufficientResources
 		}
 
@@ -477,6 +489,7 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
 				"max_cores": gorm.Expr("max_cores - ?", cores),
 				"max_ram":   gorm.Expr("max_ram - ?", ram),
 				"max_disk":  gorm.Expr("max_disk - ?", disk),
+				"max_nets":  gorm.Expr("max_nets - ?", nets),
 			}).Error
 		if err != nil {
 			logger.Error("Failed to update user limits", "error", err)
@@ -487,7 +500,7 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
 	return err
 }
 
-func UpdateGroupResourceByAdmin(groupID, cores, ram, disk uint) error {
+func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 	var groupResource GroupResource
 
 	err := db.Where(&GroupResource{GroupID: groupID, UserID: 1}).
@@ -507,6 +520,7 @@ func UpdateGroupResourceByAdmin(groupID, cores, ram, disk uint) error {
 	groupResource.Cores += cores
 	groupResource.RAM += ram
 	groupResource.Disk += disk
+	groupResource.Nets += nets
 
 	err = db.Save(&groupResource).Error
 	if err != nil {
@@ -547,7 +561,8 @@ func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 
 	if maxResourceAvailable.Cores-resource.Cores < used.Cores ||
 		maxResourceAvailable.RAM-resource.RAM < used.RAM ||
-		maxResourceAvailable.Disk-resource.Disk < used.Disk {
+		maxResourceAvailable.Disk-resource.Disk < used.Disk ||
+		maxResourceAvailable.Nets-resource.Nets < used.Nets {
 		return ErrResourcesInUse
 	}
 
@@ -562,6 +577,7 @@ func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 			"max_cores": gorm.Expr("max_cores + ?", resource.Cores),
 			"max_ram":   gorm.Expr("max_ram + ?", resource.RAM),
 			"max_disk":  gorm.Expr("max_disk + ?", resource.Disk),
+			"max_nets":  gorm.Expr("max_nets + ?", resource.Nets),
 		}).Error
 	if err != nil {
 		logger.Error("Failed to update user limits", "error", err)
@@ -574,6 +590,7 @@ type usedResources struct {
 	Cores uint
 	RAM   uint
 	Disk  uint
+	Nets  uint
 }
 
 func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources, usedResources, error) {
@@ -586,10 +603,20 @@ func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources,
 		return usedResources{}, usedResources{}, err
 	}
 
+	var usedNets int64
+	err = tx.Model(&Net{}).
+		Where(&Net{OwnerID: groupID, OwnerType: "Group"}).
+		Count(&usedNets).Error
+	if err != nil {
+		logger.Error("Failed to get group Net resources", "error", err)
+		return usedResources{}, usedResources{}, err
+	}
+	used.Nets = uint(usedNets)
+
 	var maxResource usedResources
 	err = tx.Model(&GroupResource{}).
 		Where("group_id = ?", groupID).
-		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
 		Scan(&maxResource).Error
 	if err != nil {
 		logger.Error("Failed to get group max resources", "error", err)

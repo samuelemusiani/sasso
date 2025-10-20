@@ -34,6 +34,7 @@ type returnResource struct {
 	Cores    uint   `json:"cores"`
 	RAM      uint   `json:"ram"`
 	Disk     uint   `json:"disk"`
+	Nets     uint   `json:"nets"`
 }
 
 func listUserGroups(w http.ResponseWriter, r *http.Request) {
@@ -476,6 +477,7 @@ type addGroupResourcesRequest struct {
 	Cores uint `json:"cores"`
 	RAM   uint `json:"ram"`
 	Disk  uint `json:"disk"`
+	Nets  uint `json:"nets"`
 }
 
 func addGroupResources(w http.ResponseWriter, r *http.Request) {
@@ -489,7 +491,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	userID := mustGetUserIDFromContext(r)
 
-	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk); err != nil {
+	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets); err != nil {
 		if err == db.ErrInsufficientResources {
 			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
 			return
@@ -522,7 +524,7 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 	var gResources returnUserResources
 	var err error
 
-	mc, mr, md, err := db.GetGroupResourceLimits(group.ID)
+	mc, mr, md, mn, err := db.GetGroupResourceLimits(group.ID)
 	if err != nil {
 		logger.Error("failed to get group resource limits", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -532,7 +534,7 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 	gResources.MaxCores = mc
 	gResources.MaxRAM = mr
 	gResources.MaxDisk = md
-	gResources.MaxNets = 1
+	gResources.MaxNets = mn
 
 	ac, ar, ad, err := db.GetVMResourcesByGroupID(group.ID)
 	if err != nil {
@@ -627,7 +629,7 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.UpdateGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk)
+	err = db.UpdateGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "Group not found", http.StatusNotFound)

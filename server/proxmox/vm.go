@@ -250,7 +250,7 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 
 	var maxCores, maxRAM, maxDisk uint
 	if group != nil {
-		maxCores, maxRAM, maxDisk, err = db.GetGroupResourceLimits(*groupID)
+		maxCores, maxRAM, maxDisk, _, err = db.GetGroupResourceLimits(*groupID)
 		if err != nil {
 			l.Error("Failed to get group resource limits from database", "groupID", *groupID, "error", err)
 			return nil, err
