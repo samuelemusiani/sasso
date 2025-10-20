@@ -45,7 +45,8 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Only group admins can restore backups", http.StatusForbidden)
 			return
 		}
-		groupID = &mustGetGroupFromContext(r).ID
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
 	}
 
 	if vm.Status != string(proxmox.VMStatusStopped) {
@@ -88,7 +89,8 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
-		groupID = &mustGetGroupFromContext(r).ID
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
 
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
@@ -145,7 +147,8 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Only group admins can delete backups", http.StatusForbidden)
 			return
 		}
-		groupID = &mustGetGroupFromContext(r).ID
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
 	}
 
 	backupid := chi.URLParam(r, "backupid")
@@ -192,7 +195,8 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 
 	var groupID *uint = nil
 	if mustGetVMFromContext(r).OwnerType == "Group" {
-		groupID = &mustGetGroupFromContext(r).ID
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
 		l = l.With("groupID", *groupID)
 	}
 
@@ -249,7 +253,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mustGetVMFromContext(r).OwnerType == "Group" {
-		if bkr.OwnerType != "Group" || bkr.OwnerID != mustGetGroupFromContext(r).ID {
+		if bkr.OwnerType != "Group" || bkr.OwnerID != mustGetGroupIDFromContext(r) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
 			return
 		}

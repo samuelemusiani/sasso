@@ -374,6 +374,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, "vm_id", vm)
 			ctx = context.WithValue(ctx, "group_user_role", role)
+			ctx = context.WithValue(ctx, "group_id", vm.OwnerID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -396,6 +397,15 @@ func mustGetUserRoleInGroupFromContext(r *http.Request) string {
 		panic("mustGetUserRoleInGroupFromContext: group_user_role not found in context")
 	}
 	return role
+}
+
+// IMPORTANT: This only works under /vm/ paths
+func mustGetGroupIDFromContext(r *http.Request) uint {
+	groupID, ok := r.Context().Value("group_id").(uint)
+	if !ok {
+		panic("mustGetGroupIDFromContext: group_id not found in context")
+	}
+	return groupID
 }
 
 func validateInterfaceOwnership() func(http.Handler) http.Handler {
@@ -499,6 +509,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 	}
 }
 
+// IMPORTANT: This only works under /group/ paths
 func mustGetGroupFromContext(r *http.Request) *db.Group {
 	group, ok := r.Context().Value("group").(*db.Group)
 	if !ok {
