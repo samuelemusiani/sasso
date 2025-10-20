@@ -71,6 +71,14 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	gpfs, err := db.GetGroupPortForwardsByUserID(userID)
+	if err != nil {
+		http.Error(w, "Failed to get group port forwards", http.StatusInternalServerError)
+		return
+	}
+
+	pfs = append(pfs, gpfs...)
+
 	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(pfs))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)

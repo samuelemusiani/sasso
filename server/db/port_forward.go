@@ -58,6 +58,21 @@ func GetPortForwardsWithNames() ([]PortForward, error) {
 	return portForwards, nil
 }
 
+func GetGroupPortForwardsByUserID(userID uint) ([]PortForward, error) {
+	var pfs []PortForward
+	err := db.Table("port_forwards pf").
+		Select(`pf.*, groups.name as name`).
+		Joins("JOIN groups ON pf.owner_type = ? AND pf.owner_id = groups.id", "Group").
+		Joins("JOIN group_members gm ON gm.group_id = groups.id").
+		Where("gm.user_id = ?", userID).
+		Find(&pfs).Error
+	if err != nil {
+		logger.Error("Failed to get group port forwards for user", "userID", userID, "error", err)
+		return nil, err
+	}
+	return pfs, nil
+}
+
 func GetApprovedPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Where("approved = ?", true).Find(&pfs).Error; err != nil {
