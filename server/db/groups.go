@@ -152,6 +152,10 @@ func DeleteGroup(groupID uint) error {
 		}
 
 		for _, r := range resources {
+			if r.UserID == 1 {
+				// Admin user, skip
+				continue
+			}
 			err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
 				UpdateColumns(map[string]interface{}{
 					"max_cores": gorm.Expr("max_cores + ?", r.Cores),
