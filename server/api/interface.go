@@ -9,7 +9,7 @@ import (
 )
 
 func getInterfaces(w http.ResponseWriter, r *http.Request) {
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 
 	dbIfaces, err := db.GetInterfacesByVMID(vm.ID)
 	if err != nil {
@@ -34,7 +34,7 @@ func getInterfaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func addInterface(w http.ResponseWriter, r *http.Request) {
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 
 	var req struct {
 		VNetID  uint   `json:"vnet_id"`
@@ -115,7 +115,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateInterface(w http.ResponseWriter, r *http.Request) {
-	iface := getInterfaceFromContext(r)
+	iface := mustGetInterfaceFromContext(r)
 
 	var req struct {
 		VNetID  *uint   `json:"vnet_id"`
@@ -187,7 +187,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteInterface(w http.ResponseWriter, r *http.Request) {
-	iface := getInterfaceFromContext(r)
+	iface := mustGetInterfaceFromContext(r)
 
 	// TODO: Groups permission checks (VM must belong to a group the user is in with sufficient permissions)
 

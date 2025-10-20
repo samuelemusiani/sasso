@@ -1143,7 +1143,7 @@ func createBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		notes, err := generateBackNotes(r.Name, r.Notes, r.UserID)
+		notes, err := generateBackNotes(r.Name, r.Notes, r.OwnerID, r.OwnerType)
 		if err != nil {
 			logger.Error("Failed to generate backup notes", "error", err)
 			continue

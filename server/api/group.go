@@ -86,8 +86,8 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
-	user_role := getUserRoleInGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
+	user_role := mustGetUserRoleInGroupFromContext(r)
 
 	if user_role != "owner" {
 		http.Error(w, "Only group owners can delete the group", http.StatusForbidden)
@@ -126,7 +126,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroup(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	returnGroup := returnGroup{
 		ID:          group.ID,
 		Name:        group.Name,
@@ -249,7 +249,7 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupPendingInvitations(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 
 	invitations, err := db.GetPendingGroupInvitationsByGroupID(group.ID)
 	if err != nil {
@@ -283,7 +283,7 @@ type requestInviteUser struct {
 }
 
 func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 
 	var req requestInviteUser
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -296,7 +296,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if getUserRoleInGroupFromContext(r) != "owner" {
+	if mustGetUserRoleInGroupFromContext(r) != "owner" {
 		http.Error(w, "Only group owners can invite users", http.StatusForbidden)
 		return
 	}
@@ -332,7 +332,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	sInviteID := chi.URLParam(r, "inviteid")
 	inviteID, err := strconv.ParseUint(sInviteID, 10, 64)
 	if err != nil {
@@ -340,7 +340,7 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if getUserRoleInGroupFromContext(r) != "owner" {
+	if mustGetUserRoleInGroupFromContext(r) != "owner" {
 		http.Error(w, "Only group owners can revoke invitations", http.StatusForbidden)
 		return
 	}
@@ -356,7 +356,7 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 }
 
 func listGroupMembers(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 
 	members, err := db.GetGroupMembers(group.ID)
 	if err != nil {
@@ -380,9 +380,9 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func leaveGroup(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
-	user_role := getUserRoleInGroupFromContext(r)
+	user_role := mustGetUserRoleInGroupFromContext(r)
 
 	if user_role == "owner" {
 		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusForbidden)
@@ -404,8 +404,8 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
-	user_role := getUserRoleInGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
+	user_role := mustGetUserRoleInGroupFromContext(r)
 
 	if user_role != "owner" {
 		http.Error(w, "Only group owners can remove members", http.StatusForbidden)
@@ -434,7 +434,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
 
 	role, err := db.GetUserRoleInGroup(userID, group.ID)
@@ -466,7 +466,7 @@ type addGroupResourcesRequest struct {
 }
 
 func addGroupResources(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 
 	var req addGroupResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -487,7 +487,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 }
 
 func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
 
 	err := db.RevokeGroupResources(group.ID, userID)
@@ -505,7 +505,7 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupResources(w http.ResponseWriter, r *http.Request) {
-	group := getGroupFromContext(r)
+	group := mustGetGroupFromContext(r)
 	var gResources returnUserResources
 	var err error
 

@@ -100,7 +100,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	return backups, nil
 }
 
-func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
+func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (uint, error) {
 	if len(name) > 40 {
 		return 0, ErrBackupNameTooLong
 	} else if len(notes)*4/3 > 800 {
@@ -137,8 +137,14 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 		if err != nil {
 			continue
 		}
-		if bkn.UserID == uint(userID) {
-			count++
+		if groupID != nil {
+			if bkn.OwnerID == *groupID {
+				count++
+			}
+		} else {
+			if bkn.OwnerID == userID {
+				count++
+			}
 		}
 	}
 
@@ -146,7 +152,13 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 		return 0, ErrMaxBackupsReached
 	}
 
-	bkr, err := db.NewBackupRequest(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), uint(userID), name, notes)
+	var bkr *db.BackupRequest
+	if groupID != nil {
+		bkr, err = db.NewBackupRequestForGroup(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), *groupID, name, notes)
+	} else {
+		bkr, err = db.NewBackupRequestForUser(BackupRequestTypeCreate, BackupRequestStatusPending, uint(vmID), userID, name, notes)
+	}
+
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -155,7 +167,7 @@ func CreateBackup(userID, vmID uint64, name, notes string) (uint, error) {
 	return bkr.ID, nil
 }
 
-func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
+func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)
@@ -180,7 +192,12 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), uint(userID), "", "")
+	var bkr *db.BackupRequest
+	if groupID != nil {
+		bkr, err = db.NewBackupRequestWithVolidForGroup(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), *groupID, "", "")
+	} else {
+		bkr, err = db.NewBackupRequestWithVolidForUser(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), userID, "", "")
+	}
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -188,7 +205,7 @@ func DeleteBackup(userID, vmID uint64, backupid string, since time.Time) (uint, 
 	return bkr.ID, nil
 }
 
-func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint, error) {
+func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)
@@ -213,7 +230,12 @@ func RestoreBackup(userID, vmID uint64, backupid string, since time.Time) (uint,
 		return 0, err
 	}
 
-	bkr, err := db.NewBackupRequestWithVolid(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), uint(userID), "", "")
+	var bkr *db.BackupRequest
+	if groupID != nil {
+		bkr, err = db.NewBackupRequestWithVolidForGroup(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), *groupID, "", "")
+	} else {
+		bkr, err = db.NewBackupRequestWithVolidForUser(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), userID, "", "")
+	}
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -294,16 +316,18 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (st
 type BackupNotes struct {
 	Name          string `json:"name"`
 	Notes         string `json:"notes"`
-	UserID        uint   `json:"user_id"`
+	OwnerID       uint   `json:"owner_id"`
+	OwnerType     string `json:"owner_type"`
 	SassoVerifier string `json:"sasso_verifier"`
 }
 
-func generateBackNotes(name, notes string, userID uint) (string, error) {
+func generateBackNotes(name, notes string, ownerID uint, ownerType string) (string, error) {
 	base64Notes := base64.StdEncoding.EncodeToString([]byte(notes))
 	bn := BackupNotes{
 		Name:          name,
 		Notes:         base64Notes,
-		UserID:        userID,
+		OwnerID:       ownerID,
+		OwnerType:     ownerType,
 		SassoVerifier: BackupSassoString,
 	}
 	b, err := json.Marshal(bn)

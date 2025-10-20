@@ -38,13 +38,13 @@ type User struct {
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
 	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
-	BackupRequests []BackupRequest `gorm:"foreignKey:UserID"`
+	BackupRequests []BackupRequest `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications
 	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
 
 	Groups        []Group         `gorm:"many2many:user_groups;"`
-	GroupResource []GroupResource `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	GroupResource []GroupResource `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {

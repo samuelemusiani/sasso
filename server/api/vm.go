@@ -75,7 +75,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 }
 
 func getVM(w http.ResponseWriter, r *http.Request) {
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(vm); err != nil {
@@ -87,7 +87,7 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 	vmID := vm.ID
 
 	ownerID := userID
@@ -115,7 +115,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 func changeVMState(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := mustGetUserIDFromContext(r)
-		vm := getVMFromContext(r)
+		vm := mustGetVMFromContext(r)
 		vmID := vm.ID
 
 		ownerID := userID
@@ -164,7 +164,7 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vmID := getVMFromContext(r).ID
+	vmID := mustGetVMFromContext(r).ID
 
 	err := proxmox.UpdateVMLifetime(vmID, request.ExtendBy)
 	if err != nil {

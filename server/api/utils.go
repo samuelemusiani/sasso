@@ -382,7 +382,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getVMFromContext(r *http.Request) *proxmox.VM {
+func mustGetVMFromContext(r *http.Request) *proxmox.VM {
 	vm, ok := r.Context().Value("vm_id").(*proxmox.VM)
 	if !ok {
 		panic("getVMFromContext: vm_id not found in context")
@@ -442,7 +442,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getInterfaceFromContext(r *http.Request) *db.Interface {
+func mustGetInterfaceFromContext(r *http.Request) *db.Interface {
 	iface, ok := r.Context().Value("interface_id").(*db.Interface)
 	if !ok {
 		panic("getInterfaceFromContext: interface_id not found in context")
@@ -499,18 +499,10 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getGroupFromContext(r *http.Request) *db.Group {
+func mustGetGroupFromContext(r *http.Request) *db.Group {
 	group, ok := r.Context().Value("group").(*db.Group)
 	if !ok {
 		panic("getGroupFromContext: group not found in context")
 	}
 	return group
-}
-
-func getUserRoleInGroupFromContext(r *http.Request) string {
-	role, ok := r.Context().Value("group_user_role").(string)
-	if !ok {
-		panic("getUserRoleInGroupFromContext: group_user_role not found in context")
-	}
-	return role
 }
