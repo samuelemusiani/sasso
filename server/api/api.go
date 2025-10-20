@@ -188,6 +188,10 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/admin/users", listUsers)
 		r.Get("/admin/users/{id}", getUser)
+
+		r.Get("/admin/groups", adminListGroups)
+		r.Get("/admin/groups/{id}", adminGetGroup)
+
 		r.Get("/admin/realms", listRealms)
 		r.Get("/admin/realms/{id}", getRealm)
 		r.Put("/admin/realms/{id}", updateRealm)

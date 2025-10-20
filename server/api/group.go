@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
@@ -566,4 +567,48 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode resources to JSON", http.StatusInternalServerError)
 		return
 	}
+}
+
+func adminListGroups(w http.ResponseWriter, r *http.Request) {
+	groups, err := db.GetAllGroups()
+	if err != nil {
+		http.Error(w, "Failed to retrieve groups", http.StatusInternalServerError)
+		return
+	}
+	returnGroups := make([]returnGroup, 0, len(groups))
+	for _, group := range groups {
+		returnGroups = append(returnGroups, returnGroup{
+			ID:          group.ID,
+			Name:        group.Name,
+			Description: group.Description,
+		})
+	}
+	if err := json.NewEncoder(w).Encode(returnGroups); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func adminGetGroup(w http.ResponseWriter, r *http.Request) {
+	groupids := chi.URLParam(r, "id")
+	groupid, err := strconv.ParseUint(groupids, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+
+	group, err := db.GetGroupByID(uint(groupid))
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Group not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to retrieve group", http.StatusInternalServerError)
+		return
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, "group", group)
+	r = r.WithContext(ctx)
+	getGroup(w, r)
 }

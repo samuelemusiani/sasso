@@ -560,3 +560,13 @@ func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources,
 
 	return used, maxResource, nil
 }
+
+func GetAllGroups() ([]Group, error) {
+	var groups []Group
+	err := db.Find(&groups).Error
+	if err != nil {
+		logger.Error("Failed to retrieve all groups", "error", err)
+		return nil, err
+	}
+	return groups, nil
+}
