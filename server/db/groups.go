@@ -531,10 +531,10 @@ func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 		}
 	}
 
-	groupResource.Cores += cores
-	groupResource.RAM += ram
-	groupResource.Disk += disk
-	groupResource.Nets += nets
+	groupResource.Cores = cores
+	groupResource.RAM = ram
+	groupResource.Disk = disk
+	groupResource.Nets = nets
 
 	err = db.Save(&groupResource).Error
 	if err != nil {
