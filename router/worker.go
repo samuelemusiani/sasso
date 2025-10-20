@@ -334,7 +334,6 @@ func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 			OutPort:  pf.OutPort,
 			DestPort: pf.DestPort,
 			DestIP:   pf.DestIP,
-			UserID:   pf.UserID,
 		})
 		if err != nil {
 			logger.Error("Failed to save port forward to database", "error", err, "port_forward_id", pf.ID)

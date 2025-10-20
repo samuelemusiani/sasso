@@ -37,7 +37,7 @@ type User struct {
 	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
-	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
+	PortForwards   []PortForward   `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	BackupRequests []BackupRequest `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications

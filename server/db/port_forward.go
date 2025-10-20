@@ -12,24 +12,16 @@ type PortForward struct {
 	OutPort  uint16 `gorm:"not null; uniqueIndex"`
 	DestPort uint16 `gorm:"not null"`
 	DestIP   string `gorm:"not null"`
-	UserID   uint   `gorm:"not null"`
 	Approved bool   `gorm:"not null;default:false"`
+
+	OwnerID   uint   `gorm:"not null;index"`
+	OwnerType string `gorm:"not null;index"`
 
 	VNetID uint `gorm:"not null"`
-}
 
-type PortForwardWithUsername struct {
-	ID        uint `gorm:"primaryKey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-
-	OutPort  uint16 `gorm:"not null; uniqueIndex"`
-	DestPort uint16 `gorm:"not null"`
-	DestIP   string `gorm:"not null"`
-	UserID   uint   `gorm:"not null"`
-	Approved bool   `gorm:"not null;default:false"`
-	VNetID   uint   `gorm:"not null"`
-	Username string
+	// Used only during joins for group name or username
+	Name  string `gorm:"->;-:migration"`
+	Group bool   `gorm:"->;-:migration"`
 }
 
 func initPortForwards() error {
@@ -50,15 +42,20 @@ func GetPortForwards() ([]PortForward, error) {
 	return pfs, nil
 }
 
-func GetPortForwardsWithUsernames() ([]PortForwardWithUsername, error) {
-	var pfs []PortForwardWithUsername
-	if err := db.Table("port_forwards pf").Select("pf.*, u.username").
-		Joins("left join users u on pf.user_id = u.id").
-		Scan(&pfs).Error; err != nil {
+func GetPortForwardsWithNames() ([]PortForward, error) {
+	var portForwards []PortForward
+	err := db.Table("port_forwards pf").
+		Select(`pf.*, 
+           COALESCE(users.username, groups.name) as name,
+           CASE WHEN pf.owner_type = ? THEN true ELSE false END as group`, "Group").
+		Joins("LEFT JOIN users ON pf.owner_type = ? AND pf.owner_id = users.id", "User").
+		Joins("LEFT JOIN groups ON pf.owner_type = ? AND pf.owner_id = groups.id", "Group").
+		Find(&portForwards).Error
+	if err != nil {
 		logger.Error("Failed to get port forwards with usernames", "error", err)
 		return nil, err
 	}
-	return pfs, nil
+	return portForwards, nil
 }
 
 func GetApprovedPortForwards() ([]PortForward, error) {
@@ -88,7 +85,15 @@ func GetPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	return pfs, nil
 }
 
-func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint) (*PortForward, error) {
+func AddPortForwardForUser(outPort, destPort uint16, destIP, subnet string, userID uint) (*PortForward, error) {
+	return addPortForwardForOwner(outPort, destPort, destIP, subnet, userID, "User")
+}
+
+func AddPortForwardForGroup(outPort, destPort uint16, destIP, subnet string, groupID uint) (*PortForward, error) {
+	return addPortForwardForOwner(outPort, destPort, destIP, subnet, groupID, "Group")
+}
+
+func addPortForwardForOwner(outPort, destPort uint16, destIP, subnet string, ownerID uint, ownerType string) (*PortForward, error) {
 
 	net, err := GetVNetBySubnet(subnet)
 	if err != nil {
@@ -97,12 +102,13 @@ func AddPortForward(outPort, destPort uint16, destIP, subnet string, userID uint
 	}
 
 	pf := &PortForward{
-		OutPort:  outPort,
-		DestPort: destPort,
-		DestIP:   destIP,
-		UserID:   userID,
-		Approved: false,
-		VNetID:   net.ID,
+		OutPort:   outPort,
+		DestPort:  destPort,
+		DestIP:    destIP,
+		OwnerID:   ownerID,
+		OwnerType: ownerType,
+		Approved:  false,
+		VNetID:    net.ID,
 	}
 	if err := db.Create(pf).Error; err != nil {
 		logger.Error("Failed to create port forward", "error", err)

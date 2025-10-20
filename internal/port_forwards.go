@@ -9,14 +9,6 @@ import (
 	"time"
 )
 
-type PortForward struct {
-	ID       uint   `json:"id"`
-	OutPort  uint16 `json:"out_port"`
-	DestPort uint16 `json:"dest_port"`
-	DestIP   string `json:"dest_ip"`
-	UserID   uint   `json:"user_id"`
-}
-
 func FetchPortForwards(endpoint, secret string) ([]PortForward, error) {
 	client := http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", endpoint+"/internal/port-forwards", nil)

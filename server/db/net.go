@@ -114,6 +114,19 @@ func GetSubnetsByUserID(userID uint) ([]string, error) {
 	return subnets, nil
 }
 
+func GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID uint) ([]string, error) {
+	var subnets []string
+	err := db.Table("nets").
+		Joins("JOIN user_groups ug ON nets.owner_id = ug.group_id AND nets.owner_type = ?", "Group").
+		Where("ug.user_id = ? AND (ug.role = ? OR ug.role = ?)", userID, "admin", "owner").
+		Pluck("nets.subnet", &subnets).Error
+	if err != nil {
+		logger.Error("Failed to get subnets from groups where user is admin or owner", "userID", userID, "error", err)
+		return nil, err
+	}
+	return subnets, nil
+}
+
 func GetSubnetsByGroupID(groupID uint) ([]string, error) {
 	var subnets []string
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", groupID, "Group", "ready").Pluck("subnet", &subnets).Error; err != nil {

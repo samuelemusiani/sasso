@@ -150,6 +150,21 @@ func (n *notification) save() error {
 	return db.InsertNotification(n.UserID, n.Subject, n.Body)
 }
 
+func SendPortForwardNotificationToGroup(groupID uint, pf db.PortForward) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for port forward notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendPortForwardNotification(userID, pf)
+		if err != nil {
+			logger.Error("Failed to send port forward notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
 func SendPortForwardNotification(userID uint, pf db.PortForward) error {
 	t := `Your port forwarding request has been %s!
 Outside port: %d

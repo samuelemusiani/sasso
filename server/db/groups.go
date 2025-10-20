@@ -21,6 +21,7 @@ type Group struct {
 
 	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:Group"`
+	PortForwards   []PortForward   `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 	BackupRequests []BackupRequest `gorm:"polymorphic:Owner;polymorphicValue:Group"`
 
 	Users     []User          `gorm:"many2many:user_groups;"`
