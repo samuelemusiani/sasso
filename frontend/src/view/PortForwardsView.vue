@@ -70,6 +70,7 @@ onMounted(() => {
           <th scope="col">Out Port</th>
           <th scope="col">Destination Port</th>
           <th scope="col">Destination IP</th>
+          <th scope="col">Group</th>
           <th scope="col">Approved</th>
           <th scope="col" class="">Actions</th>
         </tr>
@@ -79,6 +80,7 @@ onMounted(() => {
           <td class="whitespace-nowrap">{{ pf.out_port }}</td>
           <td class="whitespace-nowrap">{{ pf.dest_port }}</td>
           <td class="whitespace-nowrap">{{ pf.dest_ip }}</td>
+          <td class="whitespace-nowrap">{{ pf.name || 'Me' }}</td>
           <td class="whitespace-nowrap">{{ pf.approved }}</td>
           <td class="whitespace-nowrap">
             <button

@@ -46,7 +46,8 @@ onMounted(() => {
             <th scope="col" class="">Out Port</th>
             <th scope="col" class="">Destination Port</th>
             <th scope="col" class="">Destination IP</th>
-            <th scope="col" class="">User Requested</th>
+            <th scope="col" class="">Name</th>
+            <th scope="col" class="">Is Group</th>
             <th scope="col" class="relative px-6 py-3">
               <span class="sr-only">Actions</span>
             </th>
@@ -57,7 +58,8 @@ onMounted(() => {
             <td class="">{{ pf.out_port }}</td>
             <td class="">{{ pf.dest_port }}</td>
             <td class="">{{ pf.dest_ip }}</td>
-            <td class="">{{ pf.username }}</td>
+            <td class="">{{ pf.name }}</td>
+            <td class="">{{ pf.is_group || false }}</td>
             <td class="flex text-right text-sm font-medium">
               <button
                 @click="approvePortForward(pf.id, !pf.approved)"

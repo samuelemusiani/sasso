@@ -76,6 +76,7 @@ export interface PortForward {
   dest_port: number
   dest_ip: string
   approved: boolean
+  name?: string
 }
 
 export interface AdminPortForward {
@@ -84,7 +85,8 @@ export interface AdminPortForward {
   dest_port: number
   dest_ip: string
   approved: boolean
-  username: string
+  name: string
+  is_group?: boolean
 }
 
 export interface Backup {
