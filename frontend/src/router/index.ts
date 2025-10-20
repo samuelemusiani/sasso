@@ -5,8 +5,10 @@ import LoginView from '../view/LoginView.vue'
 import VMView from '../view/VMView.vue'
 import AdminView from '../view/AdminView.vue'
 import AdminUsersView from '../view/admin/UsersView.vue'
+import AdminGroupsView from '../view/admin/GroupsView.vue'
 import AdminRealmsView from '../view/admin/RealmsView.vue'
 import UserDetailView from '../view/admin/UserDetailView.vue'
+import GroupDetailView from '../view/admin/GroupDetailView.vue'
 import RealmsMultiplexer from '../components/realms/RealmsMultiplexer.vue'
 import NetsView from '../view/NetsView.vue'
 import PortForwardsView from '../view/PortForwardsView.vue'
@@ -54,6 +56,8 @@ const router = createRouter({
             { path: '', component: AdminView },
             { path: 'users', component: AdminUsersView },
             { path: 'users/:id', component: UserDetailView },
+            { path: 'groups', component: AdminGroupsView },
+            { path: 'groups/:id', component: GroupDetailView },
             { path: 'realms', component: AdminRealmsView },
             { path: 'realms/:id', component: RealmsMultiplexer },
             { path: 'ssh-keys', component: GlobalSSHKeysView },

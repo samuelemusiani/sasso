@@ -145,6 +145,7 @@ export interface GroupResource {
   cores: number
   ram: number
   disk: number
+  nets: number
 }
 
 export interface GroupInvite {

@@ -19,6 +19,7 @@ const role = ref('member')
 const cores = ref(0)
 const ram = ref(0)
 const disk = ref(0)
+const nets = ref(0)
 
 const invitations = ref<GroupInvite[]>([])
 // const members = ref<GroupMember[]>([])
@@ -37,6 +38,7 @@ function saveResources() {
       cores: cores.value,
       ram: ram.value,
       disk: disk.value,
+      nets: nets.value,
     })
     .then(() => {
       fetchGroup() // This will re-fetch group and resources
@@ -284,6 +286,13 @@ onMounted(() => {
             v-model.number="disk"
             class="input w-48 rounded-lg border p-2"
           />
+          <label for="nets">Nets </label>
+          <input
+            type="number"
+            id="nets"
+            v-model.number="nets"
+            class="input w-48 rounded-lg border p-2"
+          />
         </div>
       </div>
     </CreateNew>
@@ -331,6 +340,7 @@ onMounted(() => {
                 <th>Cores</th>
                 <th>RAM (MB)</th>
                 <th>Disk (GB)</th>
+                <th>Nets</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -345,6 +355,7 @@ onMounted(() => {
                 <td>{{ getResourcesForUser(member.user_id)?.cores || 0 }}</td>
                 <td>{{ getResourcesForUser(member.user_id)?.ram || 0 }}</td>
                 <td>{{ getResourcesForUser(member.user_id)?.disk || 0 }}</td>
+                <td>{{ getResourcesForUser(member.user_id)?.nets || 0 }}</td>
                 <td>
                   <button
                     v-show="me && me.role == 'owner' && member.user_id != me.user_id"
