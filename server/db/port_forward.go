@@ -63,8 +63,8 @@ func GetGroupPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	err := db.Table("port_forwards pf").
 		Select(`pf.*, groups.name as name`).
 		Joins("JOIN groups ON pf.owner_type = ? AND pf.owner_id = groups.id", "Group").
-		Joins("JOIN group_members gm ON gm.group_id = groups.id").
-		Where("gm.user_id = ?", userID).
+		Joins("JOIN user_groups ug ON ug.group_id = groups.id").
+		Where("ug.user_id = ?", userID).
 		Find(&pfs).Error
 	if err != nil {
 		logger.Error("Failed to get group port forwards for user", "userID", userID, "error", err)
