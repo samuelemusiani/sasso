@@ -28,7 +28,7 @@ type returnAdminPortForward struct {
 	DestPort uint16 `json:"dest_port"`
 	DestIP   string `json:"dest_ip"`
 	Approved bool   `json:"approved"`
-	Name     string `json:"username,omitempty"`
+	Name     string `json:"name,omitempty"`
 	IsGroup  bool   `json:"is_group,omitempty"`
 }
 
