@@ -381,6 +381,10 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 	return userIDs, nil
 }
 
+// It is possible to asign resources to a group by admins. We have model this
+// as the admin user assigning some of their own resources to the group.
+// As the admin does not have resources, we need to check to avoid reassigning
+// them to it when revoking group resources.
 type GroupResource struct {
 	GroupID uint `gorm:"primaryKey"`
 	UserID  uint `gorm:"primaryKey"`
@@ -483,6 +487,35 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk uint) error {
 	return err
 }
 
+func UpdateGroupResourceByAdmin(groupID, cores, ram, disk uint) error {
+	var groupResource GroupResource
+
+	err := db.Where(&GroupResource{GroupID: groupID, UserID: 1}).
+		First(&groupResource).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			groupResource = GroupResource{
+				GroupID: groupID,
+				UserID:  1, // Admin user
+			}
+		} else {
+			logger.Error("Failed to check existing group resource by admin", "error", err)
+			return err
+		}
+	}
+
+	groupResource.Cores += cores
+	groupResource.RAM += ram
+	groupResource.Disk += disk
+
+	err = db.Save(&groupResource).Error
+	if err != nil {
+		logger.Error("Failed to create group resource by admin", "error", err)
+		return err
+	}
+	return nil
+}
+
 func RevokeGroupResources(groupID, userID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return revokeGroupResourcesTransaction(tx, groupID, userID)
@@ -490,8 +523,13 @@ func RevokeGroupResources(groupID, userID uint) error {
 }
 
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
+	if userID == 1 {
+		// Admin user, no resources to revoke
+		return tx.Delete(&GroupResource{GroupID: groupID, UserID: userID}).Error
+	}
+
 	var resource GroupResource
-	err := tx.Where("group_id = ? AND user_id = ?", groupID, userID).First(&resource).Error
+	err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// No resources to revoke

@@ -612,3 +612,29 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(ctx)
 	getGroup(w, r)
 }
+
+func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
+	groupids := chi.URLParam(r, "id")
+	groupid, err := strconv.ParseUint(groupids, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+
+	var req addGroupResourcesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = db.UpdateGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk)
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "Group not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to update group resources", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
