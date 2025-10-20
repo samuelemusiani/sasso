@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -328,6 +329,11 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "Failed to invite user", http.StatusInternalServerError)
 		return
+	}
+
+	err = notify.SendUserInvitation(u.ID, group.Name, req.Role)
+	if err != nil {
+		logger.Error("failed to send invitation notification", "error", err)
 	}
 }
 

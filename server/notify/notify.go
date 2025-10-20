@@ -500,3 +500,57 @@ func SendTestBotNotification(bot *db.TelegramBot, text string) error {
 	}
 	return err
 }
+
+func SendSSHKeysChangedOnVMToGroup(groupID uint, vmName string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for SSH keys changed notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendSSHKeysChangedOnVM(userID, vmName)
+		if err != nil {
+			logger.Error("Failed to send SSH keys changed notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
+func SendSSHKeysChangedOnVM(userID uint, vmName string) error {
+	t := `The SSH keys on the VM "%s" have been changed.
+If this is a group VM it often means that one of the group members has changed
+his SSH keys. On the next reboot you will probably get a warning from your SSH
+client about the host key being changed.
+`
+	body := fmt.Sprintf(t, vmName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM SSH Keys Changed",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save SSH keys changed notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendUserInvitation(userID uint, groupName, role string) error {
+	t := `You have been invited to join the group "%s" with the role of "%s".
+To accept the invitation please login to your account and navigate to the
+groups section.
+`
+	body := fmt.Sprintf(t, groupName, role)
+	n := &notification{
+		UserID:  userID,
+		Subject: "Group Invitation",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save user invitation notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}

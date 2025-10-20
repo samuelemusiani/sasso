@@ -1285,6 +1285,13 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		if err != nil {
 			logger.Error("Failed to regenerate cloud init image on VM", "vmid", v.ID, "err", err)
 		}
+
+		if v.OwnerType == "Group" {
+			err = notify.SendSSHKeysChangedOnVMToGroup(v.OwnerID, v.Name)
+			if err != nil {
+				logger.Error("Failed to send SSH keys changed notification to group", "vmid", v.ID, "err", err)
+			}
+		}
 	}
 
 	lastConfigureSSHKeysTime = time.Now()
