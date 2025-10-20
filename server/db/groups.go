@@ -35,6 +35,27 @@ type UserGroup struct {
 	Role      string // e.g., "member", "admin", "owner"
 }
 
+var lastUserGroupTableUpdate time.Time = time.Time{}
+
+func (ug *UserGroup) AfterUpdate(tx *gorm.DB) (err error) {
+	lastUserGroupTableUpdate = time.Now()
+	return nil
+}
+
+func (ug *UserGroup) AfterCreate(tx *gorm.DB) (err error) {
+	lastUserGroupTableUpdate = time.Now()
+	return nil
+}
+
+func (ug *UserGroup) AfterDelete(tx *gorm.DB) (err error) {
+	lastUserGroupTableUpdate = time.Now()
+	return nil
+}
+
+func GetLastUserGroupUpdate() time.Time {
+	return lastUserGroupTableUpdate
+}
+
 // This struct is only used for queries
 type GroupMemberWithUsername struct {
 	UserID   uint

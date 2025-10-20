@@ -1199,9 +1199,13 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		return
 	}
 
+	groupt := db.GetLastUserGroupUpdate()
+
 	// Every 6 hours we force a reconfiguration of SSH keys
 	if !lastConfigureSSHKeysTime.Before(time.Now().Add(-6*time.Hour)) &&
-		lastConfigureSSHKeysTime.After(ssht) && lastConfigureSSHKeysTime.After(vmt) {
+		lastConfigureSSHKeysTime.After(ssht) &&
+		lastConfigureSSHKeysTime.After(vmt) &&
+		lastConfigureSSHKeysTime.After(groupt) {
 		logger.Debug("No need to configure SSH keys. No new SSH keys or VMs")
 		return
 	}
