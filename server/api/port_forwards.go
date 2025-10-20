@@ -20,14 +20,6 @@ type returnPortForward struct {
 	DestPort uint16 `json:"dest_port"`
 	DestIP   string `json:"dest_ip"`
 	Approved bool   `json:"approved"`
-}
-
-type returnAdminPortForward struct {
-	ID       uint   `json:"id"`
-	OutPort  uint16 `json:"out_port"`
-	DestPort uint16 `json:"dest_port"`
-	DestIP   string `json:"dest_ip"`
-	Approved bool   `json:"approved"`
 	Name     string `json:"name,omitempty"`
 	IsGroup  bool   `json:"is_group,omitempty"`
 }
@@ -50,8 +42,8 @@ func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	return rpf
 }
 
-func returnAdminPortForwardFromDB(pf *db.PortForward) returnAdminPortForward {
-	return returnAdminPortForward{
+func returnAdminPortForwardFromDB(pf *db.PortForward) returnPortForward {
+	return returnPortForward{
 		ID:       pf.ID,
 		OutPort:  pf.OutPort,
 		DestPort: pf.DestPort,
@@ -62,8 +54,8 @@ func returnAdminPortForwardFromDB(pf *db.PortForward) returnAdminPortForward {
 	}
 }
 
-func returnAdminPortForwardsFromDB(pfs []db.PortForward) []returnAdminPortForward {
-	rpf := make([]returnAdminPortForward, len(pfs))
+func returnAdminPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
+	rpf := make([]returnPortForward, len(pfs))
 	for i, pf := range pfs {
 		rpf[i] = returnAdminPortForwardFromDB(&pf)
 	}
