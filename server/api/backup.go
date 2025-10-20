@@ -38,6 +38,14 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
 
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can restore backups", http.StatusForbidden)
+			return
+		}
+	}
+
 	if vm.Status != string(proxmox.VMStatusStopped) {
 		http.Error(w, "VM must be stopped to restore a backup", http.StatusBadRequest)
 		return
@@ -75,6 +83,14 @@ type CreateBackupRequestBody struct {
 func createBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can create backups", http.StatusForbidden)
+			return
+		}
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 
@@ -116,6 +132,14 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can delete backups", http.StatusForbidden)
+			return
+		}
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 
@@ -225,6 +249,14 @@ type ProtectBackupRequest struct {
 func protectBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := getVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can protect backups", http.StatusForbidden)
+			return
+		}
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 

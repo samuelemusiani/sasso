@@ -352,12 +352,13 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
+			var role string
 			if vm.OwnerType == "User" && vm.OwnerID != userID {
 				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
 				return
 			}
 			if vm.OwnerType == "Group" {
-				_, err := db.GetUserRoleInGroup(userID, vm.OwnerID)
+				role, err = db.GetUserRoleInGroup(userID, vm.OwnerID)
 				if err != nil {
 					if errors.Is(err, db.ErrNotFound) {
 						http.Error(w, "vm does not belong to the user", http.StatusForbidden)
@@ -372,6 +373,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, "vm_id", vm)
+			ctx = context.WithValue(ctx, "group_user_role", role)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -386,6 +388,14 @@ func getVMFromContext(r *http.Request) *proxmox.VM {
 		panic("getVMFromContext: vm_id not found in context")
 	}
 	return vm
+}
+
+func mustGetUserRoleInGroupFromContext(r *http.Request) string {
+	role, ok := r.Context().Value("group_user_role").(string)
+	if !ok {
+		panic("mustGetUserRoleInGroupFromContext: group_user_role not found in context")
+	}
+	return role
 }
 
 func validateInterfaceOwnership() func(http.Handler) http.Handler {
