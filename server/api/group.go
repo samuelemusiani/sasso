@@ -436,6 +436,12 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to remove user from group", http.StatusInternalServerError)
 		return
 	}
+
+	err = notify.SendUserRemovalFromGroupNotification(uint(userID), group.Name)
+	if err != nil {
+		logger.Error("failed to send user removal notification", "error", err)
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -554,3 +554,19 @@ groups section.
 	}
 	return nil
 }
+
+func SendUserRemovalFromGroupNotification(userID uint, groupName string) error {
+	t := `You have been removed from the group "%s".`
+	body := fmt.Sprintf(t, groupName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "Removed from Group",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save user removal from group notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
