@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Backup, BackupRequest } from '@/types'
+import type { Backup, BackupRequest, VM } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { useLoadingStore } from '@/stores/loading'
@@ -15,6 +15,8 @@ const notes = ref('')
 const route = useRoute()
 const vmid = Number(route.params.vmid)
 const error = ref('')
+
+const vm = ref<VM>()
 
 const backupRequests = ref<BackupRequest[]>([])
 const pendingBackupRequests = computed(() =>
@@ -123,10 +125,22 @@ function makeBackup() {
     })
 }
 
+function fetchVM() {
+  api
+    .get(`/vm/${vmid}`)
+    .then((res) => {
+      vm.value = res.data as VM
+    })
+    .catch((err) => {
+      console.error('Failed to fetch VM:', err)
+    })
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
   fetchBackups()
+  fetchVM()
   fetchBackupsRequests()
   intervalId = setInterval(() => {
     fetchBackupsRequests()
@@ -143,8 +157,13 @@ onBeforeUnmount(() => {
 <template>
   <!-- TODO: go back to vm -->
   <div class="flex flex-col gap-2">
-    <h2 class="text-2xl font-bold">Create a Backup</h2>
-    <CreateNew :create="makeBackup" title="New Backup" :error="error">
+    <h2 class="text-2xl font-bold">Backups</h2>
+    <CreateNew
+      v-if="vm && vm.group_role !== 'member'"
+      :create="makeBackup"
+      title="New Backup"
+      :error="error"
+    >
       <label class="label">Backup Name</label>
       <input type="text" placeholder="Name" v-model="name" class="input w-full rounded-lg" />
       <label class="label">Backup Notes</label>
@@ -176,7 +195,10 @@ onBeforeUnmount(() => {
             <td class="font-semibold capitalize" :class="getStatusClass(bk.protected.toString())">
               {{ bk.protected }}
             </td>
-            <td class="flex justify-end gap-2 text-right text-sm font-medium">
+            <td
+              v-if="vm && vm.group_role !== 'member'"
+              class="flex justify-end gap-2 text-right text-sm font-medium"
+            >
               <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->
               <button
                 @click="protectBackup(bk.id, !bk.protected)"
