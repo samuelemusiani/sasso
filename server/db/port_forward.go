@@ -78,7 +78,7 @@ func GetPortForwardByID(ID uint) (*PortForward, error) {
 
 func GetPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	var pfs []PortForward
-	if err := db.Where("user_id = ?", userID).Find(&pfs).Error; err != nil {
+	if err := db.Where(&PortForward{OwnerID: userID}).Find(&pfs).Error; err != nil {
 		logger.Error("Failed to get port forwards for user", "userID", userID, "error", err)
 		return nil, err
 	}
