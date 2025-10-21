@@ -1,66 +1,66 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
-// Deletes this zone, all attached metadata and rrsets.
-func DeleteZone(zone Zone) error {
-	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
+// Adds a zone to a given view, creating it if needed
+func AddZoneToView(view string, zone Zone) error {
+	url := fmt.Sprintf("%s/views/%s", BaseUrl, view)
+
+	newViewBody := map[string]interface{}{
+		"name": zone.Name,
+	}
+
+	respBody, statusCode, err := HttpRequest("POST", url, newViewBody)
+	if err != nil {
+		return fmt.Errorf("failed to add view: %w", err)
+	}
+
+	fmt.Printf("%d Response: %s", statusCode, string(respBody))
+	return nil
+}
+
+// Removes the given zone from the given view
+func RemoveZoneFromView(view string, zone Zone) error {
+	url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view, zone.Name)
 
 	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete view: %w", err)
+		return fmt.Errorf("failed to remove view: %w", err)
 	}
 
-	fmt.Println("%d Response: %s", statusCode, string(respBody))
+	fmt.Printf("%d Response: %s", statusCode, string(respBody))
 	return nil
 }
 
-// Creates RRsets present in the payload and their comments
-func NewRRsetInZone(RRset RRSet, zone Zone) error {
-	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
+func GetViews() ([]byte, error) {
+	url := fmt.Sprintf("%s/views", BaseUrl)
 
-	rrsets := map[string]interface{}{
-		"name":       RRset.Name,
-		"type":       RRset.Type,
-		"ttl":        RRset.TTL,
-		"changetype": "REPLACE",
-		"records":    RRset.Records,
-	}
-
-	reqBody := map[string]interface{}{
-		"rrsets": rrsets,
-	}
-
-	respBody, statusCode, err := HttpRequest("PATCH", url, reqBody)
+	respBody, _, err := HttpRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create RRset: %w", err)
+		return nil, fmt.Errorf("failed to list views: %w", err)
 	}
 
-	fmt.Println("%d Response: %s", statusCode, string(respBody))
-	return nil
+	return respBody, nil
 }
 
-// Delete RRsets present in the payload and their comments
-func DeleteRRsetFromZone(RRset RRSet, zone Zone) error {
-	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
-
-	rrsets := map[string]interface{}{
-		"name":       RRset.Name,
-		"type":       RRset.Type,
-		"changetype": "DELETE",
-	}
-
-	reqBody := map[string]interface{}{
-		"rrsets": rrsets,
-	}
-
-	respBody, statusCode, err := HttpRequest("PATCH", url, reqBody)
+func PrintViews() error {
+	body, err := GetViews()
 	if err != nil {
-		return fmt.Errorf("failed to create RRset: %w", err)
+		return fmt.Errorf("failed to get views: %w", err)
 	}
 
-	fmt.Println("%d Response: %s", statusCode, string(respBody))
+	var viewsResp Views
+	if err := json.Unmarshal(body, &viewsResp); err != nil {
+		return fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	fmt.Println("\nViews:")
+	for _, view := range viewsResp.Views {
+		fmt.Printf("View Name: %s\n", view)
+	}
+
 	return nil
 }
