@@ -12,8 +12,9 @@ require (
 	github.com/samuelemusiani/go-shorewall v0.0.3
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
+	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/crypto v0.42.0
-	golang.org/x/sys v0.36.0
+	golang.org/x/sys v0.37.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
 )
@@ -52,7 +53,6 @@ require (
 	github.com/seancfoley/bintree v1.3.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	github.com/wneessen/go-mail v0.7.2 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
