@@ -641,3 +641,34 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func updateGroup(w http.ResponseWriter, r *http.Request) {
+	group := mustGetGroupFromContext(r)
+	user_role := mustGetUserRoleInGroupFromContext(r)
+
+	if user_role != "owner" {
+		http.Error(w, "Only group owners can update the group", http.StatusForbidden)
+		return
+	}
+
+	var req createGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Name == "" {
+		req.Name = group.Name
+	}
+
+	if len(req.Name) > 64 {
+		http.Error(w, "Group name too long", http.StatusBadRequest)
+		return
+	}
+
+	err := db.UpdateGroupByID(group.ID, req.Name, req.Description)
+	if err != nil {
+		http.Error(w, "Failed to update group", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

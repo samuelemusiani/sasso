@@ -56,6 +56,16 @@ func GetLastUserGroupUpdate() time.Time {
 	return lastUserGroupTableUpdate
 }
 
+func UpdateGroupByID(groupID uint, name, description string) error {
+	result := db.Model(&Group{}).Where("id = ?", groupID).
+		Updates(Group{Name: name, Description: description})
+	if result.Error != nil {
+		logger.Error("Failed to update group", "error", result.Error)
+		return result.Error
+	}
+	return nil
+}
+
 // This struct is only used for queries
 type GroupMemberWithUsername struct {
 	UserID   uint

@@ -160,6 +160,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Route("/groups/{groupid}", func(r chi.Router) {
 			r.Use(validateGroupOwnership())
 			r.Get("/", getGroup)
+			r.Put("/", updateGroup)
 			r.Delete("/", deleteGroup)
 
 			// Invitations
