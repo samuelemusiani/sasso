@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
@@ -20,6 +20,16 @@ const cores = ref(0)
 const ram = ref(0)
 const disk = ref(0)
 const nets = ref(0)
+
+const groupName = ref(group.value?.name || '')
+const groupDescription = ref(group.value?.description || '')
+
+watch(group, (newGroup) => {
+  if (newGroup) {
+    groupName.value = newGroup.name
+    groupDescription.value = newGroup.description
+  }
+})
 
 const invitations = ref<GroupInvite[]>([])
 // const members = ref<GroupMember[]>([])
@@ -228,6 +238,20 @@ async function fetchResourceStats() {
     })
 }
 
+function updateGroup() {
+  api
+    .put(`/groups/${groupId}`, {
+      name: groupName.value,
+      description: groupDescription.value,
+    })
+    .then(() => {
+      fetchGroup()
+    })
+    .catch((err) => {
+      console.error('Failed to update Group:', err)
+    })
+}
+
 onMounted(() => {
   fetchMe()
   fetchGroup()
@@ -257,6 +281,26 @@ onMounted(() => {
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
+          </div>
+        </div>
+      </CreateNew>
+      <CreateNew title="Update Group" :create="updateGroup">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <label for="groupName">Name</label>
+            <input
+              type="text"
+              id="groupName"
+              v-model="groupName"
+              class="input w-48 rounded-lg border p-2"
+            />
+            <label for="groupDescription">Description</label>
+            <input
+              type="text"
+              id="groupDescription"
+              v-model="groupDescription"
+              class="input w-48 rounded-lg border p-2"
+            />
           </div>
         </div>
       </CreateNew>
