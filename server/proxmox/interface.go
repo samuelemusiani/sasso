@@ -124,22 +124,20 @@ func InterfacesChecks(net *db.Net, iface *Interface) error {
 		return errors.New("vlan_tag must be 0 for non-vlan-aware vnets")
 	}
 
-	subnet := ipaddr.NewIPAddressString(net.Subnet)
 	reqIPAdd := ipaddr.NewIPAddressString(iface.IPAdd)
-
-	// TODO: Remove this after frontend check
-	// https://github.com/samuelemusiani/sasso/issues/63
-	if !subnet.Contains(reqIPAdd) {
-		return errors.New("ip_add not in the subnet of the vnet")
-	}
 
 	if !reqIPAdd.IsPrefixed() {
 		return errors.New("ip_add must have a subnet mask")
 	}
 
+	if iface.Gateway == "" {
+		return nil
+	}
+	// Gateway checks
+
 	reqGateway := ipaddr.NewIPAddressString(iface.Gateway)
-	if !subnet.Contains(reqGateway) {
-		return errors.New("gateway not in the subnet of the vnet")
+	if !reqIPAdd.Contains(reqGateway) {
+		return errors.New("gateway must be within ip subnet")
 	}
 
 	if reqGateway.IsPrefixed() {
