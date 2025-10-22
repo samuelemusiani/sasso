@@ -11,6 +11,7 @@ type Config struct {
 	Secrets       Secrets  `toml:"secrets"`
 	Proxmox       Proxmox  `toml:"proxmox"`
 	Email         Email    `toml:"email"`
+	DNS           DNS      `toml:"dns"`
 }
 
 type Server struct {
@@ -72,6 +73,10 @@ type Email struct {
 	Username   string `toml:"username"`
 	Password   string `toml:"password"`
 	SMTPServer string `toml:"smtp_server"`
+}
+
+type DNS struct {
+	// DTODO: Add DNS configuration fields here
 }
 
 var config Config = Config{}

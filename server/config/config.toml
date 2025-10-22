@@ -72,3 +72,6 @@ enabled = true
 username = "sasso@gmail.com"
 password = "app-password"
 smtp_server = "smtp.gmail.com"
+
+[dns]
+# DTODO: Add dns configuration
