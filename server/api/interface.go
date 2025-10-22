@@ -95,6 +95,26 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		Gateway: req.Gateway,
 	}
 
+	if tmpFace.Gateway != "" {
+		// We need to check if there is already another interface with a gateway
+		// on the same VM.
+		mutex := getVMMutex(uint(vm.ID))
+		mutex.Lock()
+		defer mutex.Unlock()
+
+		interfaces, err := db.GetInterfacesByVMID(vm.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, iface := range interfaces {
+			if iface.Gateway != "" {
+				http.Error(w, "only one interface with gateway allowed per VM", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
 	if err := proxmox.InterfacesChecks(n, &tmpFace); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
