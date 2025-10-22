@@ -133,10 +133,20 @@ func InterfacesChecks(net *db.Net, iface *Interface) error {
 	if iface.Gateway == "" {
 		return nil
 	}
+
 	// Gateway checks
 
-	reqGateway := ipaddr.NewIPAddressString(iface.Gateway)
-	if !reqIPAdd.Contains(reqGateway) {
+	if iface.Gateway == iface.IPAdd {
+		return errors.New("gateway cannot be the same as ip_add")
+	}
+
+	zero, err := reqIPAdd.GetAddress().ToZeroHost()
+	if err != nil {
+		return errors.New("failed to get zero host address from ip_add")
+	}
+
+	reqGateway := ipaddr.NewIPAddressString(iface.Gateway).GetAddress()
+	if !zero.PrefixContains(reqGateway) {
 		return errors.New("gateway must be within ip subnet")
 	}
 
