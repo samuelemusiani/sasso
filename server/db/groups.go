@@ -12,7 +12,7 @@ type Group struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Name        string
+	Name        string `gorm:"uniqueIndex;not null"`
 	Description string
 
 	// Read-only field populated via join
@@ -57,13 +57,24 @@ func GetLastUserGroupUpdate() time.Time {
 }
 
 func UpdateGroupByID(groupID uint, name, description string) error {
-	result := db.Model(&Group{}).Where("id = ?", groupID).
-		Updates(Group{Name: name, Description: description})
-	if result.Error != nil {
-		logger.Error("Failed to update group", "error", result.Error)
-		return result.Error
-	}
-	return nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		var group Group
+		err := tx.Where("id != ? AND name = ?", groupID, name).First(&group).Error
+		if err == nil {
+			return ErrAlreadyExists
+		} else if err != gorm.ErrRecordNotFound {
+			logger.Error("Failed to check existing group", "error", err)
+			return err
+		}
+
+		result := tx.Model(&Group{}).Where("id = ?", groupID).
+			Updates(Group{Name: name, Description: description})
+		if result.Error != nil {
+			logger.Error("Failed to update group", "error", result.Error)
+			return result.Error
+		}
+		return nil
+	})
 }
 
 // This struct is only used for queries
@@ -91,7 +102,16 @@ func initGroups() error {
 
 func CreateGroup(name, description string, userID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		group := Group{
+
+		var group Group
+		if err := tx.Where(&Group{Name: name}).First(&group).Error; err == nil {
+			return ErrAlreadyExists
+		} else if err != gorm.ErrRecordNotFound {
+			logger.Error("Failed to check existing group", "error", err)
+			return err
+		}
+
+		group = Group{
 			Name:        name,
 			Description: description,
 		}

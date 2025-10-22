@@ -82,6 +82,10 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.CreateGroup(req.Name, req.Description, userID); err != nil {
+		if err == db.ErrAlreadyExists {
+			http.Error(w, "Group name already exists", http.StatusConflict)
+			return
+		}
 		http.Error(w, "Failed to create group", http.StatusInternalServerError)
 		return
 	}
@@ -667,6 +671,10 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	err := db.UpdateGroupByID(group.ID, req.Name, req.Description)
 	if err != nil {
+		if err == db.ErrAlreadyExists {
+			http.Error(w, "Group name already exists", http.StatusConflict)
+			return
+		}
 		http.Error(w, "Failed to update group", http.StatusInternalServerError)
 		return
 	}
