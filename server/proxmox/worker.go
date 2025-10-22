@@ -879,7 +879,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		o2 := gprox.VirtualMachineOption{
 			Name:  "ipconfig" + strconv.Itoa(firstEmptyIndex),
-			Value: fmt.Sprintf("ip=%s"),
+			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
 		}
 
 		if iface.Gateway != "" {
