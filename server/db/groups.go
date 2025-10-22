@@ -579,10 +579,15 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 			return err
 		}
 
-		if maxResourceAvailable.Cores+(cores-resource.Cores) < used.Cores ||
-			maxResourceAvailable.RAM+(ram-resource.RAM) < used.RAM ||
-			maxResourceAvailable.Disk+(disk-resource.Disk) < used.Disk ||
-			maxResourceAvailable.Nets+(nets-resource.Nets) < used.Nets {
+		diffCores := int(cores - resource.Cores)
+		diffRAM := int(ram - resource.RAM)
+		diffDisk := int(disk - resource.Disk)
+		diffNets := int(nets - resource.Nets)
+
+		if int(maxResourceAvailable.Cores)+diffCores < int(used.Cores) ||
+			int(maxResourceAvailable.RAM)+diffRAM < int(used.RAM) ||
+			int(maxResourceAvailable.Disk)+diffDisk < int(used.Disk) ||
+			int(maxResourceAvailable.Nets)+diffNets < int(used.Nets) {
 			return ErrResourcesInUse
 		}
 
@@ -599,10 +604,10 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 
 		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
 			UpdateColumns(map[string]interface{}{
-				"max_cores": resource.Cores,
-				"max_ram":   resource.RAM,
-				"max_disk":  resource.Disk,
-				"max_nets":  resource.Nets,
+				"max_cores": gorm.Expr("max_cores - ?", diffCores),
+				"max_ram":   gorm.Expr("max_ram - ?", diffRAM),
+				"max_disk":  gorm.Expr("max_disk - ?", diffDisk),
+				"max_nets":  gorm.Expr("max_nets - ?", diffNets),
 			}).Error
 		if err != nil {
 			logger.Error("Failed to update user limits", "error", err)
