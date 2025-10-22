@@ -226,7 +226,7 @@ async function fetchResourceStats() {
         {
           item: 'Net',
           icon: 'ph:network',
-          active: 0,
+          active: -1,
           max: data.max_nets,
           allocated: data.allocated_nets,
           color: 'text-orange-400',

@@ -7,6 +7,7 @@ const props = defineProps<{
     active: number
     max: number
     allocated: number
+    group_max?: number
     color: string
   }>
 }>()
@@ -68,7 +69,7 @@ const colors: Record<string, string> = {
         <!-- Stats Bars -->
         <div class="flex flex-col justify-end gap-3">
           <!-- Usage Bar -->
-          <div :class="{ invisible: stat.active == 0 }" class="space-y-2">
+          <div :class="{ invisible: stat.active == -1 }" class="space-y-2">
             <div class="text-base-content/70 flex justify-between text-xs">
               <span>Active</span>
               <span
@@ -97,6 +98,23 @@ const colors: Record<string, string> = {
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
                 :style="`width: ${(stat.allocated / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Group Bar -->
+          <div v-if="stat.group_max !== undefined" class="space-y-2">
+            <div class="text-base-content/70 flex justify-between text-xs">
+              <span>Group shared</span>
+              <span
+                >{{ stat.group_max }} / {{ stat.max }}
+                {{ stat.item === 'RAM' || stat.item === 'Disk' ? 'GB' : stat.item }}</span
+              >
+            </div>
+            <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
+              <div
+                class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
+                :style="`width: ${(stat.group_max / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>

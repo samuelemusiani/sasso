@@ -19,6 +19,7 @@ async function fetchResourceStats() {
           active: data.active_vms_cores,
           max: data.max_cores,
           allocated: data.allocated_cores,
+          group_max: data.group_max_cores,
           color: 'text-primary',
         },
         {
@@ -27,6 +28,7 @@ async function fetchResourceStats() {
           active: data.active_vms_ram / 1024,
           max: data.max_ram / 1024,
           allocated: data.allocated_ram / 1024,
+          group_max: data.group_max_ram / 1024,
           color: 'text-success',
         },
         {
@@ -35,14 +37,16 @@ async function fetchResourceStats() {
           active: data.active_vms_disk,
           max: data.max_disk,
           allocated: data.allocated_disk,
+          group_max: data.group_max_disk,
           color: 'text-accent',
         },
         {
           item: 'Net',
           icon: 'ph:network',
-          active: 0,
+          active: -1,
           max: data.max_nets,
           allocated: data.allocated_nets,
+          group_max: data.group_max_nets,
           color: 'text-orange-400',
         },
       ]
