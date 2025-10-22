@@ -255,10 +255,10 @@ type returnUserResources struct {
 	ActiveVMsRAM   uint `json:"active_vms_ram"`
 	ActiveVMsDisk  uint `json:"active_vms_disk"`
 
-	GroupMaxCores uint `json:"group_max_cores,omitempty"`
-	GroupMaxRAM   uint `json:"group_max_ram,omitempty"`
-	GroupMaxDisk  uint `json:"group_max_disk,omitempty"`
-	GroupMaxNets  uint `json:"group_max_nets,omitempty"`
+	GroupMaxCores uint `json:"group_max_cores"`
+	GroupMaxRAM   uint `json:"group_max_ram"`
+	GroupMaxDisk  uint `json:"group_max_disk"`
+	GroupMaxNets  uint `json:"group_max_nets"`
 }
 
 func getUserResources(w http.ResponseWriter, r *http.Request) {
