@@ -329,7 +329,7 @@ onMounted(() => {
       </div>
 
       <CreateNew
-        :hideCreate="true"
+        :hideCreate="addOrUpdateResources"
         :title="(addOrUpdateResources ? 'Update ' : '') + 'Resource'"
         :create="saveResources"
       >
