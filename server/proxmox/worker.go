@@ -879,7 +879,11 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		o2 := gprox.VirtualMachineOption{
 			Name:  "ipconfig" + strconv.Itoa(firstEmptyIndex),
-			Value: fmt.Sprintf("ip=%s,gw=%s", iface.IPAdd, gatewayIpAddressNoMask),
+			Value: fmt.Sprintf("ip=%s"),
+		}
+
+		if iface.Gateway != "" {
+			o2.Value = fmt.Sprintf("%s,gw=%s", o2.Value, gatewayIpAddressNoMask)
 		}
 
 		logger.Debug("Configuring network interface on Proxmox VM", "option", o2)
