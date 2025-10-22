@@ -254,6 +254,11 @@ type returnUserResources struct {
 	ActiveVMsCores uint `json:"active_vms_cores"`
 	ActiveVMsRAM   uint `json:"active_vms_ram"`
 	ActiveVMsDisk  uint `json:"active_vms_disk"`
+
+	GroupMaxCores uint `json:"group_max_cores,omitempty"`
+	GroupMaxRAM   uint `json:"group_max_ram,omitempty"`
+	GroupMaxDisk  uint `json:"group_max_disk,omitempty"`
+	GroupMaxNets  uint `json:"group_max_nets,omitempty"`
 }
 
 func getUserResources(w http.ResponseWriter, r *http.Request) {
@@ -271,6 +276,23 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	userResources.MaxRAM = user.MaxRAM
 	userResources.MaxDisk = user.MaxDisk
 	userResources.MaxNets = user.MaxNets
+
+	groupRes, err := db.GetUserGroupResourcesByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get group resources by user ID", "error", err)
+		http.Error(w, "Failed to get group resources", http.StatusInternalServerError)
+		return
+	}
+
+	userResources.MaxCores += groupRes.Cores
+	userResources.MaxRAM += groupRes.RAM
+	userResources.MaxDisk += groupRes.Disk
+	userResources.MaxNets += groupRes.Nets
+
+	userResources.GroupMaxCores += groupRes.Cores
+	userResources.GroupMaxRAM += groupRes.RAM
+	userResources.GroupMaxDisk += groupRes.Disk
+	userResources.GroupMaxNets += groupRes.Nets
 
 	userResources.AllocatedCores, userResources.AllocatedRAM, userResources.AllocatedDisk, err = db.GetVMResourcesByUserID(userID)
 	if err != nil {

@@ -659,3 +659,16 @@ func GetAllGroups() ([]Group, error) {
 	}
 	return groups, nil
 }
+
+func GetUserGroupResourcesByUserID(userID uint) (usedResources, error) {
+	var res usedResources
+	err := db.Model(&GroupResource{}).
+		Where(&GroupResource{UserID: userID}).
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
+		Scan(&res).Error
+	if err != nil {
+		logger.Error("Failed to get user group resources by user ID", "error", err)
+		return usedResources{}, err
+	}
+	return res, nil
+}
