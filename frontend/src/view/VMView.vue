@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
 import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
-import type { VM } from '@/types'
+import type { VM, Group } from '@/types'
 import { api } from '@/lib/api'
 import { getStatusClass } from '@/const'
 import BubbleAlert from '@/components/BubbleAlert.vue'
@@ -15,10 +15,13 @@ const disk = ref(4)
 const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
+const newVMGroupId = ref<number>()
 const error = ref('')
 
 const extendBy = ref(1)
 const showIds = ref(false)
+
+const groups = ref<Group[]>([])
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
@@ -35,19 +38,43 @@ function fetchVMs() {
     })
 }
 
+interface VMCreationBody {
+  name: string
+  cores: number
+  ram: number
+  disk: number
+  lifetime: number
+  include_global_ssh_keys: boolean
+  notes: string
+  group_id?: number
+}
+
 function createVM() {
+  const body: VMCreationBody = {
+    name: name.value,
+    cores: cores.value,
+    ram: ram.value,
+    disk: disk.value,
+    lifetime: lifetime.value,
+    include_global_ssh_keys: include_global_ssh_keys.value,
+    notes: notes.value,
+  }
+  if (newVMGroupId.value) {
+    body.group_id = newVMGroupId.value
+  }
   api
-    .post('/vm', {
-      name: name.value,
-      cores: cores.value,
-      ram: ram.value,
-      disk: disk.value,
-      lifetime: lifetime.value,
-      include_global_ssh_keys: include_global_ssh_keys.value,
-      notes: notes.value,
-    })
+    .post('/vm', body)
     .then(() => {
       fetchVMs()
+      name.value = ''
+      cores.value = 1
+      ram.value = 1024
+      disk.value = 4
+      lifetime.value = 1
+      notes.value = ''
+      include_global_ssh_keys.value = true
+      error.value = ''
+      newVMGroupId.value = undefined
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
@@ -113,8 +140,15 @@ function isExpired(lifetime: string): boolean {
 
 let intervalId: number | null = null
 
+function fetchGroups() {
+  api.get('/groups').then((res) => {
+    groups.value = res.data as Group[]
+  })
+}
+
 onMounted(() => {
   fetchVMs()
+  fetchGroups()
   intervalId = setInterval(() => {
     fetchVMs()
   }, 5000)
@@ -125,6 +159,10 @@ onBeforeUnmount(() => {
     clearInterval(intervalId)
   }
   loading.clear('vm')
+})
+
+const nonMemberGroups = computed(() => {
+  return groups.value.filter((group) => group.role !== 'member')
 })
 </script>
 
@@ -192,6 +230,14 @@ onBeforeUnmount(() => {
         <label for="cores">Notes</label>
         <textarea class="textarea w-full" placeholder="VM Notes" v-model="notes"></textarea>
       </div>
+
+      <label for="group">Group (Optional)</label>
+      <select v-model="newVMGroupId" class="select select-bordered">
+        <option :value="undefined">Me</option>
+        <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
+          {{ group.name }}
+        </option>
+      </select>
     </CreateNew>
 
     <table class="table table-auto divide-y">
@@ -199,6 +245,7 @@ onBeforeUnmount(() => {
         <tr>
           <th v-show="showIds" scope="col">ID</th>
           <th scope="col">Name</th>
+          <th scope="col">Group</th>
           <th scope="col">Cores</th>
           <th scope="col">RAM (MB)</th>
           <th scope="col">Disk (GB)</th>
@@ -222,6 +269,7 @@ onBeforeUnmount(() => {
             </td>
           </Transition>
           <td class="text-lg">{{ vm.name }}</td>
+          <td class="">{{ vm.group_name ? vm.group_name : 'Me' }}</td>
           <td class="">{{ vm.cores }}</td>
           <td class="">{{ vm.ram }}</td>
           <td class="">{{ vm.disk }}</td>
@@ -241,7 +289,7 @@ onBeforeUnmount(() => {
               :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'"
             >
               <div
-                v-show="isExpired(vm.lifetime)"
+                v-show="isExpired(vm.lifetime) && vm.group_role != 'member'"
                 class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
               >
                 <select class="select" v-model.number="extendBy">
@@ -258,7 +306,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div
-                v-show="!isExpired(vm.lifetime)"
+                v-show="!isExpired(vm.lifetime) && vm.group_role != 'member'"
                 class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
               >
                 <button

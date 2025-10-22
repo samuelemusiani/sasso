@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, defineProps } from 'vue'
 import { api } from '@/lib/api'
-import type { Interface, Net } from '@/types'
+import type { Interface, Net, VM } from '@/types'
 import CreateNew from '../CreateNew.vue'
 import BubbleAlert from '../BubbleAlert.vue'
 
 const $props = defineProps<{
-  vmid: number
+  vm: VM
   interface?: Interface
 }>()
 
@@ -24,6 +24,17 @@ const form = ref({
   vlan_tag: $props.interface?.vlan_tag || 0,
   ip_add: $props.interface?.ip_add || '',
   gateway: $props.interface?.gateway || '',
+})
+
+const filteredNets = computed(() => {
+  const isGroupVM = $props.vm.group_id !== undefined
+  if (!isGroupVM) {
+    return nets.value.filter((net) => net.group_id === undefined)
+  } else {
+    return nets.value.filter(
+      (net) => net.group_role !== 'member' && net.group_id === $props.vm.group_id,
+    )
+  }
 })
 
 const currentSubnet = computed(() => {
@@ -46,6 +57,16 @@ watch(
       form.value.gateway = ''
     }
   },
+)
+
+watch(
+  () => filteredNets.value,
+  (newNets) => {
+    if (newNets.length > 0 && !newNets.find((n) => n.id === form.value.vnet_id)) {
+      form.value.vnet_id = newNets[0].id
+    }
+  },
+  { immediate: true },
 )
 
 function fetchNets() {
@@ -73,7 +94,7 @@ function handleSubmit() {
 
 function addInterface() {
   api
-    .post(`/vm/${$props.vmid}/interface`, form.value)
+    .post(`/vm/${$props.vm.id}/interface`, form.value)
     .then(() => {
       $emit('interfaceAdded')
     })
@@ -86,7 +107,7 @@ function addInterface() {
 function updateInterface() {
   if (!$props.interface) return
   api
-    .put(`/vm/${$props.vmid}/interface/${$props.interface.id}`, form.value)
+    .put(`/vm/${$props.vm.id}/interface/${$props.interface.id}`, form.value)
     .then(() => {
       $emit('interfaceUpdated')
     })
@@ -108,7 +129,7 @@ onMounted(() => {
       <div>
         <label for="net" class="block text-sm font-medium">Network</label>
         <select id="net" v-model="form.vnet_id" class="select w-full rounded-lg">
-          <option v-for="net in nets" :key="net.id" :value="net.id">
+          <option v-for="net in filteredNets" :key="net.id" :value="net.id">
             {{ net.name }}
           </option>
         </select>

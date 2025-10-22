@@ -150,6 +150,37 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Delete("/notify/telegram/{id}", deleteTelegramBot)
 		r.Post("/notify/telegram/{id}/test", testTelegramBot)
 
+		r.Get("/groups", listUserGroups)
+		r.Post("/groups", createGroup)
+
+		// This route does not require group ownership, as it's used to accept invitations
+		r.Get("/groups/invites", listGroupInvitations)
+		r.Patch("/groups/invites/{inviteid}", manageInvitation)
+
+		r.Route("/groups/{groupid}", func(r chi.Router) {
+			r.Use(validateGroupOwnership())
+			r.Get("/", getGroup)
+			r.Put("/", updateGroup)
+			r.Delete("/", deleteGroup)
+
+			// Invitations
+
+			r.Get("/invites", getGroupPendingInvitations)
+			r.Post("/invites", inviteUserToGroup)
+			r.Delete("/invites/{inviteid}", revokeGroupInvitation)
+
+			// Members management
+			r.Get("/members", listGroupMembers)
+			r.Get("/members/me", getMyGroupMembership)
+			r.Delete("/members/me", leaveGroup)
+			r.Delete("/members/{userid}", removeUserFromGroup)
+
+			// Resources management
+			r.Get("/resources", getGroupResources)
+			r.Post("/resources", addGroupResources)
+			r.Put("/resources", modifyGroupResources)
+			r.Delete("/resources", revokeGroupResources)
+		})
 	})
 
 	// Admin Auth routes
@@ -159,6 +190,11 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/admin/users", listUsers)
 		r.Get("/admin/users/{id}", getUser)
+
+		r.Get("/admin/groups", adminListGroups)
+		r.Get("/admin/groups/{id}", adminGetGroup)
+		r.Put("/admin/groups/{id}/resources", adminUpdateGroupResources)
+
 		r.Get("/admin/realms", listRealms)
 		r.Get("/admin/realms/{id}", getRealm)
 		r.Put("/admin/realms/{id}", updateRealm)

@@ -9,6 +9,12 @@ const menu = {
     icon: 'mdi:account-multiple-outline',
     title: 'Users',
   },
+  groups: {
+    to: '/admin/groups',
+    color: 'error',
+    icon: 'mdi:account-group-outline',
+    title: 'Groups',
+  },
   realms: {
     to: '/admin/realms',
     color: 'primary',

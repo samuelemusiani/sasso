@@ -7,7 +7,6 @@ type PortForward struct {
 	OutPort  uint16 `gorm:"not null; uniqueIndex"`
 	DestPort uint16 `gorm:"not null"`
 	DestIP   string `gorm:"not null"`
-	UserID   uint   `gorm:"not null"`
 }
 
 func initPortForwards() error {

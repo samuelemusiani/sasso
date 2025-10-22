@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/proxmox"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -345,19 +346,35 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			vm, err := db.GetVMByID(vmID)
+			vm, err := proxmox.GetVMByID(vmID, userID)
 			if err != nil {
-				http.Error(w, "vm not found", http.StatusBadRequest)
+				http.Error(w, "vm not found", http.StatusNotFound)
 				return
 			}
 
-			if vm.UserID != userID {
+			var role string
+			if vm.OwnerType == "User" && vm.OwnerID != userID {
 				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
 				return
+			}
+			if vm.OwnerType == "Group" {
+				role, err = db.GetUserRoleInGroup(userID, vm.OwnerID)
+				if err != nil {
+					if errors.Is(err, db.ErrNotFound) {
+						http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+						return
+					}
+					logger.Error("failed to get user role in group", "error", err)
+					http.Error(w, "internal server error", http.StatusInternalServerError)
+					return
+				}
+				// TODO: check role permissions if needed?
 			}
 
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, "vm_id", vm)
+			ctx = context.WithValue(ctx, "group_user_role", role)
+			ctx = context.WithValue(ctx, "group_id", vm.OwnerID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -366,12 +383,29 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getVMFromContext(r *http.Request) *db.VM {
-	vm, ok := r.Context().Value("vm_id").(*db.VM)
+func mustGetVMFromContext(r *http.Request) *proxmox.VM {
+	vm, ok := r.Context().Value("vm_id").(*proxmox.VM)
 	if !ok {
 		panic("getVMFromContext: vm_id not found in context")
 	}
 	return vm
+}
+
+func mustGetUserRoleInGroupFromContext(r *http.Request) string {
+	role, ok := r.Context().Value("group_user_role").(string)
+	if !ok {
+		panic("mustGetUserRoleInGroupFromContext: group_user_role not found in context")
+	}
+	return role
+}
+
+// IMPORTANT: This only works under /vm/ paths
+func mustGetGroupIDFromContext(r *http.Request) uint {
+	groupID, ok := r.Context().Value("group_id").(uint)
+	if !ok {
+		panic("mustGetGroupIDFromContext: group_id not found in context")
+	}
+	return groupID
 }
 
 func validateInterfaceOwnership() func(http.Handler) http.Handler {
@@ -402,7 +436,8 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			if n.UserID != userID {
+			// TODO: group vnets
+			if n.OwnerType == "User" && n.OwnerID != userID {
 				http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 				return
 			}
@@ -417,10 +452,68 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-func getInterfaceFromContext(r *http.Request) *db.Interface {
+func mustGetInterfaceFromContext(r *http.Request) *db.Interface {
 	iface, ok := r.Context().Value("interface_id").(*db.Interface)
 	if !ok {
 		panic("getInterfaceFromContext: interface_id not found in context")
 	}
 	return iface
+}
+
+func validateGroupOwnership() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hfn := func(w http.ResponseWriter, r *http.Request) {
+			userID, err := getUserIDFromContext(r)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			sgroupID := chi.URLParam(r, "groupid")
+			groupID, err := strconv.ParseUint(sgroupID, 10, 32)
+			if err != nil {
+				http.Error(w, "invalid group id", http.StatusBadRequest)
+				return
+			}
+
+			group, err := db.GetGroupByID(uint(groupID))
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					http.Error(w, "group not found", http.StatusBadRequest)
+					return
+				}
+				logger.Error("failed to get group by id", "error", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			userRole, err := db.GetUserRoleInGroup(userID, group.ID)
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					http.Error(w, "group not found", http.StatusNotFound)
+					return
+				}
+				logger.Error("failed to get user role in group", "error", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "group", group)
+			ctx = context.WithValue(ctx, "group_user_role", userRole)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+
+		return http.HandlerFunc(hfn)
+	}
+}
+
+// IMPORTANT: This only works under /group/ paths
+func mustGetGroupFromContext(r *http.Request) *db.Group {
+	group, ok := r.Context().Value("group").(*db.Group)
+	if !ok {
+		panic("getGroupFromContext: group not found in context")
+	}
+	return group
 }

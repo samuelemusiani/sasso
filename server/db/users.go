@@ -34,14 +34,17 @@ type User struct {
 
 	VPNConfig *string `gorm:"default:null"`
 
-	VMs            []VM            `gorm:"foreignKey:UserID"`
-	Nets           []Net           `gorm:"foreignKey:UserID"`
+	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:User"`
+	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	SSHKeys        []SSHKey        `gorm:"foreignKey:UserID"`
-	PortForwards   []PortForward   `gorm:"foreignKey:UserID"`
-	BackupRequests []BackupRequest `gorm:"foreignKey:UserID"`
+	PortForwards   []PortForward   `gorm:"polymorphic:Owner;polymorphicValue:User"`
+	BackupRequests []BackupRequest `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications
 	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
+
+	Groups        []Group         `gorm:"many2many:user_groups;"`
+	GroupResource []GroupResource `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {

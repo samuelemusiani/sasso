@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { Net } from '@/types'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
+import type { Group, Net } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { getStatusClass } from '@/const'
@@ -8,7 +8,9 @@ import { getStatusClass } from '@/const'
 const nets = ref<Net[]>([])
 const newNetName = ref('')
 const newNetVlanAware = ref(false)
+const newNetGroupId = ref<number>()
 const error = ref('')
+const groups = ref<Group[]>([])
 
 function fetchNets() {
   api
@@ -24,10 +26,17 @@ function fetchNets() {
     })
 }
 
+function fetchGroups() {
+  api.get('/groups').then((res) => {
+    groups.value = res.data as Group[]
+  })
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
   fetchNets()
+  fetchGroups()
   intervalId = setInterval(() => {
     fetchNets()
   }, 5000)
@@ -39,14 +48,28 @@ onBeforeUnmount(() => {
   }
 })
 
+interface NetCreationBody {
+  name: string
+  vlanaware: boolean
+  group_id?: number
+}
+
 function createNet() {
   if (!newNetName.value) {
     error.value = 'Please provide a valid network name'
     return
   }
 
+  const body: NetCreationBody = {
+    name: newNetName.value,
+    vlanaware: newNetVlanAware.value,
+  }
+  if (newNetGroupId.value) {
+    body.group_id = newNetGroupId.value
+  }
+
   api
-    .post('/net', { name: newNetName.value, vlanaware: newNetVlanAware.value })
+    .post('/net', body)
     .then(() => {
       newNetName.value = ''
       newNetVlanAware.value = false
@@ -59,9 +82,9 @@ function createNet() {
 }
 
 function deleteNet(id: number) {
-  // if (!confirm('Are you sure you want to delete this network?')) {
-  //   return
-  // }
+  if (!confirm('Are you sure you want to delete this network?')) {
+    return
+  }
 
   api
     .delete(`/net/${id}`)
@@ -74,11 +97,17 @@ function deleteNet(id: number) {
       console.error(`Failed to delete network ${id}:`, err)
     })
 }
+
+const nonMemberGroups = computed(() => {
+  return groups.value.filter((group) => group.role !== 'member')
+})
 </script>
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="mb-2 text-3xl font-bold">My Networks</h1>
+    <h1 class="flex items-center gap-2 text-3xl font-bold">
+      <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
+    </h1>
 
     <CreateNew title="Network" :create="createNet" :error="error">
       <div class="flex flex-col gap-2">
@@ -91,6 +120,14 @@ function deleteNet(id: number) {
           class="border-primary rounded-lg border p-2"
         />
 
+        <label for="group">Group (Optional)</label>
+        <select v-model="newNetGroupId" class="select select-bordered">
+          <option :value="undefined">Me</option>
+          <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
+            {{ group.name }}
+          </option>
+        </select>
+
         <label class="flex cursor-pointer items-center gap-3">
           <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
           <span class="label-text text-base-content">Enable VLAN support</span>
@@ -102,6 +139,7 @@ function deleteNet(id: number) {
       <thead>
         <tr>
           <th class="">Name</th>
+          <th class="">Owner</th>
           <th class="">Status</th>
           <th class="">VlanAware</th>
           <th class="">Subnet</th>
@@ -110,8 +148,14 @@ function deleteNet(id: number) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="net in nets" :key="net.id">
+        <tr
+          v-for="net in nets"
+          :key="net.id"
+          class="hover"
+          :class="net.group_name ? 'bg-base-200' : ''"
+        >
           <td class="">{{ net.name }}</td>
+          <td class="">{{ net.group_name ? net.group_name : 'Me' }}</td>
           <td class="font-semibold capitalize" :class="getStatusClass(net.status)">
             {{ net.status }}
           </td>
@@ -122,6 +166,7 @@ function deleteNet(id: number) {
             <button
               v-if="net.status === 'ready'"
               @click="deleteNet(net.id)"
+              :disabled="net.group_role === 'member'"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:delete" class="text-lg" />

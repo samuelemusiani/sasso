@@ -13,7 +13,7 @@ import (
 
 func listBackups(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 
 	bks, err := proxmox.ListBackups(vm.ID, vm.CreatedAt)
 	if err != nil {
@@ -36,7 +36,18 @@ type createBackupRequest struct {
 
 func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
+
+	var groupID *uint = nil
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can restore backups", http.StatusForbidden)
+			return
+		}
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
+	}
 
 	if vm.Status != string(proxmox.VMStatusStopped) {
 		http.Error(w, "VM must be stopped to restore a backup", http.StatusBadRequest)
@@ -45,7 +56,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	backupid := chi.URLParam(r, "backupid")
 
-	id, err := proxmox.RestoreBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt)
+	id, err := proxmox.RestoreBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
 		if err == proxmox.ErrBackupNotFound {
 			http.Error(w, "Backup not found", http.StatusNotFound)
@@ -74,7 +85,19 @@ type CreateBackupRequestBody struct {
 
 func createBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
+
+	var groupID *uint = nil
+	if vm.OwnerType == "Group" {
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
+
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can create backups", http.StatusForbidden)
+			return
+		}
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 
@@ -85,7 +108,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := proxmox.CreateBackup(uint64(userID), vm.ID, reqBody.Name, reqBody.Notes)
+	id, err := proxmox.CreateBackup(userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
 		if err == proxmox.ErrPendingBackupRequest {
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
@@ -115,11 +138,22 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 
 func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
+
+	var groupID *uint = nil
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can delete backups", http.StatusForbidden)
+			return
+		}
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 
-	id, err := proxmox.DeleteBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt)
+	id, err := proxmox.DeleteBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
 		if err == proxmox.ErrBackupNotFound {
 			http.Error(w, "Backup not found", http.StatusNotFound)
@@ -157,9 +191,24 @@ type BackupRequest struct {
 func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
-	bkr, err := db.GetBackupRequestsByUserID(userID)
+	l := logger.With("userID", userID)
+
+	var groupID *uint = nil
+	if mustGetVMFromContext(r).OwnerType == "Group" {
+		tmp := mustGetGroupIDFromContext(r)
+		groupID = &tmp
+		l = l.With("groupID", *groupID)
+	}
+
+	var bkr []db.BackupRequest
+	var err error
+	if groupID != nil {
+		bkr, err = db.GetBackupRequestsByGroupID(*groupID)
+	} else {
+		bkr, err = db.GetBackupRequestsByUserID(userID)
+	}
 	if err != nil {
-		logger.Error("Failed to list backup requests", "userID", userID, "error", err)
+		l.Error("Failed to list backup requests", "error", err)
 		http.Error(w, "Failed to list backup requests", http.StatusInternalServerError)
 		return
 	}
@@ -176,7 +225,7 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		logger.Error("Failed to encode backup requests to JSON", "userID", userID, "error", err)
+		l.Error("Failed to encode backup requests to JSON", "error", err)
 		http.Error(w, "Failed to encode backup requests to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -192,7 +241,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bkr, err := db.GetBackupRequestByIDAndUserID(uint(bkrID), userID)
+	bkr, err := db.GetBackupRequestByID(uint(bkrID))
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
@@ -201,6 +250,18 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 		logger.Error("Failed to get backup request", "userID", userID, "bkrID", bkrID, "error", err)
 		http.Error(w, "Failed to get backup request", http.StatusInternalServerError)
 		return
+	}
+
+	if mustGetVMFromContext(r).OwnerType == "Group" {
+		if bkr.OwnerType != "Group" || bkr.OwnerID != mustGetGroupIDFromContext(r) {
+			http.Error(w, "Backup request not found", http.StatusNotFound)
+			return
+		}
+	} else {
+		if bkr.OwnerType != "User" || bkr.OwnerID != userID {
+			http.Error(w, "Backup request not found", http.StatusNotFound)
+			return
+		}
 	}
 
 	resp := BackupRequest{
@@ -224,7 +285,15 @@ type ProtectBackupRequest struct {
 
 func protectBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "Only group admins can protect backups", http.StatusForbidden)
+			return
+		}
+	}
 
 	backupid := chi.URLParam(r, "backupid")
 

@@ -19,7 +19,11 @@ var (
 	db     *gorm.DB     = nil
 	logger *slog.Logger = nil
 
-	ErrNotFound = errors.New("record not found")
+	ErrNotFound              = errors.New("record not found")
+	ErrForbidden             = errors.New("forbidden")
+	ErrAlreadyExists         = errors.New("record already exists")
+	ErrInsufficientResources = errors.New("insufficient resources")
+	ErrResourcesInUse        = errors.New("resources are in use")
 )
 
 func Init(dbLogger *slog.Logger, c config.Database) error {
@@ -71,9 +75,21 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initGroupResources()
+	if err != nil {
+		logger.Error("Failed to initialize group resources in database", "error", err)
+		return err
+	}
+
 	err = initVMExpirationNotifications()
 	if err != nil {
 		logger.Error("Failed to initialize VM expiration notifications in database", "error", err)
+		return err
+	}
+
+	err = initGroups()
+	if err != nil {
+		logger.Error("Failed to initialize groups in database", "error", err)
 		return err
 	}
 

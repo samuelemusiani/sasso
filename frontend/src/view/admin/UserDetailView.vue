@@ -79,7 +79,7 @@ onMounted(() => {
           <input type="number" id="maxRAM" v-model.number="maxRAM" class="input rounded-lg" />
         </div>
         <div>
-          <label for="maxDisk" class="block text-sm font-medium">Max Disk (MB)</label>
+          <label for="maxDisk" class="block text-sm font-medium">Max Disk (GB)</label>
           <input type="number" id="maxDisk" v-model.number="maxDisk" class="input rounded-lg" />
         </div>
         <div>

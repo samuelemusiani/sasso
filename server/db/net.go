@@ -15,8 +15,10 @@ type Net struct {
 	Gateway   string `gorm:"not null"`
 	Broadcast string `gorm:"not null"`
 
-	UserID uint   `gorm:"not null"`
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('unknown','pending','ready','reconfiguring','creating','deleting','pre-creating','pre-deleting')"`
+
+	OwnerID   uint   `gorm:"not null;index"`
+	OwnerType string `gorm:"not null;index"`
 
 	PortForwards []PortForward `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
 }
@@ -67,17 +69,37 @@ func GetRandomAvailableTagByZone(zone string, start, end uint32) (uint32, error)
 
 func GetNetsByUserID(userID uint) ([]Net, error) {
 	var nets []Net
-	if err := db.Where("user_id = ?", userID).Find(&nets).Error; err != nil {
+	if err := db.Where("owner_id = ? AND owner_type = ?", userID, "User").Find(&nets).Error; err != nil {
 		logger.Error("Failed to get nets for user", "userID", userID, "error", err)
 		return nil, err
 	}
 	return nets, nil
 }
 
+func GetNetsByGroupID(groupID uint) ([]Net, error) {
+	var nets []Net
+	if err := db.Where("owner_id = ? AND owner_type = ?", groupID, "Group").Find(&nets).Error; err != nil {
+		logger.Error("Failed to get nets for group", "groupID", groupID, "error", err)
+		return nil, err
+	}
+	return nets, nil
+}
+
+// Only counts nets owned by users, not groups
 func CountNetsByUserID(userID uint) (uint, error) {
 	var count int64
-	if err := db.Model(&Net{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", userID, "User").Count(&count).Error; err != nil {
 		logger.Error("Failed to count nets for user", "userID", userID, "error", err)
+		return 0, err
+	}
+	return uint(count), nil
+}
+
+// Only counts nets owned by groups, not users
+func CountNetsByGroupID(groupID uint) (uint, error) {
+	var count int64
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", groupID, "Group").Count(&count).Error; err != nil {
+		logger.Error("Failed to count nets for group", "groupID", groupID, "error", err)
 		return 0, err
 	}
 	return uint(count), nil
@@ -85,8 +107,30 @@ func CountNetsByUserID(userID uint) (uint, error) {
 
 func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
-	if err := db.Model(&Net{}).Where("user_id = ? AND status = ?", userID, "ready").Pluck("subnet", &subnets).Error; err != nil {
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", userID, "User", "ready").Pluck("subnet", &subnets).Error; err != nil {
 		logger.Error("Failed to get subnets for user", "userID", userID, "error", err)
+		return nil, err
+	}
+	return subnets, nil
+}
+
+func GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID uint) ([]string, error) {
+	var subnets []string
+	err := db.Table("nets").
+		Joins("JOIN user_groups ug ON nets.owner_id = ug.group_id AND nets.owner_type = ?", "Group").
+		Where("ug.user_id = ? AND (ug.role = ? OR ug.role = ?)", userID, "admin", "owner").
+		Pluck("nets.subnet", &subnets).Error
+	if err != nil {
+		logger.Error("Failed to get subnets from groups where user is admin or owner", "userID", userID, "error", err)
+		return nil, err
+	}
+	return subnets, nil
+}
+
+func GetSubnetsByGroupID(groupID uint) ([]string, error) {
+	var subnets []string
+	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", groupID, "Group", "ready").Pluck("subnet", &subnets).Error; err != nil {
+		logger.Error("Failed to get subnets for group", "groupID", groupID, "error", err)
 		return nil, err
 	}
 	return subnets, nil
@@ -104,9 +148,9 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 	return count > 0, nil
 }
 
+// This function only creates a network for a user in the DB. It does
+// not create the network in Proxmox
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
-	// This function only creates a network for a user in the DB. It does
-	// not create the network in Proxmox
 
 	net := &Net{
 		Name:      string(name[:]),
@@ -114,7 +158,8 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 		Zone:      zone,
 		Tag:       tag,
 		VlanAware: vlanAware,
-		UserID:    userID,
+		OwnerID:   userID,
+		OwnerType: "User",
 		Status:    status,
 	}
 
@@ -124,6 +169,31 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 	}
 
 	logger.Debug("Created network for user", "userID", userID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware)
+
+	return net, nil
+}
+
+// This function only creates a network for a group in the DB. It does
+// not create the network in Proxmox
+func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
+
+	net := &Net{
+		Name:      string(name[:]),
+		Alias:     alias,
+		Zone:      zone,
+		Tag:       tag,
+		VlanAware: vlanAware,
+		OwnerID:   groupID,
+		OwnerType: "Group",
+		Status:    status,
+	}
+
+	if err := db.Create(net).Error; err != nil {
+		logger.Error("Failed to create network for group", "groupID", groupID, "error", err)
+		return nil, err
+	}
+
+	logger.Debug("Created network for group", "groupID", groupID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware)
 
 	return net, nil
 }

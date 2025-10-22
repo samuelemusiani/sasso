@@ -46,7 +46,7 @@ target_node = "pve4"
 # This string is used to generate the new VM ID for the clone.
 # It is a template string where {{vmid}} will be replaced with the VM ID
 # used inside sasso.
-id_template = "600{{vmid}}"
+id_template = "60{{vmid}}"
 
 # How many digits of the VM ID to use for the user and the internal VM ID.
 vmid_user_digits = 4

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
@@ -19,15 +20,8 @@ type returnPortForward struct {
 	DestPort uint16 `json:"dest_port"`
 	DestIP   string `json:"dest_ip"`
 	Approved bool   `json:"approved"`
-}
-
-type returnAdminPortForward struct {
-	ID       uint   `json:"id"`
-	OutPort  uint16 `json:"out_port"`
-	DestPort uint16 `json:"dest_port"`
-	DestIP   string `json:"dest_ip"`
-	Approved bool   `json:"approved"`
-	Username string `json:"username"`
+	Name     string `json:"name,omitempty"`
+	IsGroup  bool   `json:"is_group,omitempty"`
 }
 
 func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {
@@ -37,6 +31,7 @@ func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {
 		DestPort: pf.DestPort,
 		DestIP:   pf.DestIP,
 		Approved: pf.Approved,
+		Name:     pf.Name,
 	}
 }
 
@@ -48,19 +43,20 @@ func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	return rpf
 }
 
-func returnAdminPortForwardFromDB(pf *db.PortForwardWithUsername) returnAdminPortForward {
-	return returnAdminPortForward{
+func returnAdminPortForwardFromDB(pf *db.PortForward) returnPortForward {
+	return returnPortForward{
 		ID:       pf.ID,
 		OutPort:  pf.OutPort,
 		DestPort: pf.DestPort,
 		DestIP:   pf.DestIP,
 		Approved: pf.Approved,
-		Username: pf.Username,
+		Name:     pf.Name,
+		IsGroup:  pf.Group,
 	}
 }
 
-func returnAdminPortForwardsFromDB(pfs []db.PortForwardWithUsername) []returnAdminPortForward {
-	rpf := make([]returnAdminPortForward, len(pfs))
+func returnAdminPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
+	rpf := make([]returnPortForward, len(pfs))
 	for i, pf := range pfs {
 		rpf[i] = returnAdminPortForwardFromDB(&pf)
 	}
@@ -75,6 +71,14 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
 		return
 	}
+
+	gpfs, err := db.GetGroupPortForwardsByUserID(userID)
+	if err != nil {
+		http.Error(w, "Failed to get group port forwards", http.StatusInternalServerError)
+		return
+	}
+
+	pfs = append(pfs, gpfs...)
 
 	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(pfs))
 	if err != nil {
@@ -131,17 +135,36 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	found := false
+	foundPersonal, foundGroup := false, false
 	foundSubnet := ""
+	// Check personal subnets first
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
 		ip := ipaddr.NewIPAddressString(req.DestIP)
 		if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
-			found = true
+			foundPersonal = true
 			foundSubnet = s
 		}
 	}
-	if !found {
+
+	if !foundPersonal {
+		gsubnets, err := db.GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID)
+		if err != nil {
+			http.Error(w, "Failed to get group subnets", http.StatusInternalServerError)
+			return
+		}
+		// Then check group subnets
+		for _, s := range gsubnets {
+			subnet := ipaddr.NewIPAddressString(s)
+			ip := ipaddr.NewIPAddressString(req.DestIP)
+			if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
+				foundGroup = true
+				foundSubnet = s
+			}
+		}
+	}
+
+	if !foundPersonal && !foundGroup {
 		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
 		return
 	}
@@ -166,7 +189,19 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pf, err := db.AddPortForward(randPort, req.DestPort, req.DestIP, foundSubnet, userID)
+	net, err := db.GetVNetBySubnet(foundSubnet)
+	if err != nil {
+		http.Error(w, "Failed to get VNet for subnet", http.StatusInternalServerError)
+		return
+	}
+
+	var pf *db.PortForward
+	if net.OwnerType == "Group" {
+		pf, err = db.AddPortForwardForGroup(randPort, req.DestPort, req.DestIP, foundSubnet, net.OwnerID)
+	} else {
+		pf, err = db.AddPortForwardForUser(randPort, req.DestPort, req.DestIP, foundSubnet, userID)
+	}
+
 	if err != nil {
 		http.Error(w, "Failed to add port forward", http.StatusInternalServerError)
 		return
@@ -192,9 +227,21 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pf.UserID != userID {
-		http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
-		return
+	if pf.OwnerType == "Group" {
+		role, err := db.GetUserRoleInGroup(userID, pf.OwnerID)
+		if err != nil {
+			http.Error(w, "Failed to get user role in group", http.StatusInternalServerError)
+			return
+		}
+		if role != "owner" && role != "admin" {
+			http.Error(w, "Port forward does not belong to the user's group", http.StatusForbidden)
+			return
+		}
+	} else {
+		if pf.OwnerID != userID {
+			http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
+			return
+		}
 	}
 
 	if err := db.DeletePortForward(uint(portForwardID)); err != nil {
@@ -236,14 +283,22 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = notify.SendPortForwardNotification(pf.UserID, *pf)
+	var l *slog.Logger
+
+	if pf.OwnerType == "Group" {
+		err = notify.SendPortForwardNotificationToGroup(pf.OwnerID, *pf)
+		l = l.With("groupID", pf.OwnerID)
+	} else {
+		err = notify.SendPortForwardNotification(pf.OwnerID, *pf)
+		l = l.With("userID", pf.OwnerID)
+	}
 	if err != nil {
-		logger.Error("Failed to send port forward notification", "userID", pf.UserID, "pfID", portForwardID, "error", err)
+		l.Error("Failed to send port forward notification", "pfID", portForwardID, "error", err)
 	}
 }
 
 func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
-	portForwards, err := db.GetPortForwardsWithUsernames()
+	portForwards, err := db.GetPortForwardsWithNames()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
 		return
@@ -270,7 +325,6 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 			OutPort:  pf.OutPort,
 			DestPort: pf.DestPort,
 			DestIP:   pf.DestIP,
-			UserID:   pf.UserID,
 		}
 	}
 

@@ -47,14 +47,48 @@ var (
 )
 
 type VM struct {
-	ID       uint64    `json:"id"`
-	Status   string    `json:"status"`
-	Name     string    `json:"name"`
-	Notes    string    `json:"notes"`
-	Cores    uint      `json:"cores"`
-	RAM      uint      `json:"ram"`
-	Disk     uint      `json:"disk"`
-	LifeTime time.Time `json:"lifetime"`
+	ID                   uint64    `json:"id"`
+	CreatedAt            time.Time `json:"-"`
+	Status               string    `json:"status"`
+	Name                 string    `json:"name"`
+	Notes                string    `json:"notes"`
+	Cores                uint      `json:"cores"`
+	RAM                  uint      `json:"ram"`
+	Disk                 uint      `json:"disk"`
+	LifeTime             time.Time `json:"lifetime"`
+	IncludeGlobalSSHKeys bool      `json:"include_global_ssh_keys"`
+	OwnerID              uint      `json:"-"`
+	OwnerType            string    `json:"-"`
+
+	GroupID   uint   `json:"group_id,omitempty"`
+	GroupName string `json:"group_name,omitempty"`
+	// User role in the group (e.g., "member", "admin").
+	// User is the one requesting the VM.
+	GroupRole string `json:"group_role,omitempty"`
+}
+
+func convertDBVMToVM(db_vm *db.VM, groupID *uint, groupName, groupRole *string) *VM {
+	vm := &VM{
+		ID:                   db_vm.ID,
+		CreatedAt:            db_vm.CreatedAt,
+		Status:               string(db_vm.Status),
+		Name:                 db_vm.Name,
+		Notes:                db_vm.Notes,
+		Cores:                db_vm.Cores,
+		RAM:                  db_vm.RAM,
+		Disk:                 db_vm.Disk,
+		LifeTime:             db_vm.LifeTime,
+		IncludeGlobalSSHKeys: db_vm.IncludeGlobalSSHKeys,
+		OwnerID:              db_vm.OwnerID,
+		OwnerType:            db_vm.OwnerType,
+	}
+
+	if groupID != nil && groupName != nil && groupRole != nil {
+		vm.GroupID = *groupID
+		vm.GroupName = *groupName
+		vm.GroupRole = *groupRole
+	}
+	return vm
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
@@ -67,27 +101,76 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	vms := make([]VM, len(db_vms))
 
 	for i := range vms {
-		vms[i].ID = db_vms[i].ID
-		// Status needs to be checked against the acctual Proxmox VM status
-		vms[i].Name = db_vms[i].Name
-		vms[i].Notes = db_vms[i].Notes
-		vms[i].Status = string(db_vms[i].Status)
-		vms[i].Cores = db_vms[i].Cores
-		vms[i].RAM = db_vms[i].RAM
-		vms[i].Disk = db_vms[i].Disk
-		vms[i].LifeTime = db_vms[i].LifeTime
+		vms[i] = *convertDBVMToVM(&db_vms[i], nil, nil, nil)
+	}
+
+	groups, err := db.GetGroupsByUserID(userID)
+	for _, g := range groups {
+		gvms, err := db.GetVMsByGroupID(g.ID)
+		if err != nil {
+			logger.Error("Failed to get VMs by group ID", "groupID", g.ID, "error", err)
+			return nil, err
+		}
+		role, err := db.GetUserRoleInGroup(userID, g.ID)
+		if err != nil {
+			logger.Error("Failed to get user role in group", "userID", userID, "groupID", g.ID, "error", err)
+			return nil, err
+		}
+
+		for i := range gvms {
+			vms = append(vms, *convertDBVMToVM(&gvms[i], &g.ID, &g.Name, &role))
+		}
 	}
 
 	return vms, nil
 }
 
+func GetVMByID(VMID uint64, userID uint) (*VM, error) {
+	db_vm, err := db.GetVMByID(VMID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			return nil, ErrVMNotFound
+		}
+		logger.Error("Failed to get VM by ID", "vmID", VMID, "error", err)
+		return nil, err
+	}
+
+	var groupID *uint
+	var groupName, role *string
+	if db_vm.OwnerType == "Group" {
+		group, err := db.GetGroupByID(db_vm.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get group by ID for VM", "groupID", db_vm.OwnerID, "vmID", VMID, "error", err)
+			return nil, err
+		}
+		r, err := db.GetUserRoleInGroup(userID, group.ID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return nil, ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for VM", "userID", userID, "groupID", group.ID, "vmID", VMID, "error", err)
+			return nil, err
+		}
+		groupID = &group.ID
+		groupName = &group.Name
+		role = &r
+	}
+
+	return convertDBVMToVM(db_vm, groupID, groupName, role), nil
+}
+
 // Generate a full VM ID based on the user ID and VM user ID.
-func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
-	svmid := fmt.Sprintf("%0*d%0*d", cClone.VMIDUserDigits, userID, cClone.VMIDVMDigits, vmUserID)
+func generateFullVMID(group bool, ownerID uint, vmOwnerID uint) (uint64, error) {
+	groupBit := 0
+	if group {
+		groupBit = 1
+	}
+	svmid := fmt.Sprintf("%d%0*d%0*d", groupBit, cClone.VMIDUserDigits, ownerID, cClone.VMIDVMDigits, vmOwnerID)
 
 	svmid = strings.Replace(cClone.IDTemplate, "{{vmid}}", svmid, 1)
 
 	if len(svmid) < 3 || len(svmid) > 9 {
+		logger.Error("Invalid clone ID template length", "length", len(svmid), "vmid", svmid, "group", group, "ownerID", ownerID, "vmOwnerID", vmOwnerID)
 		return 0, fmt.Errorf("invalid clone ID template length: %d", len(svmid))
 	}
 
@@ -99,7 +182,11 @@ func generateFullVMID(userID uint, vmUserID uint) (uint64, error) {
 	return vmid, nil
 }
 
-func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk uint, lifeTime uint, includeGlobalSSHKeys bool) (*VM, error) {
+func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ram uint, disk uint, lifeTime uint, includeGlobalSSHKeys bool) (*VM, error) {
+	l := logger.With("userID", userID, "vmName", name)
+	if groupID != nil {
+		l = logger.With("groupID", *groupID)
+	}
 
 	if !vmNameRegex.MatchString(name) || len(name) > 16 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
@@ -126,64 +213,125 @@ func NewVM(userID uint, name string, notes string, cores uint, ram uint, disk ui
 		return nil, err
 	}
 
-	exists, err := db.ExistsVMWithUserIdAndName(userID, name)
-	if err != nil {
-		logger.Error("Failed to check if VM name exists", "userID", userID, "name", name, "error", err)
-		return nil, err
+	var group *db.Group
+	if groupID != nil {
+		group, err = db.GetGroupByID(*groupID)
+		if err != nil {
+			logger.Error("Failed to get group from database", "groupID", *groupID, "error", err)
+			return nil, err
+		}
 	}
-	if exists {
+
+	var exists bool
+	if group != nil {
+		exists, err = db.ExistsVMWithGroupIDAndName(*groupID, name)
+	} else {
+		exists, err = db.ExistsVMWithUserIDAndName(userID, name)
+	}
+	if err != nil {
+		l.Error("Failed to check if VM name exists", "error", err)
+		return nil, err
+	} else if exists {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("vm name already exists"))
 	}
 
-	currentCores, currentRAM, currentDisk, err := db.GetVMResourcesByUserID(userID)
+	var currentCores, currentRAM, currentDisk uint
+
+	if group != nil {
+		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByGroupID(*groupID)
+	} else {
+		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByUserID(userID)
+	}
+
 	if err != nil {
-		logger.Error("Failed to get current VM resources from database", "userID", userID, "error", err)
+		l.Error("Failed to get current VM resources from database", "error", err)
 		return nil, err
 	}
 
-	if currentCores+cores > user.MaxCores {
+	var maxCores, maxRAM, maxDisk uint
+	if group != nil {
+		maxCores, maxRAM, maxDisk, _, err = db.GetGroupResourceLimits(*groupID)
+		if err != nil {
+			l.Error("Failed to get group resource limits from database", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+	} else {
+		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
+	}
+
+	if currentCores+cores > maxCores {
 		return nil, ErrInsufficientResources
 	}
 
-	if currentRAM+ram > user.MaxRAM {
+	if currentRAM+ram > maxRAM {
 		return nil, ErrInsufficientResources
 	}
 
-	if currentDisk+disk > user.MaxDisk {
+	if currentDisk+disk > maxDisk {
 		return nil, ErrInsufficientResources
 	}
 
-	vmUserID, err := db.GetLastVMUserIDByUserID(userID)
+	var ids []uint
+	if group != nil {
+		ids, err = db.GetAllVMsIDsByGroupID(*groupID)
+	} else {
+		ids, err = db.GetAllVMsIDsByUserID(userID)
+	}
 	if err != nil {
-		logger.Error("Failed to get last VM user ID from database", "userID", userID, "error", err)
+		l.Error("Failed to get existing VM IDs from database", "error", err)
 		return nil, err
 	}
 
-	vmUserID++ // Increment the VM user ID for the new VM
-	VMID, err := generateFullVMID(userID, vmUserID)
-
-	db_vm, err := db.NewVM(VMID, userID, vmUserID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
+	uniqueOwnerID, err := getLastUsedUniqueOwnerIDInVMs(ids)
 	if err != nil {
-		logger.Error("Failed to create new VM in database", "userID", userID, "vmUserID", vmUserID, "error", err)
+		l.Error("Failed to get last used unique owner ID in VMs", "error", err)
 		return nil, err
 	}
 
-	vm := &VM{
-		ID:       db_vm.ID,
-		Status:   string(db_vm.Status),
-		Name:     db_vm.Name,
-		Notes:    db_vm.Notes,
-		Cores:    db_vm.Cores,
-		RAM:      db_vm.RAM,
-		Disk:     db_vm.Disk,
-		LifeTime: db_vm.LifeTime,
+	uniqueOwnerID++ // Increment the VM user ID for the new VM
+	ownerID := userID
+	if group != nil {
+		ownerID = *groupID
+	}
+	VMID, err := generateFullVMID(group != nil, ownerID, uniqueOwnerID)
+	if err != nil {
+		l.Error("Failed to generate full VM ID", "error", err)
+		return nil, err
 	}
 
-	return vm, nil
+	var db_vm *db.VM
+	if group != nil {
+		db_vm, err = db.NewVMForGroup(VMID, *groupID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
+	} else {
+		db_vm, err = db.NewVMForUser(VMID, userID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
+	}
+
+	if err != nil {
+		l.Error("Failed to create new VM in database", "error", err)
+		return nil, err
+	}
+
+	var groupName, role *string
+	if group != nil {
+		groupName = &group.Name
+		r, err := db.GetUserRoleInGroup(userID, group.ID)
+		if err != nil {
+			l.Error("Failed to get user role in group for new VM", "groupID", group.ID, "error", err)
+			return nil, err
+		}
+		role = &r
+	}
+
+	return convertDBVMToVM(db_vm, groupID, groupName, role), nil
 }
 
-func DeleteVM(userID uint, vmID uint64) error {
-	_, err := db.GetVMByUserIDAndVMID(userID, vmID)
+func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
+	var err error
+	if group {
+		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+	} else {
+		_, err = db.GetVMByUserIDAndVMID(userID, vmID)
+	}
 	if err != nil {
 		if err == db.ErrNotFound {
 			logger.Warn("VM not found for deletion", "userID", userID, "vmID", vmID)
@@ -194,24 +342,44 @@ func DeleteVM(userID uint, vmID uint64) error {
 		}
 	}
 
+	if group {
+		role, err := db.GetUserRoleInGroup(userID, ownerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
+				return ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+			return err
+		}
+		if group && role != "admin" && role != "owner" {
+			return ErrPermissionDenied
+		}
+	}
+
+	return deleteVMBypass(vmID)
+}
+
+// deleteVMBypass deletes a VM directly without any checks. This is used by
+// the main worker when processing VM deletions.
+func deleteVMBypass(vmID uint64) error {
 	if err := db.UpdateVMStatus(vmID, string(VMStatusPreDeleting)); err != nil {
-		logger.Error("Failed to update VM status from database", "userID", userID, "vmID", vmID, "error", err)
+		logger.Error("Failed to update VM status from database", "vmID", vmID, "error", err)
 		return err
 	}
 
-	logger.Debug("VM set to 'deleting' successfully", "userID", userID, "vmID", vmID)
-
+	logger.Debug("VM set to 'deleting' successfully", "vmID", vmID)
 	return nil
 }
 
-func ChangeVMStatus(userID uint, vmID uint64, action string) error {
-	vm, err := db.GetVMByUserIDAndVMID(userID, vmID)
+func changeVMStatusBypass(vmID uint64, action string) error {
+	vm, err := db.GetVMByID(vmID)
 	if err != nil {
 		if err == db.ErrNotFound {
-			logger.Warn("VM not found for changing status", "userID", userID, "vmID", vmID)
+			logger.Warn("VM not found for changing status", "vmID", vmID)
 			return ErrVMNotFound
 		} else {
-			logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
+			logger.Error("Failed to get VM from database for changing status", "vmID", vmID, "error", err)
 			return err
 		}
 	}
@@ -219,12 +387,12 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 	switch action {
 	case "start":
 		if vm.Status != string(VMStatusStopped) {
-			logger.Warn("VM is not in 'stopped' state, cannot start", "userID", userID, "vmID", vmID, "status", vm.Status)
+			logger.Warn("VM is not in 'stopped' state, cannot start", "vmID", vmID, "status", vm.Status)
 			return nil
 		}
 	case "stop", "restart":
 		if vm.Status != string(VMStatusRunning) {
-			logger.Warn("VM is not in 'running' state, cannot stop or restart", "userID", userID, "vmID", vmID, "status", vm.Status)
+			logger.Warn("VM is not in 'running' state, cannot stop or restart", "vmID", vmID, "status", vm.Status)
 			return nil
 		}
 	default:
@@ -232,60 +400,56 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 	}
 
 	if (action == "start" || action == "restart") && vm.LifeTime.Before(time.Now()) {
-		logger.Warn("VM lifetime has expired, cannot start or restart", "userID", userID, "vmID", vmID, "lifetime", vm.LifeTime)
+		logger.Warn("VM lifetime has expired, cannot start or restart", "vmID", vmID, "lifetime", vm.LifeTime)
 		return errors.Join(ErrInvalidVMState, errors.New("vm lifetime has expired; cannot start or restart"))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	clustr, err := client.Cluster(ctx)
-	cancel()
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		logger.Error("Failed to get Proxmox cluster for changing VM status", "userID", userID, "vmID", vmID, "error", err)
+		logger.Error("Failed to get Proxmox cluster for changing VM status", "vmID", vmID, "error", err)
+		return err
 	}
 
-	vmNodes, err := mapVMIDToProxmoxNodes(clustr)
+	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
-		logger.Error("Failed to map VM IDs to Proxmox nodes for changing VM status", "userID", userID, "vmID", vmID, "error", err)
+		logger.Error("Failed to map VM IDs to Proxmox nodes for changing VM status", "vmID", vmID, "error", err)
+		return err
 	}
 
 	nodeName, exists := vmNodes[vmID]
 	if !exists {
-		logger.Error("VM ID not found in Proxmox cluster for changing VM status", "userID", userID, "vmID", vmID)
+		logger.Error("VM ID not found in Proxmox cluster for changing VM status", "vmID", vmID)
 		return ErrVMNotFound
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	node, err := client.Node(ctx, nodeName)
-	cancel()
+	node, err := getProxmoxNode(client, nodeName)
 	if err != nil {
-		logger.Error("Failed to get Proxmox node for changing VM status", "userID", userID, "vmID", vmID, "node", nodeName, "error", err)
+		logger.Error("Failed to get Proxmox node for changing VM status", "vmID", vmID, "node", nodeName, "error", err)
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	vmr, err := node.VirtualMachine(ctx, int(vmID))
-	cancel()
+	vmr, err := getProxmoxVM(node, int(vmID))
 	if err != nil {
-		logger.Error("Failed to get Proxmox VM for changing VM status", "userID", userID, "vmID", vmID, "node", nodeName, "error", err)
+		logger.Error("Failed to get Proxmox VM for changing VM status", "vmID", vmID, "node", nodeName, "error", err)
 		return ErrVMNotFound
 	}
 
 	switch action {
 	case "start":
 		if vmr.Status != "stopped" {
-			logger.Warn("VM is not in 'stopped' state in Proxmox, cannot start", "userID", userID, "vmID", vmID, "node", nodeName, "status", vmr.Status)
+			logger.Warn("VM is not in 'stopped' state in Proxmox, cannot start", "vmID", vmID, "node", nodeName, "status", vmr.Status)
 			return ErrInvalidVMState
 		}
 	case "stop", "restart":
 		if vmr.Status != "running" {
-			logger.Warn("VM is not in 'running' state in Proxmox, cannot stop or restart", "userID", userID, "vmID", vmID, "node", nodeName, "status", vmr.Status)
+			logger.Warn("VM is not in 'running' state in Proxmox, cannot stop or restart", "vmID", vmID, "node", nodeName, "status", vmr.Status)
 			return ErrInvalidVMState
 		}
 	default:
 		return ErrInvalidVMState
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	var task *goprox.Task
 	switch action {
 	case "start":
@@ -297,18 +461,18 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 	}
 	cancel()
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to %s VM in Proxmox", action), "userID", userID, "vmID", vmID, "node", nodeName, "error", err)
+		logger.Error(fmt.Sprintf("Failed to %s VM in Proxmox", action), "vmID", vmID, "node", nodeName, "error", err)
 		return err
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to wait for Proxmox task completion when trying to %s VM", action), "userID", userID, "vmID", vmID, "node", nodeName, "error", err)
+		logger.Error(fmt.Sprintf("Failed to wait for Proxmox task completion when trying to %s VM", action), "vmID", vmID, "node", nodeName, "error", err)
 		return err
 	}
 
 	if !isSuccessful {
-		logger.Error("Proxmox task to start VM was not successful", "userID", userID, "vmID", vmID, "node", nodeName)
+		logger.Error("Proxmox task to start VM was not successful", "vmID", vmID, "node", nodeName)
 		return ErrTaskFailed
 	}
 
@@ -323,13 +487,48 @@ func ChangeVMStatus(userID uint, vmID uint64, action string) error {
 	}
 
 	if err := db.UpdateVMStatus(vmID, string(vmStatus)); err != nil {
-		logger.Error("Failed to update VM status from database", "userID", userID, "vmID", vmID, "error", err)
+		logger.Error("Failed to update VM status from database", "vmID", vmID, "error", err)
 		return err
 	}
 
-	logger.Debug(fmt.Sprintf("VM %sed successfully", action), "userID", userID, "vmID", vmID)
-
+	logger.Debug(fmt.Sprintf("VM %sed successfully", action), "vmID", vmID)
 	return nil
+}
+
+// If the VM belongs to a user, userID and ownerID are the same.
+func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string) error {
+	var err error
+	if group {
+		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+	} else {
+		_, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
+	}
+	if err != nil {
+		if err == db.ErrNotFound {
+			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", group)
+			return ErrVMNotFound
+		} else {
+			logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
+			return err
+		}
+	}
+
+	if group {
+		role, err := db.GetUserRoleInGroup(userID, ownerID)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
+				return ErrVMNotFound
+			}
+			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+			return err
+		}
+		if group && role != "admin" && role != "owner" {
+			return ErrPermissionDenied
+		}
+	}
+
+	return changeVMStatusBypass(vmID, action)
 }
 
 func TestEndpointClone() {
@@ -400,4 +599,58 @@ func UpdateVMLifetime(VMID uint64, extendBy uint) error {
 		return err
 	}
 	return nil
+}
+
+// VMs for a single user or group have a unique ID that is incremented. This
+// is used to generate the full VM ID. This function takes all the existing
+// VM IDs for a user or group and returns the highest unique owner ID used.
+// We do this here because it's based on the template and the DB should
+// not need to know about that.
+func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
+	// like 600{{vmid}} or 60{{vmid}}0
+	first := strings.Index("60{{vmid}}", "{{vmid}}") //3
+	if first == -1 {
+		panic("invalid clone ID template")
+	}
+
+	var maxID uint = 0
+	for _, id := range ids {
+		sid := strconv.Itoa(int(id))
+		if len(sid) < 1+cClone.VMIDUserDigits {
+			logger.Error("VM ID in database is shorter than expected", "id", id)
+			continue
+		}
+		sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
+		uniqueOwnerID, err := strconv.Atoi(sUniqueID)
+		if err != nil {
+			logger.Error("Failed to convert unique owner ID to integer", "id", sid, "error", err)
+			continue
+		}
+
+		if uint(uniqueOwnerID) > maxID {
+			maxID = uint(uniqueOwnerID)
+		}
+	}
+	return maxID, nil
+}
+
+// Like above (getLastUsedUniqueOwnerIDInVMs), but for a single VM ID.
+func getUniqueOwnerIDInVM(id uint) (uint, error) {
+	// like 600{{vmid}} or 60{{vmid}}0
+	first := strings.Index(cClone.IDTemplate, "{{vmid}}")
+	if first == -1 {
+		panic("invalid clone ID template")
+	}
+
+	sid := strconv.Itoa(int(id))
+	if len(sid) < 1+cClone.VMIDUserDigits {
+		return 0, fmt.Errorf("invalid VM ID in database: %d", id)
+	}
+
+	sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
+	uniqueOwnerID, err := strconv.Atoi(sUniqueID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
+	}
+	return uint(uniqueOwnerID), nil
 }

@@ -34,6 +34,8 @@ type newVMRequest struct {
 	// Number of months the VM should live
 	LifeTime             uint `json:"lifetime"`
 	IncludeGlobalSSHKeys bool `json:"include_global_ssh_keys"`
+
+	GroupID *uint `json:"group_id,omitempty"`
 }
 
 func newVM(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +51,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	vm, err := proxmox.NewVM(userID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
+	vm, err := proxmox.NewVM(userID, req.GroupID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
@@ -73,7 +75,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 }
 
 func getVM(w http.ResponseWriter, r *http.Request) {
-	vm := getVMFromContext(r)
+	vm := mustGetVMFromContext(r)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(vm); err != nil {
@@ -85,12 +87,22 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 
 func deleteVM(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	vmID := getVMFromContext(r).ID
+	vm := mustGetVMFromContext(r)
+	vmID := vm.ID
 
-	if err := proxmox.DeleteVM(userID, vmID); err != nil {
+	ownerID := userID
+	isGroup := false
+	if vm.OwnerType == "Group" {
+		ownerID = vm.OwnerID
+		isGroup = true
+	}
+
+	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
 		if errors.Is(err, proxmox.ErrVMNotFound) {
 			http.Error(w, "Failed to delete VM", http.StatusNotFound)
+		} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		} else {
 			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
 		}
@@ -103,12 +115,20 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 func changeVMState(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := mustGetUserIDFromContext(r)
-		vmID := getVMFromContext(r).ID
+		vm := mustGetVMFromContext(r)
+		vmID := vm.ID
+
+		ownerID := userID
+		isGroup := false
+		if vm.OwnerType == "Group" {
+			ownerID = vm.OwnerID
+			isGroup = true
+		}
 
 		var err error
 		switch action {
 		case "start", "stop", "restart":
-			err = proxmox.ChangeVMStatus(userID, vmID, action)
+			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
 			return
@@ -120,6 +140,8 @@ func changeVMState(action string) http.HandlerFunc {
 				http.Error(w, "Failed to change VM state", http.StatusNotFound)
 			} else if errors.Is(err, proxmox.ErrInvalidVMState) {
 				http.Error(w, "Invalid VM state for this action", http.StatusConflict)
+			} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+				http.Error(w, "Permission denied", http.StatusForbidden)
 			} else {
 				http.Error(w, "Failed to change VM state", http.StatusInternalServerError)
 			}
@@ -142,7 +164,7 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vmID := getVMFromContext(r).ID
+	vmID := mustGetVMFromContext(r).ID
 
 	err := proxmox.UpdateVMLifetime(vmID, request.ExtendBy)
 	if err != nil {

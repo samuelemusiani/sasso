@@ -117,3 +117,18 @@ func DeleteGlobalSSHKey(id uint) error {
 	}
 	return nil
 }
+
+func GetSSHKeysByGroupID(groupID uint) ([]SSHKey, error) {
+	var keys []SSHKey
+	result := db.Table("ssh_keys").
+		Select("ssh_keys.*").
+		Joins("JOIN user_groups ON ssh_keys.user_id = user_groups.user_id").
+		Where("user_groups.group_id = ?", groupID).
+		Order("ssh_keys.id ASC").
+		Find(&keys)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return keys, nil
+
+}

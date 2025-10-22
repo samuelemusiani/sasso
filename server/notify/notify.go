@@ -150,6 +150,21 @@ func (n *notification) save() error {
 	return db.InsertNotification(n.UserID, n.Subject, n.Body)
 }
 
+func SendPortForwardNotificationToGroup(groupID uint, pf db.PortForward) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for port forward notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendPortForwardNotification(userID, pf)
+		if err != nil {
+			logger.Error("Failed to send port forward notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
 func SendPortForwardNotification(userID uint, pf db.PortForward) error {
 	t := `Your port forwarding request has been %s!
 Outside port: %d
@@ -322,6 +337,21 @@ func sendBulkTelegram(n *notification) error {
 	return nil
 }
 
+func SendVMStatusUpdateNotificationToGroup(groupID uint, vmName string, status string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for VM status update notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendVMStatusUpdateNotification(userID, vmName, status)
+		if err != nil {
+			logger.Error("Failed to send VM status update notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
 func SendVMStatusUpdateNotification(userID uint, vmName string, status string) error {
 	t := `Your VM "%s" status has changed to: %s
 
@@ -363,6 +393,21 @@ At the next reboot you will probably get a warning from your SSH client about th
 	return nil
 }
 
+func SendVMExpirationNotificationToGroup(groupID uint, vmName string, daysLeft int) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for VM expiration notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendVMExpirationNotification(userID, vmName, daysLeft)
+		if err != nil {
+			logger.Error("Failed to send VM expiration notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
 func SendVMExpirationNotification(userID uint, vmName string, daysLeft int) error {
 	t := `Your VM "%s" is going to expire in less than %d days.
 After the expiration date the VM will be deleted and all data will be lost.
@@ -382,6 +427,21 @@ To extend the lifetime of your VM please login and extend it.
 	return nil
 }
 
+func SendVMEliminatedNotificationToGroup(groupID uint, vmName string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for VM eliminated notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendVMEliminatedNotification(userID, vmName)
+		if err != nil {
+			logger.Error("Failed to send VM eliminated notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
 func SendVMEliminatedNotification(userID uint, vmName string) error {
 	t := `Your VM "%s" has been deleted. Its lifetime has expired.
 If you want to keep using our services please create a new VM.
@@ -396,6 +456,21 @@ If you want to keep using our services please create a new VM.
 	if err != nil {
 		logger.Error("Failed to save VM eliminated notification", "userID", userID, "error", err)
 		return err
+	}
+	return nil
+}
+
+func SendVMStoppedNotificationToGroup(groupID uint, vmName string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for VM stopped notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendVMStoppedNotification(userID, vmName)
+		if err != nil {
+			logger.Error("Failed to send VM stopped notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
 	}
 	return nil
 }
@@ -424,4 +499,74 @@ func SendTestBotNotification(bot *db.TelegramBot, text string) error {
 		logger.Error("Failed to send test telegram message", "botID", bot.ID, "error", err)
 	}
 	return err
+}
+
+func SendSSHKeysChangedOnVMToGroup(groupID uint, vmName string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for SSH keys changed notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendSSHKeysChangedOnVM(userID, vmName)
+		if err != nil {
+			logger.Error("Failed to send SSH keys changed notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
+func SendSSHKeysChangedOnVM(userID uint, vmName string) error {
+	t := `The SSH keys on the VM "%s" have been changed.
+If this is a group VM it often means that one of the group members has changed
+his SSH keys. On the next reboot you will probably get a warning from your SSH
+client about the host key being changed.
+`
+	body := fmt.Sprintf(t, vmName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "VM SSH Keys Changed",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save SSH keys changed notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendUserInvitation(userID uint, groupName, role string) error {
+	t := `You have been invited to join the group "%s" with the role of "%s".
+To accept the invitation please login to your account and navigate to the
+groups section.
+`
+	body := fmt.Sprintf(t, groupName, role)
+	n := &notification{
+		UserID:  userID,
+		Subject: "Group Invitation",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save user invitation notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendUserRemovalFromGroupNotification(userID uint, groupName string) error {
+	t := `You have been removed from the group "%s".`
+	body := fmt.Sprintf(t, groupName)
+	n := &notification{
+		UserID:  userID,
+		Subject: "Removed from Group",
+		Body:    body,
+	}
+	err := n.save()
+	if err != nil {
+		logger.Error("Failed to save user removal from group notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
 }

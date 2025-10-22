@@ -8,6 +8,10 @@ export interface VM {
   lifetime: string
   include_global_ssh_keys: boolean
   notes: string
+
+  group_id?: number
+  group_name?: string
+  group_role?: string
 }
 
 export interface User {
@@ -43,10 +47,12 @@ export interface Net {
   id: number
   name: string
   vlanaware: boolean
-  userid: number
   status: string
   subnet: string
   gateway: string
+  group_id?: number
+  group_name?: string
+  group_role?: string
 }
 
 export interface SSHKey {
@@ -70,6 +76,7 @@ export interface PortForward {
   dest_port: number
   dest_ip: string
   approved: boolean
+  name?: string
 }
 
 export interface AdminPortForward {
@@ -78,7 +85,8 @@ export interface AdminPortForward {
   dest_port: number
   dest_ip: string
   approved: boolean
-  username: string
+  name: string
+  is_group?: boolean
 }
 
 export interface Backup {
@@ -120,4 +128,39 @@ export interface TelegramBot {
   token: string
   chat_id: string
   enabled: boolean
+}
+
+export interface Group {
+  id: number
+  name: string
+  description: string
+  role?: string
+  members?: GroupMember[]
+  resources?: GroupResource[]
+}
+
+export interface GroupResource {
+  user_id: number
+  username: string
+  cores: number
+  ram: number
+  disk: number
+  nets: number
+}
+
+export interface GroupInvite {
+  id: number
+  group_id: number
+  user_id: number
+  role: string
+  state: string
+  username: string
+  group_name: string
+  group_description: string
+}
+
+export interface GroupMember {
+  user_id: number
+  username: string
+  role: string
 }
