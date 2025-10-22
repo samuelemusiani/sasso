@@ -136,10 +136,6 @@ func InterfacesChecks(net *db.Net, iface *Interface) error {
 
 	// Gateway checks
 
-	if iface.Gateway == iface.IPAdd {
-		return errors.New("gateway cannot be the same as ip_add")
-	}
-
 	zero, err := reqIPAdd.GetAddress().ToZeroHost()
 	if err != nil {
 		return errors.New("failed to get zero host address from ip_add")
@@ -152,6 +148,15 @@ func InterfacesChecks(net *db.Net, iface *Interface) error {
 
 	if reqGateway.IsPrefixed() {
 		return errors.New("gateway must not have a subnet mask")
+	}
+
+	host, err := reqIPAdd.ToHostAddress()
+	if err != nil {
+		return errors.New("failed to get host address from ip_add")
+	}
+
+	if host.Equal(reqGateway) {
+		return errors.New("gateway cannot be the same as ip_add")
 	}
 
 	return nil
