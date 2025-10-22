@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
@@ -24,6 +24,8 @@ const nets = ref(0)
 const groupName = ref(group.value?.name || '')
 const groupDescription = ref(group.value?.description || '')
 
+const me = ref<GroupMember | null>(null)
+
 watch(group, (newGroup) => {
   if (newGroup) {
     groupName.value = newGroup.name
@@ -31,10 +33,20 @@ watch(group, (newGroup) => {
   }
 })
 
+watch([group, me], ([newGroup, newMe]) => {
+  if (newGroup && newMe) {
+    const myResource = newGroup.resources?.find((r) => r.user_id === newMe.user_id)
+    if (myResource) {
+      cores.value = myResource.cores
+      ram.value = myResource.ram
+      disk.value = myResource.disk
+      nets.value = myResource.nets
+    }
+  }
+})
+
 const invitations = ref<GroupInvite[]>([])
 // const members = ref<GroupMember[]>([])
-
-const me = ref<GroupMember | null>(null)
 
 const stats = ref()
 
@@ -42,14 +54,18 @@ function getResourcesForUser(userId: number): GroupResource | undefined {
   return group.value?.resources?.find((r) => r.user_id === userId)
 }
 
+const addOrUpdateResources = computed(() => {
+  return group.value?.resources?.find((r) => r.user_id === me.value?.user_id) !== undefined
+})
+
 function saveResources() {
-  api
-    .post(`/groups/${groupId}/resources`, {
-      cores: cores.value,
-      ram: ram.value,
-      disk: disk.value,
-      nets: nets.value,
-    })
+  const method = addOrUpdateResources.value ? 'put' : 'post'
+  api[method](`/groups/${groupId}/resources`, {
+    cores: cores.value,
+    ram: ram.value,
+    disk: disk.value,
+    nets: nets.value,
+  })
     .then(() => {
       fetchGroup() // This will re-fetch group and resources
       fetchResourceStats()
@@ -265,40 +281,86 @@ onMounted(() => {
   <div class="p-2">
     <AdminBreadcrumbs />
 
-    <div v-show="me && me.role == 'owner'">
-      <CreateNew title="Invitation" :create="inviteUser">
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
-            <label for="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              v-model="username"
-              class="input w-48 rounded-lg border p-2"
-            />
-            <label for="role">Role</label>
-            <select id="role" v-model="role" class="input w-48 rounded-lg border p-2">
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-            </select>
+    <div v-if="group" class="rounded-lg p-4 shadow">
+      <h2 class="mb-2 text-xl font-semibold">{{ group.name }}</h2>
+      <p class="mb-4 text-gray-600">{{ group.description }}</p>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <div v-show="me && me.role == 'owner'" class="flex flex-col gap-2">
+        <CreateNew title="Invitation" :create="inviteUser">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <label for="username">Username</label>
+              <input
+                type="text"
+                id="username"
+                v-model="username"
+                class="input w-48 rounded-lg border p-2"
+              />
+              <label for="role">Role</label>
+              <select id="role" v-model="role" class="input w-48 rounded-lg border p-2">
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
           </div>
-        </div>
-      </CreateNew>
-      <CreateNew title="Update Group" :create="updateGroup">
+        </CreateNew>
+        <CreateNew :hideCreate="true" title="Update Group" :create="updateGroup">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <label for="groupName">Name</label>
+              <input
+                type="text"
+                id="groupName"
+                v-model="groupName"
+                class="input w-48 rounded-lg border p-2"
+              />
+              <label for="groupDescription">Description</label>
+              <input
+                type="text"
+                id="groupDescription"
+                v-model="groupDescription"
+                class="input w-48 rounded-lg border p-2"
+              />
+            </div>
+          </div>
+        </CreateNew>
+      </div>
+
+      <CreateNew
+        :hideCreate="true"
+        :title="(addOrUpdateResources ? 'Update ' : '') + 'Resource'"
+        :create="saveResources"
+      >
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <label for="groupName">Name</label>
+            <label for="cores">Cores</label>
             <input
-              type="text"
-              id="groupName"
-              v-model="groupName"
+              type="number"
+              id="cores"
+              v-model.number="cores"
               class="input w-48 rounded-lg border p-2"
             />
-            <label for="groupDescription">Description</label>
+            <label for="ram">RAM (MB)</label>
             <input
-              type="text"
-              id="groupDescription"
-              v-model="groupDescription"
+              type="number"
+              id="ram"
+              v-model.number="ram"
+              class="input w-48 rounded-lg border p-2"
+            />
+            <label for="disk">Disk (GB)</label>
+            <input
+              type="number"
+              id="disk"
+              v-model.number="disk"
+              class="input w-48 rounded-lg border p-2"
+            />
+            <label for="nets">Nets </label>
+            <input
+              type="number"
+              id="nets"
+              v-model.number="nets"
               class="input w-48 rounded-lg border p-2"
             />
           </div>
@@ -306,48 +368,11 @@ onMounted(() => {
       </CreateNew>
     </div>
 
-    <CreateNew title="Resource" :create="saveResources">
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <label for="cores">Cores</label>
-          <input
-            type="number"
-            id="cores"
-            v-model.number="cores"
-            class="input w-48 rounded-lg border p-2"
-          />
-          <label for="ram">RAM (MB)</label>
-          <input
-            type="number"
-            id="ram"
-            v-model.number="ram"
-            class="input w-48 rounded-lg border p-2"
-          />
-          <label for="disk">Disk (GB)</label>
-          <input
-            type="number"
-            id="disk"
-            v-model.number="disk"
-            class="input w-48 rounded-lg border p-2"
-          />
-          <label for="nets">Nets </label>
-          <input
-            type="number"
-            id="nets"
-            v-model.number="nets"
-            class="input w-48 rounded-lg border p-2"
-          />
-        </div>
-      </div>
-    </CreateNew>
-
-    <div>
+    <div class="my-2 flex gap-2">
       <button @click="revokeResource()" class="btn btn-warning rounded-lg">
         Revoke My Resources
       </button>
-    </div>
 
-    <div>
       <button
         v-if="me && me.role != 'owner'"
         @click="deleteMember(me.user_id)"
@@ -358,11 +383,6 @@ onMounted(() => {
       <button v-else @click="deleteGroup(groupId)" class="btn btn-error rounded-lg">
         Delete Group
       </button>
-    </div>
-
-    <div v-if="group" class="rounded-lg p-4 shadow">
-      <h2 class="mb-2 text-xl font-semibold">{{ group.name }}</h2>
-      <p class="mb-4 text-gray-600">{{ group.description }}</p>
     </div>
 
     <UserStats v-if="stats" :stats="stats" />

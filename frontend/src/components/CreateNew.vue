@@ -6,6 +6,7 @@ const props = defineProps<{
   title: string
   create: (event: SubmitEvent) => void
   error?: string
+  hideCreate?: boolean
 }>()
 </script>
 
@@ -14,7 +15,7 @@ const props = defineProps<{
     <button class="btn btn-primary rounded-xl" @click="openCreate = !openCreate">
       <IconVue v-if="!openCreate" icon="mi:add" class="text-xl transition"></IconVue>
       <IconVue v-else icon="material-symbols:close-rounded" class="text-xl transition"></IconVue>
-      {{ openCreate ? 'Close' : `Create ${props.title}` }}
+      {{ openCreate ? 'Close' : (props.hideCreate ? '' : 'Create ') + `${props.title}` }}
     </button>
   </div>
   <div v-if="openCreate">
