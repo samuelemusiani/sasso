@@ -672,3 +672,25 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
+	group := mustGetGroupFromContext(r)
+	userID := mustGetUserIDFromContext(r)
+
+	var req addGroupResourcesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := db.SetGroupResourcesByUserID(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets)
+	if err != nil {
+		if err == db.ErrResourcesInUse {
+			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Failed to modify resources from group member", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

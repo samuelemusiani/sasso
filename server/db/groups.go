@@ -560,6 +560,58 @@ func RevokeGroupResources(groupID, userID uint) error {
 	})
 }
 
+func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if userID == 1 {
+			return nil
+		}
+
+		var resource GroupResource
+		err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logger.Error("Failed to find group resource", "error", err)
+			return err
+		}
+
+		used, maxResourceAvailable, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+		if err != nil {
+			logger.Error("Failed to get group resources", "error", err)
+			return err
+		}
+
+		if maxResourceAvailable.Cores+(cores-resource.Cores) < used.Cores ||
+			maxResourceAvailable.RAM+(ram-resource.RAM) < used.RAM ||
+			maxResourceAvailable.Disk+(disk-resource.Disk) < used.Disk ||
+			maxResourceAvailable.Nets+(nets-resource.Nets) < used.Nets {
+			return ErrResourcesInUse
+		}
+
+		resource.Cores = cores
+		resource.RAM = ram
+		resource.Disk = disk
+		resource.Nets = nets
+
+		err = tx.Save(&resource).Error
+		if err != nil {
+			logger.Error("Failed to delete group resource", "error", err)
+			return err
+		}
+
+		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
+			UpdateColumns(map[string]interface{}{
+				"max_cores": resource.Cores,
+				"max_ram":   resource.RAM,
+				"max_disk":  resource.Disk,
+				"max_nets":  resource.Nets,
+			}).Error
+		if err != nil {
+			logger.Error("Failed to update user limits", "error", err)
+			return err
+		}
+		return nil
+	})
+}
+
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 	if userID == 1 {
 		// Admin user, no resources to revoke
