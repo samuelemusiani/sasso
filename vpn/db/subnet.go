@@ -42,7 +42,7 @@ func NewSubnet(subnet string, PeerID uint) error {
 		}
 
 		if count > 0 {
-			return nil
+			return ErrAlreadyExists
 		}
 
 		s := &Subnet{
