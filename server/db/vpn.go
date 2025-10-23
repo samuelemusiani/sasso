@@ -62,6 +62,20 @@ func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
 	return &vpnConfig, nil
 }
 
+func CreateVPNConfig(vpnConfig string, vpnIP string, userID uint) error {
+	vpn := &VPNConfig{
+		VPNConfig: vpnConfig,
+		VPNIP:     vpnIP,
+		UserID:    userID,
+	}
+	result := db.Create(vpn)
+	if result.Error != nil {
+		logger.Error("Failed to create VPN config", "error", result.Error)
+		return result.Error
+	}
+	return nil
+}
+
 func UpdateVPNConfigByID(id uint, newConfig string, newIP string) error {
 	result := db.Model(&VPNConfig{}).Where("id = ?", id).Updates(VPNConfig{VPNConfig: newConfig, VPNIP: newIP})
 	if result.Error != nil {

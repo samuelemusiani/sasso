@@ -30,6 +30,30 @@ func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func internalCreateVPNConfig(w http.ResponseWriter, r *http.Request) {
+	var vpnCreate internal.VPNUpdate
+	if err := json.NewDecoder(r.Body).Decode(&vpnCreate); err != nil {
+		logger.Error("Failed to decode VPN create request", "error", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if vpnCreate.VPNConfig == "" || vpnCreate.VPNIP == "" {
+		logger.Error("UserID, VPNConfig and VPNIP are required")
+		http.Error(w, "UserID, VPNConfig and VPNIP are required", http.StatusBadRequest)
+		return
+	}
+
+	userID := mustGetUserIDFromContext(r)
+
+	err := db.CreateVPNConfig(vpnCreate.VPNConfig, vpnCreate.VPNIP, userID)
+	if err != nil {
+		logger.Error("Failed to create VPN config in DB", "error", err)
+		http.Error(w, "Failed to create VPN config", http.StatusInternalServerError)
+		return
+	}
+}
+
 func internalGetVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	vpnConfigs, err := db.GetAllVPNConfigs()
 	if err != nil {

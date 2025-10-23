@@ -263,6 +263,35 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		return err
 	}
 
+	peers, err := db.GetAllPeers()
+	if err != nil {
+		logger.Error("Failed to get all peers from DB", "error", err)
+		return err
+	}
+
+	// Creates VPN configs on the main server for local peers that don't have one yet
+	for _, p := range peers {
+		f := func(v internal.VPNUpdate) bool { return v.VPNIP == p.Address }
+		if slices.IndexFunc(vpns, f) != -1 {
+			continue
+		}
+
+		wgIface := wg.PeerFromDB(&p)
+		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
+
+		logger.Info("Creating VPN config on main server", "peer_id", p.ID)
+		err = internal.CreateVPNConfig(endpoint, secret, internal.VPNUpdate{
+			VPNConfig: base64Conf,
+			VPNIP:     wgIface.Address,
+		})
+		if err != nil {
+			logger.Error("Failed to create VPN config on main server", "error", err)
+			continue
+		}
+	}
+
+	// Updates already existing VPN configs on the main server if they differ
+	// from the local ones
 	for _, v := range vpns {
 		peer, err := db.GetPeerByAddress(v.VPNIP)
 		if err != nil {
