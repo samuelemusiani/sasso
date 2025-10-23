@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"sort"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -17,6 +18,8 @@ import (
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
+
+	shorewall "github.com/samuelemusiani/go-shorewall"
 )
 
 func worker(logger *slog.Logger, conf config.Server) {
@@ -38,6 +41,11 @@ func worker(logger *slog.Logger, conf config.Server) {
 		err := verifyNets(logger, gtw)
 		if err != nil {
 			logger.Error("Failed to verify VNets", "error", err)
+		}
+
+		err = checkPortForwards(logger, fw)
+		if err != nil {
+			logger.Error("Failed to verify port forwards", "error", err)
 		}
 
 		nets, err := getNetsStatus(logger, conf)
@@ -281,6 +289,85 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 		return nil, err
 	}
 	return pfs, nil
+}
+
+func checkPortForwards(logger *slog.Logger, fw fw.Firewall) error {
+	portForwards, err := db.GetPortForwards()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get all port forwards from DB")
+		return err
+	}
+
+	fwRules, err := shorewall.GetRules()
+	if err != nil {
+		logger.With("error", err).Error("Failed to get firewall rules")
+		return err
+	}
+
+	// sort rules
+	sort.Slice(fwRules, func(i, j int) bool {
+		if fwRules[i].Action != fwRules[j].Action {
+			return fwRules[i].Action < fwRules[j].Action
+		}
+		if fwRules[i].Destination != fwRules[j].Destination {
+			return fwRules[i].Destination < fwRules[j].Destination
+		}
+		if fwRules[i].Dport != fwRules[j].Dport {
+			return fwRules[i].Dport < fwRules[j].Dport
+		}
+		if fwRules[i].Protocol != fwRules[j].Protocol {
+			return fwRules[i].Protocol < fwRules[j].Protocol
+		}
+		if fwRules[i].Source != fwRules[j].Source {
+			return fwRules[i].Source < fwRules[j].Source
+		}
+		return fwRules[i].Sport < fwRules[j].Sport
+	})
+
+	reloadFirewall := false
+	for _, pf := range portForwards {
+		pfRule := fw.CreatePortForwardsRule(pf.OutPort, pf.DestPort, pf.DestIP)
+
+		index := sort.Search(len(fwRules), func(i int) bool {
+			if fwRules[i].Action != pfRule.Action {
+				return fwRules[i].Action > pfRule.Action
+			}
+			if fwRules[i].Destination != pfRule.Destination {
+				return fwRules[i].Destination > pfRule.Destination
+			}
+			if fwRules[i].Dport != pfRule.Dport {
+				return fwRules[i].Dport > pfRule.Dport
+			}
+			if fwRules[i].Protocol != pfRule.Protocol {
+				return fwRules[i].Protocol > pfRule.Protocol
+			}
+			if fwRules[i].Source != pfRule.Source {
+				return fwRules[i].Source > pfRule.Source
+			}
+			return fwRules[i].Sport >= pfRule.Sport
+		})
+
+		if index >= len(fwRules) || fwRules[index] != pfRule {
+			logger.Info("Port forward rule missing in firewall, adding it", "port_forward_id", pf.ID)
+			err = fw.AddPortForward(pf.OutPort, pf.DestPort, pf.DestIP)
+			if err != nil {
+				logger.With("error", err, "port_forward_id", pf.ID).Error("Failed to add missing port forward rule to firewall")
+				continue
+			}
+			reloadFirewall = true
+		}
+	}
+
+	// reload shorewall to apply changes
+	if reloadFirewall {
+		err = shorewall.Reload()
+		if err != nil {
+			logger.With("error", err).Error("Failed to reload firewall")
+			return err
+		}
+	}
+
+	return nil
 }
 
 func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
