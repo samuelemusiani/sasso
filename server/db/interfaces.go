@@ -17,6 +17,13 @@ type Interface struct {
 	Gateway string `gorm:"not null"`
 
 	Status string `gorm:"type:varchar(20);not null;default:'creating';check:status IN ('unknown','pre-creating','creating','pre-deleting','deleting','ready','pre-configuring','configuring')"`
+
+	// read-only, not stored in DB
+	VNetName  string `gorm:"->;-:migration"` // Name of the VNet
+	VMName    string `gorm:"->;-:migration"` // Name of the VM
+	GroupID   uint   `gorm:"->;-:migration"` // Group ID of the owner of the VM
+	GroupName string `gorm:"->;-:migration"` // Group Name of the owner of the VM
+	GroupRole string `gorm:"->;-:migration"` // Role of the user in the group
 }
 
 func initInterfaces() error {
@@ -116,4 +123,23 @@ func CountInterfaces() (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
+	var ifaces []Interface
+	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.name as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
+		FROM interfaces
+		JOIN vms ON vms.id = interfaces.vm_id
+		JOIN nets ON nets.id = interfaces.v_net_id
+		LEFT JOIN user_groups on vms.owner_id = user_groups.group_id AND vms.owner_type = 'Group'
+		LEFT JOIN groups on user_groups.group_id = groups.id
+		WHERE (vms.owner_id = 2 AND vms.owner_type = 'User')
+			OR (vms.owner_type = 'Group' AND user_groups.user_id = 2);
+`)
+	if err := query.Scan(&ifaces).Error; err != nil {
+		logger.Error("Failed to get interfaces with extras by user ID", "userID", userID, "error", err)
+		return nil, err
+	}
+
+	return ifaces, nil
 }

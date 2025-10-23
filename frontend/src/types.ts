@@ -70,6 +70,15 @@ export interface Interface {
   status: string
 }
 
+export interface InterfaceExtended extends Interface {
+  vnet_name: string
+  vm_id: number
+  vm_name: string
+  group_id?: number
+  group_name?: string
+  group_role?: string
+}
+
 export interface PortForward {
   id: number
   out_port: number
