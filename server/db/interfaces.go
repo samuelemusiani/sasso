@@ -127,10 +127,12 @@ func CountInterfaces() (int64, error) {
 
 func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	var ifaces []Interface
-	query := db.Raw(`SELECT interfaces.*, vms.name, vms.owner_type, vms.owner_id, nets.name, user_groups.* FROM interfaces
+	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.name as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
+		FROM interfaces
 		JOIN vms ON vms.id = interfaces.vm_id
 		JOIN nets ON nets.id = interfaces.v_net_id
 		LEFT JOIN user_groups on vms.owner_id = user_groups.group_id AND vms.owner_type = 'Group'
+		LEFT JOIN groups on user_groups.group_id = groups.id
 		WHERE (vms.owner_id = 2 AND vms.owner_type = 'User')
 			OR (vms.owner_type = 'Group' AND user_groups.user_id = 2);
 `)
