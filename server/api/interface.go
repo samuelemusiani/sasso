@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
+	"strings"
 )
 
 func getInterfaces(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +48,9 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	req.IPAdd = strings.TrimSpace(req.IPAdd)
+	req.Gateway = strings.TrimSpace(req.Gateway)
 
 	userID := mustGetUserIDFromContext(r)
 
