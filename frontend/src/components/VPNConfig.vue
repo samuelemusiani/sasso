@@ -50,10 +50,6 @@ const maskedConfig = computed(() => {
 
 <template>
   <div class="flex flex-col gap-4 p-2">
-    <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
-      <IconVue icon="material-symbols:settings" class="text-primary" />
-      WireGuard's Configuration File
-    </h2>
     <div class="flex items-center gap-2">
       <button
         @click="copyConfig()"

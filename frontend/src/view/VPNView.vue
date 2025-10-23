@@ -6,6 +6,8 @@ import VPNConfigComponent from '@/components/VPNConfig.vue'
 
 const vpnConfig = ref<VPNConfig[]>([])
 
+const message = ref('')
+
 function fetchVPNConfig() {
   api
     .get('/vpn')
@@ -25,6 +27,17 @@ function fetchVPNConfig() {
     })
 }
 
+function newVPNConfig() {
+  api
+    .post('/vpn/count')
+    .then(() => {
+      message.value = 'New VPN configuration will be available shortly.'
+    })
+    .catch((err) => {
+      console.error('Failed to create new VPN config:', err)
+    })
+}
+
 onMounted(() => {
   fetchVPNConfig()
 })
@@ -32,8 +45,19 @@ onMounted(() => {
 
 <template>
   <div>
-    <div v-for="config in vpnConfig" :key="config.id" class="mb-4">
+    <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
+      <IconVue icon="material-symbols:settings" class="text-primary" />
+      WireGuard's Configuration File
+    </h2>
+
+    <div v-for="config in vpnConfig" :key="config.id" class="my-4">
       <VPNConfigComponent :vpnConfig="config" />
+    </div>
+    <div v-if="vpnConfig.length < 2">
+      <button @click="newVPNConfig" class="btn btn-primary rounded-lg">
+        Create New VPN Configuration
+      </button>
+      <p v-if="message" class="mt-2 text-green-600">{{ message }}</p>
     </div>
   </div>
 </template>
