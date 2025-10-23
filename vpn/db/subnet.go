@@ -28,10 +28,28 @@ func GetAllSubnets() ([]Subnet, error) {
 
 func NewSubnet(subnet string, PeerID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
+
+		var count int64
+
+		err := tx.Model(&SubnetPeer{}).
+			Joins("JOIN subnets ON subnets.id = subnet_peers.subnet_id").
+			Joins("JOIN peers ON peers.id = subnet_peers.peer_id").
+			Where("subnets.subnet = ? AND peers.id = ?", subnet, PeerID).
+			Count(&count).Error
+		if err != nil {
+			logger.Error("Failed to check existing subnet-peer association", "error", err)
+			return err
+		}
+
+		if count > 0 {
+			return nil
+		}
+
 		s := &Subnet{
 			Subnet: subnet,
 		}
-		if err := db.Create(s).Error; err != nil {
+		if err := tx.Create(s).Error; err != nil {
+			logger.Error("Failed to create subnet", "error", err)
 			return err
 		}
 
@@ -39,7 +57,8 @@ func NewSubnet(subnet string, PeerID uint) error {
 			SubnetID: s.ID,
 			PeerID:   PeerID,
 		}
-		if err := db.Create(sp).Error; err != nil {
+		if err := tx.Create(sp).Error; err != nil {
+			logger.Error("Failed to create subnet-peer association", "error", err)
 			return err
 		}
 

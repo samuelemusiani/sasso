@@ -237,7 +237,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 				}
 
 				err = db.NewSubnet(n.Subnet, p.ID)
-				if err != nil {
+				if err != nil && !errors.Is(err, db.ErrAlreadyExists) {
 					logger.Error("Failed to save subnet to database", "error", err)
 					continue
 				}
