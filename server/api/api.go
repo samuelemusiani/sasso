@@ -137,6 +137,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
 		r.Get("/vpn", getUserVPNConfig)
+		r.Post("/vpn/count", updateUserVPNConfigCount)
 
 		r.Get("/port-forwards", listPortForwards)
 		r.Post("/port-forwards", addPortForward)
@@ -188,7 +189,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(AdminAuthenticator(tokenAuth))
 
-		r.Get("/admin/users", listUsers)
+		r.Get("/admin/users", internalListUsers)
 		r.Get("/admin/users/{id}", getUser)
 
 		r.Get("/admin/groups", adminListGroups)
@@ -219,10 +220,11 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Get("/net", internalListNets)
 		r.Put("/net/{id}", internalUpdateNet)
 
-		r.Get("/vpn", getVPNConfigs)
-		r.Put("/vpn", updateVPNConfig)
+		r.Get("/vpn", internalGetVPNConfigs)
+		r.Post("/vpn", internalCreateVPNConfig)
+		r.Put("/vpn", internalUpdateVPNConfig)
 
-		r.Get("/user", listUsers)
+		r.Get("/user", internalListUsers)
 
 		r.Get("/port-forwards", internalListProtForwards)
 	})

@@ -32,7 +32,7 @@ type User struct {
 	MaxDisk  uint `gorm:"not null;default:4"`
 	MaxNets  uint `gorm:"not null;default:1"`
 
-	VPNConfig *string `gorm:"default:null"`
+	NumberOfVPNConfigs uint `gorm:"not null;default:1"`
 
 	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
@@ -42,6 +42,7 @@ type User struct {
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications
 	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
+	VPNConfigs   []VPNConfig   `gorm:"foreignKey:UserID"`
 
 	Groups        []Group         `gorm:"many2many:user_groups;"`
 	GroupResource []GroupResource `gorm:"foreignKey:UserID"`
@@ -185,34 +186,6 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 	return nil
 }
 
-func UpdateVPNConfig(config string, userID uint) error {
-	var user User
-	if err := db.First(&user, userID).Error; err != nil {
-		logger.Error("Failed to find user by ID", "userID", userID, "error", err)
-		return err
-	}
-
-	if err := db.Model(&user).
-		Select("vpn_config").
-		Updates(&User{
-			VPNConfig: &config,
-		}).Error; err != nil {
-		logger.Error("Failed to update VPN config", "userID", userID, "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func GetAllVPNConfigs() ([]User, error) {
-	var users []User
-	if err := db.Model(&User{}).Where("vpn_config IS NOT NULL").Select("id", "vpn_config").Find(&users).Error; err != nil {
-		logger.Error("Failed to retrieve VPN configs", "error", err)
-		return nil, err
-	}
-	return users, nil
-}
-
 func GetAllUserEmails() ([]string, error) {
 	var emails []string
 	if err := db.Model(&User{}).Where("id != ?", 1).Pluck("email", &emails).Error; err != nil {
@@ -220,4 +193,25 @@ func GetAllUserEmails() ([]string, error) {
 		return nil, err
 	}
 	return emails, nil
+}
+
+func GetUserVPNConfigCount(userID uint) (int64, error) {
+	var count int64
+	if err := db.Model(&User{Model: gorm.Model{ID: userID}}).
+		Select("number_of_vpn_configs").
+		Scan(&count).Error; err != nil {
+		logger.Error("Failed to count VPN configs for user", "userID", userID, "error", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func UpdateUserVPNConfigCount(userID uint, newCount uint) error {
+	result := db.Model(&User{Model: gorm.Model{ID: userID}}).
+		UpdateColumn("number_of_vpn_configs", newCount)
+	if result.Error != nil {
+		logger.Error("Failed to update VPN config count for user", "userID", userID, "error", result.Error)
+		return result.Error
+	}
+	return nil
 }

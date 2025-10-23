@@ -81,6 +81,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initVPNConfig()
+	if err != nil {
+		logger.Error("Failed to initialize VPN config in database", "error", err)
+		return err
+	}
+
 	err = initVMExpirationNotifications()
 	if err != nil {
 		logger.Error("Failed to initialize VM expiration notifications in database", "error", err)

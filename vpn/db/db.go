@@ -16,6 +16,8 @@ import (
 var (
 	db     *gorm.DB     = nil
 	logger *slog.Logger = nil
+
+	ErrAlreadyExists = fmt.Errorf("record already exists")
 )
 
 func Init(l *slog.Logger, c *config.Database) error {
