@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
     <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
 
     <InterfaceForm
-      v-if="vm && vm.group_role !== 'member'"
+      v-if="!editingInterface && vm && vm.group_role !== 'member'"
       :vm="vm"
       @interface-added="handleInterfaceAdded"
       @cancel="handleCancel"
