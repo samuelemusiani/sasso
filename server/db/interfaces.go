@@ -1,9 +1,13 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type Interface struct {
-	gorm.Model
+	ID        uint `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	LocalID uint   `gorm:"not null"` // Local unique ID for the interface
 	VMID    uint   `gorm:"not null"`
