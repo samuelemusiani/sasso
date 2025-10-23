@@ -194,3 +194,24 @@ func GetAllUserEmails() ([]string, error) {
 	}
 	return emails, nil
 }
+
+func GetUserVPNConfigCount(userID uint) (int64, error) {
+	var count int64
+	if err := db.Model(&User{Model: gorm.Model{ID: userID}}).
+		Select("number_of_vpn_configs").
+		Scan(&count).Error; err != nil {
+		logger.Error("Failed to count VPN configs for user", "userID", userID, "error", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func UpdateUserVPNConfigCount(userID uint, newCount uint) error {
+	result := db.Model(&User{Model: gorm.Model{ID: userID}}).
+		Update("number_of_vpn_configs", newCount)
+	if result.Error != nil {
+		logger.Error("Failed to update VPN config count for user", "userID", userID, "error", result.Error)
+		return result.Error
+	}
+	return nil
+}

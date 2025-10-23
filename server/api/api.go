@@ -137,6 +137,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
 		r.Get("/vpn", getUserVPNConfig)
+		r.Post("/vpn/count", updateUserVPNConfigCount)
 
 		r.Get("/port-forwards", listPortForwards)
 		r.Post("/port-forwards", addPortForward)
