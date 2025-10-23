@@ -280,9 +280,12 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
 
 		logger.Info("Creating VPN config on main server", "peer_id", p.ID)
-		err = internal.CreateVPNConfig(endpoint, secret, internal.VPNUpdate{
-			VPNConfig: base64Conf,
-			VPNIP:     wgIface.Address,
+		err = internal.CreateVPNConfig(endpoint, secret, internal.VPNCreate{
+			VPNUpdate: internal.VPNUpdate{
+				VPNConfig: base64Conf,
+				VPNIP:     wgIface.Address,
+			},
+			UserID: p.UserID,
 		})
 		if err != nil {
 			logger.Error("Failed to create VPN config on main server", "error", err)

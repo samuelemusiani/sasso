@@ -65,7 +65,7 @@ func UpdateVPNConfig(endpoint, secret string, vpn VPNUpdate) error {
 	return nil
 }
 
-func CreateVPNConfig(endpoint, secret string, vpn VPNUpdate) error {
+func CreateVPNConfig(endpoint, secret string, vpn VPNCreate) error {
 
 	body, err := json.Marshal(vpn)
 	if err != nil {

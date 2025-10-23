@@ -20,6 +20,11 @@ type VPNUpdate struct {
 	VPNIP     string `json:"vpn_ip"`
 }
 
+type VPNCreate struct {
+	VPNUpdate
+	UserID uint `json:"user_id"`
+}
+
 type PortForward struct {
 	ID       uint   `json:"id"`
 	OutPort  uint16 `json:"out_port"`
