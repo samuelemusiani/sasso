@@ -10,7 +10,7 @@ func AddZoneToView(view string, zone Zone) error {
 	url := fmt.Sprintf("%s/views/%s", BaseUrl, view)
 
 	newViewBody := map[string]interface{}{
-		"name": zone.Name,
+		"name": zone.ID,
 	}
 
 	respBody, statusCode, err := HttpRequest("POST", url, newViewBody)
@@ -24,7 +24,7 @@ func AddZoneToView(view string, zone Zone) error {
 
 // Removes the given zone from the given view
 func RemoveZoneFromView(view string, zone Zone) error {
-	url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view, zone.Name)
+	url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view, zone.ID)
 
 	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
 	if err != nil {

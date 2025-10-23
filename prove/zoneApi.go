@@ -37,7 +37,7 @@ func DeleteZone(zone Zone) error {
 
 // Creates RRsets present in the payload and their comments
 func NewRRsetInZone(RRset RRSet, zone Zone) error {
-	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
+	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
 
 	rrsets := []map[string]interface{}{
 		{
@@ -123,15 +123,16 @@ func PrintZones() error {
 }
 
 func PrintRecords(zone Zone) error {
-	body, err := GetRecords(zone.Name)
+	body, err := GetRecords(zone.ID)
 	if err != nil {
-		return fmt.Errorf("failed to get records for zone %s: %w", zone.Name, err)
+		return fmt.Errorf("failed to get records for zone %s: %w", zone.ID, err)
 	}
 
 	var recordsResp RecordsResponse
 	if err := json.Unmarshal(body, &recordsResp); err != nil {
-		return fmt.Errorf("failed to parse JSON for records in zone %s: %w", zone.Name, err)
+		return fmt.Errorf("failed to parse JSON for records in zone %s: %w", zone.ID, err)
 	}
+
 	fmt.Printf("\nRecords for zone %s:\n", zone.Name)
 	for _, rrset := range recordsResp.RRSets {
 		fmt.Printf("  Name: %s, Type: %s, TTL: %d\n", rrset.Name, rrset.Type, rrset.TTL)

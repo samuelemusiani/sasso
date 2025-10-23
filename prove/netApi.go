@@ -33,18 +33,19 @@ func SetUpNetwork(network Network) error {
 // network set NET [VIEW]
 //
 //	Set the view for a network, or delete if no view argument.
-//
-// API DO NOT SUPPORT DELETE METHOD FOR NETWORKS
 func DeleteNetwork(network Network) error {
-	//check network matches net layout
 	_, _, err := net.ParseCIDR(network.Network)
 	if err != nil {
 		return fmt.Errorf("Invalid network: %s", network.Network)
 	}
 
+	body := map[string]interface{}{
+		"view": "",
+	}
+
 	url := fmt.Sprintf("%s/networks/%s", BaseUrl, network.Network)
 
-	respBody, statusCode, err := HttpRequest("PUT", url, nil)
+	respBody, statusCode, err := HttpRequest("PUT", url, body)
 	if err != nil {
 		return fmt.Errorf("failed to delete network: %w", err)
 	}

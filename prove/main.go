@@ -1,11 +1,11 @@
 package main
 
 import (
-	// "bytes"
+	"bytes"
 	// "encoding/json"
 	"fmt"
 	// "io"
-	// "log"
+	"log"
 	// "net/http"
 )
 
@@ -18,17 +18,22 @@ var (
 )
 
 func main() {
-	// BASILAR ROUTIN TO SET UP/SHUT DOWN A CLIENT
-	// view := "client9"
+	// BASILAR ROUTINE TO SET UP/SHUT DOWN A CLIENT
+	view := "client9"
 	//
-	// var net Network
-	// net.Network = "130.136.201.59/32"
-	// net.View = view
+	var net Network
+	net.Network = "130.136.201.51/32"
+	//net.View = view
 	//
 	// var zone Zone
 	// zone.ID = MainZone + view
 	// zone.Name = MainZone + view
 	// zone.Kind = "Native"
+	zone := Zone{
+		ID:   "sasso.." + view,
+		Name: "sasso.." + view,
+		Kind: MainZone + view,
+	}
 	//
 	// Record := Records{
 	// 	Content:  "192.168.1.1",
@@ -47,13 +52,13 @@ func main() {
 	// 	log.Fatalf("Error setting up network: %v", err)
 	// }
 	//
-	// err = CreateZone(zone)
-	// if err != nil {
-	// 	// 409 conflict error means ZONE ALREADY EXIST. To be still decided if fatal or not
-	// 	if !bytes.Contains([]byte(err.Error()), []byte("409")) {
-	// 		log.Fatalf("Error creating zone: %v", err)
-	// 	}
-	// }
+	err := CreateZone(zone)
+	if err != nil {
+		// 	// 409 conflict error means ZONE ALREADY EXIST. To be still decided if fatal or not
+		if !bytes.Contains([]byte(err.Error()), []byte("409")) {
+			log.Fatalf("Error creating zone: %v", err)
+		}
+	}
 	//
 	// err = AddZoneToView(view, zone)
 	// if err != nil {
@@ -79,8 +84,8 @@ func main() {
 	// if err != nil {
 	// 	log.Fatalf("Error deleting zone: %v", err)
 	// }
-	// CAN'T WORK
-	// err := DeleteNetwork(net)
+	//
+	// 	err = DeleteNetwork(net)
 	// if err != nil {
 	// 	log.Fatalf("Error deleting network: %v", err)
 	// }
