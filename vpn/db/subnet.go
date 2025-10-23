@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Subnet struct {
 	ID     uint   `gorm:"primaryKey"`
-	Subnet string `gorm:"not null;unique"`
+	Subnet string `gorm:"not null"`
 
 	Peers []Peer `gorm:"many2many:subnet_peers;constraint:OnDelete:CASCADE;"`
 }
@@ -24,14 +24,6 @@ func GetAllSubnets() ([]Subnet, error) {
 		return nil, err
 	}
 	return subnets, nil
-}
-
-func CheckSubnetExists(subnet string) (bool, error) {
-	var count int64
-	if err := db.Model(&Subnet{}).Where("subnet = ?", subnet).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 func NewSubnet(subnet string, PeerID uint) error {
