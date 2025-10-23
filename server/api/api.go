@@ -103,7 +103,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Post("/stop", changeVMState("stop"))
 			r.Post("/restart", changeVMState("restart"))
 
-			r.Get("/interface", getInterfaces)
+			r.Get("/interface", getInterfacesForVM)
 			r.Post("/interface", addInterface)
 
 			r.Route("/interface/{ifaceid}", func(r chi.Router) {
@@ -131,6 +131,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Get("/net", listNets)
 		r.Put("/net/{id}", updateNet)
 		r.Delete("/net/{id}", deleteNet)
+
+		r.Get("/interfaces", getAllInterfaces)
 
 		r.Get("/ssh-keys", getSSHKeys)
 		r.Post("/ssh-keys", addSSHKey)

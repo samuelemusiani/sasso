@@ -21,6 +21,7 @@ type Net struct {
 	OwnerType string `gorm:"not null;index"`
 
 	PortForwards []PortForward `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
+	Interfaces   []Interface   `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
 }
 
 func initNetworks() error {
