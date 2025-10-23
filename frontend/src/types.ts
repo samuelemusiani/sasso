@@ -164,3 +164,8 @@ export interface GroupMember {
   username: string
   role: string
 }
+
+export interface VPNConfig {
+  id: number
+  vpn_config: string
+}
