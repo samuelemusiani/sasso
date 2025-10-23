@@ -232,8 +232,9 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 				if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
 					logger.Error("Failed to add firewall rule", "error", err)
 					continue
+				} else if err == nil {
+					reloadShorewall = true
 				}
-				reloadShorewall = true
 
 				err = db.NewSubnet(n.Subnet, p.ID)
 				if err != nil {
