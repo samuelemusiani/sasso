@@ -208,7 +208,7 @@ func GetUserVPNConfigCount(userID uint) (int64, error) {
 
 func UpdateUserVPNConfigCount(userID uint, newCount uint) error {
 	result := db.Model(&User{Model: gorm.Model{ID: userID}}).
-		Update("number_of_vpn_configs", newCount)
+		UpdateColumn("number_of_vpn_configs", newCount)
 	if result.Error != nil {
 		logger.Error("Failed to update VPN config count for user", "userID", userID, "error", result.Error)
 		return result.Error
