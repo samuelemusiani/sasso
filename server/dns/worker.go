@@ -76,6 +76,7 @@ func worker(ctx context.Context) error {
 		//
 		// A view is also per User. In the user view all the records of all his VMs
 		// must be present. (It's like a sum of all the other views for that user).
+		// The network is based on the VPN IP of the user.
 		//
 		// GROUPS:
 		// A view per VNet is still created, and all the Group VMs are added there.

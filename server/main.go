@@ -16,6 +16,7 @@ import (
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/dns"
 	"samuelemusiani/sasso/server/notify"
 	"samuelemusiani/sasso/server/proxmox"
 )
@@ -139,7 +140,20 @@ func main() {
 	// Notifications
 	notifyLogger := slog.With("module", "notify")
 	err = notify.Init(notifyLogger, c.Email)
+	if err != nil {
+		slog.Error("Failed to initialize notifications module", "error", err)
+		os.Exit(1)
+	}
 	notify.StartWorker()
+
+	// DNS
+	dnsLogger := slog.With("module", "dns")
+	err = dns.Init(dnsLogger, c.DNS)
+	if err != nil {
+		slog.Error("Failed to initialize DNS module", "error", err)
+		os.Exit(1)
+	}
+	dns.StartWorker()
 
 	// API
 	slog.Debug("Initializing API server")
@@ -163,7 +177,7 @@ func main() {
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
 		var waitGroup sync.WaitGroup
-		waitGroup.Add(3)
+		waitGroup.Add(4)
 
 		go func() {
 			defer waitGroup.Done()
@@ -188,6 +202,14 @@ func main() {
 			err = notify.ShutdownWorker()
 			if err != nil {
 				slog.Error("Failed to shut down notifications worker", "error", err)
+			}
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+			err = dns.ShutdownWorker()
+			if err != nil {
+				slog.Error("Failed to shut down DNS worker", "error", err)
 			}
 		}()
 
