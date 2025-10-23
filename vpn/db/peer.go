@@ -35,9 +35,17 @@ func GetPeerByID(id uint) (*Peer, error) {
 	return &iface, nil
 }
 
-func GetPeerByUserID(userID uint) (*Peer, error) {
+func GetPeersByUserID(userID uint) ([]Peer, error) {
+	var ifaces []Peer
+	if err := db.Where("user_id = ?", userID).Find(&ifaces).Error; err != nil {
+		return nil, err
+	}
+	return ifaces, nil
+}
+
+func GetPeerByAddress(address string) (*Peer, error) {
 	var iface Peer
-	if err := db.Where("user_id = ?", userID).First(&iface).Error; err != nil {
+	if err := db.First(&iface, "address = ?", address).Error; err != nil {
 		return nil, err
 	}
 	return &iface, nil

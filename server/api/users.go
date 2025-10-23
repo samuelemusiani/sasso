@@ -22,15 +22,16 @@ type loginRequest struct {
 }
 
 type returnUser struct {
-	ID       uint        `json:"id"`
-	Username string      `json:"username"`
-	Email    string      `json:"email"`
-	Realm    string      `json:"realm,omitempty"`
-	Role     db.UserRole `json:"role"`
-	MaxCores uint        `json:"max_cores,omitempty"`
-	MaxRAM   uint        `json:"max_ram,omitempty"`
-	MaxDisk  uint        `json:"max_disk,omitempty"`
-	MaxNets  uint        `json:"max_nets,omitempty"`
+	ID                 uint        `json:"id"`
+	Username           string      `json:"username"`
+	Email              string      `json:"email"`
+	Realm              string      `json:"realm,omitempty"`
+	Role               db.UserRole `json:"role"`
+	MaxCores           uint        `json:"max_cores,omitempty"`
+	MaxRAM             uint        `json:"max_ram,omitempty"`
+	MaxDisk            uint        `json:"max_disk,omitempty"`
+	MaxNets            uint        `json:"max_nets,omitempty"`
+	NumberOfVPNConfigs uint        `json:"number_of_vpn_configs"`
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +125,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func listUsers(w http.ResponseWriter, r *http.Request) {
+func internalListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := db.GetAllUsers()
 	if err != nil {
 		logger.Error("failed to get all users", "error", err)
@@ -152,15 +153,16 @@ func listUsers(w http.ResponseWriter, r *http.Request) {
 			realm = "unknown"
 		}
 		returnUsers[i] = returnUser{
-			ID:       user.ID,
-			Username: user.Username,
-			Email:    user.Email,
-			Realm:    realm,
-			Role:     user.Role,
-			MaxCores: user.MaxCores,
-			MaxRAM:   user.MaxRAM,
-			MaxDisk:  user.MaxDisk,
-			MaxNets:  user.MaxNets,
+			ID:                 user.ID,
+			Username:           user.Username,
+			Email:              user.Email,
+			Realm:              realm,
+			Role:               user.Role,
+			MaxCores:           user.MaxCores,
+			MaxRAM:             user.MaxRAM,
+			MaxDisk:            user.MaxDisk,
+			MaxNets:            user.MaxNets,
+			NumberOfVPNConfigs: user.NumberOfVPNConfigs,
 		}
 	}
 

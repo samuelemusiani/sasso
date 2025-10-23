@@ -15,8 +15,9 @@ type Net struct {
 }
 
 type VPNUpdate struct {
-	UserID    uint   `json:"user_id"`
+	ID        uint   `json:"id"`
 	VPNConfig string `json:"vpn_config"`
+	VPNIP     string `json:"vpn_ip"`
 }
 
 type PortForward struct {
