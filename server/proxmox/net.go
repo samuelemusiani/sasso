@@ -115,13 +115,19 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	var nets []db.Net
 
 	if groupID != nil {
+		_, _, _, maxNets, err := db.GetGroupResourceLimits(*groupID)
+		if err != nil {
+			logger.Error("Failed to get group resources by group ID", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+
 		nets, err = db.GetNetsByGroupID(*groupID)
 		if err != nil {
 			logger.Error("Failed to get nets by group ID", "groupID", *groupID, "error", err)
 			return nil, err
 		}
 
-		if len(nets) >= 1 {
+		if len(nets)+1 > int(maxNets) {
 			return nil, ErrInsufficientResources
 		}
 
