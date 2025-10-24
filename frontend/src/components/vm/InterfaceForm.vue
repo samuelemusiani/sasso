@@ -27,6 +27,9 @@ const currentNet = computed(() => {
 })
 const error = ref('')
 
+const ipIsUsed = ref(false)
+const checkingIP = ref(false)
+
 const form = ref<{
   vnet_id: number
   vlan_tag: number | string
@@ -60,6 +63,13 @@ const ipValidationResult = computed<{
     const cidr = CIDR.parse(ip)
     const subnet = CIDR.parse(currentSubnet || '')
 
+    if (ipIsUsed.value) {
+      return {
+        status: 'warning',
+        message: 'The IP address is already in use in the selected network.',
+      }
+    }
+
     if (!subnet.contains(cidr.ip) || cidr.mask !== subnet.mask) {
       return {
         status: 'warning',
@@ -68,6 +78,7 @@ selected network's subnet (${currentSubnet}). You can still add it, but you have
 you are doing.`,
       }
     }
+
     return {
       status: 'success',
       message: 'The IP address is valid and in the correct subnet.',
@@ -209,6 +220,12 @@ function addInterface() {
   api
     .post(`/vm/${$props.vm.id}/interface`, form.value)
     .then(() => {
+      form.value = {
+        vnet_id: filteredNets.value[0]?.id || 0,
+        vlan_tag: 0,
+        ip_add: '',
+        gateway: filteredNets.value[0]?.gateway || '',
+      }
       $emit('interfaceAdded')
     })
     .catch((err) => {
@@ -229,6 +246,33 @@ function updateInterface() {
       error.value = 'Failed to update interface: ' + err.response.data
     })
 }
+
+async function isIPUsed(ip: string, vnet_id: number, vlan_tag: number): Promise<boolean> {
+  const res = await api.post('/ip-check', { ip, vnet_id, vlan_tag })
+  return res.data.in_use as boolean
+}
+
+watch(
+  [() => form.value.ip_add, () => form.value.vnet_id, () => form.value.vlan_tag],
+  async ([newIp]) => {
+    if (
+      ipValidationResult.value.status === 'success' ||
+      ipValidationResult.value.status === 'warning'
+    ) {
+      checkingIP.value = true
+      const used = await isIPUsed(newIp, form.value.vnet_id, Number(form.value.vlan_tag))
+      checkingIP.value = false
+      if (used) {
+        ipIsUsed.value = true
+      } else {
+        ipIsUsed.value = false
+      }
+    } else {
+      ipIsUsed.value = false
+      checkingIP.value = false
+    }
+  },
+)
 
 onMounted(() => {
   fetchNets()
@@ -275,7 +319,13 @@ onMounted(() => {
       <div>
         <label for="ip_add" class="block text-sm font-medium">IP Address</label>
         <label class="input w-full rounded-lg" :class="ipInputClasses">
-          <BubbleAlert :type="ipValidationResult.status" title="IP Address" position="right">
+          <span v-show="checkingIP" class="loading loading-spinner loading-md text-success"></span>
+          <BubbleAlert
+            v-show="!checkingIP"
+            :type="ipValidationResult.status"
+            title="IP Address"
+            position="right"
+          >
             {{ ipErrorMessage }}
           </BubbleAlert>
           <input type="text" id="ip_add" v-model="form.ip_add" />
