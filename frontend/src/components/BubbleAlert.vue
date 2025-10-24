@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  type: 'info' | 'warning' | 'error' | ''
+  type: 'info' | 'warning' | 'error' | 'success' | ''
+  position?: 'top' | 'right' | 'bottom' | 'left'
   title?: string
 }>()
 
@@ -14,28 +15,57 @@ const icon = computed(() => {
       return 'mingcute:warning-line'
     case 'error':
       return 'mingcute:close-circle-line'
+    case 'success':
+      return 'mingcute:check-circle-line'
     default:
       return 'mingcute:question-line'
+  }
+})
+
+const border = computed(() => {
+  switch (props.type) {
+    case 'info':
+      return 'border-info'
+    case 'warning':
+      return 'border-warning'
+    case 'error':
+      return 'border-error'
+    case 'success':
+      return 'border-success'
+    default:
+      return 'border-base-content/20'
+  }
+})
+
+const positionClass = computed(() => {
+  switch (props.position) {
+    case 'top':
+      return 'tooltip-top'
+    case 'right':
+      return 'tooltip-right'
+    case 'bottom':
+      return 'tooltip-bottom'
+    case 'left':
+      return 'tooltip-left'
+    default:
+      return 'tooltip-bottom'
   }
 })
 </script>
 
 <template>
-  <div class="dropdown dropdown-hover dropdown-center" :class="`text-${props.type}`">
-    <div tabindex="0" role="button" class="btn btn-circle btn-ghost btn-xs">
-      <IconVue :icon="icon" class="cursor-pointer text-lg" />
-    </div>
+  <div class="tooltip" :class="[`text-${props.type}`, positionClass]">
     <div
-      tabindex="0"
-      class="card card-sm dropdown-content arrow bg-base-100 rounded-box z-1 mt-2 w-70 border shadow-sm"
-      :class="props.type === '' ? 'text-base-content/80 !font-medium' : ''"
+      class="card tooltip-content bg-base-100 rounded-box w-96 border"
+      :class="[props.type === '' ? 'text-base-content/80 !font-medium' : '', border]"
     >
-      <div tabindex="0" class="card-body">
+      <div class="card-body">
         <p v-if="props.title" class="card-title font-bold">{{ props.title }}</p>
-        <p>
+        <p class="text-left">
           <slot></slot>
         </p>
       </div>
     </div>
+    <IconVue :icon="icon" class="cursor-pointer text-lg" />
   </div>
 </template>
