@@ -133,9 +133,8 @@ func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 		JOIN nets ON nets.id = interfaces.v_net_id
 		LEFT JOIN user_groups on vms.owner_id = user_groups.group_id AND vms.owner_type = 'Group'
 		LEFT JOIN groups on user_groups.group_id = groups.id
-		WHERE (vms.owner_id = 2 AND vms.owner_type = 'User')
-			OR (vms.owner_type = 'Group' AND user_groups.user_id = 2);
-`)
+		WHERE (vms.owner_id = ? AND vms.owner_type = 'User')
+			OR (vms.owner_type = 'Group' AND user_groups.user_id = ?)`, userID, userID)
 	if err := query.Scan(&ifaces).Error; err != nil {
 		logger.Error("Failed to get interfaces with extras by user ID", "userID", userID, "error", err)
 		return nil, err
