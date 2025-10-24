@@ -8,6 +8,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,8 +25,9 @@ type returnNet struct {
 	Status    string `json:"status"`
 	VlanAware bool   `json:"vlanaware"`
 
-	Subnet  string `json:"subnet"`
-	Gateway string `json:"gateway"`
+	Subnet    string `json:"subnet"`
+	Gateway   string `json:"gateway"`
+	Broadcast string `json:"broadcast"`
 
 	GroupID   uint   `json:"group_id,omitempty"` // If the net belongs to a
 	GroupName string `json:"group_name,omitempty"`
@@ -82,15 +84,28 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	f := func(s, errMsg string) string {
+		tmp := strings.SplitN(s, "/", 2)
+		if len(tmp) != 2 {
+			logger.Error(errMsg, "value", s)
+			return s
+		}
+		return tmp[0]
+	}
+
 	returnableNets := make([]returnNet, len(nets))
 	for i, net := range nets {
+		gtw := f(net.Gateway, "Invalid gateway format")
+		broad := f(net.Broadcast, "Invalid broadcast format")
+
 		returnableNets[i] = returnNet{
 			ID:        net.ID,
 			Name:      net.Alias,
 			Status:    net.Status,
 			VlanAware: net.VlanAware,
 			Subnet:    net.Subnet,
-			Gateway:   net.Gateway,
+			Gateway:   gtw,
+			Broadcast: broad,
 		}
 	}
 
