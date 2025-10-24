@@ -45,53 +45,126 @@ const currentSubnet = computed(() => {
 
 const currentGateway = computed(() => {
   const net = nets.value.find((n) => n.id === form.value.vnet_id)
-  return net ? net.gateway : ''
-})
-
-const ipInputClasses = computed(() => {
-  const ip = form.value.ip_add
-  try {
-    const cidr = CIDR.parse(ip)
-
-    const subnet = CIDR.parse(currentSubnet.value)
-
-    if (!subnet.contains(cidr.ip) || cidr.mask !== subnet.mask) {
-      return 'input-warning'
-    }
-
-    return 'input-success'
-  } catch {
-    return 'input-error'
+  if (net) {
+    // gatewayErrorMessage.value = 'The gateway is valid.'
+    return net.gateway
+  } else {
+    return ''
   }
 })
 
-const gatewayInputClasses = computed(() => {
+const ipValidationResult = computed(() => {
+  const ip = form.value.ip_add
+  try {
+    const cidr = CIDR.parse(ip)
+    const subnet = CIDR.parse(currentSubnet.value)
+
+    if (!subnet.contains(cidr.ip) || cidr.mask !== subnet.mask) {
+      return {
+        status: 'warning',
+        message: `The IP address is correct and could be added, but it is outside of the
+selected network's subnet (${currentSubnet.value}). You can still add it, but you have to know  what
+you are doing.`,
+      }
+    }
+    return {
+      status: 'success',
+      message: 'The IP address is valid and in the correct subnet.',
+    }
+  } catch {
+    return {
+      status: 'error',
+      message: `The ip address must be in CIDR notation. Something like 192.168.0.1/20`,
+    }
+  }
+})
+
+const ipInputClasses = computed(() => {
+  const status = ipValidationResult.value.status
+  return {
+    'input-success': status === 'success',
+    'input-warning': status === 'warning',
+    'input-error': status === 'error',
+  }
+})
+const ipErrorMessage = computed(() => ipValidationResult.value.message)
+const ipTooltipIconClasses = computed(() => {
+  const status = ipValidationResult.value.status
+  return {
+    'text-success': status === 'success',
+    'text-warning': status === 'warning',
+    'text-error': status === 'error',
+  }
+})
+const ipTooltipTextClasses = computed(() => {
+  const status = ipValidationResult.value.status
+  return {
+    'border-success': status === 'success',
+    'border-warning': status === 'warning',
+    'border-error': status === 'error',
+  }
+})
+
+const gatewayValidationResult = computed(() => {
   const gateway = form.value.gateway
   if (gateway === '') {
-    return ''
+    return {
+      status: 'success',
+      message:
+        'The gateway is optional. Leave it empty to not set a default gateway for this interface.',
+    }
   }
 
   try {
     const gtw = IPAddress.parse(gateway)
-
-    if (form.value.ip_add == '') {
-      return 'input-success'
-    }
     let cidr: CIDR
     try {
       cidr = CIDR.parse(form.value.ip_add)
-    } catch {
-      return ''
+      if (!cidr.contains(gtw)) {
+        return {
+          status: 'error',
+          message: `The gateway format is correct, but it is not in the same subnet as the IP address`,
+        }
+      }
+    } catch {}
+    return {
+      status: 'success',
+      message: 'The gateway is valid.',
     }
-    if (!cidr.contains(gtw)) {
-      return 'input-error'
-    }
-
-    return 'input-success'
   } catch {
-    return 'input-error'
+    return {
+      status: 'error',
+      message: `The gateway must be a valid IP address. It MUST NOT be in CIDR notation.`,
+    }
   }
 })
+
+const gatewayInputClasses = computed(() => {
+  const status = gatewayValidationResult.value.status
+  return {
+    'input-success': status === 'success',
+    'input-error': status === 'error',
+  }
+})
+const gatewayErrorMessage = computed(() => gatewayValidationResult.value.message)
+const gatewayTooltipIconClasses = computed(() => {
+  const status = gatewayValidationResult.value.status
+  return {
+    'text-success': status === 'success',
+    'text-error': status === 'error',
+  }
+})
+const gatewayTooltipTextClasses = computed(() => {
+  const status = gatewayValidationResult.value.status
+  return {
+    'border-success': status === 'success',
+    'border-error': status === 'error',
+  }
+})
+
+function showTooltip(s: string) {
+  return s !== ''
+}
 
 watch(
   () => form.value.vnet_id,
@@ -215,26 +288,28 @@ onMounted(() => {
         />
       </div>
       <div>
-        <!-- TODO: is needed to /24 -->
         <label for="ip_add" class="block text-sm font-medium">IP Address</label>
-        <input
-          type="text"
-          id="ip_add"
-          v-model="form.ip_add"
-          class="input w-full rounded-lg"
-          :class="ipInputClasses"
-        />
+        <label class="input w-full rounded-lg" :class="ipInputClasses">
+          <div :class="{ 'tooltip tooltip-right': showTooltip(ipErrorMessage) }">
+            <div class="tooltip-content border" :class="ipTooltipTextClasses">
+              <div class="">{{ ipErrorMessage }}</div>
+            </div>
+            <IconVue icon="ri:question-line" class="text-lg" :class="ipTooltipIconClasses" />
+          </div>
+          <input type="text" id="ip_add" v-model="form.ip_add" />
+        </label>
       </div>
       <div>
-        <!-- TODO: no /24  -->
         <label for="gateway" class="block text-sm font-medium">Gateway</label>
-        <input
-          type="text"
-          id="gateway"
-          v-model="form.gateway"
-          class="input w-full rounded-lg"
-          :class="gatewayInputClasses"
-        />
+        <label class="input w-full rounded-lg" :class="gatewayInputClasses">
+          <div :class="{ 'tooltip tooltip-right': showTooltip(gatewayErrorMessage) }">
+            <div class="tooltip-content border" :class="gatewayTooltipTextClasses">
+              <div class="">{{ gatewayErrorMessage }}</div>
+            </div>
+            <IconVue icon="ri:question-line" class="text-lg" :class="gatewayTooltipIconClasses" />
+          </div>
+          <input type="text" id="gateway" v-model="form.gateway" />
+        </label>
       </div>
     </form>
   </CreateNew>
