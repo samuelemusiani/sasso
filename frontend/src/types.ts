@@ -50,6 +50,7 @@ export interface Net {
   status: string
   subnet: string
   gateway: string
+  broadcast: string
   group_id?: number
   group_name?: string
   group_role?: string

@@ -50,35 +50,21 @@ const filteredNets = computed(() => {
   }
 })
 
-const currentSubnet = computed(() => {
-  const net = nets.value.find((n) => n.id === form.value.vnet_id)
-  return net ? net.subnet : ''
-})
-
-const currentGateway = computed(() => {
-  const net = nets.value.find((n) => n.id === form.value.vnet_id)
-  if (net) {
-    // gatewayErrorMessage.value = 'The gateway is valid.'
-    return net.gateway
-  } else {
-    return ''
-  }
-})
-
 const ipValidationResult = computed<{
   status: 'success' | 'warning' | 'error'
   message: string
 }>(() => {
   const ip = form.value.ip_add
   try {
+    const currentSubnet = currentNet.value?.subnet
     const cidr = CIDR.parse(ip)
-    const subnet = CIDR.parse(currentSubnet.value)
+    const subnet = CIDR.parse(currentSubnet || '')
 
     if (!subnet.contains(cidr.ip) || cidr.mask !== subnet.mask) {
       return {
         status: 'warning',
         message: `The IP address is correct and could be added, but it is outside of the
-selected network's subnet (${currentSubnet.value}). You can still add it, but you have to know  what
+selected network's subnet (${currentSubnet}). You can still add it, but you have to know  what
 you are doing.`,
       }
     }
@@ -200,11 +186,7 @@ function fetchNets() {
   api
     .get('/net')
     .then((res) => {
-      const tmp = res.data as Net[]
-      tmp.map((net) => {
-        net.gateway = CIDR.parse(net.gateway).ip.toString()
-      })
-      nets.value = tmp
+      nets.value = res.data as Net[]
       if (!$props.interface && nets.value.length > 0) {
         form.value.vnet_id = nets.value[0]?.id || 0
       }
@@ -273,9 +255,13 @@ onMounted(() => {
         </select>
       </div>
 
-      <div>
-        <div>Subnet: {{ currentSubnet }}</div>
-        <div>Gateway: {{ currentGateway }}</div>
+      <div class="grid w-70 grid-cols-2">
+        <div>Subnet</div>
+        <div>{{ currentNet?.subnet }}</div>
+        <div>Gateway</div>
+        <div>{{ currentNet?.gateway }}</div>
+        <div>Broadcast</div>
+        <div>{{ currentNet?.broadcast }}</div>
       </div>
       <div v-if="currentNet?.vlanaware">
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
