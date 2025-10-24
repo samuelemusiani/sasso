@@ -27,8 +27,7 @@ func Init(dnsLogger *slog.Logger, config config.DNS) error {
 }
 
 func configChecks(config config.DNS) error {
-	// DTODO: Add DNS configuration checks here. Like if the address of the
-	// dns is empty or an invalid format.
+	// DTODO: Add DNS configuration checks here. Like if the address of the dns is empty or an invalid format.
 	ip := ipaddr.NewIPAddressString(config.DnsServer).GetAddress()
 	if ip == nil {
 		return fmt.Errorf("DNS server address is not a valid IP address")
