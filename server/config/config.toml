@@ -74,4 +74,7 @@ password = "app-password"
 smtp_server = "smtp.gmail.com"
 
 [dns]
-# DTODO: Add dns configuration
+# DTODO
+dns_server = "130.136.201.50"
+port = 53
+key = "omar"

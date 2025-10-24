@@ -75,8 +75,11 @@ type Email struct {
 	SMTPServer string `toml:"smtp_server"`
 }
 
+// DTODO
 type DNS struct {
-	// DTODO: Add DNS configuration fields here
+	DnsServer string `toml:"dns_server"`
+	Port      uint16 `toml:"port"`
+	Key       string `toml:"key"`
 }
 
 var config Config = Config{}
