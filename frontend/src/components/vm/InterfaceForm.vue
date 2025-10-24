@@ -11,6 +11,13 @@ const $props = defineProps<{
   interface?: Interface
 }>()
 
+const defaultVlanTagMessage = `
+The VLAN tag is optional. If you don't know what to put here, leave it at zero.
+It could be used to separate different VMs at layer 2. Interfaces with the same
+VLAN tag can communicate with each other but not with interfaces with different
+VLAN tags. The gateway is on the untagged vlan (vlan 0). If you want to reach
+the internet with a VM, the interface with the gateway must have vlan tag 0.`
+
 const $emit = defineEmits(['interfaceAdded', 'interfaceUpdated', 'cancel'])
 
 const nets = ref<Net[]>([])
@@ -20,7 +27,12 @@ const currentNet = computed(() => {
 })
 const error = ref('')
 
-const form = ref({
+const form = ref<{
+  vnet_id: number
+  vlan_tag: number | string
+  ip_add: string
+  gateway: string
+}>({
   vnet_id: $props.interface?.vnet_id || 0,
   vlan_tag: $props.interface?.vlan_tag || 0,
   ip_add: $props.interface?.ip_add || '',
@@ -53,7 +65,10 @@ const currentGateway = computed(() => {
   }
 })
 
-const ipValidationResult = computed(() => {
+const ipValidationResult = computed<{
+  status: 'success' | 'warning' | 'error'
+  message: string
+}>(() => {
   const ip = form.value.ip_add
   try {
     const cidr = CIDR.parse(ip)
@@ -88,24 +103,11 @@ const ipInputClasses = computed(() => {
   }
 })
 const ipErrorMessage = computed(() => ipValidationResult.value.message)
-const ipTooltipIconClasses = computed(() => {
-  const status = ipValidationResult.value.status
-  return {
-    'text-success': status === 'success',
-    'text-warning': status === 'warning',
-    'text-error': status === 'error',
-  }
-})
-const ipTooltipTextClasses = computed(() => {
-  const status = ipValidationResult.value.status
-  return {
-    'border-success': status === 'success',
-    'border-warning': status === 'warning',
-    'border-error': status === 'error',
-  }
-})
 
-const gatewayValidationResult = computed(() => {
+const gatewayValidationResult = computed<{
+  status: 'success' | 'error'
+  message: string
+}>(() => {
   const gateway = form.value.gateway
   if (gateway === '') {
     return {
@@ -147,24 +149,30 @@ const gatewayInputClasses = computed(() => {
   }
 })
 const gatewayErrorMessage = computed(() => gatewayValidationResult.value.message)
-const gatewayTooltipIconClasses = computed(() => {
-  const status = gatewayValidationResult.value.status
-  return {
-    'text-success': status === 'success',
-    'text-error': status === 'error',
+
+const vlanTagValidationResult = computed(() => {
+  const vlanTag = form.value.vlan_tag
+  if (vlanTag === '' || typeof vlanTag !== 'number' || vlanTag < 0 || vlanTag > 4095) {
+    return 'error'
   }
+  return 'info'
 })
-const gatewayTooltipTextClasses = computed(() => {
-  const status = gatewayValidationResult.value.status
+
+const vlanTagClasses = computed(() => {
+  const status = vlanTagValidationResult.value
   return {
-    'border-success': status === 'success',
-    'border-error': status === 'error',
+    'input-info': status === 'info',
+    'input-error': status === 'error',
   }
 })
 
-function showTooltip(s: string) {
-  return s !== ''
-}
+const vlanTagMessage = computed(() => {
+  if (vlanTagValidationResult.value === 'error') {
+    return 'The VLAN tag must be a number between 0 and 4095.'
+  } else {
+    return defaultVlanTagMessage
+  }
+})
 
 watch(
   () => form.value.vnet_id,
@@ -270,44 +278,29 @@ onMounted(() => {
         <div>Gateway: {{ currentGateway }}</div>
       </div>
       <div v-if="currentNet?.vlanaware">
-        <div class="mb-1 flex items-center">
-          <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
-          <BubbleAlert type="info" title="VLAN Tag"
-            >The VLAN tag is optional. If you don't know what to put here, leave it at zero. It
-            could be used to separate different VMs at layer 2. Interfaces with the same VLAN tag
-            can communicate with each other but not with interfaces with different VLAN tags. The
-            gateway is on the untagged vlan (vlan 0). If you want to reach the internet with a VM,
-            it needs to have at least one interface with vlan tag 0.
+        <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>
+        <label class="input w-full rounded-lg" :class="vlanTagClasses">
+          <BubbleAlert :type="vlanTagValidationResult" title="VLAN Tag" position="right"
+            >{{ vlanTagMessage }}
           </BubbleAlert>
-        </div>
-        <input
-          type="number"
-          id="vlan_tag"
-          v-model.number="form.vlan_tag"
-          class="input w-full rounded-lg"
-        />
+          <input type="number" id="vlan_tag" v-model.number="form.vlan_tag" />
+        </label>
       </div>
       <div>
         <label for="ip_add" class="block text-sm font-medium">IP Address</label>
         <label class="input w-full rounded-lg" :class="ipInputClasses">
-          <div :class="{ 'tooltip tooltip-right': showTooltip(ipErrorMessage) }">
-            <div class="tooltip-content border" :class="ipTooltipTextClasses">
-              <div class="">{{ ipErrorMessage }}</div>
-            </div>
-            <IconVue icon="ri:question-line" class="text-lg" :class="ipTooltipIconClasses" />
-          </div>
+          <BubbleAlert :type="ipValidationResult.status" title="IP Address" position="right">
+            {{ ipErrorMessage }}
+          </BubbleAlert>
           <input type="text" id="ip_add" v-model="form.ip_add" />
         </label>
       </div>
       <div>
         <label for="gateway" class="block text-sm font-medium">Gateway</label>
         <label class="input w-full rounded-lg" :class="gatewayInputClasses">
-          <div :class="{ 'tooltip tooltip-right': showTooltip(gatewayErrorMessage) }">
-            <div class="tooltip-content border" :class="gatewayTooltipTextClasses">
-              <div class="">{{ gatewayErrorMessage }}</div>
-            </div>
-            <IconVue icon="ri:question-line" class="text-lg" :class="gatewayTooltipIconClasses" />
-          </div>
+          <BubbleAlert :type="gatewayValidationResult.status" title="Gateway" position="right">
+            {{ gatewayErrorMessage }}
+          </BubbleAlert>
           <input type="text" id="gateway" v-model="form.gateway" />
         </label>
       </div>
