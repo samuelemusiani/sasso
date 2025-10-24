@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
 type createNetRequest struct {
@@ -197,6 +198,88 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type requestIPCheck struct {
+	VNetID  uint   `json:"vnet_id"`
+	VlanTag uint16 `json:"vlan_tag"`
+	IP      string `json:"ip"`
+}
+
+type responseIPCheck struct {
+	InUse bool `json:"in_use"`
+}
+
+func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
+	var req requestIPCheck
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	req.IP = strings.TrimSpace(req.IP)
+
+	if req.IP == "" {
+		http.Error(w, "IP address is required", http.StatusBadRequest)
+		return
+	}
+
+	reqIPAdd := ipaddr.NewIPAddressString(req.IP)
+	if !reqIPAdd.IsValid() {
+		http.Error(w, "Invalid IP address format", http.StatusBadRequest)
+		return
+	}
+
+	if req.VlanTag > 4095 {
+		http.Error(w, "VLAN tag must be between 0 and 4095", http.StatusBadRequest)
+		return
+	}
+
+	vnet, err := db.GetNetByID(req.VNetID)
+	if err != nil {
+		slog.Error("Failed to get VNet by ID", "vnetID", req.VNetID, "err", err)
+		if err == db.ErrNotFound {
+			http.Error(w, "VNet not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to get VNet", http.StatusInternalServerError)
+		}
+		return
+	}
+	if !vnet.VlanAware && req.VlanTag != 0 {
+		http.Error(w, "VLAN tag must be 0 for non-VLAN-aware VNets", http.StatusBadRequest)
+		return
+	}
+
+	userID := mustGetUserIDFromContext(r)
+	if vnet.OwnerType == "User" && vnet.OwnerID != userID {
+		http.Error(w, "VNet does not belong to the user", http.StatusForbidden)
+		return
+	} else if vnet.OwnerType == "Group" {
+		_, err := db.GetUserRoleInGroup(userID, vnet.OwnerID)
+		if err != nil {
+			if err == db.ErrNotFound {
+				http.Error(w, "Group not found or user not in group", http.StatusBadRequest)
+				return
+			} else {
+				slog.Error("Failed to get user role in group", "userID", userID, "groupID", vnet.OwnerID, "err", err)
+				http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	used, err := db.ExistsIPInVNetWithVlanTag(req.VNetID, req.VlanTag, req.IP)
+	if err != nil {
+		slog.Error("Failed to check if IP is in use", "err", err)
+		http.Error(w, "Failed to check IP", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(responseIPCheck{InUse: used}); err != nil {
+		slog.Error("Failed to encode IP check response", "err", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func internalListNets(w http.ResponseWriter, r *http.Request) {

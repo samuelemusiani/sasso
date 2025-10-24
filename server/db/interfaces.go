@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"time"
 )
 
@@ -141,4 +142,21 @@ func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	}
 
 	return ifaces, nil
+}
+
+func ExistsIPInVNetWithVlanTag(vnetID uint, vlanTag uint16, ipAdd string) (bool, error) {
+	if slashIndex := strings.Index(ipAdd, "/"); slashIndex != -1 {
+		ipAdd = ipAdd[:slashIndex]
+	}
+
+	ipAdd = ipAdd + "/%"
+
+	var count int64
+	if err := db.Model(&Interface{}).
+		Where("v_net_id = ? AND vlan_tag = ? AND ip_add LIKE ?", vnetID, vlanTag, ipAdd).
+		Count(&count).Error; err != nil {
+		logger.Error("Failed to check existence of IP in VNet with VLAN tag", "vnetID", vnetID, "vlanTag", vlanTag, "ipAdd", ipAdd, "error", err)
+		return false, err
+	}
+	return count > 0, nil
 }
