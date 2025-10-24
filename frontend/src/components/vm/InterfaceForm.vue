@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineProps } from 'vue'
 import { api } from '@/lib/api'
+import { IPAddress, CIDR } from '@/lib/ipaddr'
 import type { Interface, Net, VM } from '@/types'
 import CreateNew from '../CreateNew.vue'
 import BubbleAlert from '../BubbleAlert.vue'
@@ -47,6 +48,51 @@ const currentGateway = computed(() => {
   return net ? net.gateway : ''
 })
 
+const ipInputClasses = computed(() => {
+  const ip = form.value.ip_add
+  try {
+    const cidr = CIDR.parse(ip)
+
+    const subnet = CIDR.parse(currentSubnet.value)
+
+    if (!subnet.contains(cidr.ip) || cidr.mask !== subnet.mask) {
+      return 'input-warning'
+    }
+
+    return 'input-success'
+  } catch {
+    return 'input-error'
+  }
+})
+
+const gatewayInputClasses = computed(() => {
+  const gateway = form.value.gateway
+  if (gateway === '') {
+    return ''
+  }
+
+  try {
+    const gtw = IPAddress.parse(gateway)
+
+    if (form.value.ip_add == '') {
+      return 'input-success'
+    }
+    let cidr: CIDR
+    try {
+      cidr = CIDR.parse(form.value.ip_add)
+    } catch {
+      return ''
+    }
+    if (!cidr.contains(gtw)) {
+      return 'input-error'
+    }
+
+    return 'input-success'
+  } catch {
+    return 'input-error'
+  }
+})
+
 watch(
   () => form.value.vnet_id,
   (newVnetId) => {
@@ -73,7 +119,11 @@ function fetchNets() {
   api
     .get('/net')
     .then((res) => {
-      nets.value = res.data as Net[]
+      const tmp = res.data as Net[]
+      tmp.map((net) => {
+        net.gateway = CIDR.parse(net.gateway).ip.toString()
+      })
+      nets.value = tmp
       if (!$props.interface && nets.value.length > 0) {
         form.value.vnet_id = nets.value[0]?.id || 0
       }
@@ -167,12 +217,24 @@ onMounted(() => {
       <div>
         <!-- TODO: is needed to /24 -->
         <label for="ip_add" class="block text-sm font-medium">IP Address</label>
-        <input type="text" id="ip_add" v-model="form.ip_add" class="input w-full rounded-lg" />
+        <input
+          type="text"
+          id="ip_add"
+          v-model="form.ip_add"
+          class="input w-full rounded-lg"
+          :class="ipInputClasses"
+        />
       </div>
       <div>
         <!-- TODO: no /24  -->
         <label for="gateway" class="block text-sm font-medium">Gateway</label>
-        <input type="text" id="gateway" v-model="form.gateway" class="input w-full rounded-lg" />
+        <input
+          type="text"
+          id="gateway"
+          v-model="form.gateway"
+          class="input w-full rounded-lg"
+          :class="gatewayInputClasses"
+        />
       </div>
     </form>
   </CreateNew>
