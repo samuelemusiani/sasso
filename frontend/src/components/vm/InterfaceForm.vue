@@ -13,7 +13,7 @@ const $props = defineProps<{
 const $emit = defineEmits(['interfaceAdded', 'interfaceUpdated', 'cancel'])
 
 const nets = ref<Net[]>([])
-const editing = ref(!!$props.interface)
+const editing = computed(() => !!$props.interface)
 const currentNet = computed(() => {
   return nets.value.find((n) => n.id === form.value.vnet_id)
 })
@@ -63,7 +63,7 @@ watch(
   () => filteredNets.value,
   (newNets) => {
     if (newNets.length > 0 && !newNets.find((n) => n.id === form.value.vnet_id)) {
-      form.value.vnet_id = newNets[0].id
+      form.value.vnet_id = newNets[0]?.id || 0
     }
   },
   { immediate: true },
@@ -75,7 +75,7 @@ function fetchNets() {
     .then((res) => {
       nets.value = res.data as Net[]
       if (!$props.interface && nets.value.length > 0) {
-        form.value.vnet_id = nets.value[0].id
+        form.value.vnet_id = nets.value[0]?.id || 0
       }
     })
     .catch((err) => {
@@ -123,7 +123,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <CreateNew title="Interface" :create="handleSubmit" :error="error">
+  <CreateNew
+    :open="editing"
+    :title="(editing ? 'Edit ' : '') + 'Interface'"
+    :create="handleSubmit"
+    :error="error"
+    :hideCreate="editing"
+    @close="$emit('cancel')"
+  >
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>

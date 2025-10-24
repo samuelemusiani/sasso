@@ -15,6 +15,7 @@ import PortForwardsView from '../view/PortForwardsView.vue'
 import AdminPortForwardsView from '../view/admin/PortForwardsView.vue'
 import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
+import VMInterfacesView from '../view/VMInterfacesView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
 import BackupsView from '../view/BackupsView.vue'
 import SettingsView from '@/view/SettingsView.vue'
@@ -35,9 +36,10 @@ const router = createRouter({
       children: [
         { path: '', component: HomeView },
         { path: '/vm', component: VMView },
-        { path: '/vm/:vmid/interfaces', component: InterfacesView },
+        { path: '/vm/:vmid/interfaces', component: VMInterfacesView },
         { path: '/vm/:vmid/backups', component: BackupsView },
         { path: '/net', component: NetsView },
+        { path: '/interfaces', component: InterfacesView },
         { path: '/ssh-keys', component: SSHKeysView },
         { path: '/vpn', component: VPNView },
         { path: '/port-forwards', component: PortForwardsView },

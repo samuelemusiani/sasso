@@ -115,24 +115,19 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	var nets []db.Net
 
 	if groupID != nil {
+		_, _, _, maxNets, err := db.GetGroupResourceLimits(*groupID)
+		if err != nil {
+			logger.Error("Failed to get group resources by group ID", "groupID", *groupID, "error", err)
+			return nil, err
+		}
+
 		nets, err = db.GetNetsByGroupID(*groupID)
 		if err != nil {
 			logger.Error("Failed to get nets by group ID", "groupID", *groupID, "error", err)
 			return nil, err
 		}
 
-		if len(nets) >= 1 {
-			return nil, ErrInsufficientResources
-		}
-
-		nmembers, err := db.CountGroupMembers(*groupID)
-		if err != nil {
-			logger.Error("Failed to count group members", "groupID", *groupID, "error", err)
-			return nil, err
-		}
-		// TODO: 2 is hardcoded, should be a config value. Or we can configure custom
-		// limits per group
-		if nmembers < 2 {
+		if len(nets)+1 > int(maxNets) {
 			return nil, ErrInsufficientResources
 		}
 	} else {

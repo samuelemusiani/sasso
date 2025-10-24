@@ -11,7 +11,6 @@ type VM struct {
 	ID        uint64 `gorm:"primaryKey"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt *time.Time `gorm:"index"`
 
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 

@@ -10,7 +10,8 @@ import (
 )
 
 type User struct {
-	ID uint
+	ID                 uint `json:"id"`
+	NumberOFVPNConfigs uint `json:"number_of_vpn_configs"`
 }
 
 func FetchUsers(endpoint, secret string) ([]User, error) {

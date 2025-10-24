@@ -119,6 +119,7 @@ func worker(ctx context.Context) error {
 
 		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(vmNodes) })
 		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(vmNodes) })
+		workerCycleDurationObserve("configure_interfaces", func() { configureInterfaces(vmNodes) })
 
 		workerCycleDurationObserve("delete_backups", func() { deleteBackups(vmNodes) })
 		workerCycleDurationObserve("restore_backups", func() { restoreBackups(vmNodes) })
@@ -768,7 +769,7 @@ func updateVMs(cluster *gprox.Cluster) {
 }
 
 func createInterfaces(vmNodes map[uint64]string) {
-	logger.Debug("Configuring interfaces in worker")
+	logger.Debug("Creating interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
 	if err != nil {
@@ -777,7 +778,6 @@ func createInterfaces(vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
-
 		dbVM, err := db.GetVMByID(uint64(iface.VMID))
 		if err != nil {
 			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
@@ -785,7 +785,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		}
 
 		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
-			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			logger.Warn("Can't create configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
 			continue
 		}
 
@@ -794,29 +794,23 @@ func createInterfaces(vmNodes map[uint64]string) {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		node, err := client.Node(ctx, nodeName)
-		cancel()
+		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		vm, err := node.VirtualMachine(ctx, int(iface.VMID))
-		cancel()
+		vm, err := getProxmoxVM(node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
 			continue
 		}
 
-		// TODO: Check if in the future the APIs will acctually support Nets maps
-		// https://github.com/luthermonson/go-proxmox/issues/211
-		// This is a temporary workaround.
-		// At the moment we are using the samuelemusiani/go-proxmox fork
 		mnets := vm.VirtualMachineConfig.Nets
 		// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
 
+		// To avoid increasing the netX index indefinitely, we find the first
+		// empty index
 		var snet = make([]int, len(mnets))
 		var i int = 0
 		for k := range mnets {
@@ -856,7 +850,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 			Value: v,
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t, err := vm.Config(ctx, o)
 		cancel()
 		if err != nil {
@@ -983,6 +977,102 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 		err = db.DeleteInterfaceByID(iface.ID)
 		if err != nil {
 			logger.Error("Failed to delete interface from DB", "interface", iface, "err", err)
+			continue
+		}
+	}
+}
+
+func configureInterfaces(vmNodes map[uint64]string) {
+	logger.Debug("Configuring interfaces in worker")
+
+	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreConfiguring))
+	if err != nil {
+		logger.Error("Failed to get interfaces with 'pre-creating' status", "error", err)
+		return
+	}
+
+	for _, iface := range interfaces {
+		dbVM, err := db.GetVMByID(uint64(iface.VMID))
+		if err != nil {
+			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+			continue
+		}
+
+		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusConfiguring))
+		if err != nil {
+			logger.Error("Failed to update interface status to configuring", "interface", iface, "err", err)
+			continue
+		}
+
+		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
+			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			continue
+		}
+
+		nodeName, ok := vmNodes[uint64(iface.VMID)]
+		if !ok {
+			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
+			continue
+		}
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
+			continue
+		}
+
+		vm, err := getProxmoxVM(node, int(iface.VMID))
+		if err != nil {
+			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
+			continue
+		}
+
+		mnets := vm.VirtualMachineConfig.Nets
+		// We just check that a network exists for the local_id of the interface
+		s := fmt.Sprintf("net%d", iface.LocalID)
+		_, ok = mnets[s]
+		if !ok {
+			logger.Error("Can't configure interface. Network not found on Proxmox VM", "interface_id", iface.ID, "vmid", iface.VMID, "local_id", iface.LocalID)
+			continue
+		}
+
+		o1 := gprox.VirtualMachineOption{
+			Name:  fmt.Sprintf("ipconfig%d", iface.LocalID),
+			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
+		}
+
+		if iface.Gateway != "" {
+			o1.Value = fmt.Sprintf("%s,gw=%s", o1.Value, iface.Gateway)
+		}
+
+		logger.Debug("Configuring network interface on Proxmox VM", "option", o1)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := vm.Config(ctx, o1)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to configure network interface on Proxmox VM", "error", err)
+			continue
+		}
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
+			continue
+		}
+		if !isSuccessful {
+			logger.Error("Failed to configure network interface on Proxmox VM")
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		err = vm.RegenerateCloudInitImage(ctx)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to regenerate cloud-init image on Proxmox VM", "error", err)
+		}
+
+		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusReady))
+		if err != nil {
+			logger.Error("Failed to update interface status to ready", "interface", iface, "err", err)
 			continue
 		}
 	}

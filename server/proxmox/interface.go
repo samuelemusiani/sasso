@@ -109,7 +109,7 @@ func UpdateInterface(iface *Interface) error {
 	dbIface.VlanTag = iface.VlanTag
 	dbIface.IPAdd = iface.IPAdd
 	dbIface.Gateway = iface.Gateway
-	// Status is not updated here
+	dbIface.Status = string(InterfaceStatusPreConfiguring)
 
 	err = db.UpdateInterface(dbIface)
 	if err != nil {
