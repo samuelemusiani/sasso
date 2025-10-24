@@ -59,7 +59,7 @@ const positionClass = computed(() => {
       class="card tooltip-content bg-base-100 rounded-box w-96 border"
       :class="[props.type === '' ? 'text-base-content/80 !font-medium' : '', border]"
     >
-      <div tabindex="0" class="card-body">
+      <div class="card-body">
         <p v-if="props.title" class="card-title font-bold">{{ props.title }}</p>
         <p class="text-left">
           <slot></slot>
