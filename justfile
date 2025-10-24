@@ -22,3 +22,6 @@ check-format:
 
 frontend-lint:
   cd frontend && npx eslint .
+
+test:
+  cd frontend && npm test
