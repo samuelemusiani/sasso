@@ -568,7 +568,7 @@ func updateVNets(cluster *gprox.Cluster) {
 	for _, v := range dbVNets {
 		pvn, ok := nameToPVNet[v.Name]
 		if !ok {
-			logger.Error("VNet not found in Proxmox", "vnet", v.Name)
+			logger.Warn("VNet not found in Proxmox. Setting status to unknown", "vnet", v.Name)
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
 			if err != nil {
 				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
@@ -580,7 +580,7 @@ func updateVNets(cluster *gprox.Cluster) {
 		// setting the status to unknown. But this will require more testing.
 		// For now this is sufficient.
 		if pvn.Tag != v.Tag {
-			logger.Warn("VNet tag mismatch", "vnet", v.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
+			logger.Warn("VNet tag mismatch. Setting status to unknown", "vnet", v.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
 			if err != nil {
 				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
@@ -596,7 +596,7 @@ func updateVNets(cluster *gprox.Cluster) {
 		}
 
 		if v.VlanAware != intToBool(pvn.VlanAware) {
-			logger.Warn("VNet vlan_aware mismatch", "vnet", v.Name, "db_vlan_aware", v.VlanAware, "proxmox_vlan_aware", intToBool(pvn.VlanAware))
+			logger.Warn("VNet vlan_aware mismatch. Setting status to unknown", "vnet", v.Name, "db_vlan_aware", v.VlanAware, "proxmox_vlan_aware", intToBool(pvn.VlanAware))
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
 			if err != nil {
 				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
