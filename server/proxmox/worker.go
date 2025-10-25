@@ -17,6 +17,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/notify"
 
+	"github.com/luthermonson/go-proxmox"
 	gprox "github.com/luthermonson/go-proxmox"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
@@ -99,6 +100,7 @@ func worker(ctx context.Context) error {
 
 		workerCycleDurationObserve("create_vnets", func() { createVNets(cluster) })
 		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(cluster) })
+		workerCycleDurationObserve("configure_vnets", func() { configureVNets(cluster) })
 		workerCycleDurationObserve("update_vnets", func() { updateVNets(cluster) })
 
 		workerCycleDurationObserve("create_vms", func() { createVMs() })
@@ -471,8 +473,8 @@ func deleteVMs(VMLocation map[uint64]string) {
 	}
 }
 
-func updateVNets(cluster *gprox.Cluster) {
-	logger.Debug("Updating VNets in worker")
+func configureVNets(cluster *gprox.Cluster) {
+	logger.Debug("Configuring VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusReconfiguring))
 	if err != nil {
@@ -532,6 +534,74 @@ func updateVNets(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
 			}
+		}
+	}
+}
+
+func updateVNets(cluster *gprox.Cluster) {
+	logger.Debug("Updating VNets in worker")
+
+	dbVNets, err := db.GetVNetsWithStatus(string(VNetStatusReady))
+	if err != nil {
+		logger.Error("Failed to get VNets with 'pre-creating' status", "error", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	pVNets, err := cluster.SDNVNets(ctx)
+	cancel()
+	if err != nil {
+		logger.Error("Failed to get VNets from Proxmox", "error", err)
+		return
+	}
+
+	nameToPVNet := make(map[string]*proxmox.VNet)
+	for _, pn := range pVNets {
+		nameToPVNet[pn.Name] = pn
+	}
+
+	tagToPVNet := make(map[uint32]*proxmox.VNet)
+	for _, pn := range pVNets {
+		tagToPVNet[pn.Tag] = pn
+	}
+
+	for _, v := range dbVNets {
+		pvn, ok := nameToPVNet[v.Name]
+		if !ok {
+			logger.Error("VNet not found in Proxmox", "vnet", v.Name)
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
+		}
+
+		// TODO: we could probably try to fix the tag mismatch instead of just
+		// setting the status to unknown. But this will require more testing.
+		// For now this is sufficient.
+		if pvn.Tag != v.Tag {
+			logger.Warn("VNet tag mismatch", "vnet", v.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
+		}
+
+		intToBool := func(i int) bool {
+			if i == 1 {
+				return true
+			}
+			return false
+		}
+
+		if v.VlanAware != intToBool(pvn.VlanAware) {
+			logger.Warn("VNet vlan_aware mismatch", "vnet", v.Name, "db_vlan_aware", v.VlanAware, "proxmox_vlan_aware", intToBool(pvn.VlanAware))
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
 		}
 	}
 }
@@ -638,6 +708,10 @@ func updateVMs(cluster *gprox.Cluster) {
 	logger.Debug("Updating VMs in worker")
 
 	resources, err := getProxmoxResources(cluster, "vm")
+	if err != nil {
+		logger.Error("Failed to get Proxmox resources", "error", err)
+		return
+	}
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()

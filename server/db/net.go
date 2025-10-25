@@ -235,6 +235,18 @@ func UpdateVNet(net *Net) error {
 	return nil
 }
 
+func UpdateVNetName(ID uint, newName string) error {
+	err := db.Model(&Net{}).Where("id = ?", ID).
+		UpdateColumn("name", newName).
+		Error
+	if err != nil {
+		logger.Error("Failed to update VNet name", "netID", ID, "newName", newName, "error", err)
+		return err
+	}
+	logger.Debug("Updated VNet name", "netID", ID, "newName", newName)
+	return nil
+}
+
 func GetAllNets() ([]Net, error) {
 	var nets []Net
 	if err := db.Find(&nets).Error; err != nil {
