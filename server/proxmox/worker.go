@@ -1009,6 +1009,12 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
+		dbNet, err := db.GetNetByID(iface.VNetID)
+		if err != nil {
+			logger.Error("Failed to get net by ID", "interface_id", iface.ID, "net_id", iface.VNetID, "err", err)
+			continue
+		}
+
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
@@ -1029,31 +1035,58 @@ func configureInterfaces(vmNodes map[uint64]string) {
 		mnets := vm.VirtualMachineConfig.Nets
 		// We just check that a network exists for the local_id of the interface
 		s := fmt.Sprintf("net%d", iface.LocalID)
-		_, ok = mnets[s]
+		pnet, ok := mnets[s]
 		if !ok {
 			logger.Error("Can't configure interface. Network not found on Proxmox VM", "interface_id", iface.ID, "vmid", iface.VMID, "local_id", iface.LocalID)
 			continue
 		}
 
-		o1 := gprox.VirtualMachineOption{
+		if dbNet.VlanAware {
+			pnet = substituteVlanTag(pnet, iface.VlanTag)
+		}
+
+		o := gprox.VirtualMachineOption{
+			Name:  s,
+			Value: pnet,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := vm.Config(ctx, o)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to add network interface to Proxmox VM", "error", err)
+			continue
+		}
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
+			continue
+		}
+
+		if !isSuccessful {
+			logger.Error("Failed to add network interface to Proxmox VM")
+			continue
+		}
+
+		o2 := gprox.VirtualMachineOption{
 			Name:  fmt.Sprintf("ipconfig%d", iface.LocalID),
 			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
 		}
 
 		if iface.Gateway != "" {
-			o1.Value = fmt.Sprintf("%s,gw=%s", o1.Value, iface.Gateway)
+			o2.Value = fmt.Sprintf("%s,gw=%s", o2.Value, iface.Gateway)
 		}
 
-		logger.Debug("Configuring network interface on Proxmox VM", "option", o1)
+		logger.Debug("Configuring network interface on Proxmox VM", "option", o2)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		t, err := vm.Config(ctx, o1)
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		t, err = vm.Config(ctx, o2)
 		cancel()
 		if err != nil {
 			logger.Error("Failed to configure network interface on Proxmox VM", "error", err)
 			continue
 		}
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err = waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("Failed to wait for Proxmox task completion", "error", err)
 			continue
