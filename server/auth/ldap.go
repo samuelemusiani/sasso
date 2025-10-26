@@ -33,8 +33,6 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 	}
 	defer l.Close()
 
-	a.BindDN = ldap.EscapeDN(a.BindDN)
-
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
 		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
@@ -43,7 +41,6 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 
 	// LoginFilter is in the form (&(objectClass=person)(uid={{username}}))
 	lgQueryFilter := strings.Replace(a.LoginFilter, "{{username}}", username, -1)
-	lgQueryFilter = ldap.EscapeFilter(lgQueryFilter)
 
 	logger.Debug("LDAP login filter", "filter", lgQueryFilter)
 
@@ -66,7 +63,7 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 		return nil, ErrTooManyUsers
 	}
 
-	userDN := ldap.EscapeDN(sr.Entries[0].DN)
+	userDN := sr.Entries[0].DN
 	err = l.Bind(userDN, password)
 	if err != nil {
 		return nil, ErrPasswordMismatch
@@ -84,10 +81,9 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 
 	if a.AdminFilter != "" {
 
-		// AdminFilter is in the form (&(objectClass=groupOfNames)(cn=sass_admin)(member={{user_dn}}))
+		// AdminFilter is in the form (&(objectClass=groupOfNames)(cn=sasso_admin)(member={{user_dn}}))
 
 		adminGroupFilter := strings.Replace(a.AdminFilter, "{{user_dn}}", userDN, -1)
-		adminGroupFilter = ldap.EscapeFilter(adminGroupFilter)
 
 		logger.Debug("LDAP admin group filter", "filter", adminGroupFilter)
 
@@ -111,9 +107,8 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 		}
 	}
 	if a.MaintainerFilter != "" && role == db.RoleUser {
-		// MaintainerFilter is in the form (&(objectClass=groupOfNames)(cn=sass_maintainer)(member={{user_dn}}))
+		// MaintainerFilter is in the form (&(objectClass=groupOfNames)(cn=sasso_maintainer)(member={{user_dn}}))
 		maintainerGroupFilter := strings.Replace(a.MaintainerFilter, "{{user_dn}}", userDN, -1)
-		maintainerGroupFilter = ldap.EscapeFilter(maintainerGroupFilter)
 
 		searchRequestGroup := ldap.NewSearchRequest(
 			a.GroupBaseDN,
