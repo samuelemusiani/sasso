@@ -4,6 +4,9 @@ import type { Group, Net } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { getStatusClass } from '@/const'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
 
 const nets = ref<Net[]>([])
 const newNetName = ref('')
@@ -93,7 +96,7 @@ function deleteNet(id: number) {
       fetchNets()
     })
     .catch((err) => {
-      error.value = 'Failed to delete network: ' + err.response.data
+      toastError(`Failed to delete network: ` + err.response.data)
       console.error(`Failed to delete network ${id}:`, err)
     })
 }
