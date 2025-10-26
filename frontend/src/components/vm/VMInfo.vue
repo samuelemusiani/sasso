@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { VM } from '@/types'
 import { getStatusClass } from '@/const'
 import { formatDate, isVMExpired } from '@/lib/utils'
@@ -75,6 +75,15 @@ function deleteVM(vmid: number) {
       })
   }
 }
+
+const disableDelete = computed(() => {
+  if ($props.vm.group_role === 'member') return true
+  const deleteStates = ['stopped', 'running', 'unknown']
+
+  if (deleteStates.includes($props.vm.status)) return false
+
+  return true
+})
 </script>
 
 <template>
@@ -162,7 +171,7 @@ function deleteVM(vmid: number) {
 
     <button
       @click="deleteVM(vm.id)"
-      :disabled="vm.group_role == 'member'"
+      :disabled="disableDelete"
       class="btn btn-error btn-outline w-70 rounded-lg"
     >
       <IconVue icon="material-symbols:delete" class="text-lg" />
