@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
 	"time"
@@ -50,12 +51,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := authenticator(loginReq.Username, loginReq.Password, loginReq.Realm)
+	user, err := auth.Authenticate(loginReq.Username, loginReq.Password, loginReq.Realm)
 	if err != nil {
-		if err == ErrUserNotFound {
+		if err == auth.ErrUserNotFound {
 			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
-		} else if err == ErrPasswordMismatch {
+		} else if err == auth.ErrPasswordMismatch {
 			http.Error(w, "Password mismatch", http.StatusUnauthorized)
 			return
 		} else {
