@@ -37,6 +37,14 @@ const activeTab = computed(() => {
   return 'info'
 })
 
+function shouldDisableTab(tabId: string): boolean {
+  if (!vm.value) return true
+  if ((tabId === 'backups' || tabId === 'interfaces') && vm.value.status === 'unknown') {
+    return true
+  }
+  return false
+}
+
 const navigateToTab = (tabPath: string) => {
   if (tabPath === '') {
     router.push(`/vm/${vmid.value}`)
@@ -79,12 +87,10 @@ onMounted(() => {
   <div>
     <div class="tabs tabs-lift">
       <template v-for="tab in tabs" :key="tab.id">
-        <label class="tab">
+        <label class="tab" :class="{ 'tab-disabled': shouldDisableTab(tab.id) }">
           <input
             type="radio"
             name="vm_view_tabs"
-            class="tab"
-            :aria-label="tab.label"
             :checked="activeTab === tab.id"
             @change="navigateToTab(tab.path)"
           />
