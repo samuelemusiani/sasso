@@ -13,6 +13,8 @@ var (
 	ErrUserNotFound     = errors.New("user not found")
 	ErrPasswordMismatch = errors.New("password mismatch")
 	ErrTooManyUsers     = errors.New("too many users found")
+
+	ErrInvalidConfig = errors.New("invalid realm configuration")
 )
 
 func Init(l *slog.Logger) error {

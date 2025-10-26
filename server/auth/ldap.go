@@ -1,7 +1,9 @@
 package auth
 
 import (
-	"fmt"
+	"errors"
+	"net/url"
+	"strings"
 
 	"samuelemusiani/sasso/server/db"
 
@@ -9,14 +11,18 @@ import (
 )
 
 type ldapAuthenticator struct {
-	ID              uint
-	URL             string
-	UserBaseDN      string
-	GroupBaseDN     string
-	BindDN          string
-	Password        string
-	MaintainerGroup string
-	AdminGroup      string
+	ID          uint
+	URL         string
+	UserBaseDN  string
+	GroupBaseDN string
+	BindDN      string
+	Password    string
+
+	LoginFilter      string
+	MaintainerFilter string
+	AdminFilter      string
+
+	MailAttribute string
 }
 
 func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
@@ -27,17 +33,24 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 	}
 	defer l.Close()
 
+	a.BindDN = ldap.EscapeDN(a.BindDN)
+
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
 		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
 		return nil, err
 	}
 
+	// LoginFilter is in the form (&(objectClass=person)(uid={{username}}))
+	lgQueryFilter := strings.Replace(a.LoginFilter, "{{username}}", username, -1)
+	lgQueryFilter = ldap.EscapeFilter(lgQueryFilter)
+
+	logger.Debug("LDAP login filter", "filter", lgQueryFilter)
+
 	searchRequest := ldap.NewSearchRequest(
 		a.UserBaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&(objectClass=person)(uid=%s))", username),
-		[]string{"dn", "mail"},
+		lgQueryFilter, []string{"dn", a.MailAttribute},
 		nil,
 	)
 
@@ -53,13 +66,13 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 		return nil, ErrTooManyUsers
 	}
 
-	userDN := sr.Entries[0].DN
+	userDN := ldap.EscapeDN(sr.Entries[0].DN)
 	err = l.Bind(userDN, password)
 	if err != nil {
 		return nil, ErrPasswordMismatch
 	}
 
-	email := sr.Entries[0].GetAttributeValue("mail")
+	email := sr.Entries[0].GetAttributeValue(a.MailAttribute)
 
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
@@ -69,17 +82,25 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 
 	var role db.UserRole = db.RoleUser
 
-	if a.AdminGroup != "" {
+	if a.AdminFilter != "" {
+
+		// AdminFilter is in the form (&(objectClass=groupOfNames)(cn=sass_admin)(member={{user_dn}}))
+
+		adminGroupFilter := strings.Replace(a.AdminFilter, "{{user_dn}}", userDN, -1)
+		adminGroupFilter = ldap.EscapeFilter(adminGroupFilter)
+
+		logger.Debug("LDAP admin group filter", "filter", adminGroupFilter)
+
 		searchRequestGroup := ldap.NewSearchRequest(
 			a.GroupBaseDN,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-			fmt.Sprintf("(&(objectClass=groupOfNames)(cn=%s)(member=%s))", a.AdminGroup, userDN),
+			adminGroupFilter,
 			[]string{"cn"},
 			nil,
 		)
 		src, err := l.Search(searchRequestGroup)
 		if err != nil {
-			logger.Error("Failed to search for group in LDAP", "baseDN", a.UserBaseDN, "group", a.AdminGroup, "error", err)
+			logger.Error("Failed to search for admin group in LDAP", "baseDN", a.UserBaseDN, "error", err)
 			return nil, err
 		}
 
@@ -89,17 +110,21 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 			logger.Debug("Ldap search for admin group returned no entries", "err", err)
 		}
 	}
-	if a.MaintainerGroup != "" && role == db.RoleUser {
+	if a.MaintainerFilter != "" && role == db.RoleUser {
+		// MaintainerFilter is in the form (&(objectClass=groupOfNames)(cn=sass_maintainer)(member={{user_dn}}))
+		maintainerGroupFilter := strings.Replace(a.MaintainerFilter, "{{user_dn}}", userDN, -1)
+		maintainerGroupFilter = ldap.EscapeFilter(maintainerGroupFilter)
+
 		searchRequestGroup := ldap.NewSearchRequest(
 			a.GroupBaseDN,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-			fmt.Sprintf("(&(objectClass=groupOfNames)(cn=%s)(member=%s))", a.MaintainerGroup, userDN),
+			maintainerGroupFilter,
 			[]string{"cn"},
 			nil,
 		)
 		src, err := l.Search(searchRequestGroup)
 		if err != nil {
-			logger.Error("Failed to search for group in LDAP", "baseDN", a.UserBaseDN, "group", a.MaintainerGroup, "error", err)
+			logger.Error("Failed to search for maintainer group in LDAP", "baseDN", a.UserBaseDN, "error", err)
 			return nil, err
 		}
 
@@ -161,8 +186,46 @@ func (a *ldapAuthenticator) LoadConfigFromDB(realmID uint) error {
 	a.GroupBaseDN = ldapRealm.GroupBaseDN
 	a.BindDN = ldapRealm.BindDN
 	a.Password = ldapRealm.Password
-	a.MaintainerGroup = ldapRealm.MaintainerGroup
-	a.AdminGroup = ldapRealm.AdminGroup
+	a.LoginFilter = ldapRealm.LoginFilter
+	a.MaintainerFilter = ldapRealm.MaintainerFilter
+	a.AdminFilter = ldapRealm.AdminFilter
+	a.MailAttribute = ldapRealm.MailAttribute
 
+	return nil
+}
+func VerifyLDAPURL(lurl string) error {
+	if lurl == "" {
+		return errors.Join(ErrInvalidConfig, errors.New("LDAP URL cannot be empty"))
+	}
+	ldapURL, err := url.Parse(lurl)
+	if err != nil || (ldapURL.Scheme != "ldap" && ldapURL.Scheme != "ldaps") {
+		return errors.Join(ErrInvalidConfig, errors.New("invalid LDAP URL"))
+	}
+	return nil
+}
+
+func VerifyLDAPFilters(login, maintainer, admin string) error {
+	if login == "" {
+		return errors.Join(ErrInvalidConfig, errors.New("login filter cannot be empty"))
+	}
+
+	if strings.Index(login, "{{username}}") == -1 {
+		return errors.Join(ErrInvalidConfig, errors.New("login filter must contain {{username}} placeholder"))
+	}
+
+	if admin != "" && strings.Index(admin, "{{user_dn}}") == -1 {
+		return errors.Join(ErrInvalidConfig, errors.New("admin filter must contain {{user_dn}} placeholder"))
+	}
+
+	if maintainer != "" && strings.Index(maintainer, "{{user_dn}}") == -1 {
+		return errors.Join(ErrInvalidConfig, errors.New("maintainer filter must contain {{user_dn}} placeholder"))
+	}
+	return nil
+}
+
+func VerifyLDAPAttribute(mailAttr string) error {
+	if mailAttr == "" {
+		return errors.Join(ErrInvalidConfig, errors.New("mail attribute cannot be empty"))
+	}
 	return nil
 }
