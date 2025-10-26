@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+
 const props = defineProps<{
   title: string
   create: (event: SubmitEvent) => void
@@ -13,6 +14,13 @@ const $emit = defineEmits<{
 }>()
 
 const openCreate = ref(props.open ?? false)
+
+watch(
+  () => props.open,
+  (newVal) => {
+    openCreate.value = newVal ?? false
+  },
+)
 
 function openClose() {
   openCreate.value = !openCreate.value

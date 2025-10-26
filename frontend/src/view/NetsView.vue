@@ -9,11 +9,14 @@ import { useToastService } from '@/composables/useToast'
 const { error: toastError } = useToastService()
 
 const nets = ref<Net[]>([])
-const newNetName = ref('')
-const newNetVlanAware = ref(false)
-const newNetGroupId = ref<number>()
+const formNetName = ref('')
+const formNetVlanAware = ref(false)
+const formNetGroupId = ref<number>()
 const error = ref('')
 const groups = ref<Group[]>([])
+
+const modifying = ref(false)
+const modifyingNetId = ref<number | null>(null)
 
 function fetchNets() {
   api
@@ -57,25 +60,56 @@ interface NetCreationBody {
   group_id?: number
 }
 
+function createOrModifyNet() {
+  if (modifying.value) {
+    modifyNet()
+    return
+  }
+  createNet()
+}
+
 function createNet() {
-  if (!newNetName.value) {
+  if (!formNetName.value) {
     error.value = 'Please provide a valid network name'
     return
   }
 
   const body: NetCreationBody = {
-    name: newNetName.value,
-    vlanaware: newNetVlanAware.value,
+    name: formNetName.value,
+    vlanaware: formNetVlanAware.value,
   }
-  if (newNetGroupId.value) {
-    body.group_id = newNetGroupId.value
+  if (formNetGroupId.value) {
+    body.group_id = formNetGroupId.value
   }
 
   api
     .post('/net', body)
     .then(() => {
-      newNetName.value = ''
-      newNetVlanAware.value = false
+      formNetName.value = ''
+      formNetVlanAware.value = false
+      fetchNets()
+    })
+    .catch((err) => {
+      error.value = 'Failed to create net: ' + err.response.data
+      console.error('Failed to create net:', err)
+    })
+}
+
+function modifyNet() {
+  if (!formNetName.value) {
+    error.value = 'Please provide a valid network name'
+    return
+  }
+
+  const body: NetCreationBody = {
+    name: formNetName.value,
+    vlanaware: formNetVlanAware.value,
+  }
+
+  api
+    .put(`/net/${modifyingNetId.value}`, body)
+    .then(() => {
+      toggleModify(-1)
       fetchNets()
     })
     .catch((err) => {
@@ -101,6 +135,26 @@ function deleteNet(id: number) {
     })
 }
 
+function toggleModify(id: number) {
+  if (id === -1) {
+    modifying.value = false
+    modifyingNetId.value = null
+    formNetName.value = ''
+    formNetVlanAware.value = false
+    formNetGroupId.value = undefined
+    return
+  } else {
+    modifying.value = true
+    modifyingNetId.value = id
+    const net = nets.value.find((n) => n.id === id)
+    if (net) {
+      formNetName.value = net.name
+      formNetVlanAware.value = net.vlanaware
+      formNetGroupId.value = net.group_id
+    }
+  }
+}
+
 const nonMemberGroups = computed(() => {
   return groups.value.filter((group) => group.role !== 'member')
 })
@@ -112,27 +166,36 @@ const nonMemberGroups = computed(() => {
       <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
     </h1>
 
-    <CreateNew title="Network" :create="createNet" :error="error">
+    <CreateNew
+      :title="modifying ? 'Modify Network' : 'Network'"
+      :hideCreate="modifying"
+      :create="createOrModifyNet"
+      :error="error"
+      :open="modifying"
+      @close="toggleModify(-1)"
+    >
       <div class="flex flex-col gap-2">
         <label for="name">Network Name</label>
         <input
           required
-          v-model="newNetName"
+          v-model="formNetName"
           type="text"
           placeholder="Network Name"
           class="border-primary rounded-lg border p-2"
         />
 
-        <label for="group">Group (Optional)</label>
-        <select v-model="newNetGroupId" class="select select-bordered">
-          <option :value="undefined">Me</option>
-          <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
-            {{ group.name }}
-          </option>
-        </select>
+        <template v-if="!modifying">
+          <label for="group">Group (Optional)</label>
+          <select v-model="formNetGroupId" class="select select-bordered">
+            <option :value="undefined">Me</option>
+            <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
+              {{ group.name }}
+            </option>
+          </select>
+        </template>
 
         <label class="flex cursor-pointer items-center gap-3">
-          <input v-model="newNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
+          <input v-model="formNetVlanAware" type="checkbox" class="checkbox checkbox-primary" />
           <span class="label-text text-base-content">Enable VLAN support</span>
         </label>
       </div>
@@ -165,9 +228,17 @@ const nonMemberGroups = computed(() => {
           <td class="">{{ net.vlanaware }}</td>
           <td class="">{{ net.subnet }}</td>
           <td class="">{{ net.gateway }}</td>
-          <td class="">
+          <td class="flex gap-8">
             <button
               v-if="net.status === 'ready'"
+              @click="toggleModify(net.id)"
+              class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+            >
+              <IconVue icon="material-symbols:edit" class="text-lg" />
+              <p class="hidden md:inline">Edit</p>
+            </button>
+            <button
+              v-if="net.status === 'ready' || net.status === 'unknown'"
               @click="deleteNet(net.id)"
               :disabled="net.group_role === 'member'"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
