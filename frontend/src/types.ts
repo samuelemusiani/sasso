@@ -39,8 +39,10 @@ export interface LDAPRealm extends Realm {
   group_base_dn: string
   bind_dn: string
   password: string
-  admin_group: string
-  maintainer_group: string
+  login_filter: string
+  maintainer_filter: string
+  admin_filter: string
+  mail_attribute: string
 }
 
 export interface Net {
