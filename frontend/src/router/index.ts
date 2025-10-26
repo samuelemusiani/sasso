@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../view/HomeView.vue'
 import LoginView from '../view/LoginView.vue'
 import VMView from '../view/VMView.vue'
+import VMsView from '../view/VMsView.vue'
 import AdminView from '../view/AdminView.vue'
 import AdminUsersView from '../view/admin/UsersView.vue'
 import AdminGroupsView from '../view/admin/GroupsView.vue'
@@ -15,9 +16,7 @@ import PortForwardsView from '../view/PortForwardsView.vue'
 import AdminPortForwardsView from '../view/admin/PortForwardsView.vue'
 import SSHKeysView from '../view/SSHKeysView.vue'
 import VPNView from '../view/VPNView.vue'
-import VMInterfacesView from '../view/VMInterfacesView.vue'
 import InterfacesView from '../view/InterfacesView.vue'
-import BackupsView from '../view/BackupsView.vue'
 import SettingsView from '@/view/SettingsView.vue'
 import SidebarView from '@/view/SidebarView.vue'
 import ErrorPage from '../view/ErrorPage.vue'
@@ -25,6 +24,10 @@ import GlobalSSHKeysView from '@/view/admin/GlobalSSHKeysView.vue'
 import TelegramView from '@/view/TelegramView.vue'
 import GroupsView from '@/view/GroupsView.vue'
 import SingleGroupView from '@/view/SingleGroupView.vue'
+import VMInfo from '@/components/vm/VMInfo.vue'
+import VMResources from '@/components/vm/VMResources.vue'
+import VMInterfaces from '@/components/vm/VMInterfaces.vue'
+import VMBackups from '@/components/vm/VMBackups.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,9 +38,17 @@ const router = createRouter({
       component: SidebarView,
       children: [
         { path: '', component: HomeView },
-        { path: '/vm', component: VMView },
-        { path: '/vm/:vmid/interfaces', component: VMInterfacesView },
-        { path: '/vm/:vmid/backups', component: BackupsView },
+        { path: '/vm', component: VMsView },
+        {
+          path: '/vm/:vmid',
+          component: VMView,
+          children: [
+            { path: '', name: 'vm-info', component: VMInfo },
+            { path: 'resources', name: 'vm-resources', component: VMResources },
+            { path: 'interfaces', name: 'vm-interfaces', component: VMInterfaces },
+            { path: 'backups', name: 'vm-backups', component: VMBackups },
+          ],
+        },
         { path: '/net', component: NetsView },
         { path: '/interfaces', component: InterfacesView },
         { path: '/ssh-keys', component: SSHKeysView },

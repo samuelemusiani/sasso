@@ -7,6 +7,10 @@ import CreateNew from '@/components/CreateNew.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { getStatusClass } from '@/const'
 
+const $props = defineProps<{
+  vm: VM
+}>()
+
 const backups = ref<Backup[]>([])
 
 const name = ref('')
@@ -16,14 +20,13 @@ const route = useRoute()
 const vmid = Number(route.params.vmid)
 const error = ref('')
 
-const vm = ref<VM>()
-
 const backupRequests = ref<BackupRequest[]>([])
 const pendingBackupRequests = computed(() =>
   backupRequests.value.filter((req) => req.status === 'pending'),
 )
 
 const loading = useLoadingStore()
+const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
 function fetchBackupsRequests() {
   return api
@@ -39,6 +42,7 @@ function fetchBackupsRequests() {
 }
 
 function fetchBackups() {
+  loading.start('vm', vmid, 'fetch_backups')
   api
     .get(`/vm/${vmid}/backup`)
     .then((res) => {
@@ -48,6 +52,9 @@ function fetchBackups() {
     })
     .catch((err) => {
       console.error('Failed to fetch backups:', err)
+    })
+    .finally(() => {
+      loading.stop('vm', vmid, 'fetch_backups')
     })
 }
 
@@ -97,6 +104,9 @@ function protectBackup(backupID: string, protect: boolean) {
     })
     .then(() => {
       console.log('Backup protection toggled')
+      backups.value = backups.value.map((bk) =>
+        bk.id === backupID ? { ...bk, protected: protect } : bk,
+      )
       fetchBackups() // Refresh the list after deletion
     })
     .catch((err) => {
@@ -125,22 +135,10 @@ function makeBackup() {
     })
 }
 
-function fetchVM() {
-  api
-    .get(`/vm/${vmid}`)
-    .then((res) => {
-      vm.value = res.data as VM
-    })
-    .catch((err) => {
-      console.error('Failed to fetch VM:', err)
-    })
-}
-
 let intervalId: number | null = null
 
 onMounted(() => {
   fetchBackups()
-  fetchVM()
   fetchBackupsRequests()
   intervalId = setInterval(() => {
     fetchBackupsRequests()
@@ -155,11 +153,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- TODO: go back to vm -->
   <div class="flex flex-col gap-2">
-    <h2 class="text-2xl font-bold">Backups</h2>
     <CreateNew
-      v-if="vm && vm.group_role !== 'member'"
+      v-if="$props.vm.group_role !== 'member'"
       :create="makeBackup"
       title="New Backup"
       :error="error"
@@ -174,7 +170,10 @@ onBeforeUnmount(() => {
       <!-- TODO: dopo il pending rifaccio refetch -->
       {{ pendingBackupRequests[0] }}
     </div>
-    <div class="overflow-x-auto">
+    <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
+      <span class="loading loading-spinner place-self-center"></span>
+    </div>
+    <div v-else class="overflow-x-auto">
       <table class="table min-w-full divide-y">
         <thead>
           <tr>
@@ -196,7 +195,7 @@ onBeforeUnmount(() => {
               {{ bk.protected }}
             </td>
             <td
-              v-if="vm && vm.group_role !== 'member'"
+              v-if="$props.vm.group_role !== 'member'"
               class="flex justify-end gap-2 text-right text-sm font-medium"
             >
               <!-- TODO: add info: evita che un backup venga eliminato da un jb di pruning automatico -->

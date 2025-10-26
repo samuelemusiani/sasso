@@ -5,11 +5,14 @@ import type { Interface, Net, VM } from '@/types'
 import { api } from '@/lib/api'
 import InterfaceForm from '@/components/vm/InterfaceForm.vue'
 import { getStatusClass } from '@/const'
+import { useLoadingStore } from '@/stores/loading'
+
+const $props = defineProps<{
+  vm: VM
+}>()
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
-
-const vm = ref<VM>()
 
 const interfaces = ref<Interface[]>([])
 const nets = ref<Net[]>([])
@@ -24,15 +27,21 @@ const netMap = computed(() => {
   return map
 })
 
-function fetchInterfaces() {
-  api
-    .get(`/vm/${vmid}/interface`)
-    .then((res) => {
-      interfaces.value = res.data as Interface[]
-    })
-    .catch((err) => {
-      console.error('Failed to fetch interfaces:', err)
-    })
+const loading = useLoadingStore()
+const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
+
+async function fetchInterfacesWithLoading() {
+  loading.start('vm', vmid, 'fetch_interfaces')
+  await fetchInterfaces()
+  loading.stop('vm', vmid, 'fetch_interfaces')
+}
+async function fetchInterfaces() {
+  try {
+    const res = await api.get(`/vm/${vmid}/interface`)
+    interfaces.value = res.data as Interface[]
+  } catch (err) {
+    console.error('Failed to fetch interfaces:', err)
+  }
 }
 
 function fetchNets() {
@@ -79,22 +88,10 @@ function showEditForm(iface: Interface) {
   showAddForm.value = false
 }
 
-function fetchVM() {
-  api
-    .get(`/vm/${vmid}`)
-    .then((res) => {
-      vm.value = res.data as VM
-    })
-    .catch((err) => {
-      console.error('Failed to fetch VM:', err)
-    })
-}
-
 let intervalId: number | null = null
 
 onMounted(() => {
-  fetchInterfaces()
-  fetchVM()
+  fetchInterfacesWithLoading()
   fetchNets()
 
   intervalId = setInterval(() => {
@@ -111,23 +108,25 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="text-2xl">Manage Interfaces for VM {{ vmid }}</h1>
-
     <InterfaceForm
-      v-if="!editingInterface && vm && vm.group_role !== 'member'"
-      :vm="vm"
+      v-if="!editingInterface && $props.vm.group_role !== 'member'"
+      :vm="$props.vm"
       @interface-added="handleInterfaceAdded"
       @cancel="handleCancel"
     />
     <InterfaceForm
-      v-if="editingInterface && vm && vm.group_role !== 'member'"
-      :vm="vm"
+      v-if="editingInterface && $props.vm.group_role !== 'member'"
+      :vm="$props.vm"
       :interface="editingInterface"
       @interface-updated="handleInterfaceUpdated"
       @cancel="handleCancel"
     />
 
-    <div class="alert alert-warning flex w-max flex-col p-4" role="alert">
+    <div
+      v-if="$props.vm.status == 'running'"
+      class="alert alert-warning flex w-max flex-col p-4"
+      role="alert"
+    >
       <p class="font-bold">Adding interfaces to a running VM</p>
       <ul class="list-disc pl-5">
         <li>You can attach new interfaces while the VM is running.</li>
@@ -138,7 +137,11 @@ onBeforeUnmount(() => {
       </ul>
     </div>
 
-    <div class="overflow-x-auto">
+    <div v-if="isLoading(vm.id, 'fetch_interfaces')" class="grid h-70">
+      <span class="loading loading-spinner place-self-center"></span>
+    </div>
+
+    <div v-else class="overflow-x-auto">
       <table class="table min-w-full divide-y">
         <thead>
           <tr>
