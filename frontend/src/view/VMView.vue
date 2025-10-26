@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { api } from '@/lib/api'
 import type { VM } from '@/types'
 import { useLoadingStore } from '@/stores/loading'
@@ -38,8 +38,14 @@ const activeTab = computed(() => {
 })
 
 function shouldDisableTab(tabId: string): boolean {
+  const intermediateStatuses = ['pre-creating', 'creating', 'pre-deleting', 'deleting']
   if (!vm.value) return true
-  if ((tabId === 'backups' || tabId === 'interfaces') && vm.value.status === 'unknown') {
+  console.log('VM Status:', vm.value.status)
+  console.log('includes:', intermediateStatuses.includes(vm.value.status))
+  if (
+    (tabId === 'backups' || tabId === 'interfaces') &&
+    intermediateStatuses.includes(vm.value.status)
+  ) {
     return true
   }
   return false
@@ -78,8 +84,21 @@ function handleStatusChange(newStatus: string) {
   }
 }
 
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchVMWithLoading()
+
+  intervalId = setInterval(() => {
+    fetchVM()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+  loading.clear('vm')
 })
 </script>
 

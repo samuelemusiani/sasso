@@ -122,13 +122,13 @@ function restartVM(vmid: number) {
     .finally(() => loading.stop('vm', vmid, 'restart'))
 }
 
-let intervalId: number | null = null
-
 function fetchGroups() {
   api.get('/groups').then((res) => {
     groups.value = res.data as Group[]
   })
 }
+
+let intervalId: number | null = null
 
 onMounted(() => {
   fetchVMs()
@@ -323,6 +323,7 @@ const nonMemberGroups = computed(() => {
               </div>
               <div>
                 <RouterLink
+                  v-if="vm.status !== 'pre-deleting' && vm.status !== 'deleting'"
                   :to="`/vm/${vm.id}`"
                   class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
                 >
