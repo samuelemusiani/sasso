@@ -38,7 +38,7 @@ const activeTab = computed(() => {
 })
 
 function shouldDisableTab(tabId: string): boolean {
-  const intermediateStatuses = ['pre-creating', 'creating', 'pre-deleting', 'deleting']
+  const intermediateStatuses = ['pre-creating', 'creating', 'pre-deleting', 'deleting', 'unknown']
   if (!vm.value) return true
   console.log('VM Status:', vm.value.status)
   console.log('includes:', intermediateStatuses.includes(vm.value.status))
