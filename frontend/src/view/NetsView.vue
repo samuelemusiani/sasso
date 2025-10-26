@@ -157,7 +157,7 @@ const nonMemberGroups = computed(() => {
           class="hover"
           :class="net.group_name ? 'bg-base-200' : ''"
         >
-          <td class="">{{ net.name }}</td>
+          <td class="min-w-28 text-lg font-semibold">{{ net.name }}</td>
           <td class="">{{ net.group_name ? net.group_name : 'Me' }}</td>
           <td class="font-semibold capitalize" :class="getStatusClass(net.status)">
             {{ net.status }}

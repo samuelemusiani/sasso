@@ -252,7 +252,7 @@ const nonMemberGroups = computed(() => {
               {{ vm.id }}
             </td>
           </Transition>
-          <td class="text-lg">{{ vm.name }}</td>
+          <td class="min-w-40 text-lg font-semibold">{{ vm.name }}</td>
           <td class="">{{ vm.group_name ? vm.group_name : 'Me' }}</td>
           <td class="">{{ vm.cores }}</td>
           <td class="">{{ vm.ram }}</td>

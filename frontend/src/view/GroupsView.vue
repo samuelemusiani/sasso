@@ -106,8 +106,8 @@ onMounted(() => {
       </thead>
       <tbody>
         <tr v-for="g in groups" :key="g.id">
-          <td class="whitespace-nowrap">{{ g.name }}</td>
-          <td class="whitespace-nowrap">{{ g.description }}</td>
+          <td class="min-w-40 text-lg font-semibold">{{ g.name }}</td>
+          <td class="">{{ g.description }}</td>
           <td class="flex gap-2">
             <RouterLink
               :to="`/group/${g.id}`"
