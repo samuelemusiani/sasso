@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+import { toast } from '@/composables/useToast'
+
 const api = axios.create({
   baseURL: '/api',
 })
@@ -51,9 +53,12 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
-    } else if (status > 401) {
-      const errorStatus = error.response?.status || 'network'
-      window.location.href = `/error/${errorStatus}`
+    } else if (status === 500) {
+      window.location.href = `/error/${status}`
+    } else if (status !== 400) {
+      let message = error.message
+      message += ': ' + error.response?.data || 'An error occurred'
+      toast.error(message)
     }
     return Promise.reject(error)
   },

@@ -34,7 +34,6 @@ function fetchBackupsRequests() {
     .then((res) => {
       // Handle the response data
       backupRequests.value = res.data as BackupRequest[]
-      console.log('Fetched backup requests:', backupRequests)
     })
     .catch((err) => {
       console.error('Failed to fetch backup requests:', err)
@@ -48,7 +47,6 @@ function fetchBackups() {
     .then((res) => {
       // Handle the response data
       backups.value = res.data as Backup[]
-      console.log('Fetched backups:', backups)
     })
     .catch((err) => {
       console.error('Failed to fetch backups:', err)
@@ -67,7 +65,6 @@ function restoreBackup(backupID: string) {
     api
       .post(`/vm/${vmid}/backup/${backupID}/restore`)
       .then(() => {
-        console.log('Backup restoring')
         fetchBackupsRequests()
       })
       .catch((err) => {
