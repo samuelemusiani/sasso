@@ -34,7 +34,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
     "@vue/tsconfig": "^0.8.1",
-    "daisyui": "^5.3.7",
+    "daisyui": "^5.3.10",
     "eslint": "^9.31.0",
     "eslint-plugin-vue": "~10.5.1",
     "jiti": "^2.4.2",
