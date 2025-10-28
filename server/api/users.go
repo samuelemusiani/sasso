@@ -434,30 +434,34 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings := &db.Setting{
-		UserID:                               userID,
-		MailPortForwardNotification:          req.MailPortForwardNotification,
-		MailVMStatusUpdateNotification:       req.MailVMStatusUpdateNotification,
-		MailGlobalSSHKeysChangeNotification:  req.MailGlobalSSHKeysChangeNotification,
-		MailVMExpirationNotification:         req.MailVMExpirationNotification,
-		MailVMEliminatedNotification:         req.MailVMEliminatedNotification,
-		MailVMStoppedNotification:            req.MailVMStoppedNotification,
-		MailSSHKeysChangedOnVMNotification:   req.MailSSHKeysChangedOnVMNotification,
-		MailUserInvitationNotification:       req.MailUserInvitationNotification,
-		MailUserRemovalFromGroupNotification: req.MailUserRemovalFromGroupNotification,
-
-		TelegramPortForwardNotification:          req.TelegramPortForwardNotification,
-		TelegramVMStatusUpdateNotification:       req.TelegramVMStatusUpdateNotification,
-		TelegramGlobalSSHKeysChangeNotification:  req.TelegramGlobalSSHKeysChangeNotification,
-		TelegramVMExpirationNotification:         req.TelegramVMExpirationNotification,
-		TelegramVMEliminatedNotification:         req.TelegramVMEliminatedNotification,
-		TelegramVMStoppedNotification:            req.TelegramVMStoppedNotification,
-		TelegramSSHKeysChangedOnVMNotification:   req.TelegramSSHKeysChangedOnVMNotification,
-		TelegramUserInvitationNotification:       req.TelegramUserInvitationNotification,
-		TelegramUserRemovalFromGroupNotification: req.TelegramUserRemovalFromGroupNotification,
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get user settings", "error", err)
+		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+		return
 	}
 
-	if err := db.UpdateSettings(settings); err != nil {
+	s.MailPortForwardNotification = req.MailPortForwardNotification
+	s.MailVMStatusUpdateNotification = req.MailVMStatusUpdateNotification
+	s.MailGlobalSSHKeysChangeNotification = req.MailGlobalSSHKeysChangeNotification
+	s.MailVMExpirationNotification = req.MailVMExpirationNotification
+	s.MailVMEliminatedNotification = req.MailVMEliminatedNotification
+	s.MailVMStoppedNotification = req.MailVMStoppedNotification
+	s.MailSSHKeysChangedOnVMNotification = req.MailSSHKeysChangedOnVMNotification
+	s.MailUserInvitationNotification = req.MailUserInvitationNotification
+	s.MailUserRemovalFromGroupNotification = req.MailUserRemovalFromGroupNotification
+
+	s.TelegramPortForwardNotification = req.TelegramPortForwardNotification
+	s.TelegramVMStatusUpdateNotification = req.TelegramVMStatusUpdateNotification
+	s.TelegramGlobalSSHKeysChangeNotification = req.TelegramGlobalSSHKeysChangeNotification
+	s.TelegramVMExpirationNotification = req.TelegramVMExpirationNotification
+	s.TelegramVMEliminatedNotification = req.TelegramVMEliminatedNotification
+	s.TelegramVMStoppedNotification = req.TelegramVMStoppedNotification
+	s.TelegramSSHKeysChangedOnVMNotification = req.TelegramSSHKeysChangedOnVMNotification
+	s.TelegramUserInvitationNotification = req.TelegramUserInvitationNotification
+	s.TelegramUserRemovalFromGroupNotification = req.TelegramUserRemovalFromGroupNotification
+
+	if err := db.UpdateSettings(s); err != nil {
 		logger.Error("failed to update user settings", "error", err)
 		http.Error(w, "Failed to update user settings", http.StatusInternalServerError)
 		return
