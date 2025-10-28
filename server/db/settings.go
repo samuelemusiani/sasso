@@ -1,5 +1,7 @@
 package db
 
+import "gorm.io/gorm"
+
 type Setting struct {
 	ID     uint `gorm:"primaryKey"`
 	UserID uint `gorm:"not null;uniqueIndex:idx_user_key"`
@@ -38,6 +40,9 @@ func initSettings() error {
 func GetSettingsByUserID(userID uint) (*Setting, error) {
 	var setting Setting
 	if err := db.Where(&Setting{UserID: userID}).First(&setting).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
 		logger.Error("Failed to get settings by user ID", "userID", userID, "error", err)
 		return nil, err
 	}
