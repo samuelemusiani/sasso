@@ -376,23 +376,17 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	settings, err := db.GetSettingsByUserID(userID)
-	if err != nil && err != db.ErrNotFound {
+	if err != nil {
 		logger.Error("failed to get user settings", "error", err)
 		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
 		return
-	} else if err == db.ErrNotFound {
-		// Create default settings for the user
-		if err := db.CreateDefaultSettingsForUser(userID); err != nil {
-			logger.Error("failed to create default settings for user", "error", err)
-			http.Error(w, "Failed to create default user settings", http.StatusInternalServerError)
-		}
+	}
 
-		settings, err = db.GetSettingsByUserID(userID)
-		if err != nil {
-			logger.Error("failed to get user settings after creating defaults", "error", err)
-			http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
-			return
-		}
+	settings, err = db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get user settings after creating defaults", "error", err)
+		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+		return
 	}
 
 	returnSettings := returnUserSettings{

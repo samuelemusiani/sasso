@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Setting struct {
 	ID     uint `gorm:"primaryKey"`
-	UserID uint `gorm:"not null;uniqueIndex:idx_user_key"`
+	UserID uint `gorm:"not null;uniqueIndex:idx_user_key;constraint:OnDelete:CASCADE"`
 
 	// Notification preferences
 	MailPortForwardNotification          bool `gorm:"not null;default:true"`
@@ -49,7 +49,7 @@ func GetSettingsByUserID(userID uint) (*Setting, error) {
 	return &setting, nil
 }
 
-func CreateDefaultSettingsForUser(userID uint) error {
+func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 	setting := Setting{
 		UserID: userID,
 		// Default notification preferences
@@ -74,7 +74,7 @@ func CreateDefaultSettingsForUser(userID uint) error {
 		TelegramUserRemovalFromGroupNotification: true,
 	}
 
-	if err := db.Create(&setting).Error; err != nil {
+	if err := tx.Create(&setting).Error; err != nil {
 		logger.Error("Failed to create default settings for user", "userID", userID, "error", err)
 		return err
 	}
