@@ -15,6 +15,9 @@ type Notification struct {
 	Body    string `gorm:"type:text;not null"`
 	Subject string `gorm:"type:varchar(255);not null"`
 
+	Email    bool `gorm:"not null;default:true"`
+	Telegram bool `gorm:"not null;default:true"`
+
 	UserID uint `gorm:"not null"`
 }
 
@@ -29,7 +32,7 @@ func initNotifications() error {
 
 func GetPendingNotifications() ([]Notification, error) {
 	var notifs []Notification
-	if err := db.Where("status = ?", "pending").Find(&notifs).Error; err != nil {
+	if err := db.Where(&Notification{Status: "pending"}).Find(&notifs).Error; err != nil {
 		logger.Error("Failed to get pending notifications", "error", err)
 		return nil, err
 	}
@@ -37,19 +40,21 @@ func GetPendingNotifications() ([]Notification, error) {
 }
 
 func SetNotificationAsSent(id uint) error {
-	if err := db.Model(&Notification{}).Where("id = ?", id).Update("status", "sent").Error; err != nil {
+	if err := db.Model(&Notification{ID: id}).Update("status", "sent").Error; err != nil {
 		logger.Error("Failed to set notification as sent", "id", id, "error", err)
 		return err
 	}
 	return nil
 }
 
-func InsertNotification(userID uint, subject string, body string) error {
+func InsertNotification(userID uint, subject, body string, mail, telegram bool) error {
 	ntf := Notification{
-		UserID:  userID,
-		Subject: subject,
-		Body:    body,
-		Status:  "pending",
+		UserID:   userID,
+		Subject:  subject,
+		Body:     body,
+		Email:    mail,
+		Telegram: telegram,
+		Status:   "pending",
 	}
 
 	if err := db.Create(&ntf).Error; err != nil {

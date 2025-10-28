@@ -36,6 +36,10 @@ type notification struct {
 	UserID  uint
 	Subject string
 	Body    string
+
+	// Send the notification via
+	Mail     bool
+	Telegram bool
 }
 
 func Init(l *slog.Logger, c config.Email) error {
@@ -129,14 +133,18 @@ func sendNotifications() {
 			Body:    n.Body,
 		}
 
-		err := sendEmail(&tmpN)
-		if err != nil {
-			logger.Error("Failed to send notification email", "userID", n.UserID, "error", err)
+		if n.Email {
+			err := sendEmail(&tmpN)
+			if err != nil {
+				logger.Error("Failed to send notification email", "userID", n.UserID, "error", err)
+			}
 		}
 
-		err = sendTelegram(&tmpN)
-		if err != nil {
-			logger.Error("Failed to send notification telegram", "userID", n.UserID, "error", err)
+		if n.Telegram {
+			err = sendTelegram(&tmpN)
+			if err != nil {
+				logger.Error("Failed to send notification telegram", "userID", n.UserID, "error", err)
+			}
 		}
 
 		err = db.SetNotificationAsSent(n.ID)
@@ -147,44 +155,7 @@ func sendNotifications() {
 }
 
 func (n *notification) save() error {
-	return db.InsertNotification(n.UserID, n.Subject, n.Body)
-}
-
-func SendPortForwardNotificationToGroup(groupID uint, pf db.PortForward) error {
-	members, err := db.GetUserIDsByGroupID(groupID)
-	if err != nil {
-		logger.Error("Failed to get group members for port forward notification", "groupID", groupID, "error", err)
-		return err
-	}
-	for _, userID := range members {
-		err := SendPortForwardNotification(userID, pf)
-		if err != nil {
-			logger.Error("Failed to send port forward notification to group member", "groupID", groupID, "userID", userID, "error", err)
-		}
-	}
-	return nil
-}
-
-func SendPortForwardNotification(userID uint, pf db.PortForward) error {
-	t := `Your port forwarding request has been %s!
-Outside port: %d
-Destination port: %d
-Destination IP: %s
-`
-
-	body := fmt.Sprintf(t, map[bool]string{true: "approved", false: "disabled"}[pf.Approved], pf.OutPort, pf.DestPort, pf.DestIP)
-
-	n := &notification{
-		UserID:  userID,
-		Subject: "Port Forwarding Status Update",
-		Body:    body,
-	}
-	err := n.save()
-	if err != nil {
-		logger.Error("Failed to save port forward notification", "userID", userID, "error", err)
-		return err
-	}
-	return nil
+	return db.InsertNotification(n.UserID, n.Subject, n.Body, n.Mail, n.Telegram)
 }
 
 func sendEmail(n *notification) error {
@@ -337,6 +308,51 @@ func sendBulkTelegram(n *notification) error {
 	return nil
 }
 
+func SendPortForwardNotificationToGroup(groupID uint, pf db.PortForward) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for port forward notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendPortForwardNotification(userID, pf)
+		if err != nil {
+			logger.Error("Failed to send port forward notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
+func SendPortForwardNotification(userID uint, pf db.PortForward) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for port forward notification", "userID", userID, "error", err)
+		return err
+	}
+
+	t := `Your port forwarding request has been %s!
+Outside port: %d
+Destination port: %d
+Destination IP: %s
+`
+
+	body := fmt.Sprintf(t, map[bool]string{true: "approved", false: "disabled"}[pf.Approved], pf.OutPort, pf.DestPort, pf.DestIP)
+
+	n := &notification{
+		UserID:   userID,
+		Subject:  "Port Forwarding Status Update",
+		Mail:     s.MailPortForwardNotification,
+		Telegram: s.TelegramPortForwardNotification,
+		Body:     body,
+	}
+	err = n.save()
+	if err != nil {
+		logger.Error("Failed to save port forward notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
 func SendVMStatusUpdateNotificationToGroup(groupID uint, vmName string, status string) error {
 	members, err := db.GetUserIDsByGroupID(groupID)
 	if err != nil {
@@ -353,6 +369,12 @@ func SendVMStatusUpdateNotificationToGroup(groupID uint, vmName string, status s
 }
 
 func SendVMStatusUpdateNotification(userID uint, vmName string, status string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for VM status update notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `Your VM "%s" status has changed to: %s
 
 The status was not changed by you but by an external event.
@@ -362,11 +384,13 @@ If the status is "unknown" please contact an administrator.
 	body := fmt.Sprintf(t, vmName, status)
 
 	n := &notification{
-		UserID:  userID,
-		Subject: "VM Status Update",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "VM Status Update",
+		Mail:     s.MailVMStatusUpdateNotification,
+		Telegram: s.TelegramVMStatusUpdateNotification,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM status update notification", "userID", userID, "error", err)
 		return err
@@ -375,17 +399,25 @@ If the status is "unknown" please contact an administrator.
 }
 
 func SendGlobalSSHKeysChangeNotification() error {
+	s, err := db.GetSettingsByUserID(0)
+	if err != nil {
+		logger.Error("Failed to get user settings for global SSH keys change notification", "userID", 0, "error", err)
+		return err
+	}
+
 	t := `The global SSH keys have been changed.
 This means that if you had VMs with public keys included the VMs public key signature is changed.
 At the next reboot you will probably get a warning from your SSH client about the host key being changed.
 `
 
 	n := &notification{
-		UserID:  0, // 0 means all users
-		Subject: "Global SSH Keys Changed",
-		Body:    t,
+		UserID:   0, // 0 means all users
+		Subject:  "Global SSH Keys Changed",
+		Mail:     s.MailGlobalSSHKeysChangeNotification,
+		Telegram: s.TelegramGlobalSSHKeysChangeNotification,
+		Body:     t,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save global SSH keys change notification", "error", err)
 		return err
@@ -409,17 +441,25 @@ func SendVMExpirationNotificationToGroup(groupID uint, vmName string, daysLeft i
 }
 
 func SendVMExpirationNotification(userID uint, vmName string, daysLeft int) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for VM expiration notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `Your VM "%s" is going to expire in less than %d days.
 After the expiration date the VM will be deleted and all data will be lost.
 To extend the lifetime of your VM please login and extend it.
 `
 	body := fmt.Sprintf(t, vmName, daysLeft)
 	n := &notification{
-		UserID:  userID,
-		Subject: "VM Expiration Warning",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "VM Expiration Warning",
+		Mail:     s.MailVMExpirationNotification,
+		Telegram: s.TelegramVMExpirationNotification,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM expiration notification", "userID", userID, "error", err)
 		return err
@@ -443,16 +483,24 @@ func SendVMEliminatedNotificationToGroup(groupID uint, vmName string) error {
 }
 
 func SendVMEliminatedNotification(userID uint, vmName string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for VM eliminated notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `Your VM "%s" has been deleted. Its lifetime has expired.
 If you want to keep using our services please create a new VM.
 `
 	body := fmt.Sprintf(t, vmName)
 	n := &notification{
-		UserID:  userID,
-		Subject: "VM Deleted",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "VM Deleted",
+		Mail:     s.MailVMEliminatedNotification,
+		Telegram: s.TelegramVMEliminatedNotification,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM eliminated notification", "userID", userID, "error", err)
 		return err
@@ -476,16 +524,24 @@ func SendVMStoppedNotificationToGroup(groupID uint, vmName string) error {
 }
 
 func SendVMStoppedNotification(userID uint, vmName string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for VM stopped notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `Your VM "%s" has been stopped lifetime expiration.
 To use it again please login extend its lifetime.
 `
 	body := fmt.Sprintf(t, vmName)
 	n := &notification{
-		UserID:  userID,
-		Subject: "VM Stopped",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "VM Stopped",
+		Mail:     s.MailVMStoppedNotification,
+		Telegram: s.TelegramVMStoppedNotification,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM stopped notification", "userID", userID, "error", err)
 		return err
@@ -517,6 +573,12 @@ func SendSSHKeysChangedOnVMToGroup(groupID uint, vmName string) error {
 }
 
 func SendSSHKeysChangedOnVM(userID uint, vmName string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for SSH keys changed notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `The SSH keys on the VM "%s" have been changed.
 If this is a group VM it often means that one of the group members has changed
 his SSH keys. On the next reboot you will probably get a warning from your SSH
@@ -524,11 +586,13 @@ client about the host key being changed.
 `
 	body := fmt.Sprintf(t, vmName)
 	n := &notification{
-		UserID:  userID,
-		Subject: "VM SSH Keys Changed",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "VM SSH Keys Changed",
+		Mail:     s.MailSSHKeysChangedOnVM,
+		Telegram: s.TelegramSSHKeysChangedOnVM,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save SSH keys changed notification", "userID", userID, "error", err)
 		return err
@@ -537,17 +601,25 @@ client about the host key being changed.
 }
 
 func SendUserInvitation(userID uint, groupName, role string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for user invitation notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `You have been invited to join the group "%s" with the role of "%s".
 To accept the invitation please login to your account and navigate to the
 groups section.
 `
 	body := fmt.Sprintf(t, groupName, role)
 	n := &notification{
-		UserID:  userID,
-		Subject: "Group Invitation",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "Group Invitation",
+		Mail:     s.MailUserInvitation,
+		Telegram: s.TelegramUserInvitation,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save user invitation notification", "userID", userID, "error", err)
 		return err
@@ -556,14 +628,22 @@ groups section.
 }
 
 func SendUserRemovalFromGroupNotification(userID uint, groupName string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for user removal from group notification", "userID", userID, "error", err)
+		return err
+	}
+
 	t := `You have been removed from the group "%s".`
 	body := fmt.Sprintf(t, groupName)
 	n := &notification{
-		UserID:  userID,
-		Subject: "Removed from Group",
-		Body:    body,
+		UserID:   userID,
+		Subject:  "Removed from Group",
+		Mail:     s.MailUserRemovalFromGroupNotification,
+		Telegram: s.TelegramUserRemovalFromGroupNotification,
+		Body:     body,
 	}
-	err := n.save()
+	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save user removal from group notification", "userID", userID, "error", err)
 		return err

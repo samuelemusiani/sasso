@@ -46,6 +46,8 @@ type User struct {
 
 	Groups        []Group         `gorm:"many2many:user_groups;"`
 	GroupResource []GroupResource `gorm:"foreignKey:UserID"`
+
+	Settings Setting `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {
