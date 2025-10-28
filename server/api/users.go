@@ -356,9 +356,9 @@ type returnUserSettings struct {
 	MailGlobalSSHKeysChangeNotification  bool `json:"mail_global_ssh_keys_change_notification"`
 	MailVMExpirationNotification         bool `json:"mail_vm_expiration_notification"`
 	MailVMEliminatedNotification         bool `json:"mail_vm_eliminated_notification"`
-	MailVMStoppedNotification            bool `json:"mail_vm_stopped_notification_notification"`
+	MailVMStoppedNotification            bool `json:"mail_vm_stopped_notification"`
 	MailSSHKeysChangedOnVMNotification   bool `json:"mail_ssh_keys_changed_on_vm_notification"`
-	MailUserInvitationNotification       bool `json:"mail_user_invitation"`
+	MailUserInvitationNotification       bool `json:"mail_user_invitation_notification"`
 	MailUserRemovalFromGroupNotification bool `json:"mail_user_removal_from_group_notification"`
 
 	TelegramPortForwardNotification          bool `json:"telegram_port_forward_notification"`
