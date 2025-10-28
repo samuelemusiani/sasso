@@ -181,3 +181,25 @@ export interface VPNConfig {
   id: number
   vpn_config: string
 }
+
+export interface Settings {
+  mail_port_forward_notification: boolean
+  mail_vm_status_update_notification: boolean
+  mail_global_ssh_keys_change_notification: boolean
+  mail_vm_expiration_notification: boolean
+  mail_vm_eliminated_notification: boolean
+  mail_vm_stopped_notification: boolean
+  mail_ssh_keys_changed_on_vm_notification: boolean
+  mail_user_invitation_notification: boolean
+  mail_user_removal_from_group_notification: boolean
+
+  telegram_port_forward_notification: boolean
+  telegram_vm_status_update_notification: boolean
+  telegram_global_ssh_keys_change_notification: boolean
+  telegram_vm_expiration_notification: boolean
+  telegram_vm_eliminated_notification: boolean
+  telegram_vm_stopped_notification: boolean
+  telegram_ssh_keys_changed_on_vm_notification: boolean
+  telegram_user_invitation_notification: boolean
+  telegram_user_removal_from_group_notification: boolean
+}
