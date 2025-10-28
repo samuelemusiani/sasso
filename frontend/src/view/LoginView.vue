@@ -84,6 +84,7 @@ onMounted(() => {
               minlength="3"
               maxlength="30"
               title="Only letters, numbers or dash"
+              @keyup.enter="login"
             />
           </label>
         </div>
@@ -98,6 +99,7 @@ onMounted(() => {
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
               class="grow"
+              @keyup.enter="login"
             />
             <button
               type="button"
