@@ -588,8 +588,8 @@ client about the host key being changed.
 	n := &notification{
 		UserID:   userID,
 		Subject:  "VM SSH Keys Changed",
-		Mail:     s.MailSSHKeysChangedOnVM,
-		Telegram: s.TelegramSSHKeysChangedOnVM,
+		Mail:     s.MailSSHKeysChangedOnVMNotification,
+		Telegram: s.TelegramSSHKeysChangedOnVMNotification,
 		Body:     body,
 	}
 	err = n.save()
@@ -615,8 +615,8 @@ groups section.
 	n := &notification{
 		UserID:   userID,
 		Subject:  "Group Invitation",
-		Mail:     s.MailUserInvitation,
-		Telegram: s.TelegramUserInvitation,
+		Mail:     s.MailUserInvitationNotification,
+		Telegram: s.TelegramUserInvitationNotification,
 		Body:     body,
 	}
 	err = n.save()

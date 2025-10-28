@@ -13,8 +13,8 @@ type Setting struct {
 	MailVMExpirationNotification         bool `gorm:"not null;default:true"`
 	MailVMEliminatedNotification         bool `gorm:"not null;default:true"`
 	MailVMStoppedNotification            bool `gorm:"not null;default:true"`
-	MailSSHKeysChangedOnVM               bool `gorm:"not null;default:true"`
-	MailUserInvitation                   bool `gorm:"not null;default:true"`
+	MailSSHKeysChangedOnVMNotification   bool `gorm:"not null;default:true"`
+	MailUserInvitationNotification       bool `gorm:"not null;default:true"`
 	MailUserRemovalFromGroupNotification bool `gorm:"not null;default:true"`
 
 	TelegramPortForwardNotification          bool `gorm:"not null;default:true"`
@@ -23,8 +23,8 @@ type Setting struct {
 	TelegramVMExpirationNotification         bool `gorm:"not null;default:true"`
 	TelegramVMEliminatedNotification         bool `gorm:"not null;default:true"`
 	TelegramVMStoppedNotification            bool `gorm:"not null;default:true"`
-	TelegramSSHKeysChangedOnVM               bool `gorm:"not null;default:true"`
-	TelegramUserInvitation                   bool `gorm:"not null;default:true"`
+	TelegramSSHKeysChangedOnVMNotification   bool `gorm:"not null;default:true"`
+	TelegramUserInvitationNotification       bool `gorm:"not null;default:true"`
 	TelegramUserRemovalFromGroupNotification bool `gorm:"not null;default:true"`
 }
 
@@ -59,8 +59,8 @@ func CreateDefaultSettingsForUser(userID uint) error {
 		MailVMExpirationNotification:         true,
 		MailVMEliminatedNotification:         true,
 		MailVMStoppedNotification:            true,
-		MailSSHKeysChangedOnVM:               true,
-		MailUserInvitation:                   true,
+		MailSSHKeysChangedOnVMNotification:   true,
+		MailUserInvitationNotification:       true,
 		MailUserRemovalFromGroupNotification: true,
 
 		TelegramPortForwardNotification:          true,
@@ -69,8 +69,8 @@ func CreateDefaultSettingsForUser(userID uint) error {
 		TelegramVMExpirationNotification:         true,
 		TelegramVMEliminatedNotification:         true,
 		TelegramVMStoppedNotification:            true,
-		TelegramSSHKeysChangedOnVM:               true,
-		TelegramUserInvitation:                   true,
+		TelegramSSHKeysChangedOnVMNotification:   true,
+		TelegramUserInvitationNotification:       true,
 		TelegramUserRemovalFromGroupNotification: true,
 	}
 

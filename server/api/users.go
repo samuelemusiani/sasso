@@ -356,9 +356,9 @@ type returnUserSettings struct {
 	MailGlobalSSHKeysChangeNotification  bool `json:"mail_global_ssh_keys_change_notification"`
 	MailVMExpirationNotification         bool `json:"mail_vm_expiration_notification"`
 	MailVMEliminatedNotification         bool `json:"mail_vm_eliminated_notification"`
-	MailVMStoppedNotification            bool `json:"mail_vm_stopped_notification"`
-	MailSSHKeysChangedOnVM               bool `json:"mail_ssh_keys_changed_on_vm"`
-	MailUserInvitation                   bool `json:"mail_user_invitation"`
+	MailVMStoppedNotification            bool `json:"mail_vm_stopped_notification_notification"`
+	MailSSHKeysChangedOnVMNotification   bool `json:"mail_ssh_keys_changed_on_vm_notification"`
+	MailUserInvitationNotification       bool `json:"mail_user_invitation"`
 	MailUserRemovalFromGroupNotification bool `json:"mail_user_removal_from_group_notification"`
 
 	TelegramPortForwardNotification          bool `json:"telegram_port_forward_notification"`
@@ -367,8 +367,8 @@ type returnUserSettings struct {
 	TelegramVMExpirationNotification         bool `json:"telegram_vm_expiration_notification"`
 	TelegramVMEliminatedNotification         bool `json:"telegram_vm_eliminated_notification"`
 	TelegramVMStoppedNotification            bool `json:"telegram_vm_stopped_notification"`
-	TelegramSSHKeysChangedOnVM               bool `json:"telegram_ssh_keys_changed_on_vm"`
-	TelegramUserInvitation                   bool `json:"telegram_user_invitation"`
+	TelegramSSHKeysChangedOnVMNotification   bool `json:"telegram_ssh_keys_changed_on_vm_notification"`
+	TelegramUserInvitationNotification       bool `json:"telegram_user_invitation_notification"`
 	TelegramUserRemovalFromGroupNotification bool `json:"telegram_user_removal_from_group_notification"`
 }
 
@@ -402,8 +402,8 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 		MailVMExpirationNotification:         settings.MailVMExpirationNotification,
 		MailVMEliminatedNotification:         settings.MailVMEliminatedNotification,
 		MailVMStoppedNotification:            settings.MailVMStoppedNotification,
-		MailSSHKeysChangedOnVM:               settings.MailSSHKeysChangedOnVM,
-		MailUserInvitation:                   settings.MailUserInvitation,
+		MailSSHKeysChangedOnVMNotification:   settings.MailSSHKeysChangedOnVMNotification,
+		MailUserInvitationNotification:       settings.MailUserInvitationNotification,
 		MailUserRemovalFromGroupNotification: settings.MailUserRemovalFromGroupNotification,
 
 		TelegramPortForwardNotification:          settings.TelegramPortForwardNotification,
@@ -412,8 +412,8 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 		TelegramVMExpirationNotification:         settings.TelegramVMExpirationNotification,
 		TelegramVMEliminatedNotification:         settings.TelegramVMEliminatedNotification,
 		TelegramVMStoppedNotification:            settings.TelegramVMStoppedNotification,
-		TelegramSSHKeysChangedOnVM:               settings.TelegramSSHKeysChangedOnVM,
-		TelegramUserInvitation:                   settings.TelegramUserInvitation,
+		TelegramSSHKeysChangedOnVMNotification:   settings.TelegramSSHKeysChangedOnVMNotification,
+		TelegramUserInvitationNotification:       settings.TelegramUserInvitationNotification,
 		TelegramUserRemovalFromGroupNotification: settings.TelegramUserRemovalFromGroupNotification,
 	}
 
@@ -442,8 +442,8 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 		MailVMExpirationNotification:         req.MailVMExpirationNotification,
 		MailVMEliminatedNotification:         req.MailVMEliminatedNotification,
 		MailVMStoppedNotification:            req.MailVMStoppedNotification,
-		MailSSHKeysChangedOnVM:               req.MailSSHKeysChangedOnVM,
-		MailUserInvitation:                   req.MailUserInvitation,
+		MailSSHKeysChangedOnVMNotification:   req.MailSSHKeysChangedOnVMNotification,
+		MailUserInvitationNotification:       req.MailUserInvitationNotification,
 		MailUserRemovalFromGroupNotification: req.MailUserRemovalFromGroupNotification,
 
 		TelegramPortForwardNotification:          req.TelegramPortForwardNotification,
@@ -452,8 +452,8 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 		TelegramVMExpirationNotification:         req.TelegramVMExpirationNotification,
 		TelegramVMEliminatedNotification:         req.TelegramVMEliminatedNotification,
 		TelegramVMStoppedNotification:            req.TelegramVMStoppedNotification,
-		TelegramSSHKeysChangedOnVM:               req.TelegramSSHKeysChangedOnVM,
-		TelegramUserInvitation:                   req.TelegramUserInvitation,
+		TelegramSSHKeysChangedOnVMNotification:   req.TelegramSSHKeysChangedOnVMNotification,
+		TelegramUserInvitationNotification:       req.TelegramUserInvitationNotification,
 		TelegramUserRemovalFromGroupNotification: req.TelegramUserRemovalFromGroupNotification,
 	}
 
