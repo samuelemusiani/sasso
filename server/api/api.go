@@ -186,6 +186,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		})
 
 		r.Post("/ip-check", checkIfIPInUse)
+
+		r.Get("/settings", getUserSettings)
+		r.Put("/settings", updateUserSettings)
 	})
 
 	// Admin Auth routes

@@ -105,6 +105,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = initSettings()
+	if err != nil {
+		logger.Error("Failed to initialize settings in database", "error", err)
+		return err
+	}
+
 	err = initVMs()
 	if err != nil {
 		logger.Error("Failed to initialize VMs in database", "error", err)
