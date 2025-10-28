@@ -15,8 +15,8 @@ type Notification struct {
 	Body    string `gorm:"type:text;not null"`
 	Subject string `gorm:"type:varchar(255);not null"`
 
-	Email    bool `gorm:"not null;default:true"`
-	Telegram bool `gorm:"not null;default:true"`
+	Email    bool `gorm:"not null"`
+	Telegram bool `gorm:"not null"`
 
 	UserID uint `gorm:"not null"`
 }
