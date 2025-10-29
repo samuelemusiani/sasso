@@ -45,7 +45,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
 
-	m := getVMMutex(userID)
+	m := getVMMutex(uint(vm.ID))
 	m.Lock()
 	defer m.Unlock()
 

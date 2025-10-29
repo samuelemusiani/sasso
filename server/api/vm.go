@@ -97,7 +97,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 		isGroup = true
 	}
 
-	m := getVMMutex(userID)
+	m := getVMMutex(uint(vmID))
 	m.Lock()
 	defer m.Unlock()
 
@@ -133,7 +133,7 @@ func changeVMState(action string) http.HandlerFunc {
 			isGroup = true
 		}
 
-		m := getVMMutex(userID)
+		m := getVMMutex(uint(vmID))
 		m.Lock()
 		defer m.Unlock()
 
@@ -177,9 +177,8 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vmID := mustGetVMFromContext(r).ID
-	userID := mustGetUserIDFromContext(r)
 
-	m := getVMMutex(userID)
+	m := getVMMutex(uint(vmID))
 	m.Lock()
 	defer m.Unlock()
 
@@ -221,7 +220,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 
 	userID := mustGetUserIDFromContext(r)
 
-	m := getVMMutex(userID)
+	m := getVMMutex(uint(vmid))
 	m.Lock()
 	defer m.Unlock()
 
