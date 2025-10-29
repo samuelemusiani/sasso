@@ -704,8 +704,8 @@ func configureVMs(vmNodes map[uint64]string) {
 		// correct the status)
 		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
 		var newStatus string
-		if slices.Contains(vmStates, v.Status) {
-			newStatus = v.Status
+		if slices.Contains(vmStates, vm.Status) {
+			newStatus = vm.Status
 		} else {
 			newStatus = string(VMStatusStopped)
 		}
