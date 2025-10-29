@@ -97,6 +97,10 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 		isGroup = true
 	}
 
+	m := getVMMutex(userID)
+	m.Lock()
+	defer m.Unlock()
+
 	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
 		if errors.Is(err, proxmox.ErrVMNotFound) {
@@ -124,6 +128,10 @@ func changeVMState(action string) http.HandlerFunc {
 			ownerID = vm.OwnerID
 			isGroup = true
 		}
+
+		m := getVMMutex(userID)
+		m.Lock()
+		defer m.Unlock()
 
 		var err error
 		switch action {
@@ -165,6 +173,11 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vmID := mustGetVMFromContext(r).ID
+	userID := mustGetUserIDFromContext(r)
+
+	m := getVMMutex(userID)
+	m.Lock()
+	defer m.Unlock()
 
 	err := proxmox.UpdateVMLifetime(vmID, request.ExtendBy)
 	if err != nil {
@@ -174,6 +187,51 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 		}
 		logger.Error("Failed to update VM lifetime", "vmID", vmID, "error", err)
 		http.Error(w, "Failed to update VM lifetime", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type updateResourcesRequest struct {
+	Cores uint `json:"cores"`
+	RAM   uint `json:"ram"`
+	Disk  uint `json:"disk"`
+}
+
+func updateVMResources(w http.ResponseWriter, r *http.Request) {
+	var request updateResourcesRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	vm := mustGetVMFromContext(r)
+	vmid := vm.ID
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role != "admin" && role != "owner" {
+			http.Error(w, "Permission denied", http.StatusForbidden)
+			return
+		}
+	}
+
+	userID := mustGetUserIDFromContext(r)
+
+	m := getVMMutex(userID)
+	m.Lock()
+	defer m.Unlock()
+
+	err := proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
+	if err != nil {
+		if errors.Is(err, proxmox.ErrInsufficientResources) {
+			http.Error(w, "Insufficient resources", http.StatusForbidden)
+			return
+		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		logger.Error("Failed to update VM resources", "vmID", vmid, "error", err)
+		http.Error(w, "Failed to update VM resources", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
