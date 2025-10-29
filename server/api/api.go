@@ -125,6 +125,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Get("/backup/request/{requestid}", getBackupRequest)
 
 			r.Patch("/lifetime", updateVMLifetime)
+			r.Patch("/resources", updateVMResources)
 		})
 
 		r.Post("/net", createNet)

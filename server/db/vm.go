@@ -141,6 +141,20 @@ func UpdateVMStatus(vmID uint64, status string) error {
 	return nil
 }
 
+func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
+	result := db.Model(&VM{ID: vmID}).
+		UpdateColumns(VM{Cores: cores, RAM: ram, Disk: disk})
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return ErrNotFound
+		}
+		return result.Error
+	}
+
+	return nil
+}
+
 func GetVMByUserIDAndVMID(userID uint, vmID uint64) (*VM, error) {
 	return getVMByOwnerIDAndVMID(userID, "User", vmID)
 }
