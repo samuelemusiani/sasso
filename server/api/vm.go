@@ -47,7 +47,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := getVMMutex(userID)
+	m := getUserResourceMutex(userID)
 	m.Lock()
 	defer m.Unlock()
 
@@ -100,6 +100,10 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	m := getVMMutex(userID)
 	m.Lock()
 	defer m.Unlock()
+
+	m2 := getUserResourceMutex(userID)
+	m2.Lock()
+	defer m2.Unlock()
 
 	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
@@ -220,6 +224,10 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	m := getVMMutex(userID)
 	m.Lock()
 	defer m.Unlock()
+
+	m2 := getUserResourceMutex(userID)
+	m2.Lock()
+	defer m2.Unlock()
 
 	err := proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
 	if err != nil {

@@ -402,6 +402,10 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m2 := getUserResourceMutex(userID)
+	m2.Lock()
+	defer m2.Unlock()
+
 	if err := db.RemoveUserFromGroup(userID, group.ID); err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
@@ -431,6 +435,10 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
+
+	m := getUserResourceMutex(uint(userID))
+	m.Lock()
+	defer m.Unlock()
 
 	if err := db.RemoveUserFromGroup(uint(userID), group.ID); err != nil {
 		if err == db.ErrNotFound {
@@ -496,6 +504,10 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	userID := mustGetUserIDFromContext(r)
 
+	m := getUserResourceMutex(uint(userID))
+	m.Lock()
+	defer m.Unlock()
+
 	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets); err != nil {
 		if err == db.ErrInsufficientResources {
 			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
@@ -509,6 +521,10 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
+
+	m := getUserResourceMutex(uint(userID))
+	m.Lock()
+	defer m.Unlock()
 
 	err := db.RevokeGroupResources(group.ID, userID)
 	if err != nil {

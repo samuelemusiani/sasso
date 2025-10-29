@@ -45,6 +45,10 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
 
+	m := getVMMutex(userID)
+	m.Lock()
+	defer m.Unlock()
+
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
 		role := mustGetUserRoleInGroupFromContext(r)
