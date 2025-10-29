@@ -144,3 +144,71 @@ describe('IPAddress comparison', () => {
     expect(ip.equals(ip)).toBe(true)
   })
 })
+
+describe('IPAddress network, gateway and broadcast checks', () => {
+  test('check if address is network address', () => {
+    expect(CIDR.parse('192.168.0.0/24').isNetworkAddr()).toBe(true)
+    expect(CIDR.parse('192.168.0.0/30').isNetworkAddr()).toBe(true)
+    expect(CIDR.parse('10.0.0.0/30').isNetworkAddr()).toBe(true)
+    expect(CIDR.parse('10.0.0.0/8').isNetworkAddr()).toBe(true)
+    expect(CIDR.parse('10.0.0.128/26').isNetworkAddr()).toBe(true)
+    expect(CIDR.parse('172.32.0.192/27').isNetworkAddr()).toBe(true)
+
+    expect(CIDR.parse('192.168.1.2/24').isNetworkAddr()).toBe(false)
+    expect(CIDR.parse('192.168.0.3/30').isNetworkAddr()).toBe(false)
+    expect(CIDR.parse('10.0.0.2/30').isNetworkAddr()).toBe(false)
+    expect(CIDR.parse('10.1.0.0/8').isNetworkAddr()).toBe(false)
+    expect(CIDR.parse('10.0.0.138/26').isNetworkAddr()).toBe(false)
+    expect(CIDR.parse('172.32.0.202/27').isNetworkAddr()).toBe(false)
+  })
+
+  test('check network address', () => {
+    expect(CIDR.parse('192.168.0.125/24').networkAddr().toString()).toBe('192.168.0.0')
+    expect(CIDR.parse('192.168.0.243/30').networkAddr().toString()).toBe('192.168.0.240')
+    expect(CIDR.parse('10.0.0.15/27').networkAddr().toString()).toBe('10.0.0.0')
+    expect(CIDR.parse('172.32.0.192/31').networkAddr().toString()).toBe('172.32.0.192')
+  })
+
+  test('check if address is broadcast address', () => {
+    expect(CIDR.parse('192.168.0.255/24').isBroadcastAddr()).toBe(true)
+    expect(CIDR.parse('192.168.0.3/30').isBroadcastAddr()).toBe(true)
+    expect(CIDR.parse('10.0.0.3/30').isBroadcastAddr()).toBe(true)
+    expect(CIDR.parse('10.255.255.255/8').isBroadcastAddr()).toBe(true)
+    expect(CIDR.parse('10.0.0.191/26').isBroadcastAddr()).toBe(true)
+    expect(CIDR.parse('172.32.0.223/27').isBroadcastAddr()).toBe(true)
+
+    expect(CIDR.parse('192.168.0.245/24').isBroadcastAddr()).toBe(false)
+    expect(CIDR.parse('192.168.0.2/30').isBroadcastAddr()).toBe(false)
+    expect(CIDR.parse('10.0.0.2/30').isBroadcastAddr()).toBe(false)
+    expect(CIDR.parse('10.255.245.255/8').isBroadcastAddr()).toBe(false)
+    expect(CIDR.parse('10.0.0.71/26').isBroadcastAddr()).toBe(false)
+    expect(CIDR.parse('172.32.0.203/27').isBroadcastAddr()).toBe(false)
+  })
+
+  test('check broadcast address', () => {
+    expect(CIDR.parse('192.168.0.0/24').broadcastAddr().toString()).toBe('192.168.0.255')
+    expect(CIDR.parse('192.168.0.240/30').broadcastAddr().toString()).toBe('192.168.0.243')
+    expect(CIDR.parse('10.0.0.0/27').broadcastAddr().toString()).toBe('10.0.0.31')
+    expect(CIDR.parse('172.32.0.192/31').broadcastAddr().toString()).toBe('172.32.0.193')
+    expect(CIDR.parse('172.32.0.192/32').broadcastAddr().toString()).toBe('172.32.0.192')
+  })
+
+  test('check hostMin and hostMax', () => {
+    // /24
+    let cidr = CIDR.parse('192.168.0.0/24')
+    expect(cidr.minHostAddr().toString()).toBe('192.168.0.1')
+    expect(cidr.maxHostAddr().toString()).toBe('192.168.0.254')
+    // /30
+    cidr = CIDR.parse('192.168.0.240/30')
+    expect(cidr.minHostAddr().toString()).toBe('192.168.0.241')
+    expect(cidr.maxHostAddr().toString()).toBe('192.168.0.242')
+    // /31 (point-to-point, only 2 hosts, both network and broadcast are usable)
+    cidr = CIDR.parse('10.0.0.0/31')
+    expect(cidr.minHostAddr().toString()).toBe('10.0.0.0')
+    expect(cidr.maxHostAddr().toString()).toBe('10.0.0.1')
+    // /32 (single host)
+    cidr = CIDR.parse('10.0.0.15/32')
+    expect(cidr.minHostAddr().toString()).toBe('10.0.0.15')
+    expect(cidr.maxHostAddr().toString()).toBe('10.0.0.15')
+  })
+})

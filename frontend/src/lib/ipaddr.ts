@@ -86,4 +86,48 @@ export class CIDR {
     const mask = -1 << (32 - this.mask)
     return (ip.toNumber() & mask) === (this.ip.toNumber() & mask)
   }
+
+  private ipFromNumber(n: number): IPAddress {
+    const o1 = n & ~(-1 << 8)
+    const o2 = (n >> 8) & ~(-1 << 8)
+    const o3 = (n >> 16) & ~(-1 << 8)
+    const o4 = (n >> 24) & ~(-1 << 8)
+    return new IPAddress([o4, o3, o2, o1])
+  }
+
+  networkAddr(): IPAddress {
+    const n = this.ip.toNumber()
+    const mask = -1 << (32 - this.mask)
+    return this.ipFromNumber((n & mask) >>> 0)
+  }
+
+  // If the network is a /31 or /32 the network address is returned
+  minHostAddr(): IPAddress {
+    if (this.mask == 31 || this.mask == 32) {
+      return this.networkAddr()
+    }
+    return this.ipFromNumber(this.networkAddr().toNumber() + 1)
+  }
+
+  broadcastAddr(): IPAddress {
+    const n = this.ip.toNumber()
+    const mask = -1 << (32 - this.mask)
+    return this.ipFromNumber((n | ~mask) >>> 0)
+  }
+
+  // If the network is a /31 or /32 the broadcast address is returned
+  maxHostAddr(): IPAddress {
+    if (this.mask == 31 || this.mask == 32) {
+      return this.broadcastAddr()
+    }
+    return this.ipFromNumber(this.broadcastAddr().toNumber() - 1)
+  }
+
+  isNetworkAddr(): boolean {
+    return this.ip.equals(this.networkAddr())
+  }
+
+  isBroadcastAddr(): boolean {
+    return this.ip.equals(this.broadcastAddr())
+  }
 }
