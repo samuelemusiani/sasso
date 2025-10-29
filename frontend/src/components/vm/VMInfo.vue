@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { VM } from '@/types'
 import { getStatusClass } from '@/const'
-import { formatDate, isVMExpired } from '@/lib/utils'
+import { formatDate, isVMExpired, vmWillExpire } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useLoadingStore } from '@/stores/loading'
 import { useRouter } from 'vue-router'
@@ -14,7 +14,22 @@ const $props = defineProps<{
 const router = useRouter()
 const $emit = defineEmits(['update-vm', 'status-change'])
 
+const possibleExtensions = [1, 2, 3]
+const acctuallyPossibleExtensions = computed(() => {
+  return vmWillExpire($props.vm.lifetime, possibleExtensions).possible_extend_by
+})
+
 const extendBy = ref(1)
+
+watch(
+  () => acctuallyPossibleExtensions.value,
+  (newVal) => {
+    if (!newVal.includes(extendBy.value)) {
+      extendBy.value = newVal[0] || 1
+    }
+  },
+  { immediate: true },
+)
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
@@ -146,13 +161,15 @@ const disableDelete = computed(() => {
     </div>
 
     <div
-      v-show="isVMExpired(vm.lifetime) && vm.group_role != 'member'"
+      v-show="
+        vmWillExpire(vm.lifetime, possibleExtensions).will_expire && vm.group_role != 'member'
+      "
       class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
     >
       <select class="select" v-model.number="extendBy">
-        <option value="1" selected>Extend 1 Month</option>
-        <option value="2">Extend 2 Months</option>
-        <option value="3">Extend 3 Months</option>
+        <option v-for="option in acctuallyPossibleExtensions" :key="option" :value="option">
+          {{ option }} month<span v-if="option > 1">s</span>
+        </option>
       </select>
       <button @click="updateLifetime(vm.id, extendBy)" class="btn btn-primary btn-sm rounded-lg">
         <IconVue icon="material-symbols:update" class="text-lg" />
