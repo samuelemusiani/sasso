@@ -694,7 +694,23 @@ func configureVMs(vmNodes map[uint64]string) {
 			}
 		}
 
-		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
+		// If a VM needs to be reconfigured (for example changing cores, RAM or disk),
+		// it is put in the 'pre-configuring' status. After the configuration is done,
+		// the vm must be set to the old status, but we don't save it anywhere.
+		// For new created VMs, we just set the status to 'stopped'.
+		// For other VMs, we try to set it to the acctual status in Proxmox, but
+		// if the status is not recognised, we set it to 'stopped'.
+		// (This is not a huge issue, because the updateVMs function will eventually
+		// correct the status)
+		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+		var newStatus string
+		if slices.Contains(vmStates, v.Status) {
+			newStatus = v.Status
+		} else {
+			newStatus = string(VMStatusStopped)
+		}
+
+		err = db.UpdateVMStatus(v.ID, string(newStatus))
 		if err != nil {
 			logger.Error("Failed to update status of VM", "vmid", v.ID, "new_status", VMStatusStopped, "err", err)
 		}
