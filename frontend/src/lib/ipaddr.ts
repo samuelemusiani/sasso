@@ -130,4 +130,12 @@ export class CIDR {
   isBroadcastAddr(): boolean {
     return this.ip.equals(this.broadcastAddr())
   }
+
+  isMaxHost(): boolean {
+    return this.ip.equals(this.maxHostAddr())
+  }
+
+  isMinHost(): boolean {
+    return this.ip.equals(this.minHostAddr())
+  }
 }

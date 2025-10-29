@@ -79,6 +79,30 @@ you are doing.`,
       }
     }
 
+    if (cidr.isNetworkAddr()) {
+      return {
+        status: 'warning',
+        message: `The IP address is correct and could be added, but it is the network address.
+You can still add it, but you have to know  what you are doing.`,
+      }
+    }
+
+    if (cidr.isMaxHost()) {
+      return {
+        status: 'warning',
+        message: `The IP address is correct and could be added, but it is the gateway address.
+You can still add it, but you have to know  what you are doing.`,
+      }
+    }
+
+    if (cidr.isBroadcastAddr()) {
+      return {
+        status: 'warning',
+        message: `The IP address is correct and could be added, but it is the broadcast address.
+You can still add it, but you have to know  what you are doing.`,
+      }
+    }
+
     return {
       status: 'success',
       message: 'The IP address is valid and in the correct subnet.',
