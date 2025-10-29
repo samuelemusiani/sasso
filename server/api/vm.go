@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
 )
 
@@ -101,6 +102,18 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
+	bkPending, err := db.IsAPendingBackupRequest(uint(vmID))
+	if err != nil {
+		logger.Error("Failed to check for pending backup requests", "vmID", vmID, "error", err)
+		http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
+		return
+	}
+
+	if bkPending {
+		http.Error(w, "Cannot delete VM with pending backup requests", http.StatusConflict)
+		return
+	}
+
 	m2 := getUserResourceMutex(userID)
 	m2.Lock()
 	defer m2.Unlock()
@@ -137,7 +150,20 @@ func changeVMState(action string) http.HandlerFunc {
 		m.Lock()
 		defer m.Unlock()
 
-		var err error
+		// The restore action cannot be performed if the VM is running. We must
+		// the change of state.
+		bkRequests, err := db.GetBackupRequestsByVMIDStatusAndType(uint(vmID), "pending", "restore")
+		if err != nil {
+			logger.Error("Failed to check for pending backup requests", "vmID", vmID, "error", err)
+			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
+			return
+		}
+
+		if len(bkRequests) > 0 {
+			http.Error(w, "Cannot update VM status with pending restore backup requests", http.StatusConflict)
+			return
+		}
+
 		switch action {
 		case "start", "stop", "restart":
 			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)

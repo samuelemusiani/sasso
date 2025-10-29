@@ -122,6 +122,10 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m := getVMMutex(uint(vm.ID))
+	m.Lock()
+	defer m.Unlock()
+
 	id, err := proxmox.CreateBackup(userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
 		if err == proxmox.ErrPendingBackupRequest {
