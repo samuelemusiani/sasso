@@ -56,7 +56,7 @@ func (s *ShorewallFirewall) RemovePortForward(outPort, destPort uint16, destIP s
 
 	// This rule is needed to have NAT reflection and allowing VMs from other
 	// networks to access the forwarded ports using the public IP of the router
-	err = goshorewall.AddRule(goshorewall.Rule{
+	err = goshorewall.RemoveRule(goshorewall.Rule{
 		Action:      "DNAT",
 		Source:      s.VMZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, destIP, destPort),
