@@ -5,12 +5,13 @@ import (
 )
 
 type Config struct {
-	PublicServer  Server   `toml:"public_server"`
-	PrivateServer Server   `toml:"private_server"`
-	Database      Database `toml:"database"`
-	Secrets       Secrets  `toml:"secrets"`
-	Proxmox       Proxmox  `toml:"proxmox"`
-	Email         Email    `toml:"email"`
+	PublicServer  Server       `toml:"public_server"`
+	PrivateServer Server       `toml:"private_server"`
+	Database      Database     `toml:"database"`
+	Secrets       Secrets      `toml:"secrets"`
+	Proxmox       Proxmox      `toml:"proxmox"`
+	Email         Email        `toml:"email"`
+	PortForwards  PortForwards `toml:"port_forwards"`
 }
 
 type Server struct {
@@ -72,6 +73,10 @@ type Email struct {
 	Username   string `toml:"username"`
 	Password   string `toml:"password"`
 	SMTPServer string `toml:"smtp_server"`
+}
+
+type PortForwards struct {
+	PublicIP string `toml:"public_ip"`
 }
 
 var config Config = Config{}

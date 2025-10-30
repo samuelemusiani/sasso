@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -27,9 +28,10 @@ var (
 
 	privateServer *http.Server = nil
 	publicServer  *http.Server = nil
+	portForwards  config.PortForwards
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards) {
 	// Logger
 	logger = apiLogger
 
@@ -141,6 +143,14 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/vpn", getUserVPNConfig)
 		r.Post("/vpn/count", updateUserVPNConfigCount)
+
+		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
+				slog.Error("Marshaling public IP", "err", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		})
 
 		r.Get("/port-forwards", listPortForwards)
 		r.Post("/port-forwards", addPortForward)
