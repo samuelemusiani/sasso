@@ -134,6 +134,9 @@ func worker(ctx context.Context) error {
 		// - CreateViewForNet(netName string) (View, error)
 		// - AddVMRecordsToView(view View, vm VM) error
 		//
+		// Note: maybe DoesExist... functions are not all needed, jus one may be fine
+		//
+		//
 		// and we need to put everything in functions to make the code cleaner.
 
 		users, err := db.GetAllUsers()
