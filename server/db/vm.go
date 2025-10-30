@@ -350,3 +350,27 @@ func CountGroupVMs(groupID uint) (int64, error) {
 	}
 	return count, nil
 }
+
+type VMNameWithPrimaryInterfaceInVNet struct {
+	VMName      string `gorm:"column:vm_name"`
+	VMID        uint64 `gorm:"column:vm_id"`
+	InterfaceID uint64 `gorm:"column:interface_id"`
+	InterfaceIP string `gorm:"column:interface_ip"`
+}
+
+func GetVMsWithPrimaryInterfaceInVNet(vnetid uint) ([]VMNameWithPrimaryInterfaceInVNet, error) {
+	var tmp []VMNameWithPrimaryInterfaceInVNet
+	err := db.Raw(`SELECT 
+			vms.id vm_id, 
+			vms.name vm_name, 
+			interfaces.id interface_id, 
+			interfaces.ip_add interface_ip 
+		FROM vms 
+		JOIN interfaces ON interfaces.vm_id = vms.id 
+		WHERE interfaces.gateway != '' and interfaces.v_net_id = ?;`, vnetid).
+		Scan(&tmp).Error
+	if err != nil {
+		return nil, err
+	}
+	return tmp, nil
+}
