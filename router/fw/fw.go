@@ -27,6 +27,7 @@ func Init(l *slog.Logger, c config.Firewall) error {
 		globalFirewall = &ShorewallFirewall{
 			ExternalZone: c.Shorewall.ExternalZone,
 			VMZone:       c.Shorewall.VMZone,
+			PublicIP:     c.Shorewall.PublicIP,
 		}
 	default:
 		logger.Error("Unsupported firewall type", "type", c.Type)

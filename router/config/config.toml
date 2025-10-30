@@ -36,3 +36,6 @@ type = "shorewall"
 [firewall.shorewall]
 external_zone = "out"
 vm_zone = "sasso"
+# The public ip address of the router, used as public endpoint for port
+# forwarding rules
+public_ip = "1.2.3.4"
