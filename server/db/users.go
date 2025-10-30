@@ -46,6 +46,8 @@ type User struct {
 
 	Groups        []Group         `gorm:"many2many:user_groups;"`
 	GroupResource []GroupResource `gorm:"foreignKey:UserID"`
+
+	Settings Setting `gorm:"foreignKey:UserID"`
 }
 
 func (r UserRole) IsValid() bool {
@@ -147,12 +149,18 @@ func GetAllUsers() ([]User, error) {
 }
 
 func CreateUser(user *User) error {
-	result := db.Create(user)
-	if result.Error != nil {
-		logger.Error("Failed to create user", "error", result.Error)
-		return result.Error
-	}
-	return nil
+	err := db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Create(user)
+		if result.Error != nil {
+			logger.Error("Failed to create user", "error", result.Error)
+			return result.Error
+		}
+		if err := createDefaultSettingsForUserTransaction(tx, user.ID); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 func UpdateUser(user *User) error {

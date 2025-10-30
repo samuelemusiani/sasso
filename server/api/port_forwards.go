@@ -287,10 +287,10 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 
 	if pf.OwnerType == "Group" {
 		err = notify.SendPortForwardNotificationToGroup(pf.OwnerID, *pf)
-		l = l.With("groupID", pf.OwnerID)
+		l = logger.With("groupID", pf.OwnerID)
 	} else {
 		err = notify.SendPortForwardNotification(pf.OwnerID, *pf)
-		l = l.With("userID", pf.OwnerID)
+		l = logger.With("userID", pf.OwnerID)
 	}
 	if err != nil {
 		l.Error("Failed to send port forward notification", "pfID", portForwardID, "error", err)

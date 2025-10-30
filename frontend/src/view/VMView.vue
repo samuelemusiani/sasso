@@ -1,156 +1,94 @@
 <script setup lang="ts">
-import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
-import { useLoadingStore } from '@/stores/loading'
-import CreateNew from '@/components/CreateNew.vue'
-import type { VM, Group } from '@/types'
+import { useRouter, useRoute } from 'vue-router'
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { api } from '@/lib/api'
-import { getStatusClass } from '@/const'
-import BubbleAlert from '@/components/BubbleAlert.vue'
+import type { VM } from '@/types'
+import { useLoadingStore } from '@/stores/loading'
 
-const vms = ref<VM[]>([])
-const name = ref('')
-const cores = ref(1)
-const ram = ref(1024)
-const disk = ref(4)
-const lifetime = ref(1)
-const notes = ref('')
-const include_global_ssh_keys = ref(true)
-const newVMGroupId = ref<number>()
-const error = ref('')
+const router = useRouter()
+const route = useRoute()
 
-const extendBy = ref(1)
-const showIds = ref(false)
-
-const groups = ref<Group[]>([])
+const vmid = computed(() => {
+  const id = route.params.vmid
+  if (Array.isArray(id)) return Number(id[0])
+  return id ? Number(id) : 0
+})
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
-function fetchVMs() {
-  api
-    .get('/vm')
-    .then((res) => {
-      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
-      vms.value = tmp as VM[]
-    })
-    .catch((err) => {
-      console.error('Failed to fetch VMs:', err)
-    })
-}
+const tabs = [
+  { id: 'info', label: 'Info', path: '', icon: 'ph:info' },
+  { id: 'resources', label: 'Resources', path: 'resources', icon: 'ph:cpu' },
+  { id: 'interfaces', label: 'Interfaces', path: 'interfaces', icon: 'ph:path' },
+  { id: 'backups', label: 'Backups', path: 'backups', icon: 'material-symbols:backup-outline' },
+]
 
-interface VMCreationBody {
-  name: string
-  cores: number
-  ram: number
-  disk: number
-  lifetime: number
-  include_global_ssh_keys: boolean
-  notes: string
-  group_id?: number
-}
-
-function createVM() {
-  const body: VMCreationBody = {
-    name: name.value,
-    cores: cores.value,
-    ram: ram.value,
-    disk: disk.value,
-    lifetime: lifetime.value,
-    include_global_ssh_keys: include_global_ssh_keys.value,
-    notes: notes.value,
+const activeTab = computed(() => {
+  const path = route.path
+  for (const tab of tabs) {
+    if (tab.path === '') {
+      // Check if we're at the base path /vm/:vmid
+      if (path === `/vm/${vmid.value}`) return tab.id
+    } else {
+      if (path.endsWith(`/${tab.path}`)) return tab.id
+    }
   }
-  if (newVMGroupId.value) {
-    body.group_id = newVMGroupId.value
+  return 'info'
+})
+
+function shouldDisableTab(tabId: string): boolean {
+  const intermediateStatuses = ['pre-creating', 'creating', 'pre-deleting', 'deleting', 'unknown']
+  if (!vm.value) return true
+  if (
+    (tabId === 'backups' || tabId === 'interfaces') &&
+    intermediateStatuses.includes(vm.value.status)
+  ) {
+    return true
   }
-  api
-    .post('/vm', body)
-    .then(() => {
-      fetchVMs()
-      name.value = ''
-      cores.value = 1
-      ram.value = 1024
-      disk.value = 4
-      lifetime.value = 1
-      notes.value = ''
-      include_global_ssh_keys.value = true
-      error.value = ''
-      newVMGroupId.value = undefined
-    })
-    .catch((err) => {
-      console.error('Failed to create VM:', err)
-      error.value = 'Failed to create VM: ' + err.response.data
-    })
+  return false
 }
 
-function deleteVM(vmid: number) {
-  if (confirm(`Are you sure you want to delete VM ${vmid}?`)) {
-    api
-      .delete(`/vm/${vmid}`)
-      .then(() => {
-        fetchVMs()
-      })
-      .catch((err) => {
-        console.error('Failed to delete VM:', err)
-      })
+const navigateToTab = (tabPath: string) => {
+  if (tabPath === '') {
+    router.push(`/vm/${vmid.value}`)
+  } else {
+    router.push(`/vm/${vmid.value}/${tabPath}`)
   }
 }
 
-function startVM(vmid: number) {
-  loading.start('vm', vmid, 'start')
-  api
-    .post(`/vm/${vmid}/start`)
-    .then(() => fetchVMs())
-    .catch((err) => console.error('Failed to start VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'start'))
+const vm = ref<VM | null>(null)
+
+function fetchVMWithLoading() {
+  loading.start('vm', vmid.value, 'fetch_vm')
+  fetchVM().finally(() => {
+    loading.stop('vm', vmid.value, 'fetch_vm')
+  })
 }
 
-function stopVM(vmid: number) {
-  loading.start('vm', vmid, 'stop')
-  api
-    .post(`/vm/${vmid}/stop`)
-    .then(() => fetchVMs())
-    .catch((err) => console.error('Failed to stop VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'stop'))
+async function fetchVM() {
+  try {
+    const res = await api.get(`/vm/${vmid.value}`)
+    vm.value = res.data as VM
+  } catch (err) {
+    console.error('Failed to fetch VM info:', err)
+  }
 }
 
-function restartVM(vmid: number) {
-  loading.start('vm', vmid, 'restart')
-  api
-    .post(`/vm/${vmid}/restart`)
-    .then(() => fetchVMs())
-    .catch((err) => console.error('Failed to restart VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'restart'))
-}
-
-function updateLifetime(vmid: number, extend_by: number) {
-  api
-    .patch(`/vm/${vmid}/lifetime`, { extend_by })
-    .then(() => {
-      fetchVMs()
-    })
-    .catch((err) => {
-      console.error('Failed to update VM lifetime:', err)
-    })
-}
-
-function isExpired(lifetime: string): boolean {
-  // TODO: Check with timezones
-  return new Date(lifetime) < new Date()
+function handleStatusChange(newStatus: string) {
+  if (vm.value) {
+    vm.value.status = newStatus
+    fetchVM()
+  }
 }
 
 let intervalId: number | null = null
 
-function fetchGroups() {
-  api.get('/groups').then((res) => {
-    groups.value = res.data as Group[]
-  })
-}
-
 onMounted(() => {
-  fetchVMs()
-  fetchGroups()
+  fetchVMWithLoading()
+
   intervalId = setInterval(() => {
-    fetchVMs()
+    fetchVM()
   }, 5000)
 })
 
@@ -160,226 +98,35 @@ onBeforeUnmount(() => {
   }
   loading.clear('vm')
 })
-
-const nonMemberGroups = computed(() => {
-  return groups.value.filter((group) => group.role !== 'member')
-})
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 p-2">
-    <h1 class="flex items-center gap-2 text-3xl font-bold">
-      <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
-    </h1>
-
-    <CreateNew title="New VM" :create="createVM" :error="error">
-      <div>
-        <label for="cores">Name</label>
-        <input
-          required
-          type="text"
-          id="name"
-          v-model="name"
-          class="input w-full rounded-lg border p-2"
-          placeholder="My VM Name"
-        />
-      </div>
-      <div>
-        <label for="cores">CPU Cores</label>
-        <input
-          type="number"
-          id="cores"
-          v-model="cores"
-          class="input w-full rounded-lg border p-2"
-        />
-      </div>
-      <div>
-        <label for="ram">RAM (MB)</label>
-        <input type="number" id="ram" v-model="ram" class="input w-full rounded-lg border p-2" />
-      </div>
-      <div>
-        <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-full rounded-lg border" />
-      </div>
-      <div>
-        <label for="lifetime">Lifetime</label>
-        <select class="select w-full rounded-lg border" v-model.number="lifetime">
-          <option value="1" selected>1 Month</option>
-          <option value="3">3 Months</option>
-          <option value="6">6 Months</option>
-          <option value="12">12 Months</option>
-        </select>
-      </div>
-      <div class="flex w-full items-center justify-between">
-        <div class="flex items-center gap-2">
+  <div>
+    <div class="tabs tabs-lift">
+      <template v-for="tab in tabs" :key="tab.id">
+        <label class="tab" :class="{ 'tab-disabled': shouldDisableTab(tab.id) }">
           <input
-            type="checkbox"
-            id="include_global_ssh_keys"
-            v-model="include_global_ssh_keys"
-            class="checkbox checkbox-primary"
+            type="radio"
+            name="vm_view_tabs"
+            :checked="activeTab === tab.id"
+            @change="navigateToTab(tab.path)"
           />
-          <label for="include_global_ssh_keys">Include Global SSH Keys</label>
-          <BubbleAlert type="info">
-            Including the global SSH keys will allow for better troubleshooting if something is not
-            working.
-          </BubbleAlert>
+          <div class="flex items-center gap-2">
+            <IconVue class="text-primary" :icon="tab.icon"></IconVue>
+            <div>
+              {{ tab.label }}
+            </div>
+          </div>
+        </label>
+        <div class="tab-content border-t border-t-black p-4">
+          <div v-if="isLoading(vmid, 'fetch_vm')" class="grid h-70">
+            <span class="loading loading-spinner place-self-center"></span>
+          </div>
+          <template v-else-if="vm && activeTab === tab.id">
+            <router-view :vm="vm" @update-vm="fetchVM" @status-change="handleStatusChange" />
+          </template>
         </div>
-      </div>
-
-      <div class="flex w-full flex-col">
-        <label for="cores">Notes</label>
-        <textarea class="textarea w-full" placeholder="VM Notes" v-model="notes"></textarea>
-      </div>
-
-      <label for="group">Group (Optional)</label>
-      <select v-model="newVMGroupId" class="select select-bordered">
-        <option :value="undefined">Me</option>
-        <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
-          {{ group.name }}
-        </option>
-      </select>
-    </CreateNew>
-
-    <table class="table table-auto divide-y">
-      <thead>
-        <tr>
-          <th v-show="showIds" scope="col">ID</th>
-          <th scope="col">Name</th>
-          <th scope="col">Group</th>
-          <th scope="col">Cores</th>
-          <th scope="col">RAM (MB)</th>
-          <th scope="col">Disk (GB)</th>
-          <th scope="col">Status</th>
-          <th scope="col">Lifetime</th>
-          <th scope="col">Notes</th>
-          <th scope="col" class="flex justify-end">
-            <button class="badge badge-warning rounded-lg" @click="showIds = !showIds">
-              <IconVue v-if="showIds" icon="material-symbols:visibility-off" class="text-xs" />
-              <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
-              {{ showIds ? 'Hide' : 'Show' }} IDs
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y">
-        <tr v-for="vm in vms" :key="vm.id">
-          <Transition>
-            <td v-show="showIds">
-              {{ vm.id }}
-            </td>
-          </Transition>
-          <td class="text-lg">{{ vm.name }}</td>
-          <td class="">{{ vm.group_name ? vm.group_name : 'Me' }}</td>
-          <td class="">{{ vm.cores }}</td>
-          <td class="">{{ vm.ram }}</td>
-          <td class="">{{ vm.disk }}</td>
-          <td class="font-semibold capitalize" :class="getStatusClass(vm.status)">
-            {{ vm.status }}
-          </td>
-          <td>{{ vm.lifetime }}</td>
-          <td>
-            <div v-if="vm.notes" class="bg-base-100 w-max rounded-lg p-2 text-xs text-pretty">
-              {{ vm.notes }}
-            </div>
-          </td>
-
-          <td>
-            <div
-              class="grid max-w-full gap-2"
-              :class="isExpired(vm.lifetime) ? 'grid-cols-3' : 'grid-cols-2'"
-            >
-              <div
-                v-show="isExpired(vm.lifetime) && vm.group_role != 'member'"
-                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
-              >
-                <select class="select" v-model.number="extendBy">
-                  <option value="1" selected>Extend 1 Month</option>
-                  <option value="2">Extend 2 Months</option>
-                  <option value="3">Extend 3 Months</option>
-                </select>
-                <button
-                  @click="updateLifetime(vm.id, extendBy)"
-                  class="btn btn-primary btn-sm rounded-lg"
-                >
-                  <IconVue icon="material-symbols:update" class="text-lg" />
-                  <span class="hidden md:inline">Extend</span>
-                </button>
-              </div>
-              <div
-                v-show="!isExpired(vm.lifetime) && vm.group_role != 'member'"
-                class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1"
-              >
-                <button
-                  v-if="vm.status === 'stopped'"
-                  @click="startVM(vm.id)"
-                  :disabled="isLoading(vm.id, 'start')"
-                  class="btn btn-success btn-outline col-span-2 rounded-lg"
-                >
-                  <span
-                    v-if="isLoading(vm.id, 'start')"
-                    class="loading loading-spinner loading-xs"
-                  ></span>
-                  <IconVue v-else icon="material-symbols:play-arrow" class="text-lg" />
-                  <span class="hidden lg:inline">Start</span>
-                </button>
-
-                <button
-                  v-if="vm.status === 'running'"
-                  @click="stopVM(vm.id)"
-                  :disabled="isLoading(vm.id, 'stop')"
-                  class="btn btn-warning btn-outline rounded-lg"
-                >
-                  <span
-                    v-if="isLoading(vm.id, 'stop')"
-                    class="loading loading-spinner loading-xs"
-                  ></span>
-                  <IconVue v-else icon="material-symbols:stop" class="text-lg" />
-                  <span class="hidden lg:inline">Stop</span>
-                </button>
-
-                <button
-                  v-if="vm.status === 'running'"
-                  @click="restartVM(vm.id)"
-                  :disabled="isLoading(vm.id, 'restart')"
-                  class="btn btn-info btn-outline rounded-lg"
-                >
-                  <span
-                    v-if="isLoading(vm.id, 'restart')"
-                    class="loading loading-spinner loading-xs"
-                  ></span>
-                  <IconVue v-else icon="codicon:debug-restart" class="text-lg" />
-                  <span class="hidden lg:inline">Restart</span>
-                </button>
-
-                <button @click="deleteVM(vm.id)" class="btn btn-error btn-outline rounded-lg">
-                  <IconVue icon="material-symbols:delete" class="text-lg" />
-                  <span class="hidden lg:inline">Delete</span>
-                </button>
-              </div>
-              <div
-                v-show="!isExpired(vm.lifetime) || vm.status !== 'unknown'"
-                class="col-span-2 grid grid-cols-2 items-center gap-2 xl:col-span-1"
-              >
-                <RouterLink
-                  :to="`/vm/${vm.id}/interfaces`"
-                  class="btn btn-primary btn-sm md:btn-md rounded-lg"
-                >
-                  <IconVue icon="material-symbols:network-node" class="text-lg" />
-                  <span class="hidden lg:inline">Interfaces</span>
-                </RouterLink>
-
-                <RouterLink
-                  :to="`/vm/${vm.id}/backups`"
-                  class="btn btn-secondary btn-sm md:btn-md rounded-lg"
-                >
-                  <IconVue icon="material-symbols:backup" class="text-lg" />
-                  <span class="hidden lg:inline">Backup</span>
-                </RouterLink>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+    </div>
   </div>
 </template>

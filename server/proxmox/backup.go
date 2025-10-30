@@ -56,6 +56,9 @@ var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStop
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, ErrVMNotFound
+		}
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
 		return nil, err
 	}

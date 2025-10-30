@@ -117,6 +117,29 @@ func parseStorageFromString(s string) (*Storage, error) {
 	return &st, nil
 }
 
+// If vlanTag is 0, remove any existing tag from the iface string
+func substituteVlanTag(iface string, vlanTag uint16) string {
+	// Iface has the following format: "virtio=BC:24:11:64:07:FE,bridge=saspS,tag=7,firewall=1"
+
+	parts := strings.Split(iface, ",")
+	var newParts []string
+	for _, part := range parts {
+		if strings.HasPrefix(part, "tag=") {
+			if vlanTag == 0 {
+				continue // skip existing tag
+			} else {
+				part = fmt.Sprintf("tag=%d", vlanTag)
+			}
+		}
+		newParts = append(newParts, part)
+	}
+
+	if vlanTag != 0 && !strings.Contains(iface, "tag=") {
+		newParts = append(newParts, fmt.Sprintf("tag=%d", vlanTag))
+	}
+	return strings.Join(newParts, ",")
+}
+
 func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) {
 	resources, err := getProxmoxResources(cluster, "vm")
 	if err != nil {

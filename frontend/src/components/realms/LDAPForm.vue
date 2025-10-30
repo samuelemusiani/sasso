@@ -15,13 +15,16 @@ const userBaseDN = ref($props.realm ? $props.realm.user_base_dn : '')
 const groupBaseDN = ref($props.realm ? $props.realm.group_base_dn : '')
 const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
-const adminGroup = ref($props.realm ? $props.realm.admin_group : '')
-const maintainerGroup = ref($props.realm ? $props.realm.maintainer_group : '')
+const loginFilter = ref($props.realm ? $props.realm.login_filter : '')
+const maintainerFilter = ref($props.realm ? $props.realm.maintainer_filter : '')
+const adminFilter = ref($props.realm ? $props.realm.admin_filter : '')
+const mailAttribute = ref($props.realm ? $props.realm.mail_attribute : '')
 
 const editing = ref(!!$props.realm)
 
-function addRealm() {
-  const realmData = {
+function formLDAPRealm(): LDAPRealm {
+  const realmData: LDAPRealm = {
+    id: 0,
     name: name.value,
     description: description.value,
     url: url.value,
@@ -30,9 +33,16 @@ function addRealm() {
     bind_dn: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
-    admin_group: adminGroup.value,
-    maintainer_group: maintainerGroup.value,
+    login_filter: loginFilter.value,
+    maintainer_filter: maintainerFilter.value,
+    admin_filter: adminFilter.value,
+    mail_attribute: mailAttribute.value,
   }
+  return realmData
+}
+
+function addRealm() {
+  const realmData = formLDAPRealm()
 
   api
     .post('/admin/realms', realmData)
@@ -46,18 +56,7 @@ function addRealm() {
 }
 
 function updateRealm() {
-  const realmData = {
-    name: name.value,
-    description: description.value,
-    url: url.value,
-    user_base_dn: userBaseDN.value,
-    group_base_dn: groupBaseDN.value,
-    bind_dn: bindDN.value,
-    type: 'ldap',
-    password: bindPassword.value,
-    admin_group: adminGroup.value,
-    maintainer_group: maintainerGroup.value,
-  }
+  const realmData = formLDAPRealm()
 
   api
     .put(`/admin/realms/${$props.realm?.id}`, realmData)
@@ -108,6 +107,14 @@ function updateRealm() {
         class="input w-full rounded-lg"
       />
 
+      <label class="label">Login Filter</label>
+      <input
+        v-model="loginFilter"
+        type="text"
+        placeholder="(&(objectClass=person)(uid={{username}}))"
+        class="input w-full rounded-lg"
+      />
+
       <label class="label">Group Base DN</label>
       <input
         v-model="groupBaseDN"
@@ -116,19 +123,18 @@ function updateRealm() {
         class="input w-full rounded-lg"
       />
 
-      <label class="label">Admin Group</label>
+      <label class="label">Maintainer Filter</label>
       <input
-        v-model="adminGroup"
+        v-model="maintainerFilter"
         type="text"
-        placeholder="sasso_admin"
+        placeholder="(&(objectClass=groupOfNames)(cn=sasso_maintainer)(member={{user_dn}}))"
         class="input w-full rounded-lg"
       />
-
-      <label class="label">Maintainer Group</label>
+      <label class="label">Admin Filter</label>
       <input
-        v-model="maintainerGroup"
+        v-model="adminFilter"
         type="text"
-        placeholder="sasso_maintainer"
+        placeholder="(&(objectClass=groupOfNames)(cn=sasso_admin)(member={{user_dn}}))"
         class="input w-full rounded-lg"
       />
 

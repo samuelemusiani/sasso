@@ -39,8 +39,10 @@ export interface LDAPRealm extends Realm {
   group_base_dn: string
   bind_dn: string
   password: string
-  admin_group: string
-  maintainer_group: string
+  login_filter: string
+  maintainer_filter: string
+  admin_filter: string
+  mail_attribute: string
 }
 
 export interface Net {
@@ -50,6 +52,7 @@ export interface Net {
   status: string
   subnet: string
   gateway: string
+  broadcast: string
   group_id?: number
   group_name?: string
   group_role?: string
@@ -177,4 +180,26 @@ export interface GroupMember {
 export interface VPNConfig {
   id: number
   vpn_config: string
+}
+
+export interface Settings {
+  mail_port_forward_notification: boolean
+  mail_vm_status_update_notification: boolean
+  mail_global_ssh_keys_change_notification: boolean
+  mail_vm_expiration_notification: boolean
+  mail_vm_eliminated_notification: boolean
+  mail_vm_stopped_notification: boolean
+  mail_ssh_keys_changed_on_vm_notification: boolean
+  mail_user_invitation_notification: boolean
+  mail_user_removal_from_group_notification: boolean
+
+  telegram_port_forward_notification: boolean
+  telegram_vm_status_update_notification: boolean
+  telegram_global_ssh_keys_change_notification: boolean
+  telegram_vm_expiration_notification: boolean
+  telegram_vm_eliminated_notification: boolean
+  telegram_vm_stopped_notification: boolean
+  telegram_ssh_keys_changed_on_vm_notification: boolean
+  telegram_user_invitation_notification: boolean
+  telegram_user_removal_from_group_notification: boolean
 }

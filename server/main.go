@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"samuelemusiani/sasso/server/api"
+	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/dns"
@@ -116,6 +117,14 @@ func main() {
 	err = db.Init(dbLogger, c.Database)
 	if err != nil {
 		slog.With("error", err).Error("Failed to initialize database")
+		os.Exit(1)
+	}
+
+	// Auth
+	authLogger := slog.With("module", "auth")
+	err = auth.Init(authLogger)
+	if err != nil {
+		slog.Error("Failed to initialize authentication module", "error", err)
 		os.Exit(1)
 	}
 

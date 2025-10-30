@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"time"
 )
 
@@ -127,7 +128,7 @@ func CountInterfaces() (int64, error) {
 
 func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	var ifaces []Interface
-	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.name as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
+	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.alias as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
 		FROM interfaces
 		JOIN vms ON vms.id = interfaces.vm_id
 		JOIN nets ON nets.id = interfaces.v_net_id
@@ -141,4 +142,21 @@ func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	}
 
 	return ifaces, nil
+}
+
+func ExistsIPInVNetWithVlanTag(vnetID uint, vlanTag uint16, ipAdd string) (bool, error) {
+	if slashIndex := strings.Index(ipAdd, "/"); slashIndex != -1 {
+		ipAdd = ipAdd[:slashIndex]
+	}
+
+	ipAdd = ipAdd + "/%"
+
+	var count int64
+	if err := db.Model(&Interface{}).
+		Where("v_net_id = ? AND vlan_tag = ? AND ip_add LIKE ?", vnetID, vlanTag, ipAdd).
+		Count(&count).Error; err != nil {
+		logger.Error("Failed to check existence of IP in VNet with VLAN tag", "vnetID", vnetID, "vlanTag", vlanTag, "ipAdd", ipAdd, "error", err)
+		return false, err
+	}
+	return count > 0, nil
 }

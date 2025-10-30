@@ -268,6 +268,15 @@ function updateGroup() {
     })
 }
 
+const showGroupResourcesWarning = computed(() => {
+  if (!group.value || !group.value.resources || !group.value.members) {
+    return false
+  }
+
+  const total_nets = group.value.resources.reduce((sum, r) => sum + r.nets, 0) || 0
+  return group.value.members.length < 2 && total_nets == 0
+})
+
 onMounted(() => {
   fetchMe()
   fetchGroup()
@@ -383,6 +392,18 @@ onMounted(() => {
       <button v-else @click="deleteGroup(groupId)" class="btn btn-error rounded-lg">
         Delete Group
       </button>
+    </div>
+
+    <div
+      v-if="showGroupResourcesWarning"
+      class="alert alert-info flex w-max flex-col p-4"
+      role="alert"
+    >
+      <p class="font-bold">Groups resources</p>
+      <ul class="list-disc pl-5">
+        <li>To have group resources users can share part of their resources with other group.</li>
+        <li>Users has a default network allocated when the members are more than one.</li>
+      </ul>
     </div>
 
     <UserStats v-if="stats" :stats="stats" />

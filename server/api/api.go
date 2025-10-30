@@ -125,6 +125,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Get("/backup/request/{requestid}", getBackupRequest)
 
 			r.Patch("/lifetime", updateVMLifetime)
+			r.Patch("/resources", updateVMResources)
 		})
 
 		r.Post("/net", createNet)
@@ -184,6 +185,11 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Put("/resources", modifyGroupResources)
 			r.Delete("/resources", revokeGroupResources)
 		})
+
+		r.Post("/ip-check", checkIfIPInUse)
+
+		r.Get("/settings", getUserSettings)
+		r.Put("/settings", updateUserSettings)
 	})
 
 	// Admin Auth routes

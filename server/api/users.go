@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/db"
 	"strconv"
 	"time"
@@ -50,12 +51,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := authenticator(loginReq.Username, loginReq.Password, loginReq.Realm)
+	user, err := auth.Authenticate(loginReq.Username, loginReq.Password, loginReq.Realm)
 	if err != nil {
-		if err == ErrUserNotFound {
+		if err == auth.ErrUserNotFound {
 			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
-		} else if err == ErrPasswordMismatch {
+		} else if err == auth.ErrPasswordMismatch {
 			http.Error(w, "Password mismatch", http.StatusUnauthorized)
 			return
 		} else {
@@ -343,6 +344,120 @@ func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to update user VPN config count", "error", err)
 		http.Error(w, "Failed to update VPN config count", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type returnUserSettings struct {
+	MailPortForwardNotification          bool `json:"mail_port_forward_notification"`
+	MailVMStatusUpdateNotification       bool `json:"mail_vm_status_update_notification"`
+	MailGlobalSSHKeysChangeNotification  bool `json:"mail_global_ssh_keys_change_notification"`
+	MailVMExpirationNotification         bool `json:"mail_vm_expiration_notification"`
+	MailVMEliminatedNotification         bool `json:"mail_vm_eliminated_notification"`
+	MailVMStoppedNotification            bool `json:"mail_vm_stopped_notification"`
+	MailSSHKeysChangedOnVMNotification   bool `json:"mail_ssh_keys_changed_on_vm_notification"`
+	MailUserInvitationNotification       bool `json:"mail_user_invitation_notification"`
+	MailUserRemovalFromGroupNotification bool `json:"mail_user_removal_from_group_notification"`
+
+	TelegramPortForwardNotification          bool `json:"telegram_port_forward_notification"`
+	TelegramVMStatusUpdateNotification       bool `json:"telegram_vm_status_update_notification"`
+	TelegramGlobalSSHKeysChangeNotification  bool `json:"telegram_global_ssh_keys_change_notification"`
+	TelegramVMExpirationNotification         bool `json:"telegram_vm_expiration_notification"`
+	TelegramVMEliminatedNotification         bool `json:"telegram_vm_eliminated_notification"`
+	TelegramVMStoppedNotification            bool `json:"telegram_vm_stopped_notification"`
+	TelegramSSHKeysChangedOnVMNotification   bool `json:"telegram_ssh_keys_changed_on_vm_notification"`
+	TelegramUserInvitationNotification       bool `json:"telegram_user_invitation_notification"`
+	TelegramUserRemovalFromGroupNotification bool `json:"telegram_user_removal_from_group_notification"`
+}
+
+func getUserSettings(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	settings, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get user settings", "error", err)
+		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+		return
+	}
+
+	settings, err = db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get user settings after creating defaults", "error", err)
+		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+		return
+	}
+
+	returnSettings := returnUserSettings{
+		MailPortForwardNotification:          settings.MailPortForwardNotification,
+		MailVMStatusUpdateNotification:       settings.MailVMStatusUpdateNotification,
+		MailGlobalSSHKeysChangeNotification:  settings.MailGlobalSSHKeysChangeNotification,
+		MailVMExpirationNotification:         settings.MailVMExpirationNotification,
+		MailVMEliminatedNotification:         settings.MailVMEliminatedNotification,
+		MailVMStoppedNotification:            settings.MailVMStoppedNotification,
+		MailSSHKeysChangedOnVMNotification:   settings.MailSSHKeysChangedOnVMNotification,
+		MailUserInvitationNotification:       settings.MailUserInvitationNotification,
+		MailUserRemovalFromGroupNotification: settings.MailUserRemovalFromGroupNotification,
+
+		TelegramPortForwardNotification:          settings.TelegramPortForwardNotification,
+		TelegramVMStatusUpdateNotification:       settings.TelegramVMStatusUpdateNotification,
+		TelegramGlobalSSHKeysChangeNotification:  settings.TelegramGlobalSSHKeysChangeNotification,
+		TelegramVMExpirationNotification:         settings.TelegramVMExpirationNotification,
+		TelegramVMEliminatedNotification:         settings.TelegramVMEliminatedNotification,
+		TelegramVMStoppedNotification:            settings.TelegramVMStoppedNotification,
+		TelegramSSHKeysChangedOnVMNotification:   settings.TelegramSSHKeysChangedOnVMNotification,
+		TelegramUserInvitationNotification:       settings.TelegramUserInvitationNotification,
+		TelegramUserRemovalFromGroupNotification: settings.TelegramUserRemovalFromGroupNotification,
+	}
+
+	if err := json.NewEncoder(w).Encode(returnSettings); err != nil {
+		logger.Error("failed to encode user settings to JSON", "error", err)
+		http.Error(w, "Failed to encode user settings to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
+func updateUserSettings(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	var req returnUserSettings
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Error("failed to decode user settings from JSON", "error", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("failed to get user settings", "error", err)
+		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+		return
+	}
+
+	s.MailPortForwardNotification = req.MailPortForwardNotification
+	s.MailVMStatusUpdateNotification = req.MailVMStatusUpdateNotification
+	s.MailGlobalSSHKeysChangeNotification = req.MailGlobalSSHKeysChangeNotification
+	s.MailVMExpirationNotification = req.MailVMExpirationNotification
+	s.MailVMEliminatedNotification = req.MailVMEliminatedNotification
+	s.MailVMStoppedNotification = req.MailVMStoppedNotification
+	s.MailSSHKeysChangedOnVMNotification = req.MailSSHKeysChangedOnVMNotification
+	s.MailUserInvitationNotification = req.MailUserInvitationNotification
+	s.MailUserRemovalFromGroupNotification = req.MailUserRemovalFromGroupNotification
+
+	s.TelegramPortForwardNotification = req.TelegramPortForwardNotification
+	s.TelegramVMStatusUpdateNotification = req.TelegramVMStatusUpdateNotification
+	s.TelegramGlobalSSHKeysChangeNotification = req.TelegramGlobalSSHKeysChangeNotification
+	s.TelegramVMExpirationNotification = req.TelegramVMExpirationNotification
+	s.TelegramVMEliminatedNotification = req.TelegramVMEliminatedNotification
+	s.TelegramVMStoppedNotification = req.TelegramVMStoppedNotification
+	s.TelegramSSHKeysChangedOnVMNotification = req.TelegramSSHKeysChangedOnVMNotification
+	s.TelegramUserInvitationNotification = req.TelegramUserInvitationNotification
+	s.TelegramUserRemovalFromGroupNotification = req.TelegramUserRemovalFromGroupNotification
+
+	if err := db.UpdateSettings(s); err != nil {
+		logger.Error("failed to update user settings", "error", err)
+		http.Error(w, "Failed to update user settings", http.StatusInternalServerError)
 		return
 	}
 
