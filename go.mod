@@ -9,7 +9,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/prometheus/client_golang v1.23.2
-	github.com/samuelemusiani/go-shorewall v0.0.4
+	github.com/samuelemusiani/go-shorewall v0.0.5
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/wneessen/go-mail v0.7.2
