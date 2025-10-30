@@ -153,7 +153,7 @@ func main() {
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer)
+	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards)
 
 	channelError := make(chan error, 1)
 

@@ -72,3 +72,8 @@ enabled = true
 username = "sasso@gmail.com"
 password = "app-password"
 smtp_server = "smtp.gmail.com"
+
+[port_forwards]
+# Public IP address where the port forwards will be created
+# This is only used to show the user which IP to connect to on the frontend.
+public_ip = "1.2.3.4"
