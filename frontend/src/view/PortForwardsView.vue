@@ -8,6 +8,8 @@ const pfs = ref<PortForward[]>([])
 const port = ref(0)
 const ip = ref('')
 
+const publicIP = ref('')
+
 function fetchPortForwards() {
   api
     .get('/port-forwards')
@@ -48,13 +50,30 @@ function deletePortForward(id: number) {
   }
 }
 
+function fetchPublicIP() {
+  api
+    .get('/port-forwards/public-ip')
+    .then((res) => {
+      publicIP.value = res.data.public_ip
+    })
+    .catch((err) => {
+      console.error('Failed to fetch public IP:', err)
+    })
+}
+
 onMounted(() => {
   fetchPortForwards()
+  fetchPublicIP()
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-2 p-2">
+    <div>
+      <p class="">
+        The public IP is: <strong>{{ publicIP }}</strong>
+      </p>
+    </div>
     <CreateNew title="Port Forward" :create="requestPortForward">
       <div class="flex items-center gap-2">
         <label for="name">Destination Port</label>
