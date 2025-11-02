@@ -52,7 +52,7 @@ func deleteZoneFromDNS(zone Zone) error {
 	return nil
 }
 
-// Creates RRsets present in the payload and their comments
+// Creates RRset present in the payload and their comments
 func newRRSetInZone(RRset RRSet, zone Zone) error {
 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
 
@@ -79,8 +79,19 @@ func newRRSetInZone(RRset RRSet, zone Zone) error {
 	return nil
 }
 
+// Add array of RRsets to the specified zone
+func addRRSetsToZone(RRsets []RRSet, zone Zone) error {
+	for _, rrset := range RRsets {
+		err := newRRSetInZone(rrset, zone)
+		if err != nil {
+			return fmt.Errorf("failed to add RRset to zone %s: %w", zone.Name, err)
+		}
+	}
+	return nil
+}
+
 // Delete RRsets present in the payload and their comments
-func deleteRRsetFromZone(RRset RRSet, zone Zone) error {
+func deleteRRSetFromZone(RRset RRSet, zone Zone) error {
 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
 
 	rrsets := []map[string]interface{}{
@@ -102,6 +113,7 @@ func deleteRRsetFromZone(RRset RRSet, zone Zone) error {
 
 	return nil
 }
+
 
 // func GetAllZones() ([]byte, error) {
 // 	url := fmt.Sprintf("%s/zones", BaseUrl)
