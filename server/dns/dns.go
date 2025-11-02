@@ -23,7 +23,7 @@ func Init(dnsLogger *slog.Logger, config config.DNS) error {
 
 	cDNS = &config
 
-	BaseUrl = fmt.Sprintf("http://%s:%d/api/v1/localhost", cDNS.DnsServer, cDNS.Port)
+	BaseUrl = fmt.Sprintf("http://%s:%d/api/v1/servers/localhost", cDNS.DnsServer, cDNS.Port)
 	ApiKey = cDNS.Key
 
 	return nil

@@ -9,8 +9,8 @@ bind = ":8081"
 log_requests = false
 
 [database]
-user = "user"
-password = "password"
+user = "postgres"
+password = "mysecretpassword"
 host = "localhost"
 port = 5432
 
@@ -76,5 +76,5 @@ smtp_server = "smtp.gmail.com"
 [dns]
 # DTODO
 dns_server = "130.136.201.50"
-port = 53
+port = 8081
 key = "omar"

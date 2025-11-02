@@ -9,7 +9,8 @@ import (
 )
 
 type Zone struct {
-	Name string `json:"name"`
+	Name   string  `json:"name"`
+	RRSets []RRSet `json:"rrsets"`
 }
 
 type Record struct {
@@ -27,6 +28,11 @@ type RRSet struct {
 type RecordsResponse struct {
 	Name   string  `json:"name"`
 	RRSets []RRSet `json:"rrsets"`
+}
+
+type network struct {
+	Network string `json:"network"`
+	View    string `json:"view"`
 }
 
 type View struct {
@@ -55,7 +61,6 @@ func HttpRequest(method, url string, body interface{}) ([]byte, int, error) {
 		bodyReader = bytes.NewReader(b)
 	}
 
-	fmt.Println(method, " request to ", url)
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to create request: %w", err)

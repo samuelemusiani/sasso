@@ -3,6 +3,8 @@ package dns
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"samuelemusiani/sasso/server/db"
@@ -41,7 +43,7 @@ func worker(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(10 * time.Second):
+	case <-time.After(0 * time.Second):
 		// Just a small delay to let other components start
 	}
 
@@ -223,8 +225,7 @@ func worker(ctx context.Context) error {
 		// 				err := GroupViewMustContainVMsRecords(view, VMs) //to implement
 		// 				if err != nil {
 		// 					logger.Error("Error ensuring VM records in group view in DNS", "netID", net.ID, "error", err)
-		// 					continue
-		// 				}
+		// 					continue }
 		// 			} else {
 		// 				//create view
 		// 				view, err := CreateViewForGroupNet(net.Name) //to implement}
@@ -272,50 +273,13 @@ func worker(ctx context.Context) error {
 		// 	}
 		// }
 
-		allNets, err := db.GetAllNets()
+		dnsState, err := getDNSState()
 		if err != nil {
-			logger.Error("Error retrieving all nets from DB", "error", err)
+			logger.Error("Error retrieving DNS state", "error", err)
 			continue
 		}
 
-		for _, net := range allNets {
-			var view View
-			view.Name = fmt.Sprintf("net%d", net.ID)
-			view.Networks = []string{net.Subnet}
-
-			var zone Zone
-			zone.Name = fmt.Sprintf("sasso..%s", view.Name)
-			view.Zones = []Zone{zone}
-
-			err := SetupNewViewOnDNS(&view)
-			if err != nil {
-				logger.Error("Error setting up view on DNS for net", "netID", net.ID, "error", err)
-				continue
-			}
-
-			vms, err := db.GetVMsWithPrimaryInterfaceInVNet(net.ID)
-			if err != nil {
-				logger.Error("Error retrieving VMs for net from DB", "netID", net.ID, "error", err)
-				continue
-			}
-
-			for _, vm := range vms {
-				rrset := RRSet{
-					Name: fmt.Sprintf("%s.sasso.", vm.VMName),
-					Type: "A",
-					TTL:  300,
-					Records: []Record{
-						Record{Ip: vm.InterfaceIP, Disabled: false},
-					},
-				}
-				err := NewRRsetInZone(rrset, zone)
-				if err != nil {
-					logger.Error("Error adding VM record to net zone in DNS", "netID", net.ID, "vmID", vm.VMID, "error", err)
-					continue
-				}
-			}
-		}
-
+		//
 		elapsed := time.Since(now)
 		if elapsed < 10*time.Second {
 			timeToWait = 10*time.Second - elapsed
@@ -323,4 +287,128 @@ func worker(ctx context.Context) error {
 			timeToWait = 0
 		}
 	}
+}
+
+func getDNSState() (Views, error) {
+	views, err := GetStructAllViews()
+	if err != nil {
+		return Views{}, fmt.Errorf("Error retrieving all views from DNS: %w", err)
+	}
+
+	return views, nil
+}
+
+func updateDNS(dnsState Views) {
+
+	allNets, err := db.GetAllNets()
+	if err != nil {
+		logger.Error("Error retrieving all nets from DB", "error", err)
+	}
+
+	for _, net := range allNets {
+		var view View
+		// a view cant have 2 nets in this way
+		view.Name = fmt.Sprintf("net%d", net.ID)
+
+		view.Networks = []string{net.Subnet}
+
+		var zone Zone
+		zone.Name = fmt.Sprintf("sasso..%s", view.Name)
+		// zones are always one per view
+		view.Zones = []Zone{zone}
+
+		vms, err := db.GetVMsWithPrimaryInterfaceInVNet(net.ID)
+		if err != nil {
+			logger.Error("Error retrieving VMs for net from DB", "netID", net.ID, "error", err)
+			continue
+		}
+
+		for _, vm := range vms {
+			rrset := RRSet{
+				Name: fmt.Sprintf("%s.sasso.", vm.VMName),
+				Type: "A",
+				TTL:  300,
+				Records: []Record{
+					{Ip: strings.Split(vm.InterfaceIP, "/")[0], Disabled: false},
+				},
+			}
+			view.Zones[0].RRSets = append(view.Zones[0].RRSets, rrset)
+		}
+
+		dnsViewIdx := slices.IndexFunc(dnsState.Views, func(v View) bool {
+			return v.Name == view.Name
+		})
+
+		// check if view exists
+		if dnsViewIdx == -1 {
+			// if view doesn't exist set all
+			err := setupNewStructViewOnDNS(&view)
+			if err != nil {
+				logger.Error("Error setting up view on DNS for net", "netID", net.ID, "error", err)
+			}
+			continue
+		}
+
+		// check if networks match
+		// NON USARE slices.Equal perche l'ordine puo' essere diverso
+		if !slices.Contains(dnsState.Views[dnsViewIdx].Networks, net.Subnet) {
+			// be careful, still need to know if there should be more than one net per structural view
+			if len(dnsState.Views[dnsViewIdx].Networks) >= 1 {
+				err = deleteNetwoksFromDNS(dnsState.Views[dnsViewIdx].Networks)
+				if err != nil {
+					logger.Error("Error deleting old network on DNS for net", "netID", net.ID, "error", err)
+				}
+			}
+
+			err = setUpNetworksFromView(&view)
+			if err != nil {
+				logger.Error("Error setting up networks on DNS for net", "netID", net.ID, "error", err)
+			}
+			continue
+		}
+
+		// check zones
+		if len(view.Zones) != len(dnsState.Views[dnsViewIdx].Zones) {
+			if len(view.Zones) < 1 {
+				err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
+				if err != nil {
+					logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
+				}
+				continue
+			} else {
+				if len(dnsState.Views[dnsViewIdx].Zones) < 1 {
+					err := createZonesWithRRSets(view.Zones)
+					if err != nil {
+						logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
+					}
+					continue
+				} else {
+					for _, zone := range dnsState.Views[dnsViewIdx].Zones {
+						if view.Zones[0].Name != zone.Name {
+							err := deleteZoneFromDNS(zone)
+							if err != nil {
+								logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
+							}
+							continue
+						}
+					}
+				}
+			}
+		} else if view.Zones[0].Name != dnsState.Views[dnsViewIdx].Zones[0].Name {
+			err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
+			if err != nil {
+				logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
+			}
+			err = createZonesWithRRSets(view.Zones)
+			if err != nil {
+				logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
+			}
+			continue
+		} else {
+			// check rrset and records differences
+		}
+	}
+
+	// check for extra views
+	// check for extra nets
 }

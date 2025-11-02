@@ -2,24 +2,25 @@ package dns
 
 import (
 	// "encoding/json"
+	"encoding/json"
 	"fmt"
 	// "samuelemusiani/sasso/server/db"
 )
 
-func SetupNewViewOnDNS(view *View) error {
-	err := SetUpNetworks(view)
+func setupNewStructViewOnDNS(view *View) error {
+	err := setUpNetworksFromView(view)
 	if err != nil {
 		logger.With("error", err).Error("Failed to set up network for view")
 		return fmt.Errorf("failed to set up network: %w", err)
 	}
 
-	err = CreateZones(view.Zones)
+	err = createZonesWithRRSets(view.Zones)
 	if err != nil {
 		logger.With("error", err).Error("Failed to create zones for view")
 		return fmt.Errorf("failed to create zones for view: %w", err)
 	}
 
-	err = AddZonesToView(view)
+	err = addZonesToView(view)
 	if err != nil {
 		logger.With("error", err).Error("Failed to add zones to view")
 		return fmt.Errorf("failed to add zones to view: %w", err)
@@ -28,7 +29,7 @@ func SetupNewViewOnDNS(view *View) error {
 }
 
 // Adds a zone to a given view, creating it if needed
-func AddZonesToView(view *View) error {
+func addZonesToView(view *View) error {
 	for _, zone := range view.Zones {
 		url := fmt.Sprintf("%s/views/%s", BaseUrl, view.Name)
 
@@ -46,38 +47,96 @@ func AddZonesToView(view *View) error {
 }
 
 // // Removes the given zone from the given view
-// func RemoveZoneFromView(view string, zone Zone) error {
-// 	url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view, zone.ID)
 //
-// 	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
-// 	if err != nil {
-// 		logger.With("error", err).Error("Failed to remove zone from view")
-// 		return fmt.Errorf("failed to remove view: %w", err)
-// 	}
+//	func RemoveZoneFromView(view string, zone Zone) error {
+//		url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view, zone.ID)
 //
-// 	fmt.Printf("%d Response: %s", statusCode, string(respBody))
-// 	return nil
-// }
+//		respBody, statusCode, err := HttpRequest("DELETE", url, nil)
+//		if err != nil {
+//			logger.With("error", err).Error("Failed to remove zone from view")
+//			return fmt.Errorf("failed to remove view: %w", err)
+//		}
 //
-// func GetAllViews() (*Views, error) {
-// 	url := fmt.Sprintf("%s/views", BaseUrl)
-//
-// 	respBody, _, err := HttpRequest("GET", url, nil)
-// 	if err != nil {
-// 		logger.With("error", err).Error("Failed to list views")
-// 		return nil, fmt.Errorf("failed to list views: %w", err)
-// 	}
-//
-// 	var viewsResp Views
-//
-// 	if err := json.Unmarshal(respBody, &viewsResp); err != nil {
-// 		logger.With("error", err).Error("Failed to parse views JSON")
-// 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-// 	}
-//
-// 	return &viewsResp, nil
-// }
-//
+//		fmt.Printf("%d Response: %s", statusCode, string(respBody))
+//		return nil
+//	}
+func GetStructAllViews() (Views, error) {
+	url := fmt.Sprintf("%s/views", BaseUrl)
+
+	respBody, _, err := HttpRequest("GET", url, nil)
+	if err != nil {
+		logger.With("error", err).Error("Failed to list views")
+		return Views{}, fmt.Errorf("failed to list views: %w", err)
+	}
+
+	var tmp = struct {
+		Views []string `json:"views"`
+	}{}
+	var views Views
+
+	if err := json.Unmarshal(respBody, &tmp); err != nil {
+		logger.With("error", err).Error("Failed to parse views JSON")
+		return Views{}, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	networks, err := GetNetworks()
+
+	for _, viewName := range tmp.Views {
+		// view zones
+		view, err := GetStructViewWithZonesByName(viewName)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get view by name")
+			return Views{}, fmt.Errorf("failed to get view %s: %w", viewName, err)
+		}
+
+		// view networks
+		viewNets, err := populateViewNetworks(viewName, networks)
+
+		if err != nil {
+			logger.With("error", err).Error("Failed to populate view networks")
+			return Views{}, fmt.Errorf("failed to populate networks for view %s: %w", viewName, err)
+		}
+
+		view.Networks = viewNets
+
+		views.Views = append(views.Views, view)
+	}
+
+	return views, nil
+}
+
+func GetStructViewWithZonesByName(viewName string) (View, error) {
+	url := fmt.Sprintf("%s/views/%s", BaseUrl, viewName)
+
+	respBody, _, err := HttpRequest("GET", url, nil)
+	if err != nil {
+		logger.With("error", err).Error("Failed to get view by name")
+		return View{}, fmt.Errorf("failed to get view %s: %w", viewName, err)
+	}
+
+	var view View
+	view.Name = viewName
+	var tmp struct {
+		Zones []string `json:"zones"`
+	}
+
+	if err := json.Unmarshal(respBody, &tmp); err != nil {
+		logger.With("error", err).Error("Failed to parse view JSON")
+		return View{}, fmt.Errorf("failed to parse JSON for view %s: %w", viewName, err)
+	}
+
+	for _, zoneName := range tmp.Zones {
+		zone, err := GetStructZoneWithRecordsByName(zoneName)
+		if err != nil {
+			logger.With("error", err).Error("Failed to get zone by name")
+			return View{}, fmt.Errorf("failed to get zone %s: %w", zoneName, err)
+		}
+		view.Zones = append(view.Zones, zone)
+	}
+
+	return view, nil
+}
+
 // func GetViewByVPNIp(vpnIp string) (View, bool, error) {
 // 	views, err := GetAllViews()
 // 	if err != nil {

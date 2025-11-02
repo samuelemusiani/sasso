@@ -1,16 +1,16 @@
 package dns
 
 import (
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
 )
 
-func CreateZones(zones []Zone) error {
+func createZonesWithRRSets(zones []Zone) error {
 	for _, zone := range zones {
 		url := fmt.Sprintf("%s/zones", BaseUrl)
 
 		reqBody := map[string]interface{}{
-			"id":   zone.Name,
+			"name": zone.Name,
 			"kind": "Native",
 		}
 
@@ -18,25 +18,42 @@ func CreateZones(zones []Zone) error {
 		if err != nil {
 			return fmt.Errorf("failed to create zone: %w", err)
 		}
+		for _, rrset := range zone.RRSets {
+			err := newRRSetInZone(rrset, zone)
+			if err != nil {
+				logger.With("error", err).Error("Failed to create RRset in zone")
+				return fmt.Errorf("failed to create RRset in zone %s: %w", zone.Name, err)
+			}
+		}
 	}
 	return nil
 }
 
-// // Deletes this zone, all attached metadata and rrsets.
-// func DeleteZone(zone Zone) error {
-// 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
-//
-// 	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to delete view: %w", err)
-// 	}
-//
-// 	fmt.Printf("%d Response: %s", statusCode, string(respBody))
-// 	return nil
-// }
+func deleteZonesFromDNS(zones []Zone) error {
+	for _, zone := range zones {
+		err := deleteZoneFromDNS(zone)
+		if err != nil {
+			return fmt.Errorf("failed to delete zone from DNS: %w", err)
+		}
+	}
+	return nil
+}
+
+// Deletes this zone, all attached metadata and rrsets.
+func deleteZoneFromDNS(zone Zone) error {
+	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
+
+	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete view: %w", err)
+	}
+
+	fmt.Printf("%d Response: %s", statusCode, string(respBody))
+	return nil
+}
 
 // Creates RRsets present in the payload and their comments
-func NewRRsetInZone(RRset RRSet, zone Zone) error {
+func newRRSetInZone(RRset RRSet, zone Zone) error {
 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
 
 	rrsets := []map[string]interface{}{
@@ -53,42 +70,40 @@ func NewRRsetInZone(RRset RRSet, zone Zone) error {
 		"rrsets": rrsets,
 	}
 
-	respBody, statusCode, err := HttpRequest("PATCH", url, reqBody)
+	_, _, err := HttpRequest("PATCH", url, reqBody)
 	if err != nil {
 
 		return fmt.Errorf("failed to create RRset: %w", err)
 	}
 
-	fmt.Printf("%d Response: %s", statusCode, string(respBody))
 	return nil
 }
 
-// // Delete RRsets present in the payload and their comments
-// func DeleteRRsetFromZone(RRset RRSet, zone Zone) error {
-// 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
-//
-// 	rrsets := []map[string]interface{}{
-// 		{
-// 			"name":       RRset.Name,
-// 			"type":       RRset.Type,
-// 			"changetype": "DELETE",
-// 		},
-// 	}
-//
-// 	reqBody := map[string]interface{}{
-// 		"rrsets": rrsets,
-// 	}
-//
-// 	respBody, statusCode, err := HttpRequest("PATCH", url, reqBody)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create RRset: %w", err)
-// 	}
-//
-// 	fmt.Printf("%d Response: %s", statusCode, string(respBody))
-// 	return nil
-// }
-//
-// func GetZones() ([]byte, error) {
+// Delete RRsets present in the payload and their comments
+func deleteRRsetFromZone(RRset RRSet, zone Zone) error {
+	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.Name)
+
+	rrsets := []map[string]interface{}{
+		{
+			"name":       RRset.Name,
+			"type":       RRset.Type,
+			"changetype": "DELETE",
+		},
+	}
+
+	reqBody := map[string]interface{}{
+		"rrsets": rrsets,
+	}
+
+	_, _, err := HttpRequest("PATCH", url, reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create RRset: %w", err)
+	}
+
+	return nil
+}
+
+// func GetAllZones() ([]byte, error) {
 // 	url := fmt.Sprintf("%s/zones", BaseUrl)
 //
 // 	respBody, _, err := HttpRequest("GET", url, nil)
@@ -96,9 +111,36 @@ func NewRRsetInZone(RRset RRSet, zone Zone) error {
 // 		return nil, fmt.Errorf("failed to get zones: %w", err)
 // 	}
 //
+// 	fmt.Printf("Zones Response: %s", string(respBody))
+//
 // 	return respBody, nil
 // }
-//
+
+func GetStructZoneWithRecordsByName(zoneName string) (Zone, error) {
+	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zoneName)
+
+	respBody, _, err := HttpRequest("GET", url, nil)
+	if err != nil {
+		return Zone{}, fmt.Errorf("failed to get zone %s: %w", zoneName, err)
+	}
+
+	var RRSets []RRSet
+	var tmp struct {
+		RRSets []RRSet `json:"rrsets"`
+	}
+
+	if err := json.Unmarshal(respBody, &tmp); err != nil {
+		return Zone{}, fmt.Errorf("failed to parse zone JSON for zone %s: %w", zoneName, err)
+	}
+
+	RRSets = tmp.RRSets
+
+	return Zone{
+		Name:   zoneName,
+		RRSets: RRSets,
+	}, nil
+}
+
 // func GetZoneRecords(zone *Zone) (Records, error) {
 // 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
 // 	respBody, _, err := HttpRequest("GET", url, nil)
