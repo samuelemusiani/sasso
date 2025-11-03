@@ -531,7 +531,7 @@ func SendVMStoppedNotification(userID uint, vmName string) error {
 	}
 
 	t := `Your VM "%s" has been stopped lifetime expiration.
-To use it again please login extend its lifetime.
+To use it again please login and extend its lifetime.
 `
 	body := fmt.Sprintf(t, vmName)
 	n := &notification{

@@ -45,6 +45,11 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
 
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot restore backup in expired VM", http.StatusConflict)
+		return
+	}
+
 	m := getVMMutex(uint(vm.ID))
 	m.Lock()
 	defer m.Unlock()
@@ -100,6 +105,11 @@ type CreateBackupRequestBody struct {
 func createBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot create backup in expired VM", http.StatusConflict)
+		return
+	}
 
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
@@ -160,6 +170,11 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot delete backup in expired VM", http.StatusConflict)
+		return
+	}
 
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {

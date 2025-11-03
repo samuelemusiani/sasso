@@ -286,6 +286,15 @@ func GetVMsWithLifetimesLessThan(t time.Time) ([]VM, error) {
 	return vms, nil
 }
 
+func GetVMsWithLifetimesLessThanAndStatusIN(t time.Time, states []string) ([]VM, error) {
+	var vms []VM
+	result := db.Where("life_time < ? AND status IN ?", t, states).Find(&vms)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vms, nil
+}
+
 func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
 	result := db.Model(&VM{ID: vmID}).Update("life_time", newLifetime)
 	if result.Error != nil {

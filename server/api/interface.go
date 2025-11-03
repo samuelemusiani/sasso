@@ -7,6 +7,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
 	"strings"
+	"time"
 )
 
 func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,14 @@ func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 func addInterface(w http.ResponseWriter, r *http.Request) {
 	vm := mustGetVMFromContext(r)
 
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to add interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
 	var req struct {
 		VNetID  uint   `json:"vnet_id"`
 		VlanTag uint16 `json:"vlan_tag"`
@@ -51,6 +60,11 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	req.IPAdd = strings.TrimSpace(req.IPAdd)
 	req.Gateway = strings.TrimSpace(req.Gateway)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot add interface to expired VM", http.StatusConflict)
+		return
+	}
 
 	userID := mustGetUserIDFromContext(r)
 
@@ -139,6 +153,21 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateInterface(w http.ResponseWriter, r *http.Request) {
+	vm := mustGetVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to update interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot modify interface in expired VM", http.StatusConflict)
+		return
+	}
+
 	iface := mustGetInterfaceFromContext(r)
 
 	var req struct {
@@ -211,9 +240,22 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteInterface(w http.ResponseWriter, r *http.Request) {
-	iface := mustGetInterfaceFromContext(r)
+	vm := mustGetVMFromContext(r)
 
-	// TODO: Groups permission checks (VM must belong to a group the user is in with sufficient permissions)
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to delete interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot delete interface in expired VM", http.StatusConflict)
+		return
+	}
+
+	iface := mustGetInterfaceFromContext(r)
 
 	if err := proxmox.DeleteInterface(iface.ID); err != nil {
 		if errors.Is(err, proxmox.ErrInterfaceNotFound) {

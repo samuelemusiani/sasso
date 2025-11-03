@@ -189,10 +189,25 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 				return
 			}
 
-			// TODO: group vnets
 			if n.OwnerType == "User" && n.OwnerID != userID {
 				http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 				return
+			} else if n.OwnerType == "Group" {
+				role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
+				if err != nil {
+					if errors.Is(err, db.ErrNotFound) {
+						http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+						return
+					}
+					logger.Error("failed to get user role in group", "error", err)
+					http.Error(w, "internal server error", http.StatusInternalServerError)
+					return
+				}
+
+				if role == "member" {
+					http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
+					return
+				}
 			}
 
 			ctx := r.Context()

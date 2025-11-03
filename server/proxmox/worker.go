@@ -1520,7 +1520,11 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 
 func enforceVMLifetimes() {
 	t := time.Now().AddDate(0, 3, 0) // 3 months from now
-	vms, err := db.GetVMsWithLifetimesLessThan(t)
+	vms, err := db.GetVMsWithLifetimesLessThanAndStatusIN(t, []string{
+		string(VMStatusRunning),
+		string(VMStatusStopped),
+		string(VMStatusSuspended),
+	})
 	if err != nil {
 		logger.Error("Failed to get VMs with lifetimes less than", "time", t, "error", err)
 		return
@@ -1558,10 +1562,12 @@ func enforceVMLifetimes() {
 		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
-			err := changeVMStatusBypass(v.ID, "stop")
-			if err != nil {
-				logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
-				continue
+			if v.Status != string(VMStatusStopped) {
+				err := changeVMStatusBypass(v.ID, "stop")
+				if err != nil {
+					logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
+					continue
+				}
 			}
 
 			if v.OwnerType == "Group" {

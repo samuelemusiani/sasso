@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
+	"time"
 )
 
 func vms(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +140,11 @@ func changeVMState(action string) http.HandlerFunc {
 		vm := mustGetVMFromContext(r)
 		vmID := vm.ID
 
+		if vm.LifeTime.Before(time.Now()) {
+			http.Error(w, "Cannot change state of expired VM", http.StatusForbidden)
+			return
+		}
+
 		ownerID := userID
 		isGroup := false
 		if vm.OwnerType == "Group" {
@@ -235,6 +241,12 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vm := mustGetVMFromContext(r)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot update resources of expired VM", http.StatusForbidden)
+		return
+	}
+
 	vmid := vm.ID
 	if vm.OwnerType == "Group" {
 		role := mustGetUserRoleInGroupFromContext(r)
