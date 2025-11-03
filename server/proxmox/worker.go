@@ -770,6 +770,8 @@ func updateVMs(cluster *gprox.Cluster) {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
 
+			delete(vmStatusTimeMap, r.VMID)
+
 		} else if !slices.Contains(allVMStatus, r.Status) {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
@@ -796,6 +798,8 @@ func updateVMs(cluster *gprox.Cluster) {
 				if err != nil {
 					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
+
+				delete(vmStatusTimeMap, r.VMID)
 			} else if !exists || vmStatusTimeMapEntry.Value != r.Status {
 				t := time.Now()
 				// if exists {
@@ -828,6 +832,8 @@ func updateVMs(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", status, "err", err)
 			}
+
+			delete(vmStatusTimeMap, r.VMID)
 		}
 	}
 
