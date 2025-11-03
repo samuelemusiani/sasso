@@ -754,7 +754,7 @@ func updateVMs(cluster *gprox.Cluster) {
 			continue
 		}
 
-		if vm.Status == string(VMStatusUnknown) {
+		if vm.Status == string(VMStatusUnknown) && slices.Contains(allVMStatus, r.Status) {
 			logger.Warn("VM changed status from unknown to a known status", "vmid", r.VMID, "new_status", r.Status)
 			err := db.UpdateVMStatus(r.VMID, r.Status)
 			if err != nil {
@@ -798,9 +798,9 @@ func updateVMs(cluster *gprox.Cluster) {
 				}
 			} else if !exists || vmStatusTimeMapEntry.Value != r.Status {
 				t := time.Now()
-				if exists {
-					t = vmStatusTimeMapEntry.Time
-				}
+				// if exists {
+				// 	t = vmStatusTimeMapEntry.Time
+				// }
 				vmStatusTimeMap[r.VMID] = stringTime{
 					Value: r.Status,
 					Time:  t,
