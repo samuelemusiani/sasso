@@ -12,7 +12,7 @@ type VM struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
+	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','paused','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
 	Name  string `gorm:"type:varchar(20);not null"`
 	Notes string `gorm:"type:text;not null;default:''"`
@@ -209,11 +209,11 @@ func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
 }
 
 func GetAllActiveVMs() ([]VM, error) {
-	return GetVMsWithStates([]string{"running", "stopped", "suspended"})
+	return GetVMsWithStates([]string{"running", "stopped", "paused"})
 }
 
 func GetAllActiveVMsWithUnknown() ([]VM, error) {
-	return GetVMsWithStates([]string{"running", "stopped", "suspended", "unknown"})
+	return GetVMsWithStates([]string{"running", "stopped", "paused", "unknown"})
 }
 
 func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {

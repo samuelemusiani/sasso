@@ -702,7 +702,7 @@ func configureVMs(vmNodes map[uint64]string) {
 		// if the status is not recognised, we set it to 'stopped'.
 		// (This is not a huge issue, because the updateVMs function will eventually
 		// correct the status)
-		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 		var newStatus string
 		if slices.Contains(vmStates, vm.Status) {
 			newStatus = vm.Status
@@ -728,7 +728,7 @@ func updateVMs(cluster *gprox.Cluster) {
 		logger.Error("Failed to get Proxmox resources", "error", err)
 		return
 	}
-	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()
 	if err != nil {
@@ -1413,7 +1413,7 @@ func createBackups(mapVMContent map[uint64]string) {
 func configureSSHKeys(vmNodes map[uint64]string) {
 	logger.Debug("Configuring SSH keys in worker")
 
-	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)}
+	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusPaused)}
 
 	ssht := db.GetLastSSHKeyUpdate()
 	vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
@@ -1529,7 +1529,7 @@ func enforceVMLifetimes() {
 	vms, err := db.GetVMsWithLifetimesLessThanAndStatusIN(t, []string{
 		string(VMStatusRunning),
 		string(VMStatusStopped),
-		string(VMStatusSuspended),
+		string(VMStatusPaused),
 	})
 	if err != nil {
 		logger.Error("Failed to get VMs with lifetimes less than", "time", t, "error", err)

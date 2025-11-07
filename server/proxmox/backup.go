@@ -51,7 +51,7 @@ var (
 	ErrBackupNotesTooLong         = errors.New("backup_notes_too_long")
 )
 
-var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusSuspended}
+var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusPaused}
 
 func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	vm, err := db.GetVMByID(vmID)

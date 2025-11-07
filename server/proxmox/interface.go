@@ -35,7 +35,7 @@ type Interface struct {
 	Status  InterfaceStatus `json:"status"`
 }
 
-var goodVMStatesForInterfacesManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusSuspended, VMStatusPreConfiguring, VMStatusConfiguring}
+var goodVMStatesForInterfacesManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusPaused, VMStatusPreConfiguring, VMStatusConfiguring}
 
 func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway string) (*Interface, error) {
 	vm, err := db.GetVMByID(uint64(VMID))

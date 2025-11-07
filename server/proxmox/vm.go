@@ -18,10 +18,10 @@ import (
 type VMStatus string
 
 var (
-	VMStatusRunning   VMStatus = "running"
-	VMStatusStopped   VMStatus = "stopped"
-	VMStatusSuspended VMStatus = "suspended"
-	VMStatusUnknown   VMStatus = "unknown"
+	VMStatusRunning VMStatus = "running"
+	VMStatusStopped VMStatus = "stopped"
+	VMStatusPaused  VMStatus = "paused"
+	VMStatusUnknown VMStatus = "unknown"
 
 	// The pre-status is before the main worker has acknowledged the creation or
 	// deletion
@@ -361,7 +361,7 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 		}
 	}
 
-	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended), string(VMStatusUnknown)}
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused), string(VMStatusUnknown)}
 
 	if !slices.Contains(vmStates, vm.Status) {
 		logger.Warn("VM is not in a deletable state", "vmID", vmID, "status", vm.Status)
@@ -540,7 +540,7 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 		}
 	}
 
-	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 	if !slices.Contains(vmStates, vm.Status) {
 		logger.Warn("VM is not in a valid state for changing status", "vmID", vmID, "status", vm.Status)
 		return ErrInvalidVMState
@@ -692,7 +692,7 @@ func UpdateVMResources(VMID uint64, cores, ram, disk uint) error {
 		return errors.Join(ErrInvalidVMParam, errors.New("disk size can only be increased"))
 	}
 
-	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended), string(VMStatusUnknown)}
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused), string(VMStatusUnknown)}
 
 	if !slices.Contains(vmStates, vm.Status) {
 		logger.Warn("VM is not in a state for resource updates", "vmID", VMID, "status", vm.Status)
