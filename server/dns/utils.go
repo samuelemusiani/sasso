@@ -94,3 +94,19 @@ func GetBody(resp *http.Response) ([]byte, error) {
 	}
 	return body, nil
 }
+
+func ConfrontRecords(RRSet2 RRSet, RRSet1 RRSet) bool {
+	if len(RRSet1.Records) != len(RRSet2.Records) {
+		return false
+	}
+	recordMap := make(map[string]bool)
+	for _, record := range RRSet1.Records {
+		recordMap[record.Ip] = true
+	}
+	for _, record := range RRSet2.Records {
+		if _, exists := recordMap[record.Ip]; !exists {
+			return false
+		}
+	}
+	return true
+}	
