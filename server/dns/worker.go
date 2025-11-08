@@ -373,104 +373,83 @@ func updateDNS(dnsState Views) {
 		}
 
 		// check zones
-		checkZonesInDBAndDNS(&view,  &dnsState.Views[dnsViewIdx])
-		if len(view.Zones) != len(dnsState.Views[dnsViewIdx].Zones) {
-			if len(view.Zones) < 1 { //view has no zones in db; remove zones from dns
-				err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
-				if err != nil {
-					logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
-				}
-			} else {
-				if len(dnsState.Views[dnsViewIdx].Zones) < 1 { //view in dns has no zones; add zones from db
-					err := createZonesWithRRSets(view.Zones)
-					if err != nil {
-						logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
-					}
-				} else {
-					for _, zone := range dnsState.Views[dnsViewIdx].Zones {
-						if view.Zones[0].Name != zone.Name { // check if dns zone and db zone correspond
-							err := deleteZoneFromDNS(zone)
-							if err != nil {
-								logger.Error("Error deleting zone on DNS for net", "netID", net.ID, "zone", zone.Name, "error", err)
-							}
-						}
-					}
-				}
-			}
-		} else if view.Zones[0].Name != dnsState.Views[dnsViewIdx].Zones[0].Name { // check if dns zone and db zone correspond
+		ConfrontZones(dnsState, view)
+	}
+	// check for extra views
+	// check for extra nets
+}
+
+// check rrset and records differences
+func ConfrontZones(dnsState Views, dbState Views) bool {
+	if len(view.Zones) != len(dnsState.Views[dnsViewIdx].Zones) {
+		if len(view.Zones) < 1 { //view has no zones in db; remove zones from dns
 			err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
 			if err != nil {
 				logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
 			}
-			err = createZonesWithRRSets(view.Zones)
-			if err != nil {
-				logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
-			}
 		} else {
-			// check rrset and records differences
-
-
-			//if !slices.Contains(dnsState.Views[dnsViewIdx].Zones[0].RRSets, view.Zones[0].RRSets) 
-
-
-			// check rrsets
-			if len(view.Zones[0].RRSets) != len(dnsState.Views[dnsViewIdx].Zones[0].RRSets) {
-				if len(view.Zones[0].RRSets) < 1 { //zone has no rrsets in db; remove rrsets from dns
-					// I think a db zone of the net always has RRSets, but not sure
-				} else {
-					if len(dnsState.Views[dnsViewIdx].Zones[0].RRSets) < 1 { //zone in dns has no rrsets; add rrsets from db
-						err :=	addRRSetsToZone(view.Zones[0].RRSets, view.Zones[0])
+			if len(dnsState.Views[dnsViewIdx].Zones) < 1 { //view in dns has no zones; add zones from db
+				err := createZonesWithRRSets(view.Zones)
+				if err != nil {
+					logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
+				}
+			} else {
+				for _, zone := range dnsState.Views[dnsViewIdx].Zones {
+					if view.Zones[0].Name != zone.Name { // check if dns zone and db zone correspond
+						err := deleteZoneFromDNS(zone)
 						if err != nil {
-							logger.Error("Error adding rrsets to zone on DNS for net", "netID", net.ID, "error", err)
-						}
-					} else {
-						for _, dbRRSet := range view.Zones[0].RRSets { // for each rrset in db zone, check if it's in dns zone, add if missing
-							if !slices.ContainsFunc(dnsState.Views[dnsViewIdx].Zones[0].RRSets, func (dnsRRSet RRSet) bool { 
-								return dnsRRSet.Name == dbRRSet.Name && 
-								dnsRRSet.Type == dbRRSet.Type && 
-								dnsRRSet.TTL == dbRRSet.TTL   &&
-								ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)}){
-								err := newRRSetInZone(dbRRSet, view.Zones[0])
-								if err != nil {
-									logger.Error("Error adding rrset to zone on DNS for net", "netID", net.ID, "dbRRSet", dbRRSet, "error", err)
-								}
-							}
-						}
-						for _, dnsRRSet := range dnsState.Views[dnsViewIdx].Zones[0].RRSets { // for each rrset in dns zone, check if it's in db zone, delete if extra
-							if !slices.ContainsFunc(view.Zones[0].RRSets, func (dbRRSet RRSet) bool { 
-								return dnsRRSet.Name == dbRRSet.Name && 
-								dnsRRSet.Type == dbRRSet.Type && 
-								dnsRRSet.TTL == dbRRSet.TTL   &&
-								ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)}) {	
-								err := deleteRRSetFromZone(dnsRRSet, view.Zones[0])
-								if err != nil {
-									logger.Error("Error deleting rrset from zone on DNS for net", "netID", net.ID, "dnsRRSet", dnsRRSet, "error", err)
-								}
-							}
+							logger.Error("Error deleting zone on DNS for net", "netID", net.ID, "zone", zone.Name, "error", err)
 						}
 					}
 				}
-			}else {
-				for _, dbRRSet := range view.Zones[0].RRSets { // for each rrset in db zone, check if it's in dns zone, add if missing
-					if !slices.ContainsFunc(dnsState.Views[dnsViewIdx].Zones[0].RRSets, func (dnsRRSet RRSet) bool { 
-						return dnsRRSet.Name == dbRRSet.Name && 
-						dnsRRSet.Type == dbRRSet.Type && 
-						dnsRRSet.TTL == dbRRSet.TTL   &&
-						ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)}) //check records too
-					{
+			}
+		}
+	} else if view.Zones[0].Name != dnsState.Views[dnsViewIdx].Zones[0].Name { // check if dns zone and db zone correspond
+		err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
+		if err != nil {
+			logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
+		}
+		err = createZonesWithRRSets(view.Zones)
+		if err != nil {
+			logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
+		}
+	} else {
+		// check rrset and records differences
+		ConfrontRRSets(dnsState.Views[dnsViewIdx].Zones[0].RRSets, view.Zones[0].RRSets)
+	}
+}
+
+func ConfrontRRSets(dnsRRSets []RRSet, dbRRSets []RRSet) bool {
+	if len(dbRRSets) != len(dnsRRSets) {
+		if len(dbRRSets) < 1 { //zone has no rrsets in db; remove rrsets from dns
+			// I think a db zone of the net always has RRSets, but not sure
+		} else {
+			if len(dnsRRSets) < 1 { //zone in dns has no rrsets; add rrsets from db
+				err := addRRSetsToZone(dbRRSets, view.Zones[0])
+				if err != nil {
+					logger.Error("Error adding rrsets to zone on DNS for net", "netID", net.ID, "error", err)
+				}
+			} else {
+				for _, dbRRSet := range dbRRSets { // for each rrset in db zone, check if it's in dns zone, add if missing
+					if !slices.ContainsFunc(dnsRRSets, func(dnsRRSet RRSet) bool {
+						return dnsRRSet.Name == dbRRSet.Name &&
+							dnsRRSet.Type == dbRRSet.Type &&
+							dnsRRSet.TTL == dbRRSet.TTL &&
+							ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)
+					}) {
 						err := newRRSetInZone(dbRRSet, view.Zones[0])
 						if err != nil {
 							logger.Error("Error adding rrset to zone on DNS for net", "netID", net.ID, "dbRRSet", dbRRSet, "error", err)
 						}
 					}
 				}
-				for _, dnsRRSet := range dnsState.Views[dnsViewIdx].Zones[0].RRSets { // for each rrset in dns zone, check if it's in db zone, delete if extra
-					if !slices.ContainsFunc(view.Zones[0].RRSets, func (dbRRSet RRSet) bool { 
-						return dnsRRSet.Name == dbRRSet.Name && 
-						dnsRRSet.Type == dbRRSet.Type && 
-						dnsRRSet.TTL == dbRRSet.TTL   &&
-						ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)}) //check records too
-					{
+				for _, dnsRRSet := range dnsRRSets { // for each rrset in dns zone, check if it's in db zone, delete if extra
+					if !slices.ContainsFunc(dbRRSets, func(dbRRSet RRSet) bool {
+						return dnsRRSet.Name == dbRRSet.Name &&
+							dnsRRSet.Type == dbRRSet.Type &&
+							dnsRRSet.TTL == dbRRSet.TTL &&
+							ConfrontRecords(dnsRRSet.Records, dbRRSet.Records)
+					}) {
 						err := deleteRRSetFromZone(dnsRRSet, view.Zones[0])
 						if err != nil {
 							logger.Error("Error deleting rrset from zone on DNS for net", "netID", net.ID, "dnsRRSet", dnsRRSet, "error", err)
@@ -479,15 +458,32 @@ func updateDNS(dnsState Views) {
 				}
 			}
 		}
+	} else {
+		for _, dbRRSet := range dbRRSets { // for each rrset in db zone, check if it's in dns zone, add if missing
+			if !slices.ContainsFunc(dnsRRSets, func(dnsRRSet RRSet) bool {
+				return dnsRRSet.Name == dbRRSet.Name &&
+					dnsRRSet.Type == dbRRSet.Type &&
+					dnsRRSet.TTL == dbRRSet.TTL &&
+					ConfrontRecords(dnsRRSet.Records, dbRRSet.Records) //check records too
+			}) {
+				err := newRRSetInZone(dbRRSet, view.Zones[0])
+				if err != nil {
+					logger.Error("Error adding rrset to zone on DNS for net", "netID", net.ID, "dbRRSet", dbRRSet, "error", err)
+				}
+			}
+		}
+		for _, dnsRRSet := range dnsRRSets { // for each rrset in dns zone, check if it's in db zone, delete if extra
+			if !slices.ContainsFunc(dbRRSets, func(dbRRSet RRSet) bool {
+				return dnsRRSet.Name == dbRRSet.Name &&
+					dnsRRSet.Type == dbRRSet.Type &&
+					dnsRRSet.TTL == dbRRSet.TTL &&
+					ConfrontRecords(dnsRRSet.Records, dbRRSet.Records) //check records too
+			}) {
+				err := deleteRRSetFromZone(dnsRRSet, view.Zones[0])
+				if err != nil {
+					logger.Error("Error deleting rrset from zone on DNS for net", "netID", net.ID, "dnsRRSet", dnsRRSet, "error", err)
+				}
+			}
+		}
 	}
-
-	// check for extra views
-	// check for extra nets
 }
-
-// check rrset and records differences
-/*
-func ConfrontZones(dnsState Views, dbState Views) bool {
-	
-}*/
-
