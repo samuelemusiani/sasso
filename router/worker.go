@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"sort"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -18,8 +17,6 @@ import (
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
-
-	shorewall "github.com/samuelemusiani/go-shorewall"
 )
 
 func worker(logger *slog.Logger, conf config.Server) {
@@ -291,104 +288,92 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 	return pfs, nil
 }
 
-func checkPortForwards(logger *slog.Logger, fw fw.Firewall) error {
+func ruleFromPortForwardDb(pf db.PortForward) fw.Rule {
+	return fw.Rule{
+		OutPort:  pf.OutPort,
+		DestPort: pf.DestPort,
+		DestIP:   pf.DestIP,
+	}
+}
+
+func rulesFromPortForwardsDb(portForwards []db.PortForward) []fw.Rule {
+	var rules []fw.Rule
+	for _, pf := range portForwards {
+		rules = append(rules, ruleFromPortForwardDb(pf))
+	}
+
+	return rules
+}
+
+func ruleFromPortForwardInternal(pf internal.PortForward) fw.Rule {
+	return fw.Rule{
+		OutPort:  pf.OutPort,
+		DestPort: pf.DestPort,
+		DestIP:   pf.DestIP,
+	}
+}
+
+func rulesFromPortForwardsInternal(portForwards []internal.PortForward) []fw.Rule {
+	var rules []fw.Rule
+	for _, pf := range portForwards {
+		rules = append(rules, ruleFromPortForwardInternal(pf))
+	}
+
+	return rules
+}
+
+func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	portForwards, err := db.GetPortForwards()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get all port forwards from DB")
 		return err
 	}
 
-	fwRules, err := shorewall.GetRules()
+	rules := rulesFromPortForwardsDb(portForwards)
+
+	// get all port forward rules present in db but not in firewall
+	faultyRules, err := firewall.VerifyPortForwardRules(rules)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get firewall rules")
+		logger.With("error", err).Error("Failed to verify port forward rules")
 		return err
 	}
 
-	// sort rules
-	sort.Slice(fwRules, func(i, j int) bool {
-		if fwRules[i].Action != fwRules[j].Action {
-			return fwRules[i].Action < fwRules[j].Action
-		}
-		if fwRules[i].Destination != fwRules[j].Destination {
-			return fwRules[i].Destination < fwRules[j].Destination
-		}
-		if fwRules[i].Dport != fwRules[j].Dport {
-			return fwRules[i].Dport < fwRules[j].Dport
-		}
-		if fwRules[i].Protocol != fwRules[j].Protocol {
-			return fwRules[i].Protocol < fwRules[j].Protocol
-		}
-		if fwRules[i].Source != fwRules[j].Source {
-			return fwRules[i].Source < fwRules[j].Source
-		}
-		return fwRules[i].Sport < fwRules[j].Sport
-	})
-
-	reloadFirewall := false
-	for _, pf := range portForwards {
-		pfRule := fw.CreatePortForwardsRule(pf.OutPort, pf.DestPort, pf.DestIP)
-
-		index := sort.Search(len(fwRules), func(i int) bool {
-			if fwRules[i].Action != pfRule.Action {
-				return fwRules[i].Action > pfRule.Action
-			}
-			if fwRules[i].Destination != pfRule.Destination {
-				return fwRules[i].Destination > pfRule.Destination
-			}
-			if fwRules[i].Dport != pfRule.Dport {
-				return fwRules[i].Dport > pfRule.Dport
-			}
-			if fwRules[i].Protocol != pfRule.Protocol {
-				return fwRules[i].Protocol > pfRule.Protocol
-			}
-			if fwRules[i].Source != pfRule.Source {
-				return fwRules[i].Source > pfRule.Source
-			}
-			return fwRules[i].Sport >= pfRule.Sport
-		})
-
-		if index >= len(fwRules) || fwRules[index] != pfRule {
-			logger.Info("Port forward rule missing in firewall, adding it", "port_forward_id", pf.ID)
-			err = fw.AddPortForward(pf.OutPort, pf.DestPort, pf.DestIP)
-			if err != nil {
-				logger.With("error", err, "port_forward_id", pf.ID).Error("Failed to add missing port forward rule to firewall")
-				continue
-			}
-			reloadFirewall = true
-		}
-	}
-
-	// reload shorewall to apply changes
-	if reloadFirewall {
-		err = shorewall.Reload()
-		if err != nil {
-			logger.With("error", err).Error("Failed to reload firewall")
-			return err
-		}
+	// add to firewall
+	err = firewall.AddPortForwardRules(faultyRules)
+	if err != nil {
+		logger.With("error", err).Error("Failed to add faulty rules")
+		return err
 	}
 
 	return nil
 }
 
 func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
-	localPortForwards, err := db.GetPortForwards()
+
+	// Get only the portForwards in database
+	var pfsDb []db.PortForward
+	for _, pf := range pfs {
+		pfDb, err := db.GetPortForwardByID(pf.ID)
+		if err == nil {
+			pfsDb = append(pfsDb, *pfDb)
+			continue
+		} else if !errors.Is(err, db.ErrNotFound) {
+			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
+			continue
+		}
+	}
+
+	// delete requested rules, even if are not in database
+	rules := rulesFromPortForwardsInternal(pfs)
+	err := fw.RemovePortForwardRules(rules)
+
 	if err != nil {
-		logger.Error("Failed to get all port forwards from database", "error", err)
+		logger.Error("Failed to remove ports forward from firewall", "error", err)
 		return err
 	}
 
-	for _, localPF := range localPortForwards {
-		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
-			return pf.ID == localPF.ID
-		}) != -1 {
-			continue
-		}
-
-		err = fw.RemovePortForward(localPF.OutPort, localPF.DestPort, localPF.DestIP)
-		if err != nil {
-			logger.Error("Failed to remove port forward from firewall", "error", err, "port_forward_id", localPF.ID)
-			continue
-		}
+	// removes all rules present in database to be deleted
+	for _, localPF := range pfsDb {
 
 		err = db.RemovePortForward(localPF.ID)
 		if err != nil {
@@ -401,29 +386,34 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 }
 
 func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+
+	// Get only the portForwards not in database
+	var pfsNotDb []db.PortForward
 	for _, pf := range pfs {
-		_, err := db.GetPortForwardByID(pf.ID)
+		pfDb, err := db.GetPortForwardByID(pf.ID)
 		if err == nil {
 			continue
-		} else if !errors.Is(err, db.ErrNotFound) {
+		} else if errors.Is(err, db.ErrNotFound) {
+			pfsNotDb = append(pfsNotDb, *pfDb)
+		} else {
 			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
 			continue
 		}
+	}
 
-		err = fw.AddPortForward(pf.OutPort, pf.DestPort, pf.DestIP)
-		if err != nil {
-			logger.Error("Failed to add port forward to firewall", "error", err, "port_forward_id", pf.ID)
-			continue
-		}
+	// create rules only if not present in database
+	rules := rulesFromPortForwardsDb(pfsNotDb)
+	err := fw.AddPortForwardRules(rules)
 
-		err = db.AddPortForward(db.PortForward{
-			ID:       pf.ID,
-			OutPort:  pf.OutPort,
-			DestPort: pf.DestPort,
-			DestIP:   pf.DestIP,
-		})
+	if err != nil {
+		logger.Error("Failed to add ports forward from firewall", "error", err)
+		return err
+	}
+
+	for _, pfDb := range pfsNotDb {
+		err = db.AddPortForward(pfDb)
 		if err != nil {
-			logger.Error("Failed to save port forward to database", "error", err, "port_forward_id", pf.ID)
+			logger.Error("Failed to save port forward to database", "error", err, "port_forward_id", pfDb.ID)
 			continue
 		}
 	}

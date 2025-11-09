@@ -4,8 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"samuelemusiani/sasso/router/config"
-
-	goshorewall "github.com/samuelemusiani/go-shorewall"
 )
 
 var (
@@ -15,10 +13,20 @@ var (
 	ErrUnsupportedFirewallType = errors.New("unsupported firewall type")
 )
 
+type Rule struct {
+	OutPort  uint16
+	DestPort uint16
+	DestIP   string
+}
+
 type Firewall interface {
-	CreatePortForwardsRule(outPort, destPort uint16, destIP string) goshorewall.Rule
-	AddPortForward(outPort, destPort uint16, destIP string) error
-	RemovePortForward(outPort, destPort uint16, destIP string) error
+	ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule
+	AddPortForwardRule(r Rule) error
+	AddPortForwardRules(rules []Rule) error
+	RemovePortForwardRule(r Rule) error
+	RemovePortForwardRules(rules []Rule) error
+	VerifyPortForwardRule(r Rule) (bool, error)
+	VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 }
 
 func Init(l *slog.Logger, c config.Firewall) error {
