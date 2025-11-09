@@ -754,7 +754,13 @@ func updateVMs(cluster *gprox.Cluster) {
 			continue
 		}
 
-		if vm.Status == string(VMStatusUnknown) && slices.Contains(allVMStatus, r.Status) {
+		statusInSlices := slices.Contains(allVMStatus, r.Status)
+		// If the VMs status becomes normal we need to delete it from the map
+		if _, exists := vmStatusTimeMap[r.VMID]; exists {
+			delete(vmStatusTimeMap, r.VMID)
+		}
+
+		if vm.Status == string(VMStatusUnknown) && statusInSlices {
 			logger.Warn("VM changed status from unknown to a known status", "vmid", r.VMID, "new_status", r.Status)
 			err := db.UpdateVMStatus(r.VMID, r.Status)
 			if err != nil {
@@ -772,7 +778,7 @@ func updateVMs(cluster *gprox.Cluster) {
 
 			delete(vmStatusTimeMap, r.VMID)
 
-		} else if !slices.Contains(allVMStatus, r.Status) {
+		} else if !statusInSlices {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
 			timeToWait := 1 * time.Minute
@@ -814,7 +820,7 @@ func updateVMs(cluster *gprox.Cluster) {
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 			status := r.Status
-			if !slices.Contains(allVMStatus, r.Status) {
+			if !statusInSlices {
 				logger.Error("VM status not recognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 				status = string(VMStatusUnknown)
 			}
