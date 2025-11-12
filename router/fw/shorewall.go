@@ -3,6 +3,7 @@ package fw
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	goshorewall "github.com/samuelemusiani/go-shorewall"
@@ -41,12 +42,13 @@ func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 
 func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	reload := false
-	for _, r := range rules {
+	for i, r := range rules {
 		err := goshorewall.AddRule(s.ShorewallRulefromRule(r))
-		if errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+
+		if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+			return errors.Join(err, fmt.Errorf("failed to add rule %d and subsequent rules", i))
+		} else {
 			reload = true
-		} else if err != nil {
-			return err
 		}
 	}
 
@@ -66,12 +68,13 @@ func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 
 func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	reload := false
-	for _, r := range rules {
+	for i, r := range rules {
 		err := goshorewall.RemoveRule(s.ShorewallRulefromRule(r))
-		if errors.Is(err, goshorewall.ErrRuleNotFound) {
+
+		if err != nil && !errors.Is(err, goshorewall.ErrRuleNotFound) {
+			return errors.Join(err, fmt.Errorf("failed to remove rule %d and subsequent rules", i))
+		} else {
 			reload = true
-		} else if err != nil {
-			return err
 		}
 	}
 
@@ -81,28 +84,9 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	return nil
 }
 
-func shorewallRuleLess(i *goshorewall.Rule, j *goshorewall.Rule) bool {
-	if i.Action != j.Action {
-		return i.Action < j.Action
-	}
-	if i.Destination != j.Destination {
-		return i.Destination < j.Destination
-	}
-	if i.Dport != j.Dport {
-		return i.Dport < j.Dport
-	}
-	if i.Protocol != j.Protocol {
-		return i.Protocol < j.Protocol
-	}
-	if i.Source != j.Source {
-		return i.Source < j.Source
-	}
-	return i.Sport < j.Sport
-}
-
 func sortRules(rules []goshorewall.Rule) []goshorewall.Rule {
 	sort.Slice(rules, func(i, j int) bool {
-		return shorewallRuleLess(&rules[i], &rules[j])
+		return rules[i].Compare(rules[j]) < 0
 	})
 
 	return rules
@@ -110,7 +94,7 @@ func sortRules(rules []goshorewall.Rule) []goshorewall.Rule {
 
 func searchSortedRules(r goshorewall.Rule, sortedRules []goshorewall.Rule) int {
 	return sort.Search(len(sortedRules), func(i int) bool {
-		return !shorewallRuleLess(&sortedRules[i], &r) // >= is equal to not <
+		return sortedRules[i].Compare(r) >= 0
 	})
 }
 
@@ -122,11 +106,8 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	}
 
 	sr := s.ShorewallRulefromRule(r)
-	for _, srr := range srules {
-		if srr == sr {
-			// rule present in firewall -> ok
-			return true, nil
-		}
+	if slices.Contains(srules, sr) {
+		return true, nil
 	}
 	return false, nil
 }

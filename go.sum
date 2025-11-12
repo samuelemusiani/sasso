@@ -118,6 +118,8 @@ github.com/samuelemusiani/go-proxmox v0.0.10 h1:AzPedr5Yg5I1mDZB0m9hICcOKJT/KrOX
 github.com/samuelemusiani/go-proxmox v0.0.10/go.mod h1:oyFgg2WwTEIF0rP6ppjiixOHa5ebK1p8OaRiFhvICBQ=
 github.com/samuelemusiani/go-shorewall v0.0.3 h1:OkoBg0wxRkJDLsbkr0z8iO4BS9IkKPBEG2/fHS2topM=
 github.com/samuelemusiani/go-shorewall v0.0.3/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
+github.com/samuelemusiani/go-shorewall v0.0.6 h1:xHoL/rzpNVMhpA51/bLXuGuf5hiehXk/XE7j0uFaqJg=
+github.com/samuelemusiani/go-shorewall v0.0.6/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
 github.com/seancfoley/bintree v1.3.1 h1:cqmmQK7Jm4aw8gna0bP+huu5leVOgHGSJBEpUx3EXGI=
 github.com/seancfoley/bintree v1.3.1/go.mod h1:hIUabL8OFYyFVTQ6azeajbopogQc2l5C/hiXMcemWNU=
 github.com/seancfoley/ipaddress-go v1.7.1 h1:fDWryS+L8iaaH5RxIKbY0xB5Z+Zxk8xoXLN4S4eAPdQ=
