@@ -15,7 +15,6 @@ import (
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
-	firewall "samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
@@ -328,7 +327,7 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	return nil
 }
 
-func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
 
 	// Get only the portForwards in database
 	var pfsDb []db.PortForward
@@ -342,15 +341,15 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 	}
 
 	// delete requested rules, even if are not in database
-	var rules []firewall.Rule
+	var rules []fw.Rule
 	for _, pf := range pfs {
-		rules = append(rules, firewall.Rule{
+		rules = append(rules, fw.Rule{
 			OutPort:  pf.OutPort,
 			DestPort: pf.DestPort,
 			DestIP:   pf.DestIP,
 		})
 	}
-	err := fw.RemovePortForwardRules(rules)
+	err := firewall.RemovePortForwardRules(rules)
 
 	if err != nil {
 		logger.Error("Failed to remove ports forward from firewall", "error", err)
@@ -369,7 +368,7 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 	return nil
 }
 
-func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
 
 	// Get only the portForwards not in database
 	var pfsNotDb []db.PortForward
@@ -387,7 +386,7 @@ func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 
 	// create rules only if not present in database
 	rules := rulesFromPortForwardsDB(pfsNotDb)
-	err := fw.AddPortForwardRules(rules)
+	err := firewall.AddPortForwardRules(rules)
 	if err != nil {
 		logger.Error("Failed to add ports forward from firewall", "error", err)
 		return err
