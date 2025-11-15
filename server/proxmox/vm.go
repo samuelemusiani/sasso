@@ -18,10 +18,10 @@ import (
 type VMStatus string
 
 var (
-	VMStatusRunning   VMStatus = "running"
-	VMStatusStopped   VMStatus = "stopped"
-	VMStatusSuspended VMStatus = "suspended"
-	VMStatusUnknown   VMStatus = "unknown"
+	VMStatusRunning VMStatus = "running"
+	VMStatusStopped VMStatus = "stopped"
+	VMStatusPaused  VMStatus = "paused"
+	VMStatusUnknown VMStatus = "unknown"
 
 	// The pre-status is before the main worker has acknowledged the creation or
 	// deletion
@@ -44,6 +44,9 @@ var (
 
 	vmNameRegex = regexp.MustCompile(`^\w+(\w|-)*\w+$`)
 	vmLifeTimes = []uint{1, 3, 6, 12}
+
+	vmMinCores uint = 1
+	vmMinRAM   uint = 512 // in MB
 )
 
 type VM struct {
@@ -192,10 +195,10 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
 	}
 
-	if cores < 1 {
+	if cores < vmMinCores {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
 	}
-	if ram < 512 {
+	if ram < vmMinRAM {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
 	}
 	if disk < VMCloneDiskSizeGB {
@@ -327,10 +330,11 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 
 func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 	var err error
+	var vm *db.VM
 	if group {
-		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
 	} else {
-		_, err = db.GetVMByUserIDAndVMID(userID, vmID)
+		vm, err = db.GetVMByUserIDAndVMID(userID, vmID)
 	}
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -355,6 +359,13 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 		if group && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
+	}
+
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused), string(VMStatusUnknown)}
+
+	if !slices.Contains(vmStates, vm.Status) {
+		logger.Warn("VM is not in a deletable state", "vmID", vmID, "status", vm.Status)
+		return ErrInvalidVMState
 	}
 
 	return deleteVMBypass(vmID)
@@ -498,10 +509,11 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 // If the VM belongs to a user, userID and ownerID are the same.
 func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string) error {
 	var err error
+	var vm *db.VM
 	if group {
-		_, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
+		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
 	} else {
-		_, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
+		vm, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
 	}
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -526,6 +538,12 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 		if group && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
+	}
+
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
+	if !slices.Contains(vmStates, vm.Status) {
+		logger.Warn("VM is not in a valid state for changing status", "vmID", vmID, "status", vm.Status)
+		return ErrInvalidVMState
 	}
 
 	return changeVMStatusBypass(vmID, action)
@@ -653,4 +671,84 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
 	}
 	return uint(uniqueOwnerID), nil
+}
+
+func UpdateVMResources(VMID uint64, cores, ram, disk uint) error {
+	vm, err := db.GetVMByID(VMID)
+	if err != nil {
+		logger.Error("Failed to get VM from database for updating resources", "vmID", VMID, "error", err)
+		return err
+	}
+
+	if cores < vmMinCores {
+		return errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
+	}
+
+	if ram < vmMinRAM {
+		return errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
+	}
+
+	if vm.Disk > disk {
+		return errors.Join(ErrInvalidVMParam, errors.New("disk size can only be increased"))
+	}
+
+	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused), string(VMStatusUnknown)}
+
+	if !slices.Contains(vmStates, vm.Status) {
+		logger.Warn("VM is not in a state for resource updates", "vmID", VMID, "status", vm.Status)
+		return ErrInvalidVMState
+	}
+
+	var group *db.Group = nil
+	if vm.OwnerType == "Group" {
+		group, err = db.GetGroupByID(vm.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get group from database for updating VM resources", "groupID", vm.OwnerID, "vmID", VMID, "error", err)
+			return err
+		}
+	}
+
+	var currentCores, currentRAM, currentDisk uint
+
+	if group != nil {
+		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByGroupID(group.ID)
+	} else {
+		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByUserID(vm.OwnerID)
+	}
+
+	var maxCores, maxRAM, maxDisk uint
+	if group != nil {
+		maxCores, maxRAM, maxDisk, _, err = db.GetGroupResourceLimits(group.ID)
+		if err != nil {
+			logger.Error("Failed to get group resource limits from database", "groupID", group.ID, "error", err)
+			return err
+		}
+	} else {
+		user, err := db.GetUserByID(vm.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get user from database for updating VM resources", "userID", vm.OwnerID, "vmID", VMID, "error", err)
+			return err
+		}
+		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
+	}
+
+	if currentCores-uint(vm.Cores)+cores > maxCores ||
+		currentRAM-uint(vm.RAM)+ram > maxRAM ||
+		currentDisk-uint(vm.Disk)+disk > maxDisk {
+		return ErrInsufficientResources
+	}
+
+	err = db.UpdateVMResources(VMID, cores, ram, disk)
+	if err != nil {
+		logger.Error("Failed to update VM resources in database", "vmID", VMID, "error", err)
+		return err
+	}
+
+	err = db.UpdateVMStatus(VMID, string(VMStatusPreConfiguring))
+	if err != nil {
+		logger.Error("Failed to update VM status to pre-configuring in database", "vmID", VMID, "error", err)
+		return err
+	}
+
+	return nil
 }

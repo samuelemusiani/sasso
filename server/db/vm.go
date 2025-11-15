@@ -11,9 +11,8 @@ type VM struct {
 	ID        uint64 `gorm:"primaryKey"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt *time.Time `gorm:"index"`
 
-	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','suspended','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
+	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','paused','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
 	Name  string `gorm:"type:varchar(20);not null"`
 	Notes string `gorm:"type:text;not null;default:''"`
@@ -142,6 +141,20 @@ func UpdateVMStatus(vmID uint64, status string) error {
 	return nil
 }
 
+func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
+	result := db.Model(&VM{ID: vmID}).
+		UpdateColumns(VM{Cores: cores, RAM: ram, Disk: disk})
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return ErrNotFound
+		}
+		return result.Error
+	}
+
+	return nil
+}
+
 func GetVMByUserIDAndVMID(userID uint, vmID uint64) (*VM, error) {
 	return getVMByOwnerIDAndVMID(userID, "User", vmID)
 }
@@ -196,11 +209,11 @@ func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
 }
 
 func GetAllActiveVMs() ([]VM, error) {
-	return GetVMsWithStates([]string{"running", "stopped", "suspended"})
+	return GetVMsWithStates([]string{"running", "stopped", "paused"})
 }
 
 func GetAllActiveVMsWithUnknown() ([]VM, error) {
-	return GetVMsWithStates([]string{"running", "stopped", "suspended", "unknown"})
+	return GetVMsWithStates([]string{"running", "stopped", "paused", "unknown"})
 }
 
 func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
@@ -267,6 +280,15 @@ func CountVMs() (int64, error) {
 func GetVMsWithLifetimesLessThan(t time.Time) ([]VM, error) {
 	var vms []VM
 	result := db.Where("life_time < ?", t).Find(&vms)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vms, nil
+}
+
+func GetVMsWithLifetimesLessThanAndStatusIN(t time.Time, states []string) ([]VM, error) {
+	var vms []VM
+	result := db.Where("life_time < ? AND status IN ?", t, states).Find(&vms)
 	if result.Error != nil {
 		return nil, result.Error
 	}

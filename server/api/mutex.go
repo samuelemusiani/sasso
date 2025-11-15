@@ -7,7 +7,6 @@ import "sync"
 
 // Used to serialize access to port forward creation and net deletion
 var netMutexes = sync.Map{} // map[uint]*sync.Mutex
-
 func getNetMutex(netID uint) *sync.Mutex {
 	mu, _ := netMutexes.LoadOrStore(netID, &sync.Mutex{})
 	return mu.(*sync.Mutex)
@@ -17,5 +16,12 @@ func getNetMutex(netID uint) *sync.Mutex {
 var vmMutexes = sync.Map{} // map[uint]*sync.Mutex
 func getVMMutex(vmID uint) *sync.Mutex {
 	mu, _ := vmMutexes.LoadOrStore(vmID, &sync.Mutex{})
+	return mu.(*sync.Mutex)
+}
+
+// Used to avoid race conditions on user resource updates
+var userResourceMutexes = sync.Map{} // map[uint]*sync.Mutex
+func getUserResourceMutex(userID uint) *sync.Mutex {
+	mu, _ := userResourceMutexes.LoadOrStore(userID, &sync.Mutex{})
 	return mu.(*sync.Mutex)
 }

@@ -17,6 +17,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/notify"
 
+	"github.com/luthermonson/go-proxmox"
 	gprox "github.com/luthermonson/go-proxmox"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
@@ -99,6 +100,7 @@ func worker(ctx context.Context) error {
 
 		workerCycleDurationObserve("create_vnets", func() { createVNets(cluster) })
 		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(cluster) })
+		workerCycleDurationObserve("configure_vnets", func() { configureVNets(cluster) })
 		workerCycleDurationObserve("update_vnets", func() { updateVNets(cluster) })
 
 		workerCycleDurationObserve("create_vms", func() { createVMs() })
@@ -119,6 +121,7 @@ func worker(ctx context.Context) error {
 
 		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(vmNodes) })
 		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(vmNodes) })
+		workerCycleDurationObserve("configure_interfaces", func() { configureInterfaces(vmNodes) })
 
 		workerCycleDurationObserve("delete_backups", func() { deleteBackups(vmNodes) })
 		workerCycleDurationObserve("restore_backups", func() { restoreBackups(vmNodes) })
@@ -470,8 +473,8 @@ func deleteVMs(VMLocation map[uint64]string) {
 	}
 }
 
-func updateVNets(cluster *gprox.Cluster) {
-	logger.Debug("Updating VNets in worker")
+func configureVNets(cluster *gprox.Cluster) {
+	logger.Debug("Configuring VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusReconfiguring))
 	if err != nil {
@@ -531,6 +534,74 @@ func updateVNets(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
 			}
+		}
+	}
+}
+
+func updateVNets(cluster *gprox.Cluster) {
+	logger.Debug("Updating VNets in worker")
+
+	dbVNets, err := db.GetVNetsWithStatus(string(VNetStatusReady))
+	if err != nil {
+		logger.Error("Failed to get VNets with 'pre-creating' status", "error", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	pVNets, err := cluster.SDNVNets(ctx)
+	cancel()
+	if err != nil {
+		logger.Error("Failed to get VNets from Proxmox", "error", err)
+		return
+	}
+
+	nameToPVNet := make(map[string]*proxmox.VNet)
+	for _, pn := range pVNets {
+		nameToPVNet[pn.Name] = pn
+	}
+
+	tagToPVNet := make(map[uint32]*proxmox.VNet)
+	for _, pn := range pVNets {
+		tagToPVNet[pn.Tag] = pn
+	}
+
+	for _, v := range dbVNets {
+		pvn, ok := nameToPVNet[v.Name]
+		if !ok {
+			logger.Warn("VNet not found in Proxmox. Setting status to unknown", "vnet", v.Name)
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
+		}
+
+		// TODO: we could probably try to fix the tag mismatch instead of just
+		// setting the status to unknown. But this will require more testing.
+		// For now this is sufficient.
+		if pvn.Tag != v.Tag {
+			logger.Warn("VNet tag mismatch. Setting status to unknown", "vnet", v.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
+		}
+
+		intToBool := func(i int) bool {
+			if i == 1 {
+				return true
+			}
+			return false
+		}
+
+		if v.VlanAware != intToBool(pvn.VlanAware) {
+			logger.Warn("VNet vlan_aware mismatch. Setting status to unknown", "vnet", v.Name, "db_vlan_aware", v.VlanAware, "proxmox_vlan_aware", intToBool(pvn.VlanAware))
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("Failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+			continue
 		}
 	}
 }
@@ -623,7 +694,23 @@ func configureVMs(vmNodes map[uint64]string) {
 			}
 		}
 
-		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
+		// If a VM needs to be reconfigured (for example changing cores, RAM or disk),
+		// it is put in the 'pre-configuring' status. After the configuration is done,
+		// the vm must be set to the old status, but we don't save it anywhere.
+		// For new created VMs, we just set the status to 'stopped'.
+		// For other VMs, we try to set it to the acctual status in Proxmox, but
+		// if the status is not recognised, we set it to 'stopped'.
+		// (This is not a huge issue, because the updateVMs function will eventually
+		// correct the status)
+		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
+		var newStatus string
+		if slices.Contains(vmStates, vm.Status) {
+			newStatus = vm.Status
+		} else {
+			newStatus = string(VMStatusStopped)
+		}
+
+		err = db.UpdateVMStatus(v.ID, string(newStatus))
 		if err != nil {
 			logger.Error("Failed to update status of VM", "vmid", v.ID, "new_status", VMStatusStopped, "err", err)
 		}
@@ -637,7 +724,11 @@ func updateVMs(cluster *gprox.Cluster) {
 	logger.Debug("Updating VMs in worker")
 
 	resources, err := getProxmoxResources(cluster, "vm")
-	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusSuspended)}
+	if err != nil {
+		logger.Error("Failed to get Proxmox resources", "error", err)
+		return
+	}
+	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()
 	if err != nil {
@@ -663,7 +754,13 @@ func updateVMs(cluster *gprox.Cluster) {
 			continue
 		}
 
-		if vm.Status == string(VMStatusUnknown) {
+		statusInSlices := slices.Contains(allVMStatus, r.Status)
+		// If the VMs status becomes normal we need to delete it from the map
+		if _, exists := vmStatusTimeMap[r.VMID]; exists {
+			delete(vmStatusTimeMap, r.VMID)
+		}
+
+		if vm.Status == string(VMStatusUnknown) && statusInSlices {
 			logger.Warn("VM changed status from unknown to a known status", "vmid", r.VMID, "new_status", r.Status)
 			err := db.UpdateVMStatus(r.VMID, r.Status)
 			if err != nil {
@@ -679,7 +776,9 @@ func updateVMs(cluster *gprox.Cluster) {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", r.Status, "err", err)
 			}
 
-		} else if !slices.Contains(allVMStatus, r.Status) {
+			delete(vmStatusTimeMap, r.VMID)
+
+		} else if !statusInSlices {
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
 			timeToWait := 1 * time.Minute
@@ -705,11 +804,13 @@ func updateVMs(cluster *gprox.Cluster) {
 				if err != nil {
 					logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", VMStatusUnknown, "err", err)
 				}
+
+				delete(vmStatusTimeMap, r.VMID)
 			} else if !exists || vmStatusTimeMapEntry.Value != r.Status {
 				t := time.Now()
-				if exists {
-					t = vmStatusTimeMapEntry.Time
-				}
+				// if exists {
+				// 	t = vmStatusTimeMapEntry.Time
+				// }
 				vmStatusTimeMap[r.VMID] = stringTime{
 					Value: r.Status,
 					Time:  t,
@@ -719,7 +820,7 @@ func updateVMs(cluster *gprox.Cluster) {
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 			status := r.Status
-			if !slices.Contains(allVMStatus, r.Status) {
+			if !statusInSlices {
 				logger.Error("VM status not recognised, setting status to unknown", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 				status = string(VMStatusUnknown)
 			}
@@ -737,6 +838,8 @@ func updateVMs(cluster *gprox.Cluster) {
 			if err != nil {
 				logger.Error("Failed to send VM status update notification", "vmid", r.VMID, "new_status", status, "err", err)
 			}
+
+			delete(vmStatusTimeMap, r.VMID)
 		}
 	}
 
@@ -768,7 +871,7 @@ func updateVMs(cluster *gprox.Cluster) {
 }
 
 func createInterfaces(vmNodes map[uint64]string) {
-	logger.Debug("Configuring interfaces in worker")
+	logger.Debug("Creating interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
 	if err != nil {
@@ -777,7 +880,6 @@ func createInterfaces(vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
-
 		dbVM, err := db.GetVMByID(uint64(iface.VMID))
 		if err != nil {
 			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
@@ -785,7 +887,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		}
 
 		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
-			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			logger.Warn("Can't create configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
 			continue
 		}
 
@@ -794,29 +896,23 @@ func createInterfaces(vmNodes map[uint64]string) {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		node, err := client.Node(ctx, nodeName)
-		cancel()
+		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		vm, err := node.VirtualMachine(ctx, int(iface.VMID))
-		cancel()
+		vm, err := getProxmoxVM(node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
 			continue
 		}
 
-		// TODO: Check if in the future the APIs will acctually support Nets maps
-		// https://github.com/luthermonson/go-proxmox/issues/211
-		// This is a temporary workaround.
-		// At the moment we are using the samuelemusiani/go-proxmox fork
 		mnets := vm.VirtualMachineConfig.Nets
 		// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
 
+		// To avoid increasing the netX index indefinitely, we find the first
+		// empty index
 		var snet = make([]int, len(mnets))
 		var i int = 0
 		for k := range mnets {
@@ -856,7 +952,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 			Value: v,
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t, err := vm.Config(ctx, o)
 		cancel()
 		if err != nil {
@@ -983,6 +1079,135 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 		err = db.DeleteInterfaceByID(iface.ID)
 		if err != nil {
 			logger.Error("Failed to delete interface from DB", "interface", iface, "err", err)
+			continue
+		}
+	}
+}
+
+func configureInterfaces(vmNodes map[uint64]string) {
+	logger.Debug("Configuring interfaces in worker")
+
+	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreConfiguring))
+	if err != nil {
+		logger.Error("Failed to get interfaces with 'pre-creating' status", "error", err)
+		return
+	}
+
+	for _, iface := range interfaces {
+		dbVM, err := db.GetVMByID(uint64(iface.VMID))
+		if err != nil {
+			logger.Error("Failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+			continue
+		}
+
+		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusConfiguring))
+		if err != nil {
+			logger.Error("Failed to update interface status to configuring", "interface", iface, "err", err)
+			continue
+		}
+
+		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
+			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+			continue
+		}
+
+		dbNet, err := db.GetNetByID(iface.VNetID)
+		if err != nil {
+			logger.Error("Failed to get net by ID", "interface_id", iface.ID, "net_id", iface.VNetID, "err", err)
+			continue
+		}
+
+		nodeName, ok := vmNodes[uint64(iface.VMID)]
+		if !ok {
+			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
+			continue
+		}
+		node, err := getProxmoxNode(client, nodeName)
+		if err != nil {
+			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
+			continue
+		}
+
+		vm, err := getProxmoxVM(node, int(iface.VMID))
+		if err != nil {
+			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
+			continue
+		}
+
+		mnets := vm.VirtualMachineConfig.Nets
+		// We just check that a network exists for the local_id of the interface
+		s := fmt.Sprintf("net%d", iface.LocalID)
+		pnet, ok := mnets[s]
+		if !ok {
+			logger.Error("Can't configure interface. Network not found on Proxmox VM", "interface_id", iface.ID, "vmid", iface.VMID, "local_id", iface.LocalID)
+			continue
+		}
+
+		if dbNet.VlanAware {
+			pnet = substituteVlanTag(pnet, iface.VlanTag)
+		}
+
+		o := gprox.VirtualMachineOption{
+			Name:  s,
+			Value: pnet,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t, err := vm.Config(ctx, o)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to add network interface to Proxmox VM", "error", err)
+			continue
+		}
+		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
+			continue
+		}
+
+		if !isSuccessful {
+			logger.Error("Failed to add network interface to Proxmox VM")
+			continue
+		}
+
+		o2 := gprox.VirtualMachineOption{
+			Name:  fmt.Sprintf("ipconfig%d", iface.LocalID),
+			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
+		}
+
+		if iface.Gateway != "" {
+			o2.Value = fmt.Sprintf("%s,gw=%s", o2.Value, iface.Gateway)
+		}
+
+		logger.Debug("Configuring network interface on Proxmox VM", "option", o2)
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		t, err = vm.Config(ctx, o2)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to configure network interface on Proxmox VM", "error", err)
+			continue
+		}
+		isSuccessful, err = waitForProxmoxTaskCompletion(t)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "error", err)
+			continue
+		}
+		if !isSuccessful {
+			logger.Error("Failed to configure network interface on Proxmox VM")
+			continue
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		err = vm.RegenerateCloudInitImage(ctx)
+		cancel()
+		if err != nil {
+			logger.Error("Failed to regenerate cloud-init image on Proxmox VM", "error", err)
+		}
+
+		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusReady))
+		if err != nil {
+			logger.Error("Failed to update interface status to ready", "interface", iface, "err", err)
 			continue
 		}
 	}
@@ -1194,7 +1419,7 @@ func createBackups(mapVMContent map[uint64]string) {
 func configureSSHKeys(vmNodes map[uint64]string) {
 	logger.Debug("Configuring SSH keys in worker")
 
-	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusSuspended)}
+	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusPaused)}
 
 	ssht := db.GetLastSSHKeyUpdate()
 	vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
@@ -1307,7 +1532,11 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 
 func enforceVMLifetimes() {
 	t := time.Now().AddDate(0, 3, 0) // 3 months from now
-	vms, err := db.GetVMsWithLifetimesLessThan(t)
+	vms, err := db.GetVMsWithLifetimesLessThanAndStatusIN(t, []string{
+		string(VMStatusRunning),
+		string(VMStatusStopped),
+		string(VMStatusPaused),
+	})
 	if err != nil {
 		logger.Error("Failed to get VMs with lifetimes less than", "time", t, "error", err)
 		return
@@ -1345,10 +1574,12 @@ func enforceVMLifetimes() {
 		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
-			err := changeVMStatusBypass(v.ID, "stop")
-			if err != nil {
-				logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
-				continue
+			if v.Status != string(VMStatusStopped) {
+				err := changeVMStatusBypass(v.ID, "stop")
+				if err != nil {
+					logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
+					continue
+				}
 			}
 
 			if v.OwnerType == "Group" {

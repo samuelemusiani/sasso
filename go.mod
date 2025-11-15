@@ -14,9 +14,9 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/crypto v0.43.0
-	golang.org/x/sys v0.37.0
+	golang.org/x/sys v0.38.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.31.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -59,4 +59,4 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.10
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.11

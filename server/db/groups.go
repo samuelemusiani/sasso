@@ -130,15 +130,6 @@ func CreateGroup(name, description string, userID uint) error {
 			return err
 		}
 
-		res := GroupResource{
-			GroupID: group.ID,
-			UserID:  1,
-			Nets:    1, // Allocate 1 net from admin to the group by default
-		}
-		if err := tx.Create(&res).Error; err != nil {
-			logger.Error("Failed to allocate default resources to group", "error", err)
-			return err
-		}
 		return nil
 	})
 }
@@ -305,6 +296,39 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			logger.Error("Failed to update invitation state", "error", err)
 			return err
 		}
+
+		// If the members are now more than 1 and there is no
+		// admin group resource, we allocate a new net.
+		var count int64
+		err = tx.Model(&UserGroup{}).
+			Where("group_id = ?", invitation.GroupID).
+			Count(&count).Error
+		if err != nil {
+			logger.Error("Failed to count group members", "error", err)
+			return err
+		}
+
+		if count > 1 {
+			var adminResource GroupResource
+			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: 1}).
+				First(&adminResource).Error
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logger.Error("Failed to check admin group resource", "error", err)
+				return err
+			} else if err == gorm.ErrRecordNotFound {
+				res := GroupResource{
+					GroupID: invitation.GroupID,
+					UserID:  1,
+					Nets:    1, // Allocate 1 net from admin to the group by default
+				}
+				if err := tx.Create(&res).Error; err != nil {
+					logger.Error("Failed to allocate default resources to group", "error", err)
+					return err
+				}
+			}
+			// Admin resource exists, nothing to do
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -391,6 +415,36 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 		if result.RowsAffected == 0 {
 			return ErrNotFound
 		}
+
+		// If the members are now 1 and there is an admin group resource,
+		// we remove the extra net.
+		var count int64
+		err = tx.Model(&UserGroup{}).
+			Where("group_id = ?", groupID).
+			Count(&count).Error
+		if err != nil {
+			logger.Error("Failed to count group members", "error", err)
+			return err
+		}
+
+		if count == 1 {
+			var adminResource GroupResource
+			err = tx.Where(&GroupResource{GroupID: groupID, UserID: 1}).
+				First(&adminResource).Error
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logger.Error("Failed to check admin group resource", "error", err)
+				return err
+			} else if err == nil {
+				// Admin resource exists, remove it
+				adminResource.Nets = max(0, adminResource.Nets-1)
+				err = tx.Save(&adminResource).Error
+				if err != nil {
+					logger.Error("Failed to remove admin group resource", "error", err)
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
 }

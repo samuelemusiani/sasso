@@ -21,6 +21,7 @@ type Net struct {
 	OwnerType string `gorm:"not null;index"`
 
 	PortForwards []PortForward `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
+	Interfaces   []Interface   `gorm:"foreignKey:VNetID;constraint:OnDelete:CASCADE"`
 }
 
 func initNetworks() error {
@@ -231,6 +232,18 @@ func UpdateVNet(net *Net) error {
 		return err
 	}
 	logger.Debug("Updated network", "netID", net.ID)
+	return nil
+}
+
+func UpdateVNetName(ID uint, newName string) error {
+	err := db.Model(&Net{}).Where("id = ?", ID).
+		UpdateColumn("name", newName).
+		Error
+	if err != nil {
+		logger.Error("Failed to update VNet name", "netID", ID, "newName", newName, "error", err)
+		return err
+	}
+	logger.Debug("Updated VNet name", "netID", ID, "newName", newName)
 	return nil
 }
 

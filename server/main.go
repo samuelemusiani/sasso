@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"samuelemusiani/sasso/server/api"
+	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/config"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/notify"
@@ -118,6 +119,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Auth
+	authLogger := slog.With("module", "auth")
+	err = auth.Init(authLogger)
+	if err != nil {
+		slog.Error("Failed to initialize authentication module", "error", err)
+		os.Exit(1)
+	}
+
 	// Proxmox
 	slog.Debug("Initializing proxmox module")
 	proxmoxLogger := slog.With("module", "proxmox")
@@ -144,7 +153,7 @@ func main() {
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer)
+	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards)
 
 	channelError := make(chan error, 1)
 

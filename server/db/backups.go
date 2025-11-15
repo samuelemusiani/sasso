@@ -139,3 +139,12 @@ func IsAPendingBackupRequestWithVolid(vmID uint, volid string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func GetBackupRequestsByVMIDStatusAndType(vmID uint, status, t string) ([]BackupRequest, error) {
+	var backupRequests []BackupRequest
+	result := db.Where(&BackupRequest{VMID: vmID, Status: status, Type: t}).Find(&backupRequests)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return backupRequests, nil
+}

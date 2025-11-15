@@ -1,18 +1,38 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-const openCreate = ref(false)
+import { ref, watch } from 'vue'
 
 const props = defineProps<{
   title: string
   create: (event: SubmitEvent) => void
   error?: string
   hideCreate?: boolean
+  open?: boolean
 }>()
+
+const $emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
+const openCreate = ref(props.open ?? false)
+
+watch(
+  () => props.open,
+  (newVal) => {
+    openCreate.value = newVal ?? false
+  },
+)
+
+function openClose() {
+  openCreate.value = !openCreate.value
+  if (!openCreate.value) {
+    $emit('close')
+  }
+}
 </script>
 
 <template>
   <div>
-    <button class="btn btn-primary rounded-xl" @click="openCreate = !openCreate">
+    <button class="btn btn-primary rounded-xl" @click="openClose">
       <IconVue v-if="!openCreate" icon="mi:add" class="text-xl transition"></IconVue>
       <IconVue v-else icon="material-symbols:close-rounded" class="text-xl transition"></IconVue>
       {{ openCreate ? 'Close' : (props.hideCreate ? '' : 'Create ') + `${props.title}` }}
@@ -25,7 +45,9 @@ const props = defineProps<{
     >
       <slot></slot>
       <p v-if="props.error" class="text-error">{{ props.error }}</p>
-      <button class="btn btn-success rounded-lg p-2" type="submit">Create {{ props.title }}</button>
+      <button class="btn btn-success rounded-lg p-2" type="submit">
+        {{ (props.hideCreate ? '' : 'Create ') + props.title }}
+      </button>
     </form>
   </div>
 </template>

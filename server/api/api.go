@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -27,9 +28,10 @@ var (
 
 	privateServer *http.Server = nil
 	publicServer  *http.Server = nil
+	portForwards  config.PortForwards
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards) {
 	// Logger
 	logger = apiLogger
 
@@ -103,7 +105,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Post("/stop", changeVMState("stop"))
 			r.Post("/restart", changeVMState("restart"))
 
-			r.Get("/interface", getInterfaces)
+			r.Get("/interface", getInterfacesForVM)
 			r.Post("/interface", addInterface)
 
 			r.Route("/interface/{ifaceid}", func(r chi.Router) {
@@ -125,6 +127,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Get("/backup/request/{requestid}", getBackupRequest)
 
 			r.Patch("/lifetime", updateVMLifetime)
+			r.Patch("/resources", updateVMResources)
 		})
 
 		r.Post("/net", createNet)
@@ -132,12 +135,22 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Put("/net/{id}", updateNet)
 		r.Delete("/net/{id}", deleteNet)
 
+		r.Get("/interfaces", getAllInterfaces)
+
 		r.Get("/ssh-keys", getSSHKeys)
 		r.Post("/ssh-keys", addSSHKey)
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
 		r.Get("/vpn", getUserVPNConfig)
 		r.Post("/vpn/count", updateUserVPNConfigCount)
+
+		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
+				slog.Error("Marshaling public IP", "err", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		})
 
 		r.Get("/port-forwards", listPortForwards)
 		r.Post("/port-forwards", addPortForward)
@@ -182,6 +195,11 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			r.Put("/resources", modifyGroupResources)
 			r.Delete("/resources", revokeGroupResources)
 		})
+
+		r.Post("/ip-check", checkIfIPInUse)
+
+		r.Get("/settings", getUserSettings)
+		r.Put("/settings", updateUserSettings)
 	})
 
 	// Admin Auth routes

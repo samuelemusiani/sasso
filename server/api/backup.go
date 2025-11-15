@@ -17,6 +17,13 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 
 	bks, err := proxmox.ListBackups(vm.ID, vm.CreatedAt)
 	if err != nil {
+		if err == proxmox.ErrVMNotFound {
+			http.Error(w, "VM not found", http.StatusNotFound)
+			return
+		} else if err == proxmox.ErrInvalidVMState {
+			http.Error(w, "Invalid VM state", http.StatusConflict)
+			return
+		}
 		logger.Error("Failed to list backups", "userID", userID, "vmID", vm.ID, "error", err)
 		http.Error(w, "Failed to list backups", http.StatusInternalServerError)
 		return
@@ -37,6 +44,15 @@ type createBackupRequest struct {
 func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot restore backup in expired VM", http.StatusConflict)
+		return
+	}
+
+	m := getVMMutex(uint(vm.ID))
+	m.Lock()
+	defer m.Unlock()
 
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
@@ -64,6 +80,9 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 		} else if err == proxmox.ErrPendingBackupRequest {
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
 			return
+		} else if err == proxmox.ErrInvalidVMState {
+			http.Error(w, "Invalid VM state", http.StatusConflict)
+			return
 		}
 		logger.Error("Failed to restore backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
 		http.Error(w, "Failed to restore backup", http.StatusInternalServerError)
@@ -87,6 +106,11 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
 
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot create backup in expired VM", http.StatusConflict)
+		return
+	}
+
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
 		tmp := mustGetGroupIDFromContext(r)
@@ -108,6 +132,10 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m := getVMMutex(uint(vm.ID))
+	m.Lock()
+	defer m.Unlock()
+
 	id, err := proxmox.CreateBackup(userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
 		if err == proxmox.ErrPendingBackupRequest {
@@ -121,6 +149,9 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if err == proxmox.ErrBackupNotesTooLong {
 			http.Error(w, "Backup notes too long", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrInvalidVMState {
+			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
 		logger.Error("Failed to delete backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)
@@ -139,6 +170,11 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot delete backup in expired VM", http.StatusConflict)
+		return
+	}
 
 	var groupID *uint = nil
 	if vm.OwnerType == "Group" {
@@ -163,6 +199,9 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if err == proxmox.ErrPendingBackupRequest {
 			http.Error(w, "Pending backup request", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrInvalidVMState {
+			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
 
@@ -311,6 +350,9 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if err == proxmox.ErrMaxProtectedBackupsReached {
 			http.Error(w, "Max protected backups reached", http.StatusBadRequest)
+			return
+		} else if err == proxmox.ErrInvalidVMState {
+			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
 		logger.Error("Failed to protect backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)

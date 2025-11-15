@@ -55,6 +55,7 @@ type Firewall struct {
 type ShorewallFirewallConfig struct {
 	ExternalZone string `toml:"external_zone"`
 	VMZone       string `toml:"vm_zone"`
+	PublicIP     string `toml:"public_ip"`
 }
 
 var config Config = Config{}

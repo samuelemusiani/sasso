@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
+	"strings"
+	"time"
 )
 
-func getInterfaces(w http.ResponseWriter, r *http.Request) {
+func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 	vm := mustGetVMFromContext(r)
 
 	dbIfaces, err := db.GetInterfacesByVMID(vm.ID)
@@ -36,6 +38,14 @@ func getInterfaces(w http.ResponseWriter, r *http.Request) {
 func addInterface(w http.ResponseWriter, r *http.Request) {
 	vm := mustGetVMFromContext(r)
 
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to add interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
 	var req struct {
 		VNetID  uint   `json:"vnet_id"`
 		VlanTag uint16 `json:"vlan_tag"`
@@ -45,6 +55,14 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req.IPAdd = strings.TrimSpace(req.IPAdd)
+	req.Gateway = strings.TrimSpace(req.Gateway)
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot add interface to expired VM", http.StatusConflict)
 		return
 	}
 
@@ -135,6 +153,21 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateInterface(w http.ResponseWriter, r *http.Request) {
+	vm := mustGetVMFromContext(r)
+
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to update interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot modify interface in expired VM", http.StatusConflict)
+		return
+	}
+
 	iface := mustGetInterfaceFromContext(r)
 
 	var req struct {
@@ -207,9 +240,22 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteInterface(w http.ResponseWriter, r *http.Request) {
-	iface := mustGetInterfaceFromContext(r)
+	vm := mustGetVMFromContext(r)
 
-	// TODO: Groups permission checks (VM must belong to a group the user is in with sufficient permissions)
+	if vm.OwnerType == "Group" {
+		role := mustGetUserRoleInGroupFromContext(r)
+		if role == "member" {
+			http.Error(w, "user does not have permission to delete interface to this VM", http.StatusForbidden)
+			return
+		}
+	}
+
+	if vm.LifeTime.Before(time.Now()) {
+		http.Error(w, "Cannot delete interface in expired VM", http.StatusConflict)
+		return
+	}
+
+	iface := mustGetInterfaceFromContext(r)
 
 	if err := proxmox.DeleteInterface(iface.ID); err != nil {
 		if errors.Is(err, proxmox.ErrInterfaceNotFound) {
@@ -224,4 +270,52 @@ func deleteInterface(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type returnedGenericInterface struct {
+	ID       uint   `json:"id"`
+	VNetID   uint   `json:"vnet_id"`
+	VNetName string `json:"vnet_name"`
+	VlanTag  uint16 `json:"vlan_tag"`
+	IPAdd    string `json:"ip_add"`
+	Gateway  string `json:"gateway"`
+	Status   string `json:"status"`
+	VMID     uint   `json:"vm_id"`
+	VMName   string `json:"vm_name"`
+
+	GroupID   uint   `json:"group_id,omitempty"`
+	GroupName string `json:"group_name,omitempty"`
+	// User role in the group (e.g., "member", "admin").
+	// User is the one requesting the VM.
+	GroupRole string `json:"group_role,omitempty"`
+}
+
+func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+	ifaces, err := db.GetAllInterfacesWithExtrasByUserID(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	pIfaces := make([]returnedGenericInterface, len(ifaces))
+	for i, iface := range ifaces {
+		pIfaces[i] = returnedGenericInterface{
+			ID:        iface.ID,
+			VNetID:    iface.VNetID,
+			VNetName:  iface.VNetName,
+			VlanTag:   iface.VlanTag,
+			IPAdd:     iface.IPAdd,
+			Gateway:   iface.Gateway,
+			Status:    iface.Status,
+			VMID:      uint(iface.VMID),
+			VMName:    iface.VMName,
+			GroupID:   iface.GroupID,
+			GroupName: iface.GroupName,
+			GroupRole: iface.GroupRole,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pIfaces)
 }

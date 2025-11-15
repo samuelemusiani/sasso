@@ -117,9 +117,9 @@ onMounted(() => {
       </thead>
       <tbody>
         <tr v-for="bot in bots" :key="bot.id">
-          <td class="whitespace-nowrap">{{ bot.name }}</td>
-          <td class="whitespace-nowrap">{{ bot.notes }}</td>
-          <td class="whitespace-nowrap">{{ bot.chat_id }}</td>
+          <td class="min-w-40 text-lg font-semibold">{{ bot.name }}</td>
+          <td class="">{{ bot.notes }}</td>
+          <td class="">{{ bot.chat_id }}</td>
           <td class="flex gap-2">
             <button
               @click="testTelegramBot(bot.id)"

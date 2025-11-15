@@ -12,6 +12,7 @@ const menu = {
   Home: { icon: 'material-symbols:home-rounded', to: '/' },
   'Virtual Machine': { icon: 'mi:computer', to: '/vm' },
   Nets: { icon: 'ph:network', to: '/net' },
+  Interfaces: { icon: 'ph:path', to: '/interfaces' },
   'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
   'Port Forward': { icon: 'material-symbols:router', to: '/port-forwards' },

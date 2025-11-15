@@ -17,7 +17,7 @@ export function getStatusClass(status: string) {
     case 'stopped':
       return 'text-warning'
     case 'pending':
-    case 'suspended':
+    case 'paused':
       return 'text-info'
     default:
       return 'text-info'
