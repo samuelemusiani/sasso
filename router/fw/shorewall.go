@@ -24,12 +24,15 @@ func (s *ShorewallFirewall) ConstructPortForwardRule(outPort, destPort uint16, d
 }
 
 func (s *ShorewallFirewall) ShorewallRulefromRule(r Rule) goshorewall.Rule {
+	// This rule is needed to have NAT reflection and allowing VMs from other
+	// networks to access the forwarded ports using the public IP of the router
 	return goshorewall.Rule{
 		Action:      "DNAT",
 		Source:      s.ExternalZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, r.DestIP, r.DestPort),
 		Protocol:    "tcp,udp",
 		Dport:       fmt.Sprintf("%d", r.OutPort),
+		Origdest:    s.PublicIP,
 	}
 }
 
@@ -38,21 +41,6 @@ func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 	if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
 		return err
 	}
-
-	// This rule is needed to have NAT reflection and allowing VMs from other
-	// networks to access the forwarded ports using the public IP of the router
-	err = goshorewall.AddRule(goshorewall.Rule{
-		Action:      "DNAT",
-		Source:      s.VMZone,
-		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, destIP, destPort),
-		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", outPort),
-		Origdest:    s.PublicIP,
-	})
-	if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
-		return err
-	}
-
 	return goshorewall.Reload()
 }
 
@@ -76,20 +64,6 @@ func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 
 func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 	err := goshorewall.RemoveRule(s.ShorewallRulefromRule(r))
-	if err != nil && !errors.Is(err, goshorewall.ErrRuleNotFound) {
-		return err
-	}
-
-	// This rule is needed to have NAT reflection and allowing VMs from other
-	// networks to access the forwarded ports using the public IP of the router
-	err = goshorewall.RemoveRule(goshorewall.Rule{
-		Action:      "DNAT",
-		Source:      s.VMZone,
-		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, destIP, destPort),
-		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", outPort),
-		Origdest:    s.PublicIP,
-	})
 	if err != nil && !errors.Is(err, goshorewall.ErrRuleNotFound) {
 		return err
 	}
