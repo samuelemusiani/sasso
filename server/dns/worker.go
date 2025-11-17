@@ -278,8 +278,8 @@ func worker(ctx context.Context) error {
 			logger.Error("Error retrieving DNS state", "error", err)
 			continue
 		}
+		updateDNS(dnsState)	
 
-		//
 		elapsed := time.Since(now)
 		if elapsed < 10*time.Second {
 			timeToWait = 10*time.Second - elapsed
@@ -312,14 +312,10 @@ func updateDNS(dnsState Views) {
 
 		view.Networks = []string{net.Subnet}
 
-		//zone := Zone{
-		// 	Name: fmt.Sprintf("sasso..%s", view.Name),
-		// 	Zones: []Zone{zone},
-		// }
-		var zone Zone
-		zone.Name = fmt.Sprintf("sasso..%s", view.Name)
-		// zones are always one per view
-		view.Zones = []Zone{zone}
+		zone := Zone{
+		 	Name: fmt.Sprintf("sasso..%s", view.Name),
+		 	Zones: []Zone{zone},
+		}
 
 		vms, err := db.GetVMsWithPrimaryInterfaceInVNet(net.ID)
 		if err != nil {
@@ -327,17 +323,7 @@ func updateDNS(dnsState Views) {
 			continue
 		}
 
-		for _, vm := range vms {
-			rrset := RRSet{
-				Name: fmt.Sprintf("%s.sasso.", vm.VMName),
-				Type: "A",
-				TTL:  300,
-				Records: []Record{
-					{Ip: strings.Split(vm.InterfaceIP, "/")[0], Disabled: false},
-				},
-			}
-			view.Zones[0].RRSets = append(view.Zones[0].RRSets, rrset)
-		}
+		view.Zones[0].RRSets = listOfRRSetsFromVms(vms)
 
 		dnsViewIdx := slices.IndexFunc(dnsState.Views, func(v View) bool {
 			return v.Name == view.Name
@@ -373,29 +359,29 @@ func updateDNS(dnsState Views) {
 		}
 
 		// check zones
-		ConfrontZones(dnsState, view)
+		ConfrontZones(dnsState.Views[dnsViewIdx], view)
 	}
 	// check for extra views
 	// check for extra nets
 }
 
 // check rrset and records differences
-func ConfrontZones(dnsState Views, dbState Views) bool {
-	if len(view.Zones) != len(dnsState.Views[dnsViewIdx].Zones) {
-		if len(view.Zones) < 1 { //view has no zones in db; remove zones from dns
-			err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
+func ConfrontZones(dnsView View, dbState View) bool {
+	if len(dbView.Zones) != len(dnsView.Zones) {
+		if len(dbView.Zones) < 1 { //view has no zones in db; remove zones from dns
+			err := deleteZonesFromDNS(dnsView.Zones)
 			if err != nil {
 				logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
 			}
 		} else {
-			if len(dnsState.Views[dnsViewIdx].Zones) < 1 { //view in dns has no zones; add zones from db
-				err := createZonesWithRRSets(view.Zones)
+			if len(dnsView.Zones) < 1 { //view in dns has no zones; add zones from db
+				err := createZonesWithRRSets(dbView.Zones)
 				if err != nil {
 					logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
 				}
 			} else {
-				for _, zone := range dnsState.Views[dnsViewIdx].Zones {
-					if view.Zones[0].Name != zone.Name { // check if dns zone and db zone correspond
+				for _, zone := range dnsView.Zones {
+					if dbView.Zones[0].Name != zone.Name { // check if dns zone and db zone correspond
 						err := deleteZoneFromDNS(zone)
 						if err != nil {
 							logger.Error("Error deleting zone on DNS for net", "netID", net.ID, "zone", zone.Name, "error", err)
@@ -404,22 +390,22 @@ func ConfrontZones(dnsState Views, dbState Views) bool {
 				}
 			}
 		}
-	} else if view.Zones[0].Name != dnsState.Views[dnsViewIdx].Zones[0].Name { // check if dns zone and db zone correspond
-		err := deleteZonesFromDNS(dnsState.Views[dnsViewIdx].Zones)
+	} else if dbView.Zones[0].Name != dnsView.Zones[0].Name { // check if dns zone and db zone correspond
+		err := deleteZonesFromDNS(dnsView.Zones)
 		if err != nil {
 			logger.Error("Error deleting zones on DNS for net", "netID", net.ID, "error", err)
 		}
-		err = createZonesWithRRSets(view.Zones)
+		err = createZonesWithRRSets(dbView.Zones)
 		if err != nil {
 			logger.Error("Error creating zones on DNS for net", "netID", net.ID, "error", err)
 		}
 	} else {
 		// check rrset and records differences
-		ConfrontRRSets(dnsState.Views[dnsViewIdx].Zones[0].RRSets, view.Zones[0].RRSets)
+		ConfrontRRSets(dnsView.Zones[0].RRSets, dbView.Zones[0].RRSets, )
 	}
 }
 
-func ConfrontRRSets(dnsRRSets []RRSet, dbRRSets []RRSet) bool {
+func ConfrontRRSets(dnsRRSets []RRSet, dbRRSets []RRSet, view View) bool {
 	if len(dbRRSets) != len(dnsRRSets) {
 		if len(dbRRSets) < 1 { //zone has no rrsets in db; remove rrsets from dns
 			// I think a db zone of the net always has RRSets, but not sure
@@ -487,3 +473,19 @@ func ConfrontRRSets(dnsRRSets []RRSet, dbRRSets []RRSet) bool {
 		}
 	}
 }
+
+func listOfRRSetsFromVms(vms []VMNameWithPrimaryInterfaceInVNet) []RRSet{
+	var []RRSet res
+	for _, vm := range vms {
+		rrset := RRSet{
+			Name: fmt.Sprintf("%s.sasso.", vm.VMName),
+			Type: "A",
+			TTL:  300,
+			Records: []Record{
+				{Ip: strings.Split(vm.InterfaceIP, "/")[0], Disabled: false},
+			},
+		}
+		res = append(res, rrset)
+	}
+}
+
