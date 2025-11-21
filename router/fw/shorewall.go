@@ -45,27 +45,42 @@ func (s *ShorewallFirewall) shorewallRulefromRuleNatReflection(r Rule) goshorewa
 }
 
 func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
+	reload := false
 	err := goshorewall.AddRule(s.shorewallRulefromRule(r))
-	if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
-		return err
+	if err != nil {
+		if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+			return err
+		}
+	} else {
+		reload = true
 	}
 
 	// This rule is needed to have NAT reflection and allowing VMs from other
 	// networks to access the forwarded ports using the public IP of the router
 	err = goshorewall.AddRule(s.shorewallRulefromRuleNatReflection(r))
-	if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
-		return err
+	if err != nil {
+		if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+			return err
+		}
+	} else {
+		reload = true
 	}
 
-	return goshorewall.Reload()
+	if reload {
+		return goshorewall.Reload()
+	}
+
+	return nil
 }
 
 func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	reload := false
 	for i, r := range rules {
 		err := goshorewall.AddRule(s.shorewallRulefromRule(r))
-		if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
-			return errors.Join(err, fmt.Errorf("failed to add rule %d and subsequent rules", i))
+		if err != nil {
+			if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+				return errors.Join(err, fmt.Errorf("failed to add rule %d and subsequent rules", i))
+			}
 		} else {
 			reload = true
 		}
@@ -73,8 +88,10 @@ func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 		// This rule is needed to have NAT reflection and allowing VMs from other
 		// networks to access the forwarded ports using the public IP of the router
 		err = goshorewall.AddRule(s.shorewallRulefromRuleNatReflection(r))
-		if err != nil && !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
-			return errors.Join(err, fmt.Errorf("failed to add rule %d and subsequent rules", i))
+		if err != nil {
+			if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
+				return errors.Join(err, fmt.Errorf("failed to add rule %d and subsequent rules", i))
+			}
 		} else {
 			reload = true
 		}
@@ -105,8 +122,10 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	reload := false
 	for i, r := range rules {
 		err := goshorewall.RemoveRule(s.shorewallRulefromRule(r))
-		if err != nil && !errors.Is(err, goshorewall.ErrRuleNotFound) {
-			return errors.Join(err, fmt.Errorf("failed to remove rule %d and subsequent rules", i))
+		if err != nil {
+			if !errors.Is(err, goshorewall.ErrRuleNotFound) {
+				return errors.Join(err, fmt.Errorf("failed to remove rule %d and subsequent rules", i))
+			}
 		} else {
 			reload = true
 		}
@@ -114,8 +133,10 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 		// This rule is needed to have NAT reflection and allowing VMs from other
 		// networks to access the forwarded ports using the public IP of the router
 		err = goshorewall.RemoveRule(s.shorewallRulefromRule(r))
-		if err != nil && !errors.Is(err, goshorewall.ErrRuleNotFound) {
-			return errors.Join(err, fmt.Errorf("failed to remove rule %d and subsequent rules", i))
+		if err != nil {
+			if !errors.Is(err, goshorewall.ErrRuleNotFound) {
+				return errors.Join(err, fmt.Errorf("failed to remove rule %d and subsequent rules", i))
+			}
 		} else {
 			reload = true
 		}
@@ -171,7 +192,9 @@ func (s *ShorewallFirewall) VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 		sr2 := s.shorewallRulefromRuleNatReflection(r)
 		i1 := searchSortedRules(sr1, srules)
 		i2 := searchSortedRules(sr2, srules)
-		if (i1 >= len(srules) || srules[i1] != sr1) || (i2 >= len(srules) || srules[i2] != sr2) {
+
+		if (i1 >= len(srules) || srules[i1].Compare(sr1) != 0) ||
+			(i2 >= len(srules) || srules[i2].Compare(sr2) != 0) {
 			// rule missing in firewall -> faulty
 			faultyRules = append(faultyRules, r)
 		}
