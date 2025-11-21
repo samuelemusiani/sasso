@@ -327,40 +327,47 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	return nil
 }
 
+// IMPORTANT: pfs are the desired port forwards from the main server, NOT THE ONES THAT MUST BE DELETED.
+// This function deletes the difference between the port forwards in database and the desired ones.
 func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
 
-	// Get only the portForwards in database
-	var pfsDb []db.PortForward
-	for _, pf := range pfs {
-		pfDb, err := db.GetPortForwardByID(pf.ID)
-		if err != nil {
-			if !errors.Is(err, db.ErrNotFound) {
-				// Log only unexpected errors
-				logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
-			}
+	pdfDb, err := db.GetPortForwards()
+	if err != nil {
+		logger.Error("Failed to get all port forwards from database", "error", err)
+		return err
+	}
+
+	var toBeDeleted []db.PortForward
+	for _, pfDb := range pdfDb {
+		// skip port forwards that are still desired
+		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
+			return pf.ID == pfDb.ID
+		}) != -1 {
 			continue
 		}
-		pfsDb = append(pfsDb, *pfDb)
+
+		// delete port forward
+		toBeDeleted = append(toBeDeleted, pfDb)
 	}
 
 	// delete requested rules, even if are not in database
 	var rules []fw.Rule
-	for _, pf := range pfs {
+	for _, r := range toBeDeleted {
 		rules = append(rules, fw.Rule{
-			OutPort:  pf.OutPort,
-			DestPort: pf.DestPort,
-			DestIP:   pf.DestIP,
+			OutPort:  r.OutPort,
+			DestPort: r.DestPort,
+			DestIP:   r.DestIP,
 		})
 	}
-	err := firewall.RemovePortForwardRules(rules)
 
+	err = firewall.RemovePortForwardRules(rules)
 	if err != nil {
 		logger.Error("Failed to remove ports forward from firewall", "error", err)
 		return err
 	}
 
 	// removes all rules present in database to be deleted
-	for _, localPF := range pfsDb {
+	for _, localPF := range toBeDeleted {
 		err = db.RemovePortForward(localPF.ID)
 		if err != nil {
 			logger.Error("Failed to remove port forward from database", "error", err, "port_forward_id", localPF.ID)
@@ -372,7 +379,6 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 }
 
 func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
-
 	// Get only the portForwards not in database
 	var pfsNotDb []db.PortForward
 	for _, pf := range pfs {
