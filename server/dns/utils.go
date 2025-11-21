@@ -65,6 +65,7 @@ func HttpRequest(method, url string, body interface{}) ([]byte, int, error) {
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.Close = true
 
 	//check if need more headers
 	req.Header.Set("X-API-Key", ApiKey)
@@ -109,4 +110,4 @@ func ConfrontRecords(RRSet2 RRSet, RRSet1 RRSet) bool {
 		}
 	}
 	return true
-}	
+}
