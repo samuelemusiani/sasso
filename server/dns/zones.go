@@ -5,25 +5,35 @@ import (
 	"fmt"
 )
 
+
+func createZoneWithRRSets(zone Zone) error {
+	url := fmt.Sprintf("%s/zones", BaseUrl)
+
+	reqBody := map[string]interface{}{
+		"name": zone.Name,
+		"kind": "Native",
+	}
+
+	_, _, err := HttpRequest("POST", url, reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create zone: %w", err)
+	}
+	for _, rrset := range zone.RRSets {
+		err := newRRSetInZone(rrset, zone)
+		if err != nil {
+			logger.With("error", err).Error("Failed to create RRset in zone")
+			return fmt.Errorf("failed to create RRset in zone %s: %w", zone.Name, err)
+		}
+	}
+
+	return nil
+}
+
 func createZonesWithRRSets(zones []Zone) error {
 	for _, zone := range zones {
-		url := fmt.Sprintf("%s/zones", BaseUrl)
-
-		reqBody := map[string]interface{}{
-			"name": zone.Name,
-			"kind": "Native",
-		}
-
-		_, _, err := HttpRequest("POST", url, reqBody)
+		err := createZoneWithRRSets(zone)
 		if err != nil {
-			return fmt.Errorf("failed to create zone: %w", err)
-		}
-		for _, rrset := range zone.RRSets {
-			err := newRRSetInZone(rrset, zone)
-			if err != nil {
-				logger.With("error", err).Error("Failed to create RRset in zone")
-				return fmt.Errorf("failed to create RRset in zone %s: %w", zone.Name, err)
-			}
+			return fmt.Errorf("failed to create zones: %w", err)
 		}
 	}
 	return nil
@@ -108,13 +118,28 @@ func deleteRRSetFromZone(RRset RRSet, zone Zone) error {
 
 	_, _, err := HttpRequest("PATCH", url, reqBody)
 	if err != nil {
-		return fmt.Errorf("failed to create RRset: %w", err)
+		return fmt.Errorf("failed to delete RRset: %w", err, "rrset", RRset.Name)
+	}
+
+	return nil
+}
+
+// ---NOTICE: this way we are deleting rrsets based on the struct we pass; we may fail to delete if not a rrset is in struct
+// and not on database, or we may leave an rrset behind if it is in dns and not in struct
+func deleteAllRRSetsFromZone(zone Zone) error {
+
+	for _, rrset := range zone.RRSets{
+		err := deleteRRSetFromZone(rrset, zone)
+		if err != nil {
+			return fmt.Errorf("Failed to delete all RRsets: %w", err)
+		}
 	}
 
 	return nil
 }
 
 
+//
 // func GetAllZones() ([]byte, error) {
 // 	url := fmt.Sprintf("%s/zones", BaseUrl)
 //
@@ -126,7 +151,7 @@ func deleteRRSetFromZone(RRset RRSet, zone Zone) error {
 // 	fmt.Printf("Zones Response: %s", string(respBody))
 //
 // 	return respBody, nil
-// }
+//}
 
 func GetStructZoneWithRecordsByName(zoneName string) (Zone, error) {
 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zoneName)
@@ -153,7 +178,7 @@ func GetStructZoneWithRecordsByName(zoneName string) (Zone, error) {
 	}, nil
 }
 
-// func GetZoneRecords(zone *Zone) (Records, error) {
+// func GetZoneRecords(zone *Zone) ([]Record, error) {
 // 	url := fmt.Sprintf("%s/zones/%s", BaseUrl, zone.ID)
 // 	respBody, _, err := HttpRequest("GET", url, nil)
 // 	if err != nil {
