@@ -40,6 +40,11 @@ func worker(logger *slog.Logger, conf config.Server) {
 			logger.Error("Failed to verify VNets", "error", err)
 		}
 
+		err = checkPortForwards(logger, fw)
+		if err != nil {
+			logger.Error("Failed to verify port forwards", "error", err)
+		}
+
 		nets, err := getNetsStatus(logger, conf)
 		if err != nil {
 			logger.Error("Failed to get VNets with status", "error", err)
@@ -283,26 +288,76 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 	return pfs, nil
 }
 
-func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
-	localPortForwards, err := db.GetPortForwards()
+func rulesFromPortForwardsDB(portForwards []db.PortForward) []fw.Rule {
+	var rules []fw.Rule
+	for _, pf := range portForwards {
+		rules = append(rules, fw.Rule{
+			OutPort:  pf.OutPort,
+			DestPort: pf.DestPort,
+			DestIP:   pf.DestIP,
+		})
+	}
+
+	return rules
+}
+
+func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
+	portForwards, err := db.GetPortForwards()
 	if err != nil {
-		logger.Error("Failed to get all port forwards from database", "error", err)
+		logger.With("error", err).Error("Failed to get all port forwards from DB")
 		return err
 	}
 
-	for _, localPF := range localPortForwards {
-		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
-			return pf.ID == localPF.ID
-		}) != -1 {
+	rules := rulesFromPortForwardsDB(portForwards)
+
+	// get all port forward rules present in db but not in firewall
+	faultyRules, err := firewall.VerifyPortForwardRules(rules)
+	if err != nil {
+		logger.With("error", err).Error("Failed to verify port forward rules")
+		return err
+	}
+
+	// add to firewall
+	err = firewall.AddPortForwardRules(faultyRules)
+	if err != nil {
+		logger.With("error", err).Error("Failed to add faulty rules")
+		return err
+	}
+
+	return nil
+}
+
+func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
+
+	// Get only the portForwards in database
+	var pfsDb []db.PortForward
+	for _, pf := range pfs {
+		pfDb, err := db.GetPortForwardByID(pf.ID)
+		if err != nil && !errors.Is(err, db.ErrNotFound) {
+			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
 			continue
 		}
+		pfsDb = append(pfsDb, *pfDb)
+	}
 
-		err = fw.RemovePortForward(localPF.OutPort, localPF.DestPort, localPF.DestIP)
-		if err != nil {
-			logger.Error("Failed to remove port forward from firewall", "error", err, "port_forward_id", localPF.ID)
-			continue
-		}
+	// delete requested rules, even if are not in database
+	var rules []fw.Rule
+	for _, pf := range pfs {
+		rules = append(rules, fw.Rule{
+			OutPort:  pf.OutPort,
+			DestPort: pf.DestPort,
+			DestIP:   pf.DestIP,
+		})
+	}
+	err := firewall.RemovePortForwardRules(rules)
 
+	if err != nil {
+		logger.Error("Failed to remove ports forward from firewall", "error", err)
+		return err
+	}
+
+	// removes all rules present in database to be deleted
+	for _, localPF := range pfsDb {
 		err = db.RemovePortForward(localPF.ID)
 		if err != nil {
 			logger.Error("Failed to remove port forward from database", "error", err, "port_forward_id", localPF.ID)
@@ -313,30 +368,34 @@ func deletePortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.Port
 	return nil
 }
 
-func createPortForwards(logger *slog.Logger, fw fw.Firewall, pfs []internal.PortForward) error {
+func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
+
+	// Get only the portForwards not in database
+	var pfsNotDb []db.PortForward
 	for _, pf := range pfs {
-		_, err := db.GetPortForwardByID(pf.ID)
+		pfDb, err := db.GetPortForwardByID(pf.ID)
 		if err == nil {
 			continue
-		} else if !errors.Is(err, db.ErrNotFound) {
+		} else if errors.Is(err, db.ErrNotFound) {
+			pfsNotDb = append(pfsNotDb, *pfDb)
+		} else {
 			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
 			continue
 		}
+	}
 
-		err = fw.AddPortForward(pf.OutPort, pf.DestPort, pf.DestIP)
-		if err != nil {
-			logger.Error("Failed to add port forward to firewall", "error", err, "port_forward_id", pf.ID)
-			continue
-		}
+	// create rules only if not present in database
+	rules := rulesFromPortForwardsDB(pfsNotDb)
+	err := firewall.AddPortForwardRules(rules)
+	if err != nil {
+		logger.Error("Failed to add ports forward from firewall", "error", err)
+		return err
+	}
 
-		err = db.AddPortForward(db.PortForward{
-			ID:       pf.ID,
-			OutPort:  pf.OutPort,
-			DestPort: pf.DestPort,
-			DestIP:   pf.DestIP,
-		})
+	for _, pfDb := range pfsNotDb {
+		err = db.AddPortForward(pfDb)
 		if err != nil {
-			logger.Error("Failed to save port forward to database", "error", err, "port_forward_id", pf.ID)
+			logger.Error("Failed to save port forward to database", "error", err, "port_forward_id", pfDb.ID)
 			continue
 		}
 	}
