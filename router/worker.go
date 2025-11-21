@@ -333,8 +333,11 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	var pfsDb []db.PortForward
 	for _, pf := range pfs {
 		pfDb, err := db.GetPortForwardByID(pf.ID)
-		if err != nil && !errors.Is(err, db.ErrNotFound) {
-			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
+		if err != nil {
+			if !errors.Is(err, db.ErrNotFound) {
+				// Log only unexpected errors
+				logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
+			}
 			continue
 		}
 		pfsDb = append(pfsDb, *pfDb)
