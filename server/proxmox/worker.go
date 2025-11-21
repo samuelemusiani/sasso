@@ -28,7 +28,8 @@ type stringTime struct {
 }
 
 var (
-	vmStatusTimeMap map[uint64]stringTime = make(map[uint64]stringTime)
+	vmStatusTimeMap        map[uint64]stringTime = make(map[uint64]stringTime)
+	vmLastTimePrelaunchMap map[uint64]time.Time  = make(map[uint64]time.Time)
 
 	lastConfigureSSHKeysTime time.Time = time.Time{}
 
@@ -760,6 +761,11 @@ func updateVMs(cluster *gprox.Cluster) {
 			delete(vmStatusTimeMap, r.VMID)
 		}
 
+		lastTimeVMWasPrelaunch, hasLastTimeVMWasPrelaunch := vmLastTimePrelaunchMap[r.VMID]
+		if !hasLastTimeVMWasPrelaunch {
+			lastTimeVMWasPrelaunch = time.Time{}
+		}
+
 		if vm.Status == string(VMStatusUnknown) && statusInSlices {
 			logger.Warn("VM changed status from unknown to a known status", "vmid", r.VMID, "new_status", r.Status)
 			err := db.UpdateVMStatus(r.VMID, r.Status)
@@ -786,6 +792,10 @@ func updateVMs(cluster *gprox.Cluster) {
 			// before setting the status to unknown
 			if exists && vmStatusTimeMapEntry.Value == "prelaunch" {
 				timeToWait = 5 * time.Minute
+			}
+
+			if r.Status == "prelaunch" {
+				vmLastTimePrelaunchMap[r.VMID] = time.Now()
 			}
 
 			if exists && time.Since(vmStatusTimeMapEntry.Time) > timeToWait && vmStatusTimeMapEntry.Value == r.Status {
@@ -816,7 +826,9 @@ func updateVMs(cluster *gprox.Cluster) {
 					Time:  t,
 				}
 			}
-		} else if r.Status != vm.Status && vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) {
+		} else if r.Status != vm.Status &&
+			vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) && // Avoid status flapping right after a status change from the APIs
+			lastTimeVMWasPrelaunch.Before(time.Now().Add(-5*time.Minute)) { // Avoid status flapping right after a prelaunch
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 			status := r.Status
