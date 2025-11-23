@@ -13,10 +13,10 @@ It creates every virtual machine in a separate Proxmox VNet using a VXLAN Zone
 to keep the VMs from differente users isolated from each other.
 
 > [!WARNING]
-> At the moment Sasso is in an very early stage of development and is not
-> fully functional. Expect bugs, missing features and breaking changes.
+> At the moment Sasso is in an early stage of development. Expect bugs, missing
+> features and breaking changes.
 
 This service was developed to be used by [ADMStaff](https://students.cs.unibo.it).
 
 Please refer to the [Wiki](https://github.com/samuelemusiani/sasso/wiki) for more
-information about the architecture and how to deploy Sasso.
+information about the architecture, how to deploy and how to use Sasso.
