@@ -280,7 +280,7 @@ func worker(ctx context.Context) error {
 		}
 		logger.Debug("DNS State fetched succesfully")
 
-    updateDNS(dnsState.Views)
+		updateDNS(dnsState.Views)
 
 		logger.Debug("DNS updated succesfully")
 
@@ -304,81 +304,79 @@ func getDNSState() (Views, error) {
 
 func updateDNS(dnsViews []View) {
 
-  // what we need to do:
-  //    for each net retrived with db.GetAllNets() we:
-  //        build the view associated with the net including right RRSets from the vms having the net as gateway
-  //
-  //        check if there is a view in the dns with that name : if not add the view from scratch
-  //
-  //        if the view is in the dns we need to confont dns_view with created_view (database_view)
+	// what we need to do:
+	//    for each net retrived with db.GetAllNets() we:
+	//        build the view associated with the net including right RRSets from the vms having the net as gateway
+	//
+	//        check if there is a view in the dns with that name : if not add the view from scratch
+	//
+	//        if the view is in the dns we need to confont dns_view with created_view (database_view)
 
-  nets, err := db.GetAllNets()
+	nets, err := db.GetAllNets()
 	if err != nil {
 		logger.Error("Error retrieving all nets from DB", "error", err)
 	}
 
-  for _, net := range nets {
+	for _, net := range nets {
 
-      //databaseView is what the dnsView must be like
-      databaseView, err := buildViewFromNet(net);
-      if err != nil {
-    		logger.Error("Error creating view from net", "error", err, "net", net.Subnet, "view", databaseView.Name)
-    	}
+		//databaseView is what the dnsView must be like
+		databaseView, err := buildViewFromNet(net)
+		if err != nil {
+			logger.Error("Error creating view from net", "error", err, "net", net.Subnet, "view", databaseView.Name)
+		}
 
+		//see if view exists in DNS, if not create a new one based on databaseView
+		if !viewsHasViewWithName(databaseView.Name, dnsViews) {
+			err := setupNewStructViewOnDNS(&databaseView)
+			if err != nil {
+				logger.Error("Error setting up view on DNS for net", "netID", net.ID, "view", databaseView.Name, "error", err)
 
-      //see if view exists in DNS, if not create a new one based on databaseView
-      if !viewsHasViewWithName(databaseView.Name, dnsViews){
-        err := setupNewStructViewOnDNS(&databaseView)
-  			if err != nil {
-  				logger.Error("Error setting up view on DNS for net", "netID", net.ID, "view", databaseView.Name, "error", err)
+			}
+			continue
+		}
 
-  			}
-  			continue
-      }
+		//get view from the dns server and first sync the zones (database and dns) and then rrsets (still database and dns)
+		dnsView, err := getViewFromViewsWithName(databaseView.Name, dnsViews)
+		err = syncZones(databaseView.Zones, dnsView.Zones)
+		if err != nil {
+			logger.Error("Error syncing zones", "error", err, "view", databaseView.Name)
+		}
 
-      //get view from the dns server and first sync the zones (database and dns) and then rrsets (still database and dns)
-      dnsView, err := getViewFromViewsWithName(databaseView.Name, dnsViews);
-      err = syncZones(databaseView.Zones, dnsView.Zones);
-      if err != nil {
-    		logger.Error("Error syncing zones", "error", err, "view", databaseView.Name)
-    	}
+		//for each zone we sync the rrsets between database and dns
+		for _, databaseZone := range databaseView.Zones {
+			dnsZone, err := getZoneFromZonesWithName(databaseZone.Name, dnsView.Zones)
+			if err != nil {
+				logger.Error("Error syncing RRSets", "error", err, "view", databaseView.Name, "zone", databaseZone.Name)
+			}
 
-      //for each zone we sync the rrsets between database and dns
-      for _, databaseZone := range databaseView.Zones{
-        dnsZone, err := getZoneFromZonesWithName(databaseZone.Name, dnsView.Zones)
-				if err != nil {
-      		logger.Error("Error syncing RRSets", "error", err, "view", databaseView.Name, "zone", databaseZone.Name)
-      	}
+			err = syncRRSets(databaseZone.RRSets, dnsZone.RRSets, dnsZone)
+			if err != nil {
+				logger.Error("Error syncing RRSets", "error", err, "view", databaseView.Name, "zone", databaseZone.Name)
+			}
+		}
 
-
-        err = syncRRSets(databaseZone.RRSets, dnsZone.RRSets, dnsZone)
-        if err != nil {
-      		logger.Error("Error syncing RRSets", "error", err, "view", databaseView.Name, "zone", databaseZone.Name)
-      	}
-      }
-
-  }
+	}
 }
 
 func syncZones(updatedZones []Zone, behindZones []Zone) error {
-  // to sync zones we need first to check the lenght of each arguments
-  // if they are different there may be three possibilities :
-  //      1.  len(updatedZones) = 0 ->  remove all zones from dns
-  //      2.  len(behindZones) = 0 -> we add all zones from updatedView.Zones to dns
-  //      3.  eliminiamo dal dns con la API ogni zona non presente in updatedZones ma presente in behindZones ;
-  //          e dopo aggiungiamo al dns con la API le zone presenti in updatedZones ma non preesenti in behindZones (mi è venuta da scriverlo in italiano)
+	// to sync zones we need first to check the lenght of each arguments
+	// if they are different there may be three possibilities :
+	//      1.  len(updatedZones) = 0 ->  remove all zones from dns
+	//      2.  len(behindZones) = 0 -> we add all zones from updatedView.Zones to dns
+	//      3.  eliminiamo dal dns con la API ogni zona non presente in updatedZones ma presente in behindZones ;
+	//          e dopo aggiungiamo al dns con la API le zone presenti in updatedZones ma non preesenti in behindZones (mi è venuta da scriverlo in italiano)
 
-  if len(updatedZones) == 0 {
-    deleteZonesFromDNS(behindZones)
-    return nil
-  }else if len(behindZones) == 0{
-    createZonesWithRRSets(updatedZones)
-    return nil
-  }
+	if len(updatedZones) == 0 {
+		deleteZonesFromDNS(behindZones)
+		return nil
+	} else if len(behindZones) == 0 {
+		createZonesWithRRSets(updatedZones)
+		return nil
+	}
 
-  //----NOTICE----- there should be only one zone but i'm not sure about this, so i'm leaving like this; if it's just one zone is easier
+	//----NOTICE----- there should be only one zone but i'm not sure about this, so i'm leaving like this; if it's just one zone is easier
 
-  for _, z := range behindZones {
+	for _, z := range behindZones {
 		if !zonesHasZoneWithName(z.Name, updatedZones) {
 			if err := deleteZoneFromDNS(z); err != nil {
 				return err
@@ -386,34 +384,34 @@ func syncZones(updatedZones []Zone, behindZones []Zone) error {
 		}
 	}
 
-  for _, z := range updatedZones {
+	for _, z := range updatedZones {
 		if !zonesHasZoneWithName(z.Name, behindZones) {
 			if err := createZoneWithRRSets(z); err != nil {
 				return err
 			}
 		}
-  }
+	}
 
-  return nil
+	return nil
 }
 
 func syncRRSets(updatedRRSets []RRSet, behindRRSets []RRSet, dnsZone Zone) error {
-  // to sync rrsets we need first to check the lenght of each arguments
-  // if they are different there may be three possibilities :
-  //      1.  len(updatedRRSets) = 0 ->  remove all rrsets from dns
-  //      2.  len(behindRRSets) = 0 -> we add all rrsets from updatedRRSets to dns
-  //      3.  eliminiamo dal dns con la API ogni rrset non presente in updatedRRSets ma presente in behindRRSets ;
-  //          e dopo aggiungiamo al dns con la API gli rrsets presenti in updatedRRSets ma non preesenti in behindRRSets (mi è venuta da scriverlo in italiano --- ora ho fatto copia e incolla da prima :))
+	// to sync rrsets we need first to check the lenght of each arguments
+	// if they are different there may be three possibilities :
+	//      1.  len(updatedRRSets) = 0 ->  remove all rrsets from dns
+	//      2.  len(behindRRSets) = 0 -> we add all rrsets from updatedRRSets to dns
+	//      3.  eliminiamo dal dns con la API ogni rrset non presente in updatedRRSets ma presente in behindRRSets ;
+	//          e dopo aggiungiamo al dns con la API gli rrsets presenti in updatedRRSets ma non preesenti in behindRRSets (mi è venuta da scriverlo in italiano --- ora ho fatto copia e incolla da prima :))
 
-  if len(updatedRRSets) == 0 {
-    deleteAllRRSetsFromZone(dnsZone)
-    return nil
-  }else if len(behindRRSets) == 0{
-    addRRSetsToZone(updatedRRSets, dnsZone)
-    return nil
-  }
+	if len(updatedRRSets) == 0 {
+		deleteAllRRSetsFromZone(dnsZone)
+		return nil
+	} else if len(behindRRSets) == 0 {
+		addRRSetsToZone(updatedRRSets, dnsZone)
+		return nil
+	}
 
-  for _, r := range behindRRSets {
+	for _, r := range behindRRSets {
 		if !rrsetsContainsRRSet(r, updatedRRSets) {
 			if err := deleteRRSetFromZone(r, dnsZone); err != nil {
 				return err
@@ -421,21 +419,21 @@ func syncRRSets(updatedRRSets []RRSet, behindRRSets []RRSet, dnsZone Zone) error
 		}
 	}
 
-  for _, r := range updatedRRSets {
+	for _, r := range updatedRRSets {
 		if !rrsetsContainsRRSet(r, behindRRSets) {
 			if err := newRRSetInZone(r, dnsZone); err != nil {
 				return err
 			}
 		}
-  }
+	}
 
-  return nil
+	return nil
 }
 
 func buildViewFromNet(net db.Net) (View, error) {
 
-  // to build the view we first setup the view and the zone structs
-  // then for each vm of the net we create an RRSet in (only) zone of the view
+	// to build the view we first setup the view and the zone structs
+	// then for each vm of the net we create an RRSet in (only) zone of the view
 
 	view := View{
 		Name:     fmt.Sprintf("net%d", net.ID),
@@ -446,14 +444,13 @@ func buildViewFromNet(net db.Net) (View, error) {
 		Name: fmt.Sprintf("sasso..%s", view.Name),
 	}
 
-
 	// Attach VMs as RRSets
 	vms, err := db.GetVMsWithPrimaryInterfaceInVNet(net.ID)
 	if err != nil {
-	   return View{}, fmt.Errorf("Failed retrieving VMs", "netID", net.ID, "error", err)
+		return View{}, fmt.Errorf("Failed retrieving VMs", "netID", net.ID, "error", err)
 	}
 
-  // for each vm we create an RRSet
+	// for each vm we create an RRSet
 	for _, vm := range vms {
 		ip := strings.Split(vm.InterfaceIP, "/")[0]
 		rr := RRSet{
@@ -470,48 +467,48 @@ func buildViewFromNet(net db.Net) (View, error) {
 }
 
 func zonesHasZoneWithName(zoneName string, zones []Zone) bool {
-  return slices.ContainsFunc(zones, func(z Zone) bool {
-    return z.Name == zoneName
-  })
+	return slices.ContainsFunc(zones, func(z Zone) bool {
+		return z.Name == zoneName
+	})
 }
 
 func viewsHasViewWithName(viewName string, views []View) bool {
-  return slices.ContainsFunc(views, func(v View) bool {
-    return v.Name == viewName
-  })
+	return slices.ContainsFunc(views, func(v View) bool {
+		return v.Name == viewName
+	})
 }
 
-func getViewFromViewsWithName(viewName string, views []View) (View, error){
-  viewIdx := slices.IndexFunc(views, func(v View) bool {
-    return v.Name == viewName
-  })
+func getViewFromViewsWithName(viewName string, views []View) (View, error) {
+	viewIdx := slices.IndexFunc(views, func(v View) bool {
+		return v.Name == viewName
+	})
 
-  // check if view exists
-  if viewIdx == -1 {
-    return View{}, fmt.Errorf("View not in list of Views", "viewName", viewName)
-  }
+	// check if view exists
+	if viewIdx == -1 {
+		return View{}, fmt.Errorf("View not in list of Views", "viewName", viewName)
+	}
 
-  return views[viewIdx], nil
+	return views[viewIdx], nil
 }
 
-func getZoneFromZonesWithName(zoneName string, zones []Zone) (Zone, error){
-  zoneIdx := slices.IndexFunc(zones, func(z Zone) bool {
-    return z.Name == zoneName
-  })
+func getZoneFromZonesWithName(zoneName string, zones []Zone) (Zone, error) {
+	zoneIdx := slices.IndexFunc(zones, func(z Zone) bool {
+		return z.Name == zoneName
+	})
 
-  // check if zone exists
-  if zoneIdx == -1 {
-    return Zone{}, fmt.Errorf("Zone not in list of Zone", "zoneName", zoneName)
-  }
+	// check if zone exists
+	if zoneIdx == -1 {
+		return Zone{}, fmt.Errorf("Zone not in list of Zone", "zoneName", zoneName)
+	}
 
-  return zones[zoneIdx], nil
+	return zones[zoneIdx], nil
 }
 
 func rrsetsContainsRRSet(rrset RRSet, rrsets []RRSet) bool {
-  return slices.ContainsFunc(rrsets, func(r RRSet) bool {
-    return rrset.Name == r.Name &&
-           rrset.Type == r.Type &&
-		       rrset.TTL == r.TTL &&
-		       ConfrontRecords(rrset, r)
-  })
+	return slices.ContainsFunc(rrsets, func(r RRSet) bool {
+		return rrset.Name == r.Name &&
+			rrset.Type == r.Type &&
+			rrset.TTL == r.TTL &&
+			ConfrontRecords(rrset, r)
+	})
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 )
 
-
 func createZoneWithRRSets(zone Zone) error {
 	url := fmt.Sprintf("%s/zones", BaseUrl)
 
@@ -128,7 +127,7 @@ func deleteRRSetFromZone(RRset RRSet, zone Zone) error {
 // and not on database, or we may leave an rrset behind if it is in dns and not in struct
 func deleteAllRRSetsFromZone(zone Zone) error {
 
-	for _, rrset := range zone.RRSets{
+	for _, rrset := range zone.RRSets {
 		err := deleteRRSetFromZone(rrset, zone)
 		if err != nil {
 			return fmt.Errorf("Failed to delete all RRsets: %w", err)
@@ -137,7 +136,6 @@ func deleteAllRRSetsFromZone(zone Zone) error {
 
 	return nil
 }
-
 
 //
 // func GetAllZones() ([]byte, error) {
