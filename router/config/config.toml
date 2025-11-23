@@ -10,7 +10,7 @@ user = "user"
 password = "password"
 database = "sasso-router"
 host = "localhost"
-port = 5433
+port = 5432
 
 [network]
 usable_subnet = "10.254.0.0/16"
