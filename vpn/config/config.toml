@@ -6,8 +6,9 @@ endpoint = "http://10.0.0.1:8080"
 secret = "supersegreto"
 
 [database]
-user = "user"
+user = "sasso"
 password = "password"
+database = "sasso-vpn"
 host = "localhost"
 port = 5432
 

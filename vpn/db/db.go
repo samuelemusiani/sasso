@@ -24,7 +24,7 @@ func Init(l *slog.Logger, c *config.Database) error {
 	logger = l
 	var err error
 
-	url := fmt.Sprintf("host=%s user=%s password=%s dbname=sasso port=%d sslmode=disable", c.Host, c.User, c.Password, c.Port)
+	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
 	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
 		Logger: gorm_logger.New(
