@@ -103,7 +103,7 @@ func initUsers() error {
 		return err
 	}
 
-	logger.Debug("Admin user created successfully", "password", passwd)
+	logger.Info("Admin user created successfully", "password", passwd)
 	return nil
 }
 
