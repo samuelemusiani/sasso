@@ -31,6 +31,10 @@ var (
 	vmStatusTimeMap        map[uint64]stringTime = make(map[uint64]stringTime)
 	vmLastTimePrelaunchMap map[uint64]time.Time  = make(map[uint64]time.Time)
 
+	// Last time a VM failed to change status. This is used in the
+	// enforceVMLifetimes function
+	vmFailedChangeStatus map[uint64]time.Time = make(map[uint64]time.Time)
+
 	lastConfigureSSHKeysTime time.Time = time.Time{}
 
 	workerContext    context.Context    = nil
@@ -1584,11 +1588,18 @@ func enforceVMLifetimes() {
 				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
 		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
+			lastTimeFailed, exists := vmFailedChangeStatus[v.ID]
+			if exists && lastTimeFailed.After(time.Now().Add(-30*time.Hour)) {
+				// We failed to stop the VM less than an hour ago, we skip it
+				continue
+			}
+
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
 			if v.Status != string(VMStatusStopped) {
 				err := changeVMStatusBypass(v.ID, "stop")
 				if err != nil {
+					vmFailedChangeStatus[v.ID] = time.Now()
 					logger.Error("Failed to stop expired VM", "vmid", v.ID, "error", err)
 					continue
 				}
