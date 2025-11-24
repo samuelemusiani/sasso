@@ -26,7 +26,7 @@ type = "linux"
 # secret = "2630dda0-b730-4dc7-be14-0b3582c97224"
 # vmid = 9100
 
-[gaeteway.linux]
+[gateway.linux]
 port = 4789
 peers = ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
 

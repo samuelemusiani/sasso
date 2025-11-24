@@ -66,9 +66,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 		panic(err)
 	}
 
-	peers := []net.IP{net.IP{130, 136, 201, 1}, net.IP{130, 136, 201, 2}, net.IP{130, 136, 201, 3}}
-
-	for _, p := range peers {
+	for _, p := range lg.Peers {
 		err = netlink.NeighAppend(&netlink.Neigh{
 			LinkIndex:    link.Index,
 			IP:           p,
