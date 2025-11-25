@@ -274,7 +274,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	sbkrID := chi.URLParam(r, "requestid")
 
-	bkrID, err := strconv.ParseUint(sbkrID, 10, 64)
+	bkrID, err := strconv.ParseUint(sbkrID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid backup request ID", http.StatusBadRequest)
 		return

@@ -223,7 +223,7 @@ type manageInvitationsRequest struct {
 func manageInvitation(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	sInvitationID := chi.URLParam(r, "inviteid")
-	invitationID, err := strconv.ParseUint(sInvitationID, 10, 64)
+	invitationID, err := strconv.ParseUint(sInvitationID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid invitation ID", http.StatusBadRequest)
 		return
@@ -347,7 +347,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	sInviteID := chi.URLParam(r, "inviteid")
-	inviteID, err := strconv.ParseUint(sInviteID, 10, 64)
+	inviteID, err := strconv.ParseUint(sInviteID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid invitation ID", http.StatusBadRequest)
 		return
@@ -430,7 +430,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sUserID := chi.URLParam(r, "userid")
-	userID, err := strconv.ParseUint(sUserID, 10, 64)
+	userID, err := strconv.ParseUint(sUserID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
@@ -614,7 +614,7 @@ func adminListGroups(w http.ResponseWriter, r *http.Request) {
 
 func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	groupids := chi.URLParam(r, "id")
-	groupid, err := strconv.ParseUint(groupids, 10, 64)
+	groupid, err := strconv.ParseUint(groupids, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid group ID", http.StatusBadRequest)
 		return
@@ -638,7 +638,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 
 func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 	groupids := chi.URLParam(r, "id")
-	groupid, err := strconv.ParseUint(groupids, 10, 64)
+	groupid, err := strconv.ParseUint(groupids, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid group ID", http.StatusBadRequest)
 		return

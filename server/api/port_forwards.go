@@ -215,7 +215,7 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	sportForwardID := chi.URLParam(r, "id")
-	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 64)
+	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
 		return
@@ -258,7 +258,7 @@ type approvePortForwardRequest struct {
 
 func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	sportForwardID := chi.URLParam(r, "id")
-	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 64)
+	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
 		return

@@ -188,7 +188,7 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	srealmID := chi.URLParam(r, "id")
-	realmID, err := strconv.ParseUint(srealmID, 10, 64)
+	realmID, err := strconv.ParseUint(srealmID, 10, 32)
 	if err != nil {
 		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)
@@ -260,7 +260,7 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	srealmID := chi.URLParam(r, "id")
-	realmID, err := strconv.ParseUint(srealmID, 10, 64)
+	realmID, err := strconv.ParseUint(srealmID, 10, 32)
 	if err != nil {
 		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)
@@ -304,7 +304,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	srealmID := chi.URLParam(r, "id")
-	realmID, err := strconv.ParseUint(srealmID, 10, 64)
+	realmID, err := strconv.ParseUint(srealmID, 10, 32)
 	if err != nil {
 		logger.Error("Invalid Realm ID format", "userID", userID, "srealmID", srealmID, "error", err)
 		http.Error(w, "Invalid Realm ID format", http.StatusBadRequest)

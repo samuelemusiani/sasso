@@ -97,7 +97,7 @@ func deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	skeyID := chi.URLParam(r, "id")
 
-	keyID, err := strconv.ParseUint(skeyID, 10, 64)
+	keyID, err := strconv.ParseUint(skeyID, 10, 32)
 	if err != nil {
 		logger.Error("Invalid SSH key ID format", "userID", userID, "keyID", skeyID, "error", err)
 		http.Error(w, "Invalid SSH key ID format", http.StatusBadRequest)
@@ -178,7 +178,7 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 func deleteGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 	skeyID := chi.URLParam(r, "id")
 
-	keyID, err := strconv.ParseUint(skeyID, 10, 64)
+	keyID, err := strconv.ParseUint(skeyID, 10, 32)
 	if err != nil {
 		logger.Error("Invalid SSH key ID format", "keyID", skeyID, "error", err)
 		http.Error(w, "Invalid SSH key ID format", http.StatusBadRequest)
