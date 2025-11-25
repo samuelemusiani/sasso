@@ -959,7 +959,20 @@ func createInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		v := fmt.Sprintf("virtio,bridge=%s,firewall=1", vnet.Name)
+		v := fmt.Sprintf("virtio,bridge=%s", vnet.Name)
+
+		if cClone.EnableFirewall {
+			v = fmt.Sprintf("%s,firewall=1", v)
+		}
+
+		if cClone.MTU.Set {
+			value := cClone.MTU.MTU
+			if cClone.MTU.SameAsBridge {
+				value = 1
+			}
+			v = fmt.Sprintf("%s,mtu=%d", v, value)
+		}
+
 		if iface.VlanTag != 0 {
 			v = fmt.Sprintf("%s,tag=%d", v, iface.VlanTag)
 		}

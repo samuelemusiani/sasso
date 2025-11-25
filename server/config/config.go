@@ -56,6 +56,15 @@ type ProxmoxClone struct {
 	VMIDVMDigits   int    `toml:"vmid_vm_digits"`
 	Full           bool   `toml:"full"`
 	UserVMNames    bool   `toml:"user_vm_names"`
+	EnableFirewall bool   `toml:"enable_firewall"`
+
+	MTU ProxmoxCloneMTU `toml:"mtu"`
+}
+
+type ProxmoxCloneMTU struct {
+	Set          bool   `toml:"set_mtu"`
+	SameAsBridge bool   `toml:"same_as_bridge"`
+	MTU          uint16 `toml:"mtu"`
 }
 
 type ProxmoxNetwork struct {

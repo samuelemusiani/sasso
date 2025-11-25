@@ -59,6 +59,18 @@ full = true
 # sasso-<id>
 user_vm_names = true
 
+# Enable firewall on new interfaces
+enable_firewall = true
+
+# Set MTU on interfaces. If same_as_bridge is true, the MTU option will be
+# ignored and the MTU of the bridge will be used (setting everything as 1).
+# This option is useful when using proxmox < 9. If you are using proxmox 9 or
+# higher, you can set set_mtu to false to disable MTU setting on interfaces.
+[proxmox.clone.mtu]
+set = true # If false, do not set MTU on interfaces
+same_as_bridge = true # If true, use the MTU of the bridge (using 1 as MTU)
+mtu = 1450 # Ignored if same_as_bridge is true
+
 [proxmox.network]
 sdn_zone = "sasso"
 vxlan_id_start = 1000
