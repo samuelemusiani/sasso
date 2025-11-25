@@ -96,8 +96,16 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 
 	returnableNets := make([]returnNet, len(nets))
 	for i, net := range nets {
-		gtw := f(net.Gateway, "Invalid gateway format")
-		broad := f(net.Broadcast, "Invalid broadcast format")
+		var gtw, broad string
+		if net.Gateway == "" && net.Broadcast == "" {
+			// This is a new net and the gateway and broadcast have not been set yet.
+			// To avoid logging errors, we just return empty strings.
+			gtw = ""
+			broad = ""
+		} else {
+			gtw = f(net.Gateway, "Invalid gateway format")
+			broad = f(net.Broadcast, "Invalid broadcast format")
+		}
 
 		returnableNets[i] = returnNet{
 			ID:        net.ID,
