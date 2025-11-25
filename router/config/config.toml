@@ -29,6 +29,7 @@ type = "linux"
 [gateway.linux]
 port = 4789
 peers = ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
+mtu = 1450
 
 [firewall]
 type = "shorewall"

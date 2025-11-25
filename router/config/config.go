@@ -37,6 +37,7 @@ type ProxmoxGatewayConfig struct {
 type LinuxGatewayConfig struct {
 	Port  uint16   `toml:"port"`
 	Peers []string `toml:"peers"`
+	MTU   uint16   `toml:"mtu"`
 }
 
 type Database struct {

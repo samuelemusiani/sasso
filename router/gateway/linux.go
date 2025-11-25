@@ -14,6 +14,7 @@ import (
 type LinuxGateway struct {
 	Port  uint16
 	Peers []net.IP
+	MTU   uint16
 }
 
 func NewLinuxGateway() *LinuxGateway {
@@ -31,6 +32,8 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 		lg.Peers = append(lg.Peers, ip)
 	}
 
+	lg.MTU = c.Linux.MTU
+
 	return nil
 }
 
@@ -38,6 +41,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
+			MTU:  int(lg.MTU),
 			Name: vnet,
 		},
 		VxlanId: int(vnetID),
