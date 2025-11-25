@@ -65,8 +65,8 @@ func Init(l *slog.Logger, c config.Email) error {
 	// We use two bucket limiters:
 	// - the 24h limiter to limit the total number of emails sent per day
 	// - the 1m limiter to limit bursts of emails
-	bucketLimiter24hInstance = newBucketLimiter(1000/(24*60*60), 1000) // 1000 emails per day, burst 10
-	bucketLimiter1mInstance = newBucketLimiter(20/60, 10)              // 20 emails per minute, burst 10
+	bucketLimiter24hInstance = newBucketLimiter(1000.0/(24*60*60), 1000) // 1000 notifications per day
+	bucketLimiter1mInstance = newBucketLimiter(20.0/60, 10)              // 20 notifications per minute, burst 10
 
 	return nil
 }

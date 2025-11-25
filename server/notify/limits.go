@@ -5,7 +5,6 @@
 package notify
 
 import (
-	"sync"
 	"time"
 )
 
@@ -17,7 +16,6 @@ type bucketLimiter struct {
 	capacity   uint64  // Maximum capacity of the bucket
 	tokens     uint64  // Current number of tokens in the bucket
 	lastUpdate time.Time
-	mu         sync.Mutex
 }
 
 func newBucketLimiter(rate float64, capacity uint64) *bucketLimiter {
@@ -29,10 +27,9 @@ func newBucketLimiter(rate float64, capacity uint64) *bucketLimiter {
 	}
 }
 
+// As this function is only used inside Notify, which is already single-threaded
+// we don't need to add mutex here.
 func (b *bucketLimiter) allow() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	now := time.Now()
 	elapsed := now.Sub(b.lastUpdate).Seconds()
 
