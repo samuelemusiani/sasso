@@ -23,6 +23,9 @@ var (
 	workerContext    context.Context
 	workerCancelFunc context.CancelFunc
 	workerReturnChan chan error = make(chan error, 1)
+
+	bucketLimiter24hInstance *bucketLimiter = nil
+	bucketLimiter1mInstance  *bucketLimiter = nil
 )
 
 const telegramAPIURL = "https://api.telegram.org/bot"
@@ -58,6 +61,12 @@ func Init(l *slog.Logger, c config.Email) error {
 		slog.Error("Failed to create mail client", "error", err)
 		return err
 	}
+
+	// We use two bucket limiters:
+	// - the 24h limiter to limit the total number of emails sent per day
+	// - the 1m limiter to limit bursts of emails
+	bucketLimiter24hInstance = newBucketLimiter(1000/(24*60*60), 1000) // 1000 emails per day, burst 10
+	bucketLimiter1mInstance = newBucketLimiter(20/60, 10)              // 20 emails per minute, burst 10
 
 	return nil
 }
@@ -131,6 +140,16 @@ func sendNotifications() {
 			UserID:  n.UserID,
 			Subject: n.Subject,
 			Body:    n.Body,
+		}
+
+		if !bucketLimiter1mInstance.allow() {
+			logger.Warn("Rate limit exceeded for the 1m bucket, skipping notifications", "userID", n.UserID)
+			return
+		}
+
+		if !bucketLimiter24hInstance.allow() {
+			logger.Warn("Rate limit exceeded for the 24h bucket, skipping notifications", "userID", n.UserID)
+			return
 		}
 
 		if n.Email {
