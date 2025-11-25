@@ -1,5 +1,7 @@
 build: build-front copy-front build-server build-router build-vpn
 
+build-server-front: build-front copy-front build-server
+
 build-front:
   cd frontend && npm install && npm run build
 
