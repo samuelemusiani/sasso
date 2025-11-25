@@ -45,7 +45,7 @@ type notification struct {
 	Telegram bool
 }
 
-func Init(l *slog.Logger, c config.Email) error {
+func Init(l *slog.Logger, c config.Notifications) error {
 	logger = l
 
 	if !c.Enabled {
@@ -53,20 +53,22 @@ func Init(l *slog.Logger, c config.Email) error {
 		return nil
 	}
 
-	email = c.Username
+	email = c.Email.Username
 
 	var err error
-	emailClient, err = mail.NewClient(c.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Username), mail.WithPassword(c.Password), mail.WithSSL(), mail.WithPort(465))
+	emailClient, err = mail.NewClient(c.Email.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Email.Username), mail.WithPassword(c.Email.Password), mail.WithSSL(), mail.WithPort(465))
 	if err != nil {
 		slog.Error("Failed to create mail client", "error", err)
 		return err
 	}
 
-	// We use two bucket limiters:
-	// - the 24h limiter to limit the total number of emails sent per day
-	// - the 1m limiter to limit bursts of emails
-	bucketLimiter24hInstance = newBucketLimiter(1000.0/(24*60*60), 1000) // 1000 notifications per day
-	bucketLimiter1mInstance = newBucketLimiter(20.0/60, 10)              // 20 notifications per minute, burst 10
+	if c.RateLimits {
+		// We use two bucket limiters:
+		// - the 24h limiter to limit the total number of emails sent per day
+		// - the 1m limiter to limit bursts of emails
+		bucketLimiter24hInstance = newBucketLimiter(float64(c.MaxPerDay)/(24*60*60), 1000) // 1000 notifications per day
+		bucketLimiter1mInstance = newBucketLimiter(float64(c.MaxPerMinute)/60, 10)         // 20 notifications per minute, burst 10
+	}
 
 	return nil
 }
@@ -142,12 +144,12 @@ func sendNotifications() {
 			Body:    n.Body,
 		}
 
-		if !bucketLimiter1mInstance.allow() {
+		if bucketLimiter1mInstance != nil && !bucketLimiter1mInstance.allow() {
 			logger.Warn("Rate limit exceeded for the 1m bucket, skipping notifications", "userID", n.UserID)
 			return
 		}
 
-		if !bucketLimiter24hInstance.allow() {
+		if bucketLimiter24hInstance != nil && !bucketLimiter24hInstance.allow() {
 			logger.Warn("Rate limit exceeded for the 24h bucket, skipping notifications", "userID", n.UserID)
 			return
 		}

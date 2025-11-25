@@ -5,13 +5,13 @@ import (
 )
 
 type Config struct {
-	PublicServer  Server       `toml:"public_server"`
-	PrivateServer Server       `toml:"private_server"`
-	Database      Database     `toml:"database"`
-	Secrets       Secrets      `toml:"secrets"`
-	Proxmox       Proxmox      `toml:"proxmox"`
-	Email         Email        `toml:"email"`
-	PortForwards  PortForwards `toml:"port_forwards"`
+	PublicServer  Server        `toml:"public_server"`
+	PrivateServer Server        `toml:"private_server"`
+	Database      Database      `toml:"database"`
+	Secrets       Secrets       `toml:"secrets"`
+	Proxmox       Proxmox       `toml:"proxmox"`
+	Notifications Notifications `toml:"notifications"`
+	PortForwards  PortForwards  `toml:"port_forwards"`
 }
 
 type Server struct {
@@ -75,6 +75,15 @@ type ProxmoxNetwork struct {
 
 type ProxmoxBackup struct {
 	Storage string `toml:"storage"`
+}
+
+type Notifications struct {
+	Enabled      bool `toml:"enabled"`
+	RateLimits   bool `toml:"rate_limits"`
+	MaxPerDay    uint `toml:"max_per_day"`
+	MaxPerMinute uint `toml:"max_per_minute"`
+
+	Email Email `toml:"email"`
 }
 
 type Email struct {

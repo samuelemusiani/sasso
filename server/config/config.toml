@@ -79,7 +79,13 @@ vxlan_id_end = 2000
 [proxmox.backup]
 storage = "local"
 
-[email]
+[notifications]
+enabled = true
+rate_limits = true # Enable rate limiting on notifications
+max_per_day = 1000 # To avoid hitting email provider limits
+max_per_minute = 20 # To avoid single bursts
+
+[notifications.email]
 enabled = true
 username = "sasso@gmail.com"
 password = "app-password"

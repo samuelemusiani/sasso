@@ -146,9 +146,11 @@ func main() {
 	proxmox.StartWorker()
 
 	// Notifications
-	notifyLogger := slog.With("module", "notify")
-	err = notify.Init(notifyLogger, c.Email)
-	notify.StartWorker()
+	if c.Notifications.Enabled {
+		notifyLogger := slog.With("module", "notify")
+		err = notify.Init(notifyLogger, c.Notifications)
+		notify.StartWorker()
+	}
 
 	// API
 	slog.Debug("Initializing API server")
