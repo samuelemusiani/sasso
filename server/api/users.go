@@ -177,7 +177,7 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 
 func getUser(w http.ResponseWriter, r *http.Request) {
 	suserID := chi.URLParam(r, "id")
-	userID, err := strconv.ParseUint(suserID, 10, 64)
+	userID, err := strconv.ParseUint(suserID, 10, 32)
 	if err != nil {
 		logger.Error("failed to parse user ID", "error", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)

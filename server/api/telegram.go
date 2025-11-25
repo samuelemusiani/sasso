@@ -93,7 +93,7 @@ func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
-	botID, err := strconv.ParseUint(sbotID, 10, 64)
+	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
 		return
@@ -114,7 +114,7 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
-	botID, err := strconv.ParseUint(sbotID, 10, 64)
+	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
 		return
@@ -151,7 +151,7 @@ type toggleTelegramBotRequest struct {
 
 func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
-	botID, err := strconv.ParseUint(sbotID, 10, 64)
+	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
 		return
