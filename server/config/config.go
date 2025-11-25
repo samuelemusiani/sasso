@@ -62,7 +62,7 @@ type ProxmoxClone struct {
 }
 
 type ProxmoxCloneMTU struct {
-	Set          bool   `toml:"set_mtu"`
+	Set          bool   `toml:"set"`
 	SameAsBridge bool   `toml:"same_as_bridge"`
 	MTU          uint16 `toml:"mtu"`
 }
