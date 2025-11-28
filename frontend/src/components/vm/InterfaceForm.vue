@@ -10,6 +10,7 @@ const $props = defineProps<{
   vm: VM
   interface?: Interface
   disabled?: boolean
+  interfaces: Interface[]
 }>()
 
 const defaultVlanTagMessage = `
@@ -196,17 +197,21 @@ const vlanTagMessage = computed(() => {
   }
 })
 
-watch(
-  () => form.value.vnet_id,
-  (newVnetId) => {
-    const net = nets.value.find((n) => n.id === newVnetId)
-    if (net) {
-      form.value.gateway = net.gateway
-    } else {
-      form.value.gateway = ''
-    }
-  },
-)
+// We have to watch interfaces in order to set the gateway correctly for a new
+// possible interface when one with a gateway is added (as the form remains open)
+watch([() => form.value.vnet_id, () => $props.interfaces], ([newVnetId]) => {
+  const net = nets.value.find((n) => n.id === newVnetId)
+  const interfaceWithGateway = $props.interfaces.some((i) => i.gateway !== '')
+  console.log('newVnetId:', newVnetId)
+  console.log('Nets:', nets.value)
+  console.log('Net:', net, 'Net with gateway:', interfaceWithGateway)
+  if (net && !interfaceWithGateway) {
+    console.log('here')
+    form.value.gateway = net.gateway
+  } else {
+    form.value.gateway = ''
+  }
+})
 
 watch(
   () => filteredNets.value,
@@ -265,6 +270,14 @@ function updateInterface() {
     .put(`/vm/${$props.vm.id}/interface/${$props.interface.id}`, form.value)
     .then(() => {
       $emit('interfaceUpdated')
+
+      // reset form
+      form.value = {
+        vnet_id: filteredNets.value[0]?.id || 0,
+        vlan_tag: 0,
+        ip_add: '',
+        gateway: filteredNets.value[0]?.gateway || '',
+      }
     })
     .catch((err) => {
       console.error('Failed to update interface:', err)

@@ -111,6 +111,7 @@ onBeforeUnmount(() => {
     <InterfaceForm
       v-if="!editingInterface && $props.vm.group_role !== 'member'"
       :vm="$props.vm"
+      :interfaces="interfaces"
       @interface-added="handleInterfaceAdded"
       @cancel="handleCancel"
       :disabled="interfaces.length >= 32"
@@ -118,6 +119,7 @@ onBeforeUnmount(() => {
     <InterfaceForm
       v-if="editingInterface && $props.vm.group_role !== 'member'"
       :vm="$props.vm"
+      :interfaces="interfaces"
       :interface="editingInterface"
       @interface-updated="handleInterfaceUpdated"
       @cancel="handleCancel"
@@ -173,7 +175,6 @@ onBeforeUnmount(() => {
               v-if="vm && vm.group_role !== 'member'"
               class="flex justify-end gap-2 text-right text-sm font-medium"
             >
-              <!-- FIXME: editing will show another"CreateNew" component filled -->
               <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
                 Edit
               </button>
