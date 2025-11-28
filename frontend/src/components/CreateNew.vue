@@ -8,6 +8,7 @@ const props = defineProps<{
   hideCreate?: boolean
   open?: boolean
   disabled?: boolean
+  loading?: boolean
 }>()
 
 const $emit = defineEmits<{
@@ -46,7 +47,10 @@ function openClose() {
     >
       <slot></slot>
       <p v-if="props.error" class="text-error">{{ props.error }}</p>
-      <button class="btn btn-success rounded-lg p-2" type="submit">
+      <button class="btn btn-success rounded-lg p-2" type="submit" :disabled="loading">
+        <div v-if="loading" class="grid h-70">
+          <span class="loading loading-spinner place-self-center"></span>
+        </div>
         {{ (props.hideCreate ? '' : 'Create ') + props.title }}
       </button>
     </form>

@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
+import { onMounted, ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Backup, BackupRequest, VM } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { getStatusClass } from '@/const'
+import { formatDate } from '@/lib/utils'
 
 const $props = defineProps<{
   vm: VM
@@ -46,7 +47,10 @@ function fetchBackups() {
     .get(`/vm/${vmid}/backup`)
     .then((res) => {
       // Handle the response data
-      backups.value = res.data as Backup[]
+      const tmp = res.data.sort((a: Backup, b: Backup) => {
+        return new Date(b.ctime).getTime() - new Date(a.ctime).getTime()
+      })
+      backups.value = tmp as Backup[]
     })
     .catch((err) => {
       console.error('Failed to fetch backups:', err)
@@ -59,7 +63,7 @@ function fetchBackups() {
 function restoreBackup(backupID: string) {
   if (
     confirm(
-      `Are you sure you want to restore backup ${backupID}? This will overwrite the current VM state.`,
+      `Are you sure you want to restore this backup? This will overwrite the current VM state.`,
     )
   ) {
     api
@@ -75,20 +79,19 @@ function restoreBackup(backupID: string) {
 }
 
 function deleteBackup(backupID: string) {
-  if (
-    // FIXME: pls remove this stupid id
-    confirm(`Are you sure you want to delete backup ${backupID}? This action cannot be undone.`)
-  ) {
+  loading.start('backup', backupID, 'delete')
+  if (confirm(`Are you sure you want to delete this backup? This action cannot be undone.`)) {
     api
       .delete(`/vm/${vmid}/backup/${backupID}`)
       .then(() => {
-        console.log('Backup deleted')
-        fetchBackups() // Refresh the list after deletion
         fetchBackupsRequests()
       })
       .catch((err) => {
         console.error('Failed to delete backup:', err)
         alert(`Failed to delete backup ${backupID}.`)
+      })
+      .finally(() => {
+        loading.stop('backup', backupID, 'delete')
       })
   }
 }
@@ -116,6 +119,7 @@ function protectBackup(backupID: string, protect: boolean) {
 }
 
 function makeBackup() {
+  loading.start('vm', vmid, 'create_backup')
   api
     .post(`/vm/${vmid}/backup`, {
       name: name.value,
@@ -130,7 +134,33 @@ function makeBackup() {
       console.error('Failed to create backup:', err)
       alert(`Failed to create backup`)
     })
+    .finally(() => {
+      loading.stop('vm', vmid, 'create_backup')
+    })
 }
+
+const backupMessage = computed(() => {
+  if (pendingBackupRequests.value.length > 0) {
+    const req = pendingBackupRequests.value[0]
+    if (!req) return ''
+
+    if (req.type === 'create') {
+      return 'A backup is being created. The page will refresh automatically when it is done. Please wait...'
+    } else if (req.type === 'restore') {
+      return 'A backup is being restored. The page will refresh automatically when it is done. Please wait...'
+    } else if (req.type === 'delete') {
+      return 'A backup is being deleted. The page will refresh automatically when it is done. Please wait...'
+    }
+  }
+  return ''
+})
+
+watch(pendingBackupRequests, (newVal, oldVal) => {
+  if (oldVal.length > 0 && newVal.length === 0) {
+    // All pending requests are done
+    fetchBackups()
+  }
+})
 
 let intervalId: number | null = null
 
@@ -156,16 +186,15 @@ onBeforeUnmount(() => {
       :create="makeBackup"
       title="New Backup"
       :error="error"
+      :loading="isLoading(vm.id, 'create_backup')"
     >
       <label class="label">Backup Name</label>
       <input type="text" placeholder="Name" v-model="name" class="input w-full rounded-lg" />
       <label class="label">Backup Notes</label>
       <textarea placeholder="Notes" v-model="notes" class="input h-32 w-full rounded-lg"></textarea>
     </CreateNew>
-    <div v-show="pendingBackupRequests.length > 0">
-      <!-- TODO: quando ne crei uno resta in pending per un po' e non si vede subito nella tabella -->
-      <!-- TODO: dopo il pending rifaccio refetch -->
-      {{ pendingBackupRequests[0] }}
+    <div>
+      {{ backupMessage }}
     </div>
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
       <span class="loading loading-spinner place-self-center"></span>
@@ -184,8 +213,7 @@ onBeforeUnmount(() => {
         <tbody class="divide-y">
           <tr v-for="bk in backups" :key="bk.name">
             <td>{{ bk.name }}</td>
-            <!-- TODO: format timing -->
-            <td>{{ bk.ctime }}</td>
+            <td>{{ formatDate(bk.ctime) }}</td>
             <!-- TODO: fix with some fancy notes -->
             <td>{{ bk.notes }}</td>
             <td class="font-semibold capitalize" :class="getStatusClass(bk.protected.toString())">
@@ -214,7 +242,12 @@ onBeforeUnmount(() => {
                 v-if="bk.can_delete"
                 @click="deleteBackup(bk.id)"
                 class="btn btn-error btn-outline rounded-lg"
+                :disabled="loading.is('backup', bk.id, 'delete')"
               >
+                <span
+                  v-show="loading.is('backup', bk.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
                 Delete
               </button>
             </td>

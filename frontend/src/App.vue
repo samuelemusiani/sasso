@@ -17,5 +17,3 @@ onMounted(() => {
     <ToastContainer />
   </main>
 </template>
-
-<!-- TODO: ip/24 converter -->
