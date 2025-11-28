@@ -3,6 +3,7 @@ package proxmox
 import (
 	"errors"
 	"slices"
+	"sync"
 
 	"samuelemusiani/sasso/server/db"
 
@@ -23,6 +24,9 @@ var (
 
 	ErrInterfaceNotFound      = errors.New("interface not found")
 	ErrInvalidInterfaceConfig = errors.New("invalid interface configuration")
+	ErrMaxNumberOfInterfaces  = errors.New("maximum number of interfaces reached for this VM")
+
+	InterfaceNumberMutex = sync.Mutex{}
 )
 
 type Interface struct {
@@ -46,6 +50,14 @@ func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to add an interface", "VMID", VMID, "status", vm.Status)
 		return nil, ErrInvalidVMState
+	}
+
+	InterfaceNumberMutex.Lock()
+	defer InterfaceNumberMutex.Unlock()
+	ifaceNumber, err := db.CountInterfacesOnVM(VMID)
+	if ifaceNumber >= 32 {
+		logger.Error("VM has reached the maximum number of interfaces", "VMID", VMID)
+		return nil, ErrMaxNumberOfInterfaces
 	}
 
 	iface, err := db.NewInterface(VMID, vnetID, vlanTag, ipAdd, gateway, string(InterfaceStatusPreCreating))

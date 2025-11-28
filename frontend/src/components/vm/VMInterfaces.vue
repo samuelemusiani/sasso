@@ -113,6 +113,7 @@ onBeforeUnmount(() => {
       :vm="$props.vm"
       @interface-added="handleInterfaceAdded"
       @cancel="handleCancel"
+      :disabled="interfaces.length >= 32"
     />
     <InterfaceForm
       v-if="editingInterface && $props.vm.group_role !== 'member'"
@@ -121,6 +122,10 @@ onBeforeUnmount(() => {
       @interface-updated="handleInterfaceUpdated"
       @cancel="handleCancel"
     />
+
+    <div v-if="interfaces.length >= 32" class="text-error">
+      Max number of interfaces reached. Delete one inteface to add another one.
+    </div>
 
     <div
       v-if="$props.vm.status == 'running'"

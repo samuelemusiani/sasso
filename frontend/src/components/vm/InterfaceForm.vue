@@ -9,6 +9,7 @@ import BubbleAlert from '../BubbleAlert.vue'
 const $props = defineProps<{
   vm: VM
   interface?: Interface
+  disabled?: boolean
 }>()
 
 const defaultVlanTagMessage = `
@@ -310,6 +311,7 @@ onMounted(() => {
     :create="handleSubmit"
     :error="error"
     :hideCreate="editing"
+    :disabled="$props.disabled"
     @close="$emit('cancel')"
   >
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>

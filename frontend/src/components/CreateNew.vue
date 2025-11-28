@@ -7,6 +7,7 @@ const props = defineProps<{
   error?: string
   hideCreate?: boolean
   open?: boolean
+  disabled?: boolean
 }>()
 
 const $emit = defineEmits<{
@@ -32,7 +33,7 @@ function openClose() {
 
 <template>
   <div>
-    <button class="btn btn-primary rounded-xl" @click="openClose">
+    <button class="btn btn-primary rounded-xl" :disabled="props.disabled" @click="openClose">
       <IconVue v-if="!openCreate" icon="mi:add" class="text-xl transition"></IconVue>
       <IconVue v-else icon="material-symbols:close-rounded" class="text-xl transition"></IconVue>
       {{ openCreate ? 'Close' : (props.hideCreate ? '' : 'Create ') + `${props.title}` }}

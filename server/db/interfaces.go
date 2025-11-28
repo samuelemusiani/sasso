@@ -126,6 +126,15 @@ func CountInterfaces() (int64, error) {
 	return count, nil
 }
 
+func CountInterfacesOnVM(vmID uint) (int64, error) {
+	var count int64
+	if err := db.Model(&Interface{}).Where("vm_id = ?", vmID).Count(&count).Error; err != nil {
+		logger.Error("Failed to count interfaces on VM", "vmID", vmID, "error", err)
+		return 0, err
+	}
+	return count, nil
+}
+
 func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	var ifaces []Interface
 	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.alias as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
