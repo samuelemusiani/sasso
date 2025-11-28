@@ -3,6 +3,7 @@ package db
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -103,7 +104,12 @@ func initUsers() error {
 		return err
 	}
 
-	logger.Info("Admin user created successfully", "password", passwd)
+	s := `===============================================================
+Admin user created successfully. Password: %s
+===============================================================
+`
+
+	fmt.Printf(s, passwd)
 	return nil
 }
 
