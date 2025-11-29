@@ -247,7 +247,8 @@ func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, er
 }
 
 func getProxmoxStorageContent(s *proxmox.Storage) ([]*proxmox.StorageContent, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// Getting backups can take a while, so use a longer timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	content, err := s.GetContent(ctx)
 	cancel()
 	if err != nil {
