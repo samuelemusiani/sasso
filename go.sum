@@ -114,8 +114,8 @@ github.com/prometheus/procfs v0.17.0 h1:FuLQ+05u4ZI+SS/w9+BWEM2TXiHKsUQ9TADiRH7D
 github.com/prometheus/procfs v0.17.0/go.mod h1:oPQLaDAMRbA+u8H5Pbfq+dl3VDAvHxMUOVhe0wYB2zw=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
-github.com/samuelemusiani/go-proxmox v0.0.11 h1:xtRlWifvfV+3u2m9JMtHa5e6O5R/LfcV/QPQotY0Z80=
-github.com/samuelemusiani/go-proxmox v0.0.11/go.mod h1:oyFgg2WwTEIF0rP6ppjiixOHa5ebK1p8OaRiFhvICBQ=
+github.com/samuelemusiani/go-proxmox v0.0.12 h1:GwCvZRp9RsVJ195Q/q5TLmQ0lodAVDzT9hIxi07GA9U=
+github.com/samuelemusiani/go-proxmox v0.0.12/go.mod h1:oyFgg2WwTEIF0rP6ppjiixOHa5ebK1p8OaRiFhvICBQ=
 github.com/samuelemusiani/go-shorewall v0.0.6 h1:xHoL/rzpNVMhpA51/bLXuGuf5hiehXk/XE7j0uFaqJg=
 github.com/samuelemusiani/go-shorewall v0.0.6/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
 github.com/seancfoley/bintree v1.3.1 h1:cqmmQK7Jm4aw8gna0bP+huu5leVOgHGSJBEpUx3EXGI=

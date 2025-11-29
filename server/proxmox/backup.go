@@ -274,7 +274,7 @@ func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *
 		return nil, nil, nil, nil, err
 	}
 
-	mcontent, err := getProxmoxStorageContent(s)
+	mcontent, err := getProxmoxStorageBackups(s, uint(vmID))
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
