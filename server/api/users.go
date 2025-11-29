@@ -400,6 +400,7 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 		MailSSHKeysChangedOnVMNotification:   settings.MailSSHKeysChangedOnVMNotification,
 		MailUserInvitationNotification:       settings.MailUserInvitationNotification,
 		MailUserRemovalFromGroupNotification: settings.MailUserRemovalFromGroupNotification,
+		MailLifetimeOfVMExpiredNotification:  settings.MailLifetimeOfVMExpiredNotification,
 
 		TelegramPortForwardNotification:          settings.TelegramPortForwardNotification,
 		TelegramVMStatusUpdateNotification:       settings.TelegramVMStatusUpdateNotification,
@@ -410,6 +411,7 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 		TelegramSSHKeysChangedOnVMNotification:   settings.TelegramSSHKeysChangedOnVMNotification,
 		TelegramUserInvitationNotification:       settings.TelegramUserInvitationNotification,
 		TelegramUserRemovalFromGroupNotification: settings.TelegramUserRemovalFromGroupNotification,
+		TelegramLifetimeOfVMExpiredNotification:  settings.TelegramLifetimeOfVMExpiredNotification,
 	}
 
 	if err := json.NewEncoder(w).Encode(returnSettings); err != nil {
