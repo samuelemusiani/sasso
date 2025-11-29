@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"time"
 
 	"samuelemusiani/sasso/server/db"
@@ -279,8 +280,14 @@ func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *
 	}
 
 	nContent := make([]*proxmox.StorageContent, 0, len(mcontent))
+	// As the content returns everything, we need to filter only the backups that
+	// actually belong to the VM.
+	// The VMID check is quite straightforward
+	// The time check is done to avoid listing old backups (before the VM was assigned to the user)
+	// as the VMID can be reused.
+	// The vzdump string check is to avoid listing non-backup items (like main disks, cloud-init disks, etc)
 	for _, item := range mcontent {
-		if item.VMID == vmID && time.Unix(int64(item.Ctime), 0).After(since) {
+		if item.VMID == vmID && time.Unix(int64(item.Ctime), 0).After(since) && strings.Contains(item.Volid, "vzdump") {
 			nContent = append(nContent, item)
 		}
 	}
