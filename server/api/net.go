@@ -118,7 +118,6 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: Optimize this
 	groups, err := db.GetGroupsByUserID(userID)
 	for _, g := range groups {
 		groupNets, err := db.GetNetsByGroupID(g.ID)

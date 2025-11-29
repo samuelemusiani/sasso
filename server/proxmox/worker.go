@@ -581,9 +581,6 @@ func updateVNets(cluster *gprox.Cluster) {
 			continue
 		}
 
-		// TODO: we could probably try to fix the tag mismatch instead of just
-		// setting the status to unknown. But this will require more testing.
-		// For now this is sufficient.
 		if pvn.Tag != v.Tag {
 			logger.Warn("VNet tag mismatch. Setting status to unknown", "vnet", v.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
 			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
@@ -1469,7 +1466,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	}
 
 	// TODO: We could optimize this further by checking why the ssh keys table
-	// changed and only updating the VMs of the users that had changes (unless
+	// changed and only updating the VMs of the users that have changes (unless
 	// global keys changed)
 
 	vms, err := db.GetVMsWithStates(states)

@@ -83,6 +83,8 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 	}
 }
 
+// This middleware validates that the VM being accessed belongs to the user making the request.
+// DOES NOT CHECK PERMISSIONS INSIDE GROUPS, THAT MUST BE DONE IN THE HANDLERS.
 func validateVMOwnership() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +123,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 					http.Error(w, "internal server error", http.StatusInternalServerError)
 					return
 				}
-				// TODO: check role permissions if needed?
+				// Role permission check is done in the handlers
 			}
 
 			ctx := r.Context()

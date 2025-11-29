@@ -338,8 +338,7 @@ func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: This is hardcoded. If a user request a new VPN config, we set it
-	// to 2.
+	// TODO: This is hardcoded. If a user request a new VPN config, we set it to 2
 	err = db.UpdateUserVPNConfigCount(2, userID)
 	if err != nil {
 		logger.Error("failed to update user VPN config count", "error", err)
