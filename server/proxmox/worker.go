@@ -1597,8 +1597,8 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
-		} else if v.LifeTime.Before(time.Now()) {
-			if v.Status == string(VMStatusStopped) && !slices.ContainsFunc(notifications, fn(0)) {
+		} else if v.LifeTime.Before(time.Now()) && !slices.ContainsFunc(notifications, fn(0)) {
+			if v.Status == string(VMStatusStopped) {
 				if v.OwnerType == "Group" {
 					err = notify.SendLifetimeOfVMExpiredToGroup(v.OwnerID, v.Name)
 				} else {
