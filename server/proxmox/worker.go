@@ -1642,6 +1642,12 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("Failed to send VM stopped notification", "vmid", v.ID, "error", err)
 			}
+
+			// We use the 0 days_before to indicate that the VM has expired
+			_, err = db.NewVMExpirationNotification(v.ID, 0)
+			if err != nil {
+				logger.Error("Failed to create VM expiration notification", "vmid", v.ID, "days_before", 0, "error", err)
+			}
 		} else {
 			for _, i := range []int64{1, 2, 4, 7, 15, 30, 60, 90} {
 				if slices.ContainsFunc(notifications, fn(i)) {
