@@ -82,9 +82,12 @@ func StartWorker() {
 }
 
 func ShutdownWorker() error {
-	if workerCancelFunc != nil {
-		workerCancelFunc()
+	if workerCancelFunc == nil {
+		// If notifications are disabled
+		return nil
 	}
+
+	workerCancelFunc()
 	var err error
 	if workerReturnChan != nil {
 		err = <-workerReturnChan
