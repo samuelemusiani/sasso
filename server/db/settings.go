@@ -16,6 +16,7 @@ type Setting struct {
 	MailSSHKeysChangedOnVMNotification   bool `gorm:"not null;default:true"`
 	MailUserInvitationNotification       bool `gorm:"not null;default:true"`
 	MailUserRemovalFromGroupNotification bool `gorm:"not null;default:true"`
+	MailLifetimeOfVMExpiredNotification  bool `gorm:"not null;default:true"`
 
 	TelegramPortForwardNotification          bool `gorm:"not null;default:true"`
 	TelegramVMStatusUpdateNotification       bool `gorm:"not null;default:true"`
@@ -26,6 +27,7 @@ type Setting struct {
 	TelegramSSHKeysChangedOnVMNotification   bool `gorm:"not null;default:true"`
 	TelegramUserInvitationNotification       bool `gorm:"not null;default:true"`
 	TelegramUserRemovalFromGroupNotification bool `gorm:"not null;default:true"`
+	TelegramLifetimeOfVMExpiredNotification  bool `gorm:"not null;default:true"`
 }
 
 func initSettings() error {
@@ -62,6 +64,7 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 		MailSSHKeysChangedOnVMNotification:   true,
 		MailUserInvitationNotification:       true,
 		MailUserRemovalFromGroupNotification: true,
+		MailLifetimeOfVMExpiredNotification:  true,
 
 		TelegramPortForwardNotification:          true,
 		TelegramVMStatusUpdateNotification:       true,
@@ -72,6 +75,7 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 		TelegramSSHKeysChangedOnVMNotification:   true,
 		TelegramUserInvitationNotification:       true,
 		TelegramUserRemovalFromGroupNotification: true,
+		TelegramLifetimeOfVMExpiredNotification:  true,
 	}
 
 	if err := tx.Create(&setting).Error; err != nil {

@@ -1597,7 +1597,26 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("Failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
-		} else if v.LifeTime.Before(time.Now()) && v.Status != string(VMStatusStopped) {
+		} else if v.LifeTime.Before(time.Now()) {
+			if v.Status == string(VMStatusStopped) && !slices.ContainsFunc(notifications, fn(0)) {
+				if v.OwnerType == "Group" {
+					err = notify.SendLifetimeOfVMExpiredToGroup(v.OwnerID, v.Name)
+				} else {
+					err = notify.SendLifetimeOfVMExpired(v.OwnerID, v.Name)
+				}
+				if err != nil {
+					logger.Error("Failed to send VM stopped notification", "vmid", v.ID, "error", err)
+				}
+
+				// We use the 0 days_before to indicate that the VM has expired
+				_, err = db.NewVMExpirationNotification(v.ID, 0)
+				if err != nil {
+					logger.Error("Failed to create VM expiration notification", "vmid", v.ID, "days_before", 0, "error", err)
+				}
+
+				continue
+			}
+
 			lastTimeFailed, exists := vmFailedChangeStatus[v.ID]
 			if exists && lastTimeFailed.After(time.Now().Add(-30*time.Hour)) {
 				// We failed to stop the VM less than an hour ago, we skip it

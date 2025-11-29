@@ -551,7 +551,7 @@ func SendVMStoppedNotification(userID uint, vmName string) error {
 		return err
 	}
 
-	t := `Your VM "%s" has been stopped lifetime expiration.
+	t := `Your VM "%s" has been stopped because of lifetime expiration.
 To use it again please login and extend its lifetime.
 `
 	body := fmt.Sprintf(t, vmName)
@@ -565,6 +565,47 @@ To use it again please login and extend its lifetime.
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM stopped notification", "userID", userID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func SendLifetimeOfVMExpiredToGroup(groupID uint, vmName string) error {
+	members, err := db.GetUserIDsByGroupID(groupID)
+	if err != nil {
+		logger.Error("Failed to get group members for lifetime of VM expired notification", "groupID", groupID, "error", err)
+		return err
+	}
+	for _, userID := range members {
+		err := SendLifetimeOfVMExpired(userID, vmName)
+		if err != nil {
+			logger.Error("Failed to send lifetime of VM expired notification to group member", "groupID", groupID, "userID", userID, "error", err)
+		}
+	}
+	return nil
+}
+
+func SendLifetimeOfVMExpired(userID uint, vmName string) error {
+	s, err := db.GetSettingsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get user settings for lifetime of VM expired notification", "userID", userID, "error", err)
+		return err
+	}
+
+	t := `The lifetime of your VM "%s" has expired.
+To use it again please login and extend its lifetime.
+`
+	body := fmt.Sprintf(t, vmName)
+	n := &notification{
+		UserID:   userID,
+		Subject:  "VM Lifetime Expired",
+		Mail:     s.MailLifetimeOfVMExpiredNotification,
+		Telegram: s.TelegramLifetimeOfVMExpiredNotification,
+		Body:     body,
+	}
+	err = n.save()
+	if err != nil {
+		logger.Error("Failed to save lifetime of VM expired notification", "userID", userID, "error", err)
 		return err
 	}
 	return nil

@@ -359,6 +359,7 @@ type returnUserSettings struct {
 	MailSSHKeysChangedOnVMNotification   bool `json:"mail_ssh_keys_changed_on_vm_notification"`
 	MailUserInvitationNotification       bool `json:"mail_user_invitation_notification"`
 	MailUserRemovalFromGroupNotification bool `json:"mail_user_removal_from_group_notification"`
+	MailLifetimeOfVMExpiredNotification  bool `json:"mail_lifetime_of_vm_expired_notification"`
 
 	TelegramPortForwardNotification          bool `json:"telegram_port_forward_notification"`
 	TelegramVMStatusUpdateNotification       bool `json:"telegram_vm_status_update_notification"`
@@ -369,6 +370,7 @@ type returnUserSettings struct {
 	TelegramSSHKeysChangedOnVMNotification   bool `json:"telegram_ssh_keys_changed_on_vm_notification"`
 	TelegramUserInvitationNotification       bool `json:"telegram_user_invitation_notification"`
 	TelegramUserRemovalFromGroupNotification bool `json:"telegram_user_removal_from_group_notification"`
+	TelegramLifetimeOfVMExpiredNotification  bool `json:"telegram_lifetime_of_vm_expired_notification"`
 }
 
 func getUserSettings(w http.ResponseWriter, r *http.Request) {
@@ -443,6 +445,7 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 	s.MailSSHKeysChangedOnVMNotification = req.MailSSHKeysChangedOnVMNotification
 	s.MailUserInvitationNotification = req.MailUserInvitationNotification
 	s.MailUserRemovalFromGroupNotification = req.MailUserRemovalFromGroupNotification
+	s.MailLifetimeOfVMExpiredNotification = req.MailUserRemovalFromGroupNotification
 
 	s.TelegramPortForwardNotification = req.TelegramPortForwardNotification
 	s.TelegramVMStatusUpdateNotification = req.TelegramVMStatusUpdateNotification
@@ -453,6 +456,7 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 	s.TelegramSSHKeysChangedOnVMNotification = req.TelegramSSHKeysChangedOnVMNotification
 	s.TelegramUserInvitationNotification = req.TelegramUserInvitationNotification
 	s.TelegramUserRemovalFromGroupNotification = req.TelegramUserRemovalFromGroupNotification
+	s.TelegramLifetimeOfVMExpiredNotification = req.TelegramUserRemovalFromGroupNotification
 
 	if err := db.UpdateSettings(s); err != nil {
 		logger.Error("failed to update user settings", "error", err)
