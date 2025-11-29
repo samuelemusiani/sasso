@@ -59,4 +59,4 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.12
+replace github.com/luthermonson/go-proxmox => github.com/samuelemusiani/go-proxmox v0.0.13
