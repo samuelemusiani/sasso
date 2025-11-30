@@ -29,6 +29,7 @@ var (
 	privateServer *http.Server = nil
 	publicServer  *http.Server = nil
 	portForwards  config.PortForwards
+	vpnConfigs    config.VPN
 )
 
 func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards) {

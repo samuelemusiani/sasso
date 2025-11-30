@@ -120,3 +120,28 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	nConfigs, err := db.GetUserVPNConfigCount(userID)
+	if err != nil {
+		logger.Error("failed to get user VPN config count", "error", err)
+		http.Error(w, "Failed to get VPN config count", http.StatusInternalServerError)
+		return
+	}
+	if nConfigs >= int64(vpnConfigs.MaxProfilesPerUser) {
+		http.Error(w, "VPN config limit reached", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: This is hardcoded. If a user request a new VPN config, we set it to 2
+	err = db.UpdateUserVPNConfigCount(userID, vpnConfigs.MaxProfilesPerUser)
+	if err != nil {
+		logger.Error("failed to update user VPN config count", "error", err)
+		http.Error(w, "Failed to update VPN config count", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

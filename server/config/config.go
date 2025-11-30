@@ -12,6 +12,7 @@ type Config struct {
 	Proxmox       Proxmox       `toml:"proxmox"`
 	Notifications Notifications `toml:"notifications"`
 	PortForwards  PortForwards  `toml:"port_forwards"`
+	VPN           VPN           `toml:"vpn"`
 }
 
 type Server struct {
@@ -97,6 +98,10 @@ type PortForwards struct {
 	MaxPort  uint16 `toml:"max_port"`
 	MinPort  uint16 `toml:"min_port"`
 	PublicIP string `toml:"public_ip"`
+}
+
+type VPN struct {
+	MaxProfilesPerUser uint `toml:"max_profiles_per_user"`
 }
 
 var config Config = Config{}

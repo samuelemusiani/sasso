@@ -99,3 +99,7 @@ public_ip = "1.2.3.4"
 # to pick a random outside port when creating a new port forward.
 min_port = 20000
 max_port = 40000
+
+[vpn]
+# Maximum number of VPN profiles per user
+max_profiles_per_user = 2
