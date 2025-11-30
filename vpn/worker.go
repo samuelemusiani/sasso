@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net"
+	"net/url"
 	"slices"
 	"sort"
 	"time"
@@ -18,7 +21,62 @@ import (
 	"gorm.io/gorm"
 )
 
-func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall) {
+func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) error {
+	if serverConfig.Endpoint == "" {
+		return errors.New("server endpoint is empty")
+	}
+	if serverConfig.Secret == "" {
+		return errors.New("server secret is empty")
+	}
+
+	// Endpoint should be a valid URL
+	_, err := url.Parse(serverConfig.Endpoint)
+	if err != nil {
+		return errors.New("server endpoint is not a valid URL")
+	}
+
+	if fwConfig.VPNZone == "" {
+		return errors.New("firewall VPN zone is empty")
+	}
+
+	if fwConfig.SassoZone == "" {
+		return errors.New("firewall Sasso zone is empty")
+	}
+
+	if vpnSubnet == "" {
+		return errors.New("VPN subnet is empty")
+	}
+
+	if _, _, err := net.ParseCIDR(vpnSubnet); err != nil {
+		return fmt.Errorf("VPN subnet %s is not a valid CIDR: %v", vpnSubnet, err)
+	}
+
+	return nil
+}
+
+func checkFirewallStatus(fwConfig config.Firewall) error {
+	v, err := shorewall.GetVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get shorewall version: %v", err)
+	}
+	slog.Info("Shorewall version", "version", v)
+
+	zones, err := shorewall.GetZones()
+	if err != nil {
+		return fmt.Errorf("failed to get shorewall zones: %v", err)
+	}
+	fwZones := []string{fwConfig.VPNZone, fwConfig.SassoZone}
+	for _, z := range fwZones {
+		if !slices.ContainsFunc(zones, func(sz shorewall.Zone) bool {
+			return sz.Name == z
+		}) {
+			return fmt.Errorf("shorewall zone %s not found", z)
+		}
+	}
+	return nil
+}
+
+func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) {
 	logger.Info("Worker started")
 
 	for {
@@ -31,7 +89,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		}
 
 		// check firewall
-		err = checkFiewall(logger, fwConfig)
+		err = checkFirewall(logger, fwConfig)
 		if err != nil {
 			logger.With("error", err).Error("Failed to check firewall")
 			time.Sleep(10 * time.Second)
@@ -52,7 +110,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			continue
 		}
 
-		err = createPeers(logger, users)
+		err = createPeers(logger, users, vpnSubnet)
 		if err != nil {
 			logger.Error("Failed to create VNets", "error", err)
 		}
@@ -120,7 +178,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 	return nil
 }
 
-func createPeers(logger *slog.Logger, users []internal.User) error {
+func createPeers(logger *slog.Logger, users []internal.User, vpnSubnet string) error {
 	for _, u := range users {
 		peers, err := db.GetPeersByUserID(u.ID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -134,7 +192,7 @@ func createPeers(logger *slog.Logger, users []internal.User) error {
 
 		for i := range int(u.NumberOFVPNConfigs) - len(peers) {
 			logger.Info("Creating new peer", "i", i, "user_id", u.ID)
-			newAddr, err := util.NextAvailableAddress()
+			newAddr, err := util.NextAvailableAddress(vpnSubnet)
 			if err != nil {
 				logger.Error("Failed to generate new address", "error", err)
 				continue
@@ -319,7 +377,7 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 	return nil
 }
 
-func checkFiewall(logger *slog.Logger, fwConfig config.Firewall) error {
+func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 	// for all subnets in the db, check if there is a rule in shorewall
 	subnets, err := db.GetAllSubnets()
 	if err != nil {

@@ -21,8 +21,12 @@ var (
 )
 
 func Init(l *slog.Logger, c *config.Database) error {
+	err := checkConfig(c)
+	if err != nil {
+		return err
+	}
+
 	logger = l
-	var err error
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
@@ -50,6 +54,25 @@ func Init(l *slog.Logger, c *config.Database) error {
 	if err := initPeers(); err != nil {
 		logger.Error("Failed to initialize peers in database", "error", err)
 		return err
+	}
+	return nil
+}
+
+func checkConfig(c *config.Database) error {
+	if c.User == "" {
+		return fmt.Errorf("database user is empty")
+	}
+	if c.Password == "" {
+		return fmt.Errorf("database password is empty")
+	}
+	if c.Database == "" {
+		return fmt.Errorf("database name is empty")
+	}
+	if c.Host == "" {
+		return fmt.Errorf("database host is empty")
+	}
+	if c.Port == 0 {
+		return fmt.Errorf("database port is empty")
 	}
 	return nil
 }

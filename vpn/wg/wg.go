@@ -2,12 +2,16 @@ package wg
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os/exec"
+	"regexp"
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
+	"strconv"
 	"strings"
 )
 
@@ -23,13 +27,106 @@ PrivateKey = %s
 PublicKey = %s
 Endpoint = %s
 AllowedIps = %s, %s`
-	interfaceName string
 )
 
-func Init(l *slog.Logger, config *config.Wireguard, iface string) {
+func Init(l *slog.Logger, config *config.Wireguard) error {
+	// As executeCommand requires logger, set it first
 	logger = l
+
+	// Check permission for wg command and its existence
+	_, stderr, err := executeCommand("wg", "--version")
+	if err != nil {
+		return fmt.Errorf("wg command not found or not executable: %v, stderr: %s", err, stderr)
+	}
+
+	err = checkConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c = config
-	interfaceName = iface
+
+	return nil
+}
+
+func checkConfig(config *config.Wireguard) error {
+	if config.PublicKey == "" {
+		return fmt.Errorf("wireguard public key is empty")
+	}
+	if config.Endpoint == "" {
+		return fmt.Errorf("wireguard endpoint is empty")
+	}
+	if config.VPNSubnet == "" {
+		return fmt.Errorf("wireguard vpn subnet is empty")
+	}
+	if config.VMsSubnet == "" {
+		return fmt.Errorf("wireguard vms subnet is empty")
+	}
+	if config.Interface == "" {
+		return fmt.Errorf("wireguard interface name is empty")
+	}
+
+	// Public key is base64 encoded, check it
+	_, err := base64.StdEncoding.DecodeString(config.PublicKey)
+	if err != nil {
+		return fmt.Errorf("wireguard public key is not valid base64: %v", err)
+	}
+
+	// Endpoint could be an IP or a domain name
+	rDomain := regexp.MustCompile(`^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$`) // regex for domain name
+
+	// As endpoint could be in format domain:port, split by ':' and check only the domain part
+	colonIndex := strings.LastIndex(config.Endpoint, ":")
+	if colonIndex == -1 {
+		return fmt.Errorf("wireguard endpoint (%s) must include port", config.Endpoint)
+	}
+	domainPart := config.Endpoint[:colonIndex]
+	portPart := config.Endpoint[colonIndex+1:]
+	// Check port is valid
+	_, err = strconv.ParseUint(portPart, 10, 16)
+	if err != nil {
+		return fmt.Errorf("wireguard endpoint (%s) has invalid port: %v", config.Endpoint, err)
+	}
+
+	if domainPart == "" {
+		return fmt.Errorf("wireguard endpoint (%s) has empty domain or IP part", config.Endpoint)
+	}
+
+	if !rDomain.Match([]byte(domainPart)) {
+		// Could be an IP, check it
+
+		shouldBeV6 := false
+		if domainPart[0] == '[' && domainPart[len(domainPart)-1] == ']' {
+			// IPv6 in brackets, remove them
+			domainPart = domainPart[1 : len(domainPart)-1]
+			shouldBeV6 = true
+		}
+		ip := net.ParseIP(domainPart)
+
+		if ip == nil {
+			return fmt.Errorf("wireguard endpoint (%s) is not a valid IP or domain name", domainPart)
+		}
+
+		if ip.To16() == nil && shouldBeV6 {
+			return fmt.Errorf("wireguard endpoint (%s) is not a valid IPv6 address", domainPart)
+		}
+	}
+	// Is a domain name, ok
+
+	// Check VPNSubnet and VMsSubnet are valid CIDRs
+	for _, cidr := range []string{config.VPNSubnet, config.VMsSubnet} {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return fmt.Errorf("wireguard subnet %s is not a valid CIDR: %v", cidr, err)
+		}
+	}
+
+	// Check interface exists
+	_, stderr, err := executeCommand("wg", "show", config.Interface)
+	if err != nil {
+		return fmt.Errorf("wireguard interface %s does not exist: %v, stderr: %s", config.Interface, err, stderr)
+	}
+
+	return nil
 }
 
 type WGPeer struct {
@@ -76,7 +173,7 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreatePeer(i *WGPeer) error {
-	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "allowed-ips", i.Address)
+	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 		return err
@@ -86,7 +183,7 @@ func CreatePeer(i *WGPeer) error {
 }
 
 func DeletePeer(i *WGPeer) error {
-	stdout, stderr, err := executeCommand("wg", "set", interfaceName, "peer", i.PublicKey, "remove")
+	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "remove")
 	if err != nil {
 		logger.Error("Error deleting WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 		return err
@@ -122,7 +219,7 @@ func genKeys() (string, string, error) {
 }
 
 func ParsePeers() (map[string]WGPeer, error) {
-	stdout, stderr, err := executeCommand("wg", "show", interfaceName, "dump")
+	stdout, stderr, err := executeCommand("wg", "show", c.Interface, "dump")
 	if err != nil {
 		logger.Error("Error dumping peers", "err", err, "stderr", stderr)
 		return nil, err

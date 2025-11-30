@@ -50,7 +50,11 @@ func main() {
 
 	slog.Debug("Initializing Wireguard")
 	wireguardLogger := slog.With("module", "wireguard")
-	wg.Init(wireguardLogger, &c.Wireguard, c.Wireguard.Interface)
+	err = wg.Init(wireguardLogger, &c.Wireguard)
+	if err != nil {
+		fmt.Printf("Error initializing Wireguard: %v\n", err)
+		os.Exit(1)
+	}
 
 	slog.Debug("Initializing database")
 	dbLogger := slog.With("module", "db")
@@ -61,8 +65,17 @@ func main() {
 
 	slog.Debug("Initializing utilities")
 	utilLogger := slog.With("module", "utils")
-	util.Init(utilLogger, c.Wireguard.VPNSubnet)
+	util.Init(utilLogger)
+
+	if err = checkConfig(c.Server, c.Firewall, c.Wireguard.VPNSubnet); err != nil {
+		slog.Error("Configuration error", "error", err)
+		os.Exit(1)
+	}
+	if err = checkFirewallStatus(c.Firewall); err != nil {
+		slog.Error("Firewall configuration error", "error", err)
+		os.Exit(1)
+	}
 
 	workerLogger := slog.With("module", "worker")
-	worker(workerLogger, c.Server, c.Firewall)
+	worker(workerLogger, c.Server, c.Firewall, c.Wireguard.VPNSubnet)
 }
