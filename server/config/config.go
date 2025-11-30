@@ -94,6 +94,8 @@ type Email struct {
 }
 
 type PortForwards struct {
+	MaxPort  uint16 `toml:"max_port"`
+	MinPort  uint16 `toml:"min_port"`
 	PublicIP string `toml:"public_ip"`
 }
 

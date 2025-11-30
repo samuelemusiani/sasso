@@ -95,3 +95,7 @@ smtp_server = "smtp.gmail.com"
 # Public IP address where the port forwards will be created
 # This is only used to show the user which IP to connect to on the frontend.
 public_ip = "1.2.3.4"
+# Minimum and maximum port numbers for port forwards. This range will be used
+# to pick a random outside port when creating a new port forward.
+min_port = 20000
+max_port = 40000

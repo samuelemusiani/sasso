@@ -183,7 +183,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	defer randomPortMutex.Unlock()
 
 	// TODO: Make this values configurable
-	randPort, err := db.GetRandomAvailableOutPort(20000, 40000)
+	randPort, err := db.GetRandomAvailableOutPort(portForwards.MinPort, portForwards.MaxPort)
 	if err != nil {
 		http.Error(w, "Failed to get random available out port", http.StatusInternalServerError)
 		return
