@@ -57,6 +57,9 @@ function addRealm() {
 
 function updateRealm() {
   const realmData = formLDAPRealm()
+  if (!bindPassword.value) {
+    delete realmData.password
+  }
 
   api
     .put(`/admin/realms/${$props.realm?.id}`, realmData)
