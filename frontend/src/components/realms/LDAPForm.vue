@@ -107,6 +107,14 @@ function updateRealm() {
         class="input w-full rounded-lg"
       />
 
+      <label class="label">Email attribute</label>
+      <input
+        v-model="mailAttribute"
+        type="text"
+        placeholder="mail"
+        class="input w-full rounded-lg"
+      />
+
       <label class="label">Login Filter</label>
       <input
         v-model="loginFilter"
