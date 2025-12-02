@@ -383,13 +383,6 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, err = db.GetSettingsByUserID(userID)
-	if err != nil {
-		logger.Error("failed to get user settings after creating defaults", "error", err)
-		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
-		return
-	}
-
 	returnSettings := returnUserSettings{
 		MailPortForwardNotification:          settings.MailPortForwardNotification,
 		MailVMStatusUpdateNotification:       settings.MailVMStatusUpdateNotification,
