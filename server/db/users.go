@@ -99,7 +99,7 @@ func initUsers() error {
 		return err
 	}
 
-	if err := db.Create(&adminUser).Error; err != nil {
+	if err := CreateUser(&adminUser); err != nil {
 		logger.Error("Failed to create admin user", "error", err)
 		return err
 	}
