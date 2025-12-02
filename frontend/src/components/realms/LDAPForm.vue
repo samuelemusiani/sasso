@@ -2,11 +2,14 @@
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { LDAPRealm } from '@/types'
+import { useToastService } from '@/composables/useToast'
 
 const $emit = defineEmits(['realmAdded'])
 const $props = defineProps<{
   realm?: LDAPRealm
 }>()
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const name = ref($props.realm ? $props.realm.name : '')
 const description = ref($props.realm ? $props.realm.description : '')
@@ -48,9 +51,11 @@ function addRealm() {
     .post('/admin/realms', realmData)
     .then((response) => {
       console.log('Realm created:', response.data)
+      toastSuccess('Realm created successfully')
       $emit('realmAdded')
     })
     .catch((error) => {
+      toastError('Error creating realm: ' + error.response.data)
       console.error('Error creating realm:', error)
     })
 }
@@ -65,9 +70,11 @@ function updateRealm() {
     .put(`/admin/realms/${$props.realm?.id}`, realmData)
     .then((response) => {
       console.log('Realm updated:', response.data)
+      toastSuccess('Realm updated successfully')
       $emit('realmAdded')
     })
     .catch((error) => {
+      toastError('Error updating realm: ' + error.response.data)
       console.error('Error updating realm:', error)
     })
 }
