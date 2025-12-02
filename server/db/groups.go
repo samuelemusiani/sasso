@@ -172,8 +172,14 @@ func DeleteGroup(groupID uint) error {
 			return err
 		}
 
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+			return err
+		}
+
 		for _, r := range resources {
-			if r.UserID == 1 {
+			if r.UserID == adminID {
 				// Admin user, skip
 				continue
 			}
@@ -636,12 +642,18 @@ func RevokeGroupResources(groupID, userID uint) error {
 
 func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		if userID == 1 {
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+			return err
+		}
+
+		if userID == adminID {
 			return nil
 		}
 
 		var resource GroupResource
-		err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
 			logger.Error("Failed to find group resource", "error", err)
 			return err
@@ -692,13 +704,18 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 }
 
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
-	if userID == 1 {
+	adminID, err := getAdminIDTransaction(tx)
+	if err != nil {
+		logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+		return err
+	}
+	if userID == adminID {
 		// Admin user, no resources to revoke
 		return tx.Delete(&GroupResource{GroupID: groupID, UserID: userID}).Error
 	}
 
 	var resource GroupResource
-	err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// No resources to revoke
