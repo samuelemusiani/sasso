@@ -229,3 +229,18 @@ func UpdateUserVPNConfigCount(userID uint, newCount uint) error {
 	}
 	return nil
 }
+
+func getAdminIDTransaction(tx *gorm.DB) (uint, error) {
+	var adminID uint
+	err := tx.Raw(`
+			SELECT users.id
+			FROM users
+			JOIN realms ON users.realm_id = realms.id
+			WHERE realms.name = 'Local' AND users.username = 'admin'
+		`).Scan(&adminID).Error
+	if err != nil {
+		logger.Error("Failed to get admin ID", "error", err)
+		return 0, err
+	}
+	return adminID, nil
+}

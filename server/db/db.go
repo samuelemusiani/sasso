@@ -147,6 +147,12 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = applyFixes()
+	if err != nil {
+		logger.Error("Failed to apply fixes to database", "error", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -175,4 +181,40 @@ func initGlobals() error {
 	}
 
 	return nil
+}
+
+// This functions applies necessary fixes to the database. Most fixes are
+// necessary because of bugs in previous versions of the software. One could
+// update the database by hand, but this function automates the process.
+func applyFixes() error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// After 6feb102b98a0c60516bf506c4e7a07b4f8cca750, the admin User is being
+		// created with the CreateUser function and has default settings created.
+		// We check if the admin user has settings, and if not, we create them.
+
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			logger.Error("Failed to get admin user ID during fixes application", "error", err)
+			return err
+		}
+
+		var adminSettings Setting
+		err = tx.Where(&Setting{UserID: adminID}).First(&adminSettings).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Info("Admin user has no settings, creating default settings", "userID", adminID)
+				err = createDefaultSettingsForUserTransaction(tx, adminID)
+				if err != nil {
+					logger.Error("Failed to create default settings for admin user during fixes application", "error", err)
+					return err
+				}
+			} else {
+				logger.Error("Failed to find admin user settings during fixes application", "error", err)
+				return err
+			}
+		}
+
+		return nil
+	})
+	return err
 }
