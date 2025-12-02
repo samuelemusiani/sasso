@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 
 	"samuelemusiani/sasso/server/db"
@@ -11,16 +12,15 @@ import (
 )
 
 type ldapAuthenticator struct {
-	ID          uint
-	URL         string
-	UserBaseDN  string
-	GroupBaseDN string
-	BindDN      string
-	Password    string
+	ID         uint
+	URL        string
+	UserBaseDN string
+	BindDN     string
+	Password   string
 
-	LoginFilter      string
-	MaintainerFilter string
-	AdminFilter      string
+	LoginFilter       string
+	MaintainerGroupDN string
+	AdminGroupDN      string
 
 	MailAttribute string
 }
@@ -47,7 +47,7 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 	searchRequest := ldap.NewSearchRequest(
 		a.UserBaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		lgQueryFilter, []string{"dn", a.MailAttribute},
+		lgQueryFilter, []string{"dn", a.MailAttribute, "memberOf"},
 		nil,
 	)
 
@@ -79,54 +79,14 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 
 	var role db.UserRole = db.RoleUser
 
-	if a.AdminFilter != "" {
-
-		// AdminFilter is in the form (&(objectClass=groupOfNames)(cn=sasso_admin)(member={{user_dn}}))
-
-		adminGroupFilter := strings.Replace(a.AdminFilter, "{{user_dn}}", userDN, -1)
-
-		logger.Debug("LDAP admin group filter", "filter", adminGroupFilter)
-
-		searchRequestGroup := ldap.NewSearchRequest(
-			a.GroupBaseDN,
-			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-			adminGroupFilter,
-			[]string{"cn"},
-			nil,
-		)
-		src, err := l.Search(searchRequestGroup)
-		if err != nil {
-			logger.Error("Failed to search for admin group in LDAP", "baseDN", a.UserBaseDN, "error", err)
-			return nil, err
-		}
-
-		if len(src.Entries) == 1 {
+	if a.AdminGroupDN != "" {
+		if slices.Contains(sr.Entries[0].GetAttributeValues("memberOf"), a.AdminGroupDN) {
 			role = db.RoleAdmin
-		} else {
-			logger.Debug("Ldap search for admin group returned no entries", "err", err)
 		}
 	}
-	if a.MaintainerFilter != "" && role == db.RoleUser {
-		// MaintainerFilter is in the form (&(objectClass=groupOfNames)(cn=sasso_maintainer)(member={{user_dn}}))
-		maintainerGroupFilter := strings.Replace(a.MaintainerFilter, "{{user_dn}}", userDN, -1)
-
-		searchRequestGroup := ldap.NewSearchRequest(
-			a.GroupBaseDN,
-			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-			maintainerGroupFilter,
-			[]string{"cn"},
-			nil,
-		)
-		src, err := l.Search(searchRequestGroup)
-		if err != nil {
-			logger.Error("Failed to search for maintainer group in LDAP", "baseDN", a.UserBaseDN, "error", err)
-			return nil, err
-		}
-
-		if len(src.Entries) == 1 {
+	if a.MaintainerGroupDN != "" && role == db.RoleUser {
+		if slices.Contains(sr.Entries[0].GetAttributeValues("memberOf"), a.MaintainerGroupDN) {
 			role = db.RoleMaintainer
-		} else {
-			logger.Debug("Ldap search for maintainer group returned no entries", "err", err)
 		}
 	}
 
@@ -178,12 +138,11 @@ func (a *ldapAuthenticator) LoadConfigFromDB(realmID uint) error {
 	a.ID = ldapRealm.ID
 	a.URL = ldapRealm.URL
 	a.UserBaseDN = ldapRealm.UserBaseDN
-	a.GroupBaseDN = ldapRealm.GroupBaseDN
 	a.BindDN = ldapRealm.BindDN
 	a.Password = ldapRealm.Password
 	a.LoginFilter = ldapRealm.LoginFilter
-	a.MaintainerFilter = ldapRealm.MaintainerFilter
-	a.AdminFilter = ldapRealm.AdminFilter
+	a.MaintainerGroupDN = ldapRealm.MaintainerGroupDN
+	a.AdminGroupDN = ldapRealm.AdminGroupDN
 	a.MailAttribute = ldapRealm.MailAttribute
 
 	return nil
@@ -199,21 +158,13 @@ func VerifyLDAPURL(lurl string) error {
 	return nil
 }
 
-func VerifyLDAPFilters(login, maintainer, admin string) error {
+func VerifyLDAPLoginFilter(login string) error {
 	if login == "" {
 		return errors.Join(ErrInvalidConfig, errors.New("login filter cannot be empty"))
 	}
 
 	if strings.Index(login, "{{username}}") == -1 {
 		return errors.Join(ErrInvalidConfig, errors.New("login filter must contain {{username}} placeholder"))
-	}
-
-	if admin != "" && strings.Index(admin, "{{user_dn}}") == -1 {
-		return errors.Join(ErrInvalidConfig, errors.New("admin filter must contain {{user_dn}} placeholder"))
-	}
-
-	if maintainer != "" && strings.Index(maintainer, "{{user_dn}}") == -1 {
-		return errors.Join(ErrInvalidConfig, errors.New("maintainer filter must contain {{user_dn}} placeholder"))
 	}
 	return nil
 }

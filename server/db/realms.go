@@ -17,16 +17,15 @@ type Realm struct {
 }
 
 type LDAPRealm struct {
-	Realm       `gorm:"embedded;embeddedPrefix:realm_"`
-	URL         string `gorm:"not null"`
-	UserBaseDN  string `gorm:"not null"`
-	GroupBaseDN string `gorm:"not null"`
-	BindDN      string `gorm:"not null"`
-	Password    string `gorm:"not null"`
+	Realm      `gorm:"embedded;embeddedPrefix:realm_"`
+	URL        string `gorm:"not null"`
+	UserBaseDN string `gorm:"not null"`
+	BindDN     string `gorm:"not null"`
+	Password   string `gorm:"not null"`
 
-	LoginFilter      string `gorm:"not null"`
-	AdminFilter      string `gorm:"not null"`
-	MaintainerFilter string `gorm:"not null"`
+	LoginFilter       string `gorm:"not null"`
+	MaintainerGroupDN string `gorm:"not null"`
+	AdminGroupDN      string `gorm:"not null"`
 
 	MailAttribute string `gorm:"not null;default:'mail'"`
 }

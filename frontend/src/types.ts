@@ -36,12 +36,11 @@ export interface Realm {
 export interface LDAPRealm extends Realm {
   url: string
   user_base_dn: string
-  group_base_dn: string
   bind_dn: string
   password?: string
   login_filter: string
-  maintainer_filter: string
-  admin_filter: string
+  maintainer_group_dn: string
+  admin_group_dn: string
   mail_attribute: string
 }
 
