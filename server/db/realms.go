@@ -137,3 +137,12 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 		return nil
 	})
 }
+
+func GetRealmByName(name string) (*Realm, error) {
+	var realm Realm
+	if err := db.First(&realm, "name = ?", name).Error; err != nil {
+		logger.Error("Failed to find realm by name", "name", name, "error", err)
+		return nil, err
+	}
+	return &realm, nil
+}

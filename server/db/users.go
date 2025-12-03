@@ -22,10 +22,10 @@ var ErrPasswordRequired = errors.New("password is required for local realm")
 
 type User struct {
 	gorm.Model
-	Username string `gorm:"uniqueIndex;not null"`
+	Username string `gorm:"not null;uniqueIndex:idx_username_realm"`
 	Password []byte
-	Email    string   `gorm:"uniqueIndex;not null"`
-	RealmID  uint     `gorm:"not null"`
+	Email    string   `gorm:"not null;uniqueIndex:idx_email_realm"`
+	RealmID  uint     `gorm:"not null;uniqueIndex:idx_username_realm;uniqueIndex:idx_email_realm"`
 	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','maintainer')"`
 
 	MaxCores uint `gorm:"not null;default:2"`
@@ -113,9 +113,9 @@ Admin user created successfully. Password: %s
 	return nil
 }
 
-func GetUserByUsername(username string) (User, error) {
+func GetUserByUsernameAndRealmID(username string, realmID uint) (User, error) {
 	var user User
-	result := db.First(&user, "username = ?", username)
+	result := db.Where(&User{Username: username, RealmID: realmID}).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return User{}, ErrNotFound
@@ -243,4 +243,16 @@ func getAdminIDTransaction(tx *gorm.DB) (uint, error) {
 		return 0, err
 	}
 	return adminID, nil
+}
+
+func GetLocalAdmin() (*User, error) {
+	var admin User
+	err := db.Joins("JOIN realms ON users.realm_id = realms.id").
+		Where("realms.name = ? AND users.username = ?", "Local", "admin").
+		First(&admin).Error
+	if err != nil {
+		logger.Error("Failed to get admin ID", "error", err)
+		return nil, err
+	}
+	return &admin, nil
 }

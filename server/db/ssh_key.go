@@ -79,7 +79,7 @@ func CreateSSHKey(name string, key string, userID uint) (*SSHKey, error) {
 }
 
 func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
-	admin, err := GetUserByUsername("admin")
+	admin, err := GetLocalAdmin()
 	if err != nil {
 		return nil, err
 	}

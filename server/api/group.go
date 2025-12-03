@@ -7,6 +7,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/notify"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -309,7 +310,35 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := db.GetUserByUsername(req.Username)
+	// As we support the same username in different realms, we need to dedice from
+	// which realm we want to invite the user. In the request we can specify
+	// the realm name by appending @realm to the username. If no realm is specified,
+	// we use the same realm as the inviter.
+
+	var usernameToInvite string
+	var realmID uint
+	splits := strings.Split(req.Username, "@")
+	if len(splits) < 2 {
+		// The realm was not specified, we query the inviter's realm
+		userID := mustGetUserIDFromContext(r)
+		user, err := db.GetUserByID(userID)
+		if err != nil {
+			http.Error(w, "User who made the request was not found", http.StatusInternalServerError)
+			return
+		}
+		usernameToInvite = splits[0]
+		realmID = user.RealmID
+	} else if len(splits) == 2 {
+		realm, err := db.GetRealmByName(splits[1])
+		if err != nil {
+			http.Error(w, "Realm not found", http.StatusNotFound)
+			return
+		}
+		usernameToInvite = splits[0]
+		realmID = realm.ID
+	}
+
+	u, err := db.GetUserByUsernameAndRealmID(usernameToInvite, realmID)
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "User not found", http.StatusNotFound)
