@@ -4,6 +4,9 @@ import { useRoute } from 'vue-router'
 import { api } from '@/lib/api'
 import type { Group, GroupResource } from '@/types'
 import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const route = useRoute()
 
@@ -47,12 +50,12 @@ function updateLimits() {
       nets: maxNets.value,
     })
     .then(() => {
-      alert('User limits updated successfully!')
+      toastSuccess('User limits updated successfully')
       fetchGroup()
     })
     .catch((err) => {
       console.error('Failed to update user limits:', err)
-      alert('Failed to update user limits.')
+      toastError('Failed to update user limits')
     })
 }
 

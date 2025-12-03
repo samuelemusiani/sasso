@@ -3,9 +3,12 @@ import { onMounted, ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
+import { useToastService } from '@/composables/useToast'
 import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 import CreateNew from '@/components/CreateNew.vue'
 import UserStats from '@/components/UserStats.vue'
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const group = ref<Group | null>(null)
 
@@ -67,12 +70,13 @@ function saveResources() {
     nets: nets.value,
   })
     .then(() => {
+      toastSuccess('Resources saved successfully.')
       fetchGroup() // This will re-fetch group and resources
       fetchResourceStats()
     })
     .catch((err) => {
       console.error('Failed to save resources:', err)
-      alert('Failed to save resources. Please try again.')
+      toastError(`Failed to save resources. ${err.response?.data}`)
     })
 }
 
@@ -84,12 +88,13 @@ function fetchGroup() {
     })
     .catch((err) => {
       console.error('Failed to fetch Group:', err)
+      toastError(`Failed to fetch Group. ${err.response?.data}`)
     })
 }
 
 function inviteUser() {
   if (!username.value) {
-    alert('Please enter a username.')
+    toastError('Username is required to invite a user.')
     return
   }
   api
@@ -100,10 +105,11 @@ function inviteUser() {
     .then(() => {
       username.value = ''
       fetchInvitations()
+      toastSuccess('User invited successfully.')
     })
     .catch((err) => {
       console.error('Failed to invite user:', err)
-      alert('Failed to send invitation. Please try again.')
+      toastError(`Failed to invite user. ${err.response?.data}`)
     })
 }
 
@@ -116,6 +122,7 @@ function fetchInvitations() {
     })
     .catch((err) => {
       console.error('Failed to fetch Invitations:', err)
+      toastError(`Failed to fetch Invitations. ${err.response?.data}`)
     })
 }
 
@@ -125,9 +132,11 @@ function revokeUserInvite(id: number) {
       .delete(`/groups/${groupId}/invites/${id}`)
       .then(() => {
         fetchInvitations()
+        toastSuccess('Invitation revoked successfully.')
       })
       .catch((err) => {
         console.error('Failed to revoke invitation:', err)
+        toastError(`Failed to revoke invitation. ${err.response?.data}`)
       })
   }
 }
@@ -176,10 +185,12 @@ function deleteMember(id: number) {
           router.replace('/group')
           return
         }
+        toastSuccess('Member removed successfully.')
         fetchMembers()
       })
       .catch((err) => {
         console.error('Failed to remove member:', err)
+        toastError(`Failed to remove member. ${err.response?.data}`)
       })
   }
 }
@@ -189,10 +200,12 @@ function deleteGroup(id: number) {
     api
       .delete(`/groups/${id}`)
       .then(() => {
+        toastSuccess('Group deleted successfully.')
         router.push('/group')
       })
       .catch((err) => {
         console.error('Failed to delete Group:', err)
+        toastError(`Failed to delete Group. ${err.response?.data}`)
       })
   }
 }
@@ -201,10 +214,12 @@ function revokeResource() {
   api
     .delete(`/groups/${groupId}/resources`)
     .then(() => {
+      toastSuccess('Your resources have been revoked successfully.')
       fetchGroup()
     })
     .catch((err) => {
       console.error('Failed to revoke resources:', err)
+      toastError(`Failed to revoke resources. ${err.response?.data}`)
     })
 }
 
@@ -261,10 +276,12 @@ function updateGroup() {
       description: groupDescription.value,
     })
     .then(() => {
+      toastSuccess('Group updated successfully.')
       fetchGroup()
     })
     .catch((err) => {
       console.error('Failed to update Group:', err)
+      toastError(`Failed to update Group. ${err.response?.data}`)
     })
 }
 

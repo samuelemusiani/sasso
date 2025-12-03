@@ -7,6 +7,9 @@ import CreateNew from '@/components/CreateNew.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { getStatusClass } from '@/const'
 import { formatDate } from '@/lib/utils'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const $props = defineProps<{
   vm: VM
@@ -73,7 +76,6 @@ function restoreBackup(backupID: string) {
       })
       .catch((err) => {
         console.error('Failed to restore backup:', err)
-        alert(`Failed to restore backup ${backupID}.`)
       })
   }
 }
@@ -84,11 +86,12 @@ function deleteBackup(backupID: string) {
     api
       .delete(`/vm/${vmid}/backup/${backupID}`)
       .then(() => {
+        toastSuccess(`Backup deletion request submitted.`)
         fetchBackupsRequests()
       })
       .catch((err) => {
         console.error('Failed to delete backup:', err)
-        alert(`Failed to delete backup ${backupID}.`)
+        toastError(`Failed to send delete request for backup.`)
       })
       .finally(() => {
         loading.stop('backup', backupID, 'delete')
@@ -108,10 +111,11 @@ function protectBackup(backupID: string, protect: boolean) {
         bk.id === backupID ? { ...bk, protected: protect } : bk,
       )
       fetchBackups() // Refresh the list after deletion
+      toastSuccess(`Backup ${backupID} is now ${protect ? 'protected' : 'unprotected'}.`)
     })
     .catch((err) => {
       console.error('Failed to toggle backup protection:', err)
-      alert(`Failed to toggle backup protection for ${backupID}.`)
+      toastError(`Failed to toggle protection for backup.`)
     })
     .finally(() => {
       loading.stop('backup', backupID, 'protect')
@@ -128,11 +132,12 @@ function makeBackup() {
     .then(() => {
       console.log('Backup created')
       fetchBackupsRequests()
+      toastSuccess('Backup creation request submitted.')
     })
     .catch((err) => {
       error.value = 'Failed to create backup: ' + err.response.data
       console.error('Failed to create backup:', err)
-      alert(`Failed to create backup`)
+      toastError('Failed to send backup creation request.')
     })
     .finally(() => {
       loading.stop('vm', vmid, 'create_backup')
