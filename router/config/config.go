@@ -4,10 +4,10 @@ import "github.com/BurntSushi/toml"
 
 type Config struct {
 	Server   Server   `toml:"server"`
-	Database Database `toml:"database"`
-	Network  Network  `toml:"network"`
-	Gateway  Gateway  `toml:"gateway"`
-	Firewall Firewall `toml:"firewall"`
+	Database Database `toml:"database"` // DONE
+	Network  Network  `toml:"network"`  // DONE
+	Gateway  Gateway  `toml:"gateway"`  // DONE
+	Firewall Firewall `toml:"firewall"` // DONE
 }
 
 type Server struct {

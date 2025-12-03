@@ -3,6 +3,7 @@ package fw
 import (
 	"errors"
 	"fmt"
+	"samuelemusiani/sasso/router/config"
 	"slices"
 	"sort"
 
@@ -13,6 +14,43 @@ type ShorewallFirewall struct {
 	ExternalZone string
 	VMZone       string
 	PublicIP     string
+}
+
+func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall, error) {
+	if c.ExternalZone == "" {
+		return nil, fmt.Errorf("external zone cannot be empty")
+	}
+	if c.VMZone == "" {
+		return nil, fmt.Errorf("VM zone cannot be empty")
+	}
+	if c.PublicIP == "" {
+		return nil, fmt.Errorf("public IP cannot be empty")
+	}
+
+	v, err := goshorewall.GetVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shorewall version: %v", err)
+	}
+	logger.Info("Shorewall version", "version", v)
+
+	zones, err := goshorewall.GetZones()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shorewall zones: %v", err)
+	}
+	fwZones := []string{c.ExternalZone, c.VMZone}
+	for _, z := range fwZones {
+		if !slices.ContainsFunc(zones, func(sz goshorewall.Zone) bool {
+			return sz.Name == z
+		}) {
+			return nil, fmt.Errorf("shorewall zone %s not found", z)
+		}
+	}
+
+	return &ShorewallFirewall{
+		ExternalZone: c.ExternalZone,
+		VMZone:       c.VMZone,
+		PublicIP:     c.PublicIP,
+	}, nil
 }
 
 func (s *ShorewallFirewall) ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule {

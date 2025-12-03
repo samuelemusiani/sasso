@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,12 +30,18 @@ func NewProxmoxGateway() *ProxmoxGateway {
 }
 
 func (pg *ProxmoxGateway) Init(c config.Gateway) error {
-	url := c.Proxmox.Url
+	_, err := url.Parse(c.Proxmox.Url)
+	if err != nil {
+		logger.Error("Invalid Proxmox URL", "url", c.Proxmox.Url, "err", err)
+		return err
+	}
+	purl := c.Proxmox.Url
+
 	if !strings.Contains(c.Proxmox.Url, "api2/json") {
 		if !strings.HasSuffix(c.Proxmox.Url, "/") {
-			url += "/"
+			purl += "/"
 		}
-		url += "api2/json"
+		purl += "api2/json"
 	}
 
 	http_client := http.Client{
@@ -45,9 +52,20 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 		},
 	}
 
-	pg.client = proxmox.NewClient(url,
+	if c.Proxmox.TokenID == "" {
+		return errors.New("Proxmox token ID is required")
+	}
+	if c.Proxmox.Secret == "" {
+		return errors.New("Proxmox secret is required")
+	}
+
+	pg.client = proxmox.NewClient(purl,
 		proxmox.WithHTTPClient(&http_client),
 		proxmox.WithAPIToken(c.Proxmox.TokenID, c.Proxmox.Secret))
+
+	if c.Proxmox.VMID < 100 {
+		return errors.New("Proxmox VMID must be >= 100")
+	}
 
 	pg.vmid = c.Proxmox.VMID
 
