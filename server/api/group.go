@@ -24,9 +24,10 @@ type returnGroup struct {
 }
 
 type returnGroupMember struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID    uint   `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	RealmName string `json:"realm_name"`
 }
 
 type returnResource struct {
@@ -149,9 +150,10 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 	returnGroup.Members = make([]returnGroupMember, 0, len(members))
 	for _, member := range members {
 		returnGroup.Members = append(returnGroup.Members, returnGroupMember{
-			UserID:   member.UserID,
-			Username: member.Username,
-			Role:     member.Role,
+			UserID:    member.UserID,
+			Username:  member.Username,
+			Role:      member.Role,
+			RealmName: member.RealmName,
 		})
 	}
 
@@ -184,6 +186,7 @@ type returnGroupInvitation struct {
 	Role             string `json:"role"`
 	State            string `json:"state"`
 	Username         string `json:"username"`
+	RealmName        string `json:"realm_name"`
 	GroupName        string `json:"group_name"`
 	GroupDescription string `json:"group_description"`
 }
@@ -275,6 +278,7 @@ func getGroupPendingInvitations(w http.ResponseWriter, r *http.Request) {
 			Role:             inv.Role,
 			State:            inv.State,
 			Username:         inv.Username,
+			RealmName:        inv.RealmName,
 			GroupName:        inv.GroupName,
 			GroupDescription: inv.GroupDescription,
 		})
@@ -409,9 +413,10 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 	returnMembers := make([]returnGroupMember, 0, len(members))
 	for _, member := range members {
 		returnMembers = append(returnMembers, returnGroupMember{
-			UserID:   member.UserID,
-			Username: member.Username,
-			Role:     member.Role,
+			UserID:    member.UserID,
+			Username:  member.Username,
+			Role:      member.Role,
+			RealmName: member.RealmName,
 		})
 	}
 

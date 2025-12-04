@@ -452,7 +452,9 @@ onMounted(() => {
                 :key="member.user_id"
                 class="odd:bg-base-100 even:bg-base-200"
               >
-                <td>{{ member.username }}</td>
+                <td>
+                  {{ member.username }}<span class="opacity-60">@{{ member.realm_name }}</span>
+                </td>
                 <td>{{ member.role }}</td>
                 <td>{{ getResourcesForUser(member.user_id)?.cores || 0 }}</td>
                 <td>{{ getResourcesForUser(member.user_id)?.ram || 0 }}</td>
@@ -498,7 +500,9 @@ onMounted(() => {
                 :key="invite.id"
                 class="odd:bg-base-100 even:bg-base-200"
               >
-                <td>{{ invite.username }}</td>
+                <td>
+                  {{ invite.username }}<span class="opacity-60">@{{ invite.realm_name }}</span>
+                </td>
                 <td>{{ invite.role }}</td>
                 <td>{{ invite.state }}</td>
                 <td>

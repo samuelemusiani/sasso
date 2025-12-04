@@ -166,6 +166,7 @@ export interface GroupInvite {
   role: string
   state: string
   username: string
+  realm_name: string
   group_name: string
   group_description: string
 }
@@ -174,6 +175,7 @@ export interface GroupMember {
   user_id: number
   username: string
   role: string
+  realm_name: string
 }
 
 export interface VPNConfig {
