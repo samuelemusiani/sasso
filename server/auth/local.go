@@ -8,10 +8,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type localAuthenticator struct{}
+type localAuthenticator struct {
+	ID uint
+}
 
 func (a *localAuthenticator) Login(username, password string) (*db.User, error) {
-	user, err := db.GetUserByUsername(username)
+	user, err := db.GetUserByUsernameAndRealmID(username, a.ID)
 	if err != nil {
 		if err == db.ErrNotFound {
 			return nil, ErrUserNotFound
@@ -40,6 +42,11 @@ func (a *localAuthenticator) Login(username, password string) (*db.User, error) 
 }
 
 func (a *localAuthenticator) LoadConfigFromDB(realmID uint) error {
-	// Local authentication does not require any specific configuration from the database
+	realm, err := db.GetRealmByID(realmID)
+	if err != nil {
+		logger.Error("failed to get realm by ID", "realmID", realmID, "error", err)
+		return err
+	}
+	a.ID = realm.ID
 	return nil
 }

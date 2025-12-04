@@ -3,6 +3,9 @@ import { onMounted, ref } from 'vue'
 import type { TelegramBot } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const bots = ref<TelegramBot[]>([])
 const name = ref('')
@@ -59,10 +62,11 @@ function testTelegramBot(id: number) {
   api
     .post(`/notify/telegram/${id}/test`)
     .then(() => {
-      alert('Test notification sent!')
+      toastSuccess('Test notification sent successfully')
     })
     .catch((err) => {
       console.error('Failed to send test notification:', err)
+      toastError('Failed to send test notification')
     })
 }
 

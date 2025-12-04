@@ -79,9 +79,10 @@ func UpdateGroupByID(groupID uint, name, description string) error {
 
 // This struct is only used for queries
 type GroupMemberWithUsername struct {
-	UserID   uint
-	Username string
-	Role     string
+	UserID    uint
+	Username  string
+	Role      string
+	RealmName string
 }
 
 type GroupInvitation struct {
@@ -92,6 +93,7 @@ type GroupInvitation struct {
 	State   string // e.g., "pending", "accepted", "declined"
 
 	Username         string `gorm:"->;-:migration"`
+	RealmName        string `gorm:"->;-:migration"`
 	GroupName        string `gorm:"->;-:migration"`
 	GroupDescription string `gorm:"->;-:migration"`
 }
@@ -172,8 +174,14 @@ func DeleteGroup(groupID uint) error {
 			return err
 		}
 
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+			return err
+		}
+
 		for _, r := range resources {
-			if r.UserID == 1 {
+			if r.UserID == adminID {
 				// Admin user, skip
 				continue
 			}
@@ -231,8 +239,9 @@ func GetGroupMembers(groupID uint) ([]GroupMemberWithUsername, error) {
 	var members []GroupMemberWithUsername
 	err := db.Table("user_groups").
 		Joins("JOIN users ON users.id = user_groups.user_id").
+		Joins("JOIN realms ON users.realm_id = realms.id").
 		Where("user_groups.group_id = ?", groupID).
-		Select("users.id as user_id, users.username, user_groups.role").
+		Select("users.id as user_id, users.username, user_groups.role, realms.name as realm_name").
 		Scan(&members).Error
 	if err != nil {
 		logger.Error("Failed to retrieve group members", "error", err)
@@ -347,7 +356,8 @@ func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error
 	var invitations []GroupInvitation
 	err := db.Table("group_invitations as gi").
 		Joins("JOIN users ON users.id = gi.user_id").
-		Select("gi.id, gi.group_id, users.username as username, gi.role, gi.state").
+		Joins("JOIN realms ON users.realm_id = realms.id").
+		Select("gi.id, gi.group_id, users.username as username, gi.role, gi.state, realms.name as realm_name").
 		Where("gi.group_id = ? AND gi.state = ?", groupID, "pending").
 		Scan(&invitations).Error
 	if err != nil {
@@ -636,12 +646,18 @@ func RevokeGroupResources(groupID, userID uint) error {
 
 func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		if userID == 1 {
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+			return err
+		}
+
+		if userID == adminID {
 			return nil
 		}
 
 		var resource GroupResource
-		err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
 			logger.Error("Failed to find group resource", "error", err)
 			return err
@@ -692,13 +708,18 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 }
 
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
-	if userID == 1 {
+	adminID, err := getAdminIDTransaction(tx)
+	if err != nil {
+		logger.Error("Failed to get admin user ID during resource revocation", "error", err)
+		return err
+	}
+	if userID == adminID {
 		// Admin user, no resources to revoke
 		return tx.Delete(&GroupResource{GroupID: groupID, UserID: userID}).Error
 	}
 
 	var resource GroupResource
-	err := tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// No resources to revoke

@@ -7,6 +7,7 @@ import (
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/notify"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -23,9 +24,10 @@ type returnGroup struct {
 }
 
 type returnGroupMember struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID    uint   `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	RealmName string `json:"realm_name"`
 }
 
 type returnResource struct {
@@ -148,9 +150,10 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 	returnGroup.Members = make([]returnGroupMember, 0, len(members))
 	for _, member := range members {
 		returnGroup.Members = append(returnGroup.Members, returnGroupMember{
-			UserID:   member.UserID,
-			Username: member.Username,
-			Role:     member.Role,
+			UserID:    member.UserID,
+			Username:  member.Username,
+			Role:      member.Role,
+			RealmName: member.RealmName,
 		})
 	}
 
@@ -183,6 +186,7 @@ type returnGroupInvitation struct {
 	Role             string `json:"role"`
 	State            string `json:"state"`
 	Username         string `json:"username"`
+	RealmName        string `json:"realm_name"`
 	GroupName        string `json:"group_name"`
 	GroupDescription string `json:"group_description"`
 }
@@ -274,6 +278,7 @@ func getGroupPendingInvitations(w http.ResponseWriter, r *http.Request) {
 			Role:             inv.Role,
 			State:            inv.State,
 			Username:         inv.Username,
+			RealmName:        inv.RealmName,
 			GroupName:        inv.GroupName,
 			GroupDescription: inv.GroupDescription,
 		})
@@ -309,7 +314,35 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := db.GetUserByUsername(req.Username)
+	// As we support the same username in different realms, we need to dedice from
+	// which realm we want to invite the user. In the request we can specify
+	// the realm name by appending @realm to the username. If no realm is specified,
+	// we use the same realm as the inviter.
+
+	var usernameToInvite string
+	var realmID uint
+	splits := strings.Split(req.Username, "@")
+	if len(splits) < 2 {
+		// The realm was not specified, we query the inviter's realm
+		userID := mustGetUserIDFromContext(r)
+		user, err := db.GetUserByID(userID)
+		if err != nil {
+			http.Error(w, "User who made the request was not found", http.StatusInternalServerError)
+			return
+		}
+		usernameToInvite = splits[0]
+		realmID = user.RealmID
+	} else if len(splits) == 2 {
+		realm, err := db.GetRealmByName(splits[1])
+		if err != nil {
+			http.Error(w, "Realm not found", http.StatusNotFound)
+			return
+		}
+		usernameToInvite = splits[0]
+		realmID = realm.ID
+	}
+
+	u, err := db.GetUserByUsernameAndRealmID(usernameToInvite, realmID)
 	if err != nil {
 		if err == db.ErrNotFound {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -380,9 +413,10 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 	returnMembers := make([]returnGroupMember, 0, len(members))
 	for _, member := range members {
 		returnMembers = append(returnMembers, returnGroupMember{
-			UserID:   member.UserID,
-			Username: member.Username,
-			Role:     member.Role,
+			UserID:    member.UserID,
+			Username:  member.Username,
+			Role:      member.Role,
+			RealmName: member.RealmName,
 		})
 	}
 

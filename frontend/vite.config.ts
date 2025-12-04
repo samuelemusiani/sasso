@@ -20,7 +20,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: "http://localhost:8080",
+        target: "https://sasso.mini.students.cs.unibo.it",
         changeOrigin: true
       }
     }

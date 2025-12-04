@@ -25,30 +25,28 @@ type Realm struct {
 
 type LDAPRealm struct {
 	Realm
-	URL         string `json:"url"`
-	UserBaseDN  string `json:"user_base_dn"`
-	GroupBaseDN string `json:"group_base_dn"`
-	BindDN      string `json:"bind_dn"`
-	Password    string `json:"password,omitempty"`
+	URL        string `json:"url"`
+	UserBaseDN string `json:"user_base_dn"`
+	BindDN     string `json:"bind_dn"`
+	Password   string `json:"password,omitempty"`
 
-	LoginFilter      string `json:"login_filter"`
-	MaintainerFilter string `json:"maintainer_filter"`
-	AdminFilter      string `json:"admin_filter"`
+	LoginFilter       string `json:"login_filter"`
+	MaintainerGroupDN string `json:"maintainer_group_dn"`
+	AdminGroupDN      string `json:"admin_group_dn"`
 
 	MailAttribute string `json:"mail_attribute"`
 }
 
 type UpdateLDAPRealm struct {
 	Realm
-	URL         *string `json:"url"`
-	UserBaseDN  *string `json:"user_base_dn"`
-	GroupBaseDN *string `json:"group_base_dn"`
-	BindDN      *string `json:"bind_dn"`
-	Password    *string `json:"password,omitempty"`
+	URL        *string `json:"url"`
+	UserBaseDN *string `json:"user_base_dn"`
+	BindDN     *string `json:"bind_dn"`
+	Password   *string `json:"password,omitempty"`
 
-	LoginFilter      *string `json:"login_filter"`
-	MaintainerFilter *string `json:"maintainer_filter"`
-	AdminFilter      *string `json:"admin_filter"`
+	LoginFilter       *string `json:"login_filter"`
+	MaintainerGroupDN *string `json:"maintainer_group_dn"`
+	AdminGroupDN      *string `json:"admin_group_dn"`
 
 	MailAttribute *string `json:"mail_attribute"`
 }
@@ -132,7 +130,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = auth.VerifyLDAPFilters(ldapRealm.LoginFilter, ldapRealm.MaintainerFilter, ldapRealm.AdminFilter)
+		err = auth.VerifyLDAPLoginFilter(ldapRealm.LoginFilter)
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidConfig) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -161,15 +159,14 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 				Description: newRealm.Description,
 				Type:        newRealm.Type,
 			},
-			URL:              ldapRealm.URL,
-			UserBaseDN:       ldapRealm.UserBaseDN,
-			GroupBaseDN:      ldapRealm.GroupBaseDN,
-			BindDN:           ldapRealm.BindDN,
-			Password:         ldapRealm.Password,
-			LoginFilter:      ldapRealm.LoginFilter,
-			MaintainerFilter: ldapRealm.MaintainerFilter,
-			AdminFilter:      ldapRealm.AdminFilter,
-			MailAttribute:    ldapRealm.MailAttribute,
+			URL:               ldapRealm.URL,
+			UserBaseDN:        ldapRealm.UserBaseDN,
+			BindDN:            ldapRealm.BindDN,
+			Password:          ldapRealm.Password,
+			LoginFilter:       ldapRealm.LoginFilter,
+			MaintainerGroupDN: ldapRealm.MaintainerGroupDN,
+			AdminGroupDN:      ldapRealm.AdminGroupDN,
+			MailAttribute:     ldapRealm.MailAttribute,
 		}
 		if err := db.AddLDAPRealm(dbRealm); err != nil {
 			logger.Error("Failed to add LDAP realm", "error", err)
@@ -232,15 +229,14 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 		}
 
 		returnedRealm = LDAPRealm{
-			Realm:            basicRealm,
-			URL:              ldapRealm.URL,
-			UserBaseDN:       ldapRealm.UserBaseDN,
-			GroupBaseDN:      ldapRealm.GroupBaseDN,
-			BindDN:           ldapRealm.BindDN,
-			LoginFilter:      ldapRealm.LoginFilter,
-			MaintainerFilter: ldapRealm.MaintainerFilter,
-			AdminFilter:      ldapRealm.AdminFilter,
-			MailAttribute:    ldapRealm.MailAttribute,
+			Realm:             basicRealm,
+			URL:               ldapRealm.URL,
+			UserBaseDN:        ldapRealm.UserBaseDN,
+			BindDN:            ldapRealm.BindDN,
+			LoginFilter:       ldapRealm.LoginFilter,
+			MaintainerGroupDN: ldapRealm.MaintainerGroupDN,
+			AdminGroupDN:      ldapRealm.AdminGroupDN,
+			MailAttribute:     ldapRealm.MailAttribute,
 		}
 	default:
 		logger.Error("Unsupported realm type", "userID", userID, "realmID", realmID)
@@ -368,9 +364,6 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 		if clientLdapRealm.UserBaseDN != nil {
 			ldapRealm.UserBaseDN = *clientLdapRealm.UserBaseDN
 		}
-		if clientLdapRealm.GroupBaseDN != nil {
-			ldapRealm.GroupBaseDN = *clientLdapRealm.GroupBaseDN
-		}
 		if clientLdapRealm.BindDN != nil {
 			ldapRealm.BindDN = *clientLdapRealm.BindDN
 		}
@@ -380,11 +373,11 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 		if clientLdapRealm.LoginFilter != nil {
 			ldapRealm.LoginFilter = *clientLdapRealm.LoginFilter
 		}
-		if clientLdapRealm.MaintainerFilter != nil {
-			ldapRealm.MaintainerFilter = *clientLdapRealm.MaintainerFilter
+		if clientLdapRealm.MaintainerGroupDN != nil {
+			ldapRealm.MaintainerGroupDN = *clientLdapRealm.MaintainerGroupDN
 		}
-		if clientLdapRealm.AdminFilter != nil {
-			ldapRealm.AdminFilter = *clientLdapRealm.AdminFilter
+		if clientLdapRealm.AdminGroupDN != nil {
+			ldapRealm.AdminGroupDN = *clientLdapRealm.AdminGroupDN
 		}
 		if clientLdapRealm.MailAttribute != nil {
 			ldapRealm.MailAttribute = *clientLdapRealm.MailAttribute
@@ -401,13 +394,13 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = auth.VerifyLDAPFilters(ldapRealm.LoginFilter, ldapRealm.MaintainerFilter, ldapRealm.AdminFilter)
+		err = auth.VerifyLDAPLoginFilter(ldapRealm.LoginFilter)
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidConfig) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			} else {
-				logger.Error("Failed to verify LDAP filters", "error", err)
-				http.Error(w, "Failed to verify LDAP filters", http.StatusInternalServerError)
+				logger.Error("Failed to verify LDAP login filter", "error", err)
+				http.Error(w, "Failed to verify LDAP login filter", http.StatusInternalServerError)
 			}
 			return
 		}

@@ -17,16 +17,15 @@ type Realm struct {
 }
 
 type LDAPRealm struct {
-	Realm       `gorm:"embedded;embeddedPrefix:realm_"`
-	URL         string `gorm:"not null"`
-	UserBaseDN  string `gorm:"not null"`
-	GroupBaseDN string `gorm:"not null"`
-	BindDN      string `gorm:"not null"`
-	Password    string `gorm:"not null"`
+	Realm      `gorm:"embedded;embeddedPrefix:realm_"`
+	URL        string `gorm:"not null"`
+	UserBaseDN string `gorm:"not null"`
+	BindDN     string `gorm:"not null"`
+	Password   string `gorm:"not null"`
 
-	LoginFilter      string `gorm:"not null"`
-	AdminFilter      string `gorm:"not null"`
-	MaintainerFilter string `gorm:"not null"`
+	LoginFilter       string `gorm:"not null"`
+	MaintainerGroupDN string `gorm:"not null"`
+	AdminGroupDN      string `gorm:"not null"`
 
 	MailAttribute string `gorm:"not null;default:'mail'"`
 }
@@ -137,4 +136,13 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 		logger.Debug("LDAP realm updated successfully", "realmID", realm.ID)
 		return nil
 	})
+}
+
+func GetRealmByName(name string) (*Realm, error) {
+	var realm Realm
+	if err := db.First(&realm, "name = ?", name).Error; err != nil {
+		logger.Error("Failed to find realm by name", "name", name, "error", err)
+		return nil, err
+	}
+	return &realm, nil
 }

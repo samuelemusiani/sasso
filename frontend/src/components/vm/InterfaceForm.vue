@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, defineProps } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/lib/api'
 import { IPAddress, CIDR } from '@/lib/ipaddr'
 import type { Interface, Net, VM } from '@/types'

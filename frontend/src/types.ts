@@ -36,12 +36,11 @@ export interface Realm {
 export interface LDAPRealm extends Realm {
   url: string
   user_base_dn: string
-  group_base_dn: string
   bind_dn: string
-  password: string
+  password?: string
   login_filter: string
-  maintainer_filter: string
-  admin_filter: string
+  maintainer_group_dn: string
+  admin_group_dn: string
   mail_attribute: string
 }
 
@@ -167,6 +166,7 @@ export interface GroupInvite {
   role: string
   state: string
   username: string
+  realm_name: string
   group_name: string
   group_description: string
 }
@@ -175,6 +175,7 @@ export interface GroupMember {
   user_id: number
   username: string
   role: string
+  realm_name: string
 }
 
 export interface VPNConfig {

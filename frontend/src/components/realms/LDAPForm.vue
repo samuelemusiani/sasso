@@ -2,22 +2,24 @@
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { LDAPRealm } from '@/types'
+import { useToastService } from '@/composables/useToast'
 
 const $emit = defineEmits(['realmAdded'])
 const $props = defineProps<{
   realm?: LDAPRealm
 }>()
 
+const { error: toastError, success: toastSuccess } = useToastService()
+
 const name = ref($props.realm ? $props.realm.name : '')
 const description = ref($props.realm ? $props.realm.description : '')
 const url = ref($props.realm ? $props.realm.url : '')
 const userBaseDN = ref($props.realm ? $props.realm.user_base_dn : '')
-const groupBaseDN = ref($props.realm ? $props.realm.group_base_dn : '')
 const bindDN = ref($props.realm ? $props.realm.bind_dn : '')
 const bindPassword = ref('')
 const loginFilter = ref($props.realm ? $props.realm.login_filter : '')
-const maintainerFilter = ref($props.realm ? $props.realm.maintainer_filter : '')
-const adminFilter = ref($props.realm ? $props.realm.admin_filter : '')
+const maintainerGroupDN = ref($props.realm ? $props.realm.maintainer_group_dn : '')
+const adminGroupDN = ref($props.realm ? $props.realm.admin_group_dn : '')
 const mailAttribute = ref($props.realm ? $props.realm.mail_attribute : '')
 
 const editing = ref(!!$props.realm)
@@ -29,13 +31,12 @@ function formLDAPRealm(): LDAPRealm {
     description: description.value,
     url: url.value,
     user_base_dn: userBaseDN.value,
-    group_base_dn: groupBaseDN.value,
     bind_dn: bindDN.value,
     type: 'ldap',
     password: bindPassword.value,
     login_filter: loginFilter.value,
-    maintainer_filter: maintainerFilter.value,
-    admin_filter: adminFilter.value,
+    maintainer_group_dn: maintainerGroupDN.value,
+    admin_group_dn: adminGroupDN.value,
     mail_attribute: mailAttribute.value,
   }
   return realmData
@@ -48,23 +49,30 @@ function addRealm() {
     .post('/admin/realms', realmData)
     .then((response) => {
       console.log('Realm created:', response.data)
+      toastSuccess('Realm created successfully')
       $emit('realmAdded')
     })
     .catch((error) => {
+      toastError('Error creating realm: ' + error.response.data)
       console.error('Error creating realm:', error)
     })
 }
 
 function updateRealm() {
   const realmData = formLDAPRealm()
+  if (!bindPassword.value) {
+    delete realmData.password
+  }
 
   api
     .put(`/admin/realms/${$props.realm?.id}`, realmData)
     .then((response) => {
       console.log('Realm updated:', response.data)
+      toastSuccess('Realm updated successfully')
       $emit('realmAdded')
     })
     .catch((error) => {
+      toastError('Error updating realm: ' + error.response.data)
       console.error('Error updating realm:', error)
     })
 }
@@ -107,6 +115,14 @@ function updateRealm() {
         class="input w-full rounded-lg"
       />
 
+      <label class="label">Email attribute</label>
+      <input
+        v-model="mailAttribute"
+        type="text"
+        placeholder="mail"
+        class="input w-full rounded-lg"
+      />
+
       <label class="label">Login Filter</label>
       <input
         v-model="loginFilter"
@@ -115,26 +131,19 @@ function updateRealm() {
         class="input w-full rounded-lg"
       />
 
-      <label class="label">Group Base DN</label>
+      <label class="label">Maintainer Group DN</label>
       <input
-        v-model="groupBaseDN"
+        v-model="maintainerGroupDN"
         type="text"
-        placeholder="ou=group,dc=example,dc=com"
+        placeholder="cn=sasso_maintainer,ou=groups,dc=example,dc=com"
         class="input w-full rounded-lg"
       />
 
-      <label class="label">Maintainer Filter</label>
+      <label class="label">Admin Group DN</label>
       <input
-        v-model="maintainerFilter"
+        v-model="adminGroupDN"
         type="text"
-        placeholder="(&(objectClass=groupOfNames)(cn=sasso_maintainer)(member={{user_dn}}))"
-        class="input w-full rounded-lg"
-      />
-      <label class="label">Admin Filter</label>
-      <input
-        v-model="adminFilter"
-        type="text"
-        placeholder="(&(objectClass=groupOfNames)(cn=sasso_admin)(member={{user_dn}}))"
+        placeholder="cn=sasso_admin,ou=groups,dc=example,dc=com"
         class="input w-full rounded-lg"
       />
 
