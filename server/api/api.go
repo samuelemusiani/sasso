@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"mime"
@@ -32,9 +33,12 @@ var (
 	vpnConfigs    config.VPN
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards) {
+func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, pf config.PortForwards, vpn config.VPN) error {
 	// Logger
 	logger = apiLogger
+	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn); err != nil {
+		return err
+	}
 
 	// Router
 	publicRouter = chi.NewRouter()
@@ -50,6 +54,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		Addr:    privateServerConf.Bind,
 		Handler: privateRouter,
 	}
+
+	portForwards = pf
+	vpnConfigs = vpn
 
 	// Middleware
 	publicRouter.Use(middleware.RealIP)
@@ -253,6 +260,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	privateRouter.Mount("/metrics", promhttp.Handler())
 
 	publicRouter.Get("/*", frontHandler(frontFS))
+
+	return nil
 }
 
 func ListenAndServe() error {
@@ -354,4 +363,43 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(p)))
 		w.Write(f)
 	}
+}
+
+func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN) error {
+	if len(key) == 0 {
+		return fmt.Errorf("API key cannot be empty")
+	}
+	if secret == "" {
+		return fmt.Errorf("Internal secret cannot be empty")
+	}
+
+	if publicServerConf.Bind == "" {
+		return fmt.Errorf("Public server bind address cannot be empty")
+	}
+
+	if privateServerConf.Bind == "" {
+		return fmt.Errorf("Private server bind address cannot be empty")
+	}
+
+	if portForwards.PublicIP == "" {
+		return fmt.Errorf("Port forwards public IP cannot be empty")
+	}
+
+	if portForwards.MinPort > portForwards.MaxPort {
+		return fmt.Errorf("Port forwards min port cannot be greater than max port")
+	}
+
+	if portForwards.MinPort == 0 || portForwards.MaxPort == 0 {
+		return fmt.Errorf("Port forwards min and max port cannot be zero")
+	}
+
+	if portForwards.MaxPort-portForwards.MinPort < 10 {
+		return fmt.Errorf("Port forwards range must be at least 10 ports")
+	}
+
+	if vpn.MaxProfilesPerUser == 0 {
+		return fmt.Errorf("VPN max profiles per user cannot be zero")
+	}
+
+	return nil
 }

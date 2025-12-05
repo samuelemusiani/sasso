@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -44,9 +46,7 @@ var (
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	logger = proxmoxLogger
-
-	err := configChecks(config)
-	if err != nil {
+	if err := checkConfig(&config); err != nil {
 		return err
 	}
 
@@ -86,47 +86,77 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	return nil
 }
 
-func configChecks(config config.Proxmox) error {
-	idTemplate := strings.TrimSpace(config.Clone.IDTemplate)
+func checkConfig(c *config.Proxmox) error {
+	_, err := url.Parse(c.Url)
+	if err != nil {
+		return fmt.Errorf("invalid Proxmox URL: %w", err)
+	}
+
+	if c.TokenID == "" {
+		return errors.New("Proxmox token ID is required")
+	}
+	if c.Secret == "" {
+		return errors.New("Proxmox secret is required")
+	}
+
+	if c.Clone.TargetNode == "" {
+		return errors.New("Proxmox clone target node is required")
+	}
+
+	idTemplate := strings.TrimSpace(c.Clone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
-		logger.Error("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'", "template", idTemplate)
-		return ErrInvalidCloneIDTemplate
+		e := fmt.Errorf("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'. template: %s", idTemplate)
+		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
-	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + config.Clone.VMIDUserDigits + config.Clone.VMIDVMDigits
+	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + c.Clone.VMIDUserDigits + c.Clone.VMIDVMDigits
 	if tmp < 3 || tmp > 9 {
-		logger.Error("Invalid Proxmox clone ID template. The total length must be between 3 and 9 characters", "template", idTemplate, "length", tmp)
-		return ErrInvalidCloneIDTemplate
+		e := fmt.Errorf("Invalid Proxmox clone ID template. The total length must be between 3 and 9 characters. template: %s length: %d", idTemplate, tmp)
+		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
-	if config.Clone.VMIDUserDigits < 1 || config.Clone.VMIDVMDigits < 1 {
-		logger.Error("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1", "user_digits", config.Clone.VMIDUserDigits, "vm_digits", config.Clone.VMIDVMDigits)
-		return ErrInvalidCloneIDTemplate
+	if c.Clone.VMIDUserDigits < 1 || c.Clone.VMIDVMDigits < 1 {
+		e := fmt.Errorf("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1. user_digits: %d vm_digits: %d", c.Clone.VMIDUserDigits, c.Clone.VMIDVMDigits)
+		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
-	if config.Network.SDNZone == "" {
-		logger.Error("Proxmox SDN zone is not configured", "zone", config.Network.SDNZone)
-		return ErrInvalidSDNZone
+	if c.Clone.MTU.MTU == 0 && c.Clone.MTU.Set {
+		return errors.New("invalid_proxmox_clone_mtu")
 	}
 
-	if config.Network.VXLANIDStart <= 0 {
-		logger.Error("Proxmox VXLAN ID start must be greater than 0", "vxlan_id_start", config.Network.VXLANIDStart)
-		return ErrInvalidVXLANRange
+	if c.Template.Node == "" {
+		return errors.New("Proxmox template node is required")
 	}
 
-	if config.Network.VXLANIDEnd <= config.Network.VXLANIDStart {
-		logger.Error("Proxmox VXLAN ID end must be greater than VXLAN ID start", "vxlan_id_start", config.Network.VXLANIDStart, "vxlan_id_end", config.Network.VXLANIDEnd)
-		return ErrInvalidVXLANRange
+	if c.Template.VMID == 0 {
+		return errors.New("Proxmox template VMID is required")
+	} else if c.Template.VMID < 100 {
+		return errors.New("Proxmox template VMID must be greater than or equal to 100")
 	}
 
-	if config.Network.VXLANIDEnd >= 1<<24 {
-		logger.Error("Proxmox VXLAN ID end must be less than 16777216 (2^24)", "vxlan_id_end", config.Network.VXLANIDEnd)
-		return ErrInvalidVXLANRange
+	if c.Network.SDNZone == "" {
+		e := fmt.Errorf("Proxmox SDN zone is not configured. zone: %s", c.Network.SDNZone)
+		return errors.Join(ErrInvalidSDNZone, e)
 	}
 
-	if config.Backup.Storage == "" {
-		logger.Error("Proxmox backup storage is not configured")
-		return ErrInvalidStorage
+	if c.Network.VXLANIDStart <= 0 {
+		e := fmt.Errorf("Proxmox VXLAN ID start must be greater than 0. vxlan_id_start%d", c.Network.VXLANIDStart)
+		return errors.Join(ErrInvalidVXLANRange, e)
+	}
+
+	if c.Network.VXLANIDEnd <= c.Network.VXLANIDStart {
+		e := fmt.Errorf("Proxmox VXLAN ID end must be greater than VXLAN ID start. vxlan_id_start: %d. vxlan_id_end: %d", c.Network.VXLANIDStart, c.Network.VXLANIDEnd)
+		return errors.Join(ErrInvalidVXLANRange, e)
+	}
+
+	if c.Network.VXLANIDEnd >= 1<<24 {
+		e := fmt.Errorf("Proxmox VXLAN ID end must be less than 16777216 (2^24). vxlan_id_end: %d", c.Network.VXLANIDEnd)
+		return errors.Join(ErrInvalidVXLANRange, e)
+	}
+
+	if c.Backup.Storage == "" {
+		e := errors.New("Proxmox backup storage is not configured")
+		return errors.Join(ErrInvalidStorage, e)
 	}
 	return nil
 }

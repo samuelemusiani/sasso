@@ -28,6 +28,9 @@ var (
 
 func Init(dbLogger *slog.Logger, c config.Database) error {
 	logger = dbLogger
+	if err := checkConfig(&c); err != nil {
+		return err
+	}
 
 	var err error
 
@@ -217,4 +220,23 @@ func applyFixes() error {
 		return nil
 	})
 	return err
+}
+
+func checkConfig(c *config.Database) error {
+	if c.User == "" {
+		return fmt.Errorf("database user is empty")
+	}
+	if c.Password == "" {
+		return fmt.Errorf("database password is empty")
+	}
+	if c.Database == "" {
+		return fmt.Errorf("database name is empty")
+	}
+	if c.Host == "" {
+		return fmt.Errorf("database host is empty")
+	}
+	if c.Port == 0 {
+		return fmt.Errorf("database port is empty")
+	}
+	return nil
 }
