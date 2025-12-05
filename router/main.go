@@ -79,6 +79,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = checkConfig(c.Server); err != nil {
+		slog.Error("Configuration error", "error", err)
+		os.Exit(1)
+	}
+
 	workerLogger := slog.With("module", "worker")
 	worker(workerLogger, c.Server)
 }

@@ -53,6 +53,10 @@ func Init(l *slog.Logger, c config.Notifications) error {
 		return nil
 	}
 
+	if err := checkConfig(c); err != nil {
+		return err
+	}
+
 	email = c.Email.Username
 
 	var err error
@@ -712,6 +716,34 @@ func SendUserRemovalFromGroupNotification(userID uint, groupName string) error {
 	if err != nil {
 		logger.Error("Failed to save user removal from group notification", "userID", userID, "error", err)
 		return err
+	}
+	return nil
+}
+
+func checkConfig(c config.Notifications) error {
+	if !c.Enabled {
+		return nil
+	}
+
+	if c.RateLimits {
+		if c.MaxPerDay <= 0 {
+			return fmt.Errorf("notifications max per day must be greater than 0 when rate limits are enabled")
+		}
+		if c.MaxPerMinute <= 0 {
+			return fmt.Errorf("notifications max per minute must be greater than 0 when rate limits are enabled")
+		}
+	}
+
+	if c.Email.Enabled {
+		if c.Email.SMTPServer == "" {
+			return fmt.Errorf("notifications SMTP server is empty")
+		}
+		if c.Email.Username == "" {
+			return fmt.Errorf("notifications SMTP username is empty")
+		}
+		if c.Email.Password == "" {
+			return fmt.Errorf("notifications SMTP password is empty")
+		}
 	}
 	return nil
 }

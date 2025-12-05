@@ -22,7 +22,15 @@ func NewLinuxGateway() *LinuxGateway {
 }
 
 func (lg *LinuxGateway) Init(c config.Gateway) error {
+	if c.Linux.Port == 0 {
+		return fmt.Errorf("Linux gateway port cannot be 0")
+	}
+
 	lg.Port = c.Linux.Port
+
+	if len(c.Linux.Peers) == 0 {
+		return fmt.Errorf("Linux gateway must have at least one peer")
+	}
 
 	for _, p := range c.Linux.Peers {
 		ip := net.ParseIP(p)
@@ -30,6 +38,10 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 			return fmt.Errorf("Failed to parse peer IP: %s", p)
 		}
 		lg.Peers = append(lg.Peers, ip)
+	}
+
+	if c.Linux.MTU == 0 {
+		return fmt.Errorf("Linux gateway MTU cannot be 0")
 	}
 
 	lg.MTU = c.Linux.MTU

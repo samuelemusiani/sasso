@@ -6,8 +6,6 @@ import (
 	"net"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
-	"sync"
-	"time"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
@@ -43,34 +41,7 @@ func Init(l *slog.Logger, c config.Network) error {
 	return nil
 }
 
-var (
-	// Temporary in memory trie to store newly allocated subnets that are not
-	// yet commited in the database
-	//
-	// A trie is used to allow efficient search of subnets
-	trieNewSubnets = ipaddr.NewTrie[*ipaddr.IPAddress]()
-
-	// Timestamp of the last modification of the trie. If more than 1 minute
-	// has passed since the last modification, the trie is cleared to avoid
-	// stale data. 1 minute should be enough to commit the new subnet
-	// to the database
-	lastModified = time.Time{}
-
-	// Mutex to protect access to the trie and lastModified since multiple
-	// goroutines may call NextAvailableSubnet concurrently (eg. multiple API
-	// requests)
-	mutex = sync.Mutex{}
-)
-
 func NextAvailableSubnet() (string, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if lastModified.Add(1 * time.Minute).Before(time.Now()) {
-		trieNewSubnets = ipaddr.NewTrie[*ipaddr.IPAddress]()
-		lastModified = time.Now()
-	}
-
 	usedSubnets, err := db.GetAllUsedSubnets()
 	logger.Debug("Used subnets from database", "used_subnets", usedSubnets)
 	if err != nil {
@@ -88,8 +59,7 @@ func NextAvailableSubnet() (string, error) {
 	iterator := subnet.SetPrefixLen(cNetwork.NewSubnetPrefix).PrefixIterator()
 	for iterator.HasNext() {
 		n := iterator.Next()
-		if !dbTrie.ElementContains(n) && !trieNewSubnets.ElementContains(n) {
-			trieNewSubnets.Add(n)
+		if !dbTrie.ElementContains(n) {
 			logger.Debug("Found available subnet", "subnet", n.String())
 			return n.String(), nil
 		}

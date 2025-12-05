@@ -62,10 +62,16 @@ func main() {
 	c := config.Get()
 	// slog.Debug("Config file parsed successfully", "config", c)
 
+	if c.Secrets.Key == "" && c.Secrets.Path == "" {
+		slog.Error("No secrets key provided in config file or file path")
+		slog.Error("Please provide a secrets key in the config file or a path to a file containing the key")
+		os.Exit(1)
+	}
+
 	if c.Secrets.Key != "" {
 		slog.Info("Using secrets key provided in config file")
 	} else if c.Secrets.Path != "" {
-		slog.Debug("Trying to load secrets key from file", "path", c.Secrets.Path)
+		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
 		base64key, err := os.ReadFile(c.Secrets.Path)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -92,10 +98,6 @@ func main() {
 			c.Secrets.Key = string(base64key)
 		}
 		c.Secrets.Key = string(base64key)
-	} else {
-		slog.Error("No secrets key provided in config file or file path")
-		slog.Error("Please provide a secrets key in the config file or a path to a file containing the key")
-		os.Exit(1)
 	}
 
 	real_key, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
@@ -127,7 +129,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Proxmox
+	// Proxmox init
 	slog.Debug("Initializing proxmox module")
 	proxmoxLogger := slog.With("module", "proxmox")
 	err = proxmox.Init(proxmoxLogger, c.Proxmox)
@@ -135,15 +137,6 @@ func main() {
 		slog.Error("Failed to initialize Proxmox client", "error", err)
 		os.Exit(1)
 	}
-
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
-	defer cancel()
-
-	slog.Debug("Starting background proxmox tasks")
-	go proxmox.TestEndpointVersion()
-	go proxmox.TestEndpointClone()
-	go proxmox.TestEndpointNetZone()
-	proxmox.StartWorker()
 
 	// Notifications
 	if c.Notifications.Enabled {
@@ -155,7 +148,21 @@ func main() {
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards)
+	err = api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
+	if err != nil {
+		slog.Error("Failed to initialize API server", "error", err)
+		os.Exit(1)
+	}
+
+	// Proxmox workers start
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer cancel()
+
+	slog.Debug("Starting background proxmox tasks")
+	go proxmox.TestEndpointVersion()
+	go proxmox.TestEndpointClone()
+	go proxmox.TestEndpointNetZone()
+	proxmox.StartWorker()
 
 	channelError := make(chan error, 1)
 

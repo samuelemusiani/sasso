@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 	"time"
 
@@ -18,6 +19,23 @@ import (
 	"samuelemusiani/sasso/router/gateway"
 	"samuelemusiani/sasso/router/utils"
 )
+
+func checkConfig(c config.Server) error {
+	if c.Endpoint == "" {
+		return fmt.Errorf("Server endpoint cannot be empty")
+	}
+
+	if c.Secret == "" {
+		return fmt.Errorf("Server secret cannot be empty")
+	}
+
+	_, err := url.Parse(c.Endpoint)
+	if err != nil {
+		return errors.New("server endpoint is not a valid URL")
+	}
+
+	return nil
+}
 
 func worker(logger *slog.Logger, conf config.Server) {
 	time.Sleep(5 * time.Second)

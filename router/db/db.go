@@ -22,9 +22,12 @@ var (
 )
 
 func Init(dbLogger *slog.Logger, c config.Database) error {
-	logger = dbLogger
+	err := checkConfig(c)
+	if err != nil {
+		return err
+	}
 
-	var err error
+	logger = dbLogger
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
@@ -58,5 +61,24 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	return nil
+}
+
+func checkConfig(c config.Database) error {
+	if c.User == "" {
+		return fmt.Errorf("database user is empty")
+	}
+	if c.Password == "" {
+		return fmt.Errorf("database password is empty")
+	}
+	if c.Database == "" {
+		return fmt.Errorf("database name is empty")
+	}
+	if c.Host == "" {
+		return fmt.Errorf("database host is empty")
+	}
+	if c.Port == 0 {
+		return fmt.Errorf("database port is empty")
+	}
 	return nil
 }

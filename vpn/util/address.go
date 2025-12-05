@@ -7,7 +7,7 @@ import (
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
-func NextAvailableAddress() (string, error) {
+func NextAvailableAddress(subnet string) (string, error) {
 	usedAddresses, err := db.GetAllAddresses()
 	slog.Debug("Used addresses from database", "used_addresses", usedAddresses)
 	if err != nil {

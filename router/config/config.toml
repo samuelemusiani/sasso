@@ -27,7 +27,9 @@ type = "linux"
 # vmid = 9100
 
 [gateway.linux]
+# VXLAN configuration port
 port = 4789
+# VXLAN peers
 peers = ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
 mtu = 1450
 

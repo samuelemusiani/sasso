@@ -32,13 +32,15 @@ type Firewall interface {
 func Init(l *slog.Logger, c config.Firewall) error {
 	logger = l
 
+	var err error
+
 	switch c.Type {
 	case "shorewall":
 		logger.Info("Initializing Shorewall firewall")
-		globalFirewall = &ShorewallFirewall{
-			ExternalZone: c.Shorewall.ExternalZone,
-			VMZone:       c.Shorewall.VMZone,
-			PublicIP:     c.Shorewall.PublicIP,
+		globalFirewall, err = NewShorewallFirewall(c.Shorewall)
+		if err != nil {
+			logger.Error("Failed to initialize Shorewall firewall", "error", err)
+			return err
 		}
 	default:
 		logger.Error("Unsupported firewall type", "type", c.Type)

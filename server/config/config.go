@@ -23,6 +23,7 @@ type Server struct {
 type Database struct {
 	User     string `toml:"user"`
 	Password string `toml:"password"`
+	Database string `toml:"database"`
 	Host     string `toml:"host"`
 	Port     uint16 `toml:"port"`
 }
