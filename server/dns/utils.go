@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"samuelemusiani/sasso/server/db"
 )
 
 type Zone struct {
@@ -96,7 +97,7 @@ func GetBody(resp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-func ConfrontRecords(RRSet2 RRSet, RRSet1 RRSet) bool {
+func CompareRecords(RRSet2 RRSet, RRSet1 RRSet) bool {
 	if len(RRSet1.Records) != len(RRSet2.Records) {
 		return false
 	}
@@ -110,4 +111,63 @@ func ConfrontRecords(RRSet2 RRSet, RRSet1 RRSet) bool {
 		}
 	}
 	return true
+}
+
+// ValidateUniqueNetNames checks that no two nets have the same ID
+// Returns an error listing all duplicate IDs found
+func ValidateUniqueNetNames(nets []db.Net) error {
+	seen := make(map[uint]bool)
+	duplicates := []uint{}
+
+	for _, net := range nets {
+		if seen[net.ID] {
+			duplicates = append(duplicates, net.ID)
+		}
+		seen[net.ID] = true
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate net IDs found: %v", duplicates)
+	}
+	return nil
+}
+
+// ValidateUniqueZoneNames checks that no two zones have the same name
+// Returns an error listing all duplicate names found
+func ValidateUniqueZoneNames(zones []Zone) error {
+	seen := make(map[string]bool)
+	duplicates := []string{}
+
+	for _, zone := range zones {
+		if seen[zone.Name] {
+			duplicates = append(duplicates, zone.Name)
+		}
+		seen[zone.Name] = true
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate zone names found: %v", duplicates)
+	}
+	return nil
+}
+
+// ValidateUniqueRRSetNames checks that no two RRSets have the same name+type combination
+// Returns an error listing all duplicate name+type pairs found
+func ValidateUniqueRRSetNames(rrsets []RRSet) error {
+	seen := make(map[string]bool)
+	duplicates := []string{}
+
+	for _, rrset := range rrsets {
+		// RRSets are unique by name+type combination
+		key := fmt.Sprintf("%s:%s", rrset.Name)
+		if seen[key] {
+			duplicates = append(duplicates, key)
+		}
+		seen[key] = true
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate RRSet name combinations found: %v", duplicates)
+	}
+	return nil
 }
