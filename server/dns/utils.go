@@ -57,14 +57,14 @@ func HttpRequest(method, url string, body interface{}) ([]byte, int, error) {
 	if method == "POST" || method == "PUT" || method == "PATCH" {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, -1, fmt.Errorf("failed reading body: %w", err)
+			return nil, -1, fmt.Errorf("failed reading body", "err", err)
 		}
 		bodyReader = bytes.NewReader(b)
 	}
 
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		return nil, -1, fmt.Errorf("failed to create request: %w", err)
+		return nil, -1, fmt.Errorf("failed to create request", "err", err)
 	}
 	req.Close = true
 
@@ -73,12 +73,12 @@ func HttpRequest(method, url string, body interface{}) ([]byte, int, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, -1, fmt.Errorf("failed to perform request: %w", err)
+		return nil, -1, fmt.Errorf("failed to perform request", "err", err)
 	}
 
 	respBytes, err := GetBody(resp)
 	if err != nil {
-		return nil, -1, fmt.Errorf("failed to get response body: %w", err)
+		return nil, -1, fmt.Errorf("failed to get response body", "err", err)
 	}
 
 	if resp.StatusCode >= 400 {

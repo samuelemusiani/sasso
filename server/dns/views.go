@@ -14,7 +14,7 @@ func setupNewStructViewOnDNS(view *View) error {
 		return fmt.Errorf("failed to set up network: %w", err)
 	}
 
-	err = createZonesWithRRSets(view.Zones)
+	err = newZonesWithRRSets(view.Zones)
 	if err != nil {
 		logger.With("error", err).Error("Failed to create zones for view")
 		return fmt.Errorf("failed to create zones for view: %w", err)
@@ -43,6 +43,46 @@ func addZonesToView(view *View) error {
 			return fmt.Errorf("failed to add view: %w", err)
 		}
 	}
+	return nil
+}
+
+// Adds a zone to a given view, creating it if needed
+func newZoneInView(zone Zone, view View) error {
+	url := fmt.Sprintf("%s/views/%s", BaseUrl, view.Name)
+
+	reqBody := map[string]interface{}{
+		"name": zone.Name,
+	}
+
+	_, _, err := HttpRequest("POST", url, reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create zone in view", "err", err)
+	}
+	for _, rrset := range zone.RRSets {
+		err := newRRSetInZone(rrset, zone)
+		if err != nil {
+			logger.Error("Failed to create RRSet in zone", "zone", zone.Name, "view", view.Name, "RRSet", rrset.Name)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Deletes zone from a view
+func deleteZoneFromView(zone Zone, view View) error {
+	url := fmt.Sprintf("%s/views/%s/%s", BaseUrl, view.Name, zone.Name)
+
+	respBody, statusCode, err := HttpRequest("DELETE", url, nil)
+	if err != nil {
+		logger.Error("failed to delete zone from view", "zone", zone.Name, "view", view.Name, "err", err)
+		return err
+	}
+
+	fmt.Printf("%d Response: %s", statusCode, string(respBody))
 	return nil
 }
 
@@ -110,8 +150,7 @@ func GetStructViewWithZonesByName(viewName string) (View, error) {
 
 	respBody, _, err := HttpRequest("GET", url, nil)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get view by name")
-		return View{}, fmt.Errorf("failed to get view %s: %w", viewName, err)
+		return View{}, fmt.Errorf("failed to get view", "view", viewName, "err", err)
 	}
 
 	var view View
@@ -122,16 +161,22 @@ func GetStructViewWithZonesByName(viewName string) (View, error) {
 
 	if err := json.Unmarshal(respBody, &tmp); err != nil {
 		logger.With("error", err).Error("Failed to parse view JSON")
-		return View{}, fmt.Errorf("failed to parse JSON for view %s: %w", viewName, err)
+		return View{}, fmt.Errorf("failed to parse JSON for view", "view", viewName, "err", err)
 	}
 
 	for _, zoneName := range tmp.Zones {
 		zone, err := GetStructZoneWithRecordsByName(zoneName)
 		if err != nil {
-			logger.With("error", err).Error("Failed to get zone by name")
-			return View{}, fmt.Errorf("failed to get zone %s: %w", zoneName, err)
+			logger.Error("Failed to get zone", "zone", zoneName)
+			//return View{}, fmt.Errorf("failed to get zone %s: %w", zoneName, err)
+
+			// if we fail to retrive zone we send an empty zone with same name
+			zone = Zone{}
+			zone.Name = zoneName
+			view.Zones = append(view.Zones, zone)
+		} else {
+			view.Zones = append(view.Zones, zone)
 		}
-		view.Zones = append(view.Zones, zone)
 	}
 
 	return view, nil
@@ -157,44 +202,5 @@ func GetStructViewWithZonesByName(viewName string) (View, error) {
 // 		// scegliere la zona in cui aggiungere la vm
 //
 // 	}
-// 	return nil
-// }
-//
-// func ViewMustContainVMsRecords(view *View, vms []db.VM) error {
-// 	for _, vm := range vms {
-// 		found := false
-//
-// 		var vmPrimaryInterface *db.Interface
-// 		// si puo` fare una vm primaria senza gateway?
-// 		for _, vmInterface := range vm.Interfaces {
-// 			if vmInterface.IPAdd != "" && vmInterface.Gateway != "" {
-// 				vmPrimaryInterface = &vmInterface
-// 			}
-// 		}
-// 		if vmPrimaryInterface == nil {
-// 			// gestire problema se non c'e` vm primaria
-// 		}
-//
-// 		// possono esserci pi`u zone associate alla stessa view?
-// 		for _, zone := range view.Zones {
-// 			records, err := GetZoneRecords(&zone)
-// 			if err != nil {
-// 				logger.With("error", err).Error("Failed to get zone records")
-// 				return fmt.Errorf("failed to get zone records for zone %s: %w", zone.ID, err)
-// 			}
-//
-// 			for _, record := range records.Records {
-// 				if record.Ip == vmPrimaryInterface.IPAdd { //&& !record.Disabled
-// 					found = true
-// 				}
-// 			}
-// 		}
-// 		// se non c'è la vm in nessuna zona e` da aggiungere
-// 		if found == false {
-// 			// se possono esserci piu zone associate alla stessa view quale zona e` da scegliere?
-// 			// la zona da scegliere e` quella in cui cade l'ip della vm se la net esiste?
-// 		}
-// 	}
-// 	// se ci sono zone in eccesso da rimuovere?
 // 	return nil
 // }

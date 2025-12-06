@@ -275,14 +275,13 @@ func worker(ctx context.Context) error {
 
 		dnsState, err := getDNSState()
 		if err != nil {
-			logger.Error("Error retrieving DNS state", "error", err)
-			continue
+			// when getting an error from getDNSState() we still keep going even if we have error
+			logger.Info("DNS State fetched with error, still continuing", "error", err)
 		}
-		logger.Info("DNS State fetched succesfully")
 
 		updateDNS(dnsState.Views)
 
-		logger.Info("DNS updated")
+		logger.Debug("DNS updated")
 
 		elapsed := time.Since(now)
 		if elapsed < 10*time.Second {
@@ -323,7 +322,7 @@ func updateDNS(dnsViews []View) {
 
 	for _, net := range nets {
 
-		logger.Debug("Control on net", "network", net.ID)
+		//logger.Debug("Control on net", "network", net.ID)
 
 		//databaseView is what the dnsView must be like
 		databaseView, err := buildViewFromNet(net)
@@ -348,9 +347,12 @@ func updateDNS(dnsViews []View) {
 			logger.Error("Error getting DNS view", "error", err)
 			continue
 		}
-		err = syncZones(databaseView.Zones, dnsView.Zones)
+
+		//we sync the zones between server and dns, and if it fails we remove the view from dns and recreate it
+		err = syncZones(databaseView.Zones, dnsView.Zones, databaseView)
 		if err != nil {
-			logger.Error("Error syncing zones", "error", err, "view", databaseView.Name)
+			logger.Error("Error syncing zones, proceeding to delete and recreate", "error", err, "view", databaseView.Name)
+			setupNewStructViewOnDNS(&dnsView)
 			continue
 		}
 
@@ -370,7 +372,7 @@ func updateDNS(dnsViews []View) {
 	}
 }
 
-func syncZones(updatedZones []Zone, behindZones []Zone) error {
+func syncZones(updatedZones []Zone, behindZones []Zone, view View) error {
 	// to sync zones we need first to check the lenght of each arguments
 	// if they are different there may be three possibilities :
 	//      1.  len(updatedZones) = 0 ->  remove all zones from dns
@@ -391,7 +393,7 @@ func syncZones(updatedZones []Zone, behindZones []Zone) error {
 		deleteZonesFromDNS(behindZones)
 		return nil
 	} else if len(behindZones) == 0 {
-		createZonesWithRRSets(updatedZones)
+		newZonesWithRRSets(updatedZones)
 		return nil
 	}
 
@@ -400,7 +402,7 @@ func syncZones(updatedZones []Zone, behindZones []Zone) error {
 	for _, z := range behindZones {
 		if !zonesHasZoneWithName(z.Name, updatedZones) {
 			logger.Debug("Deleting zone", "zone", z.Name)
-			if err := deleteZoneFromDNS(z); err != nil {
+			if err := deleteZoneFromView(z, view); err != nil {
 				return err
 			}
 		}
@@ -408,8 +410,8 @@ func syncZones(updatedZones []Zone, behindZones []Zone) error {
 
 	for _, z := range updatedZones {
 		if !zonesHasZoneWithName(z.Name, behindZones) {
-			logger.Debug("Creating zone %s", "zone", z.Name)
-			if err := createZoneWithRRSets(z); err != nil {
+			logger.Debug("Creating zone", "zone", z.Name)
+			if err := newZoneInView(z, view); err != nil {
 				return err
 			}
 		}
@@ -440,7 +442,7 @@ func syncRRSets(updatedRRSets []RRSet, behindRRSets []RRSet, dnsZone Zone) error
 		deleteAllRRSetsFromZone(dnsZone)
 		return nil
 	} else if len(behindRRSets) == 0 {
-		logger.Debug("Copying RRSets into zone %s", "zone", dnsZone.Name)
+		logger.Debug("Copying RRSets into zone", "zone", dnsZone.Name, "RRSets", updatedRRSets)
 		addRRSetsToZone(updatedRRSets, dnsZone)
 		return nil
 	}
