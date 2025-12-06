@@ -6,6 +6,10 @@ const $props = defineProps<{
   vpnConfig: VPNConfig
 }>()
 
+const $emits = defineEmits<{
+  (e: 'delete'): void
+}>()
+
 const copySuccess = ref(false)
 
 async function copyConfig() {
@@ -37,6 +41,11 @@ function downloadConfig() {
   window.URL.revokeObjectURL(url)
 }
 
+function deleteConfig() {
+  alert('Are you sure you want to delete this configuration? This action cannot be undone.')
+  $emits('delete')
+}
+
 const showKeys = ref(false)
 const maskedConfig = computed(() => {
   if (!$props.vpnConfig) return ''
@@ -50,22 +59,27 @@ const maskedConfig = computed(() => {
 
 <template>
   <div class="flex flex-col gap-4 p-2">
-    <div class="flex items-center gap-2">
-      <button
-        @click="copyConfig()"
-        class="btn btn-outline btn-sm gap-2 rounded-lg"
-        :class="copySuccess ? 'btn-success' : 'btn-primary'"
-      >
-        <IconVue
-          :icon="copySuccess ? 'material-symbols:check' : 'material-symbols:content-copy'"
-          class="text-lg"
-        />
-        {{ copySuccess ? 'Copied!' : 'Copy' }}
-      </button>
+    <div class="flex justify-between">
+      <div class="flex items-center gap-2">
+        <button
+          @click="copyConfig()"
+          class="btn btn-outline btn-sm rounded-lg"
+          :class="copySuccess ? 'btn-success' : 'btn-primary'"
+        >
+          <IconVue
+            :icon="copySuccess ? 'material-symbols:check' : 'material-symbols:content-copy'"
+            class="text-lg"
+          />
+          {{ copySuccess ? 'Copied!' : 'Copy' }}
+        </button>
 
-      <button @click="downloadConfig()" class="btn btn-primary btn-sm gap-2 rounded-lg">
-        <IconVue icon="material-symbols:download" class="text-lg" />
-        Download .conf
+        <button @click="downloadConfig()" class="btn btn-primary btn-sm rounded-lg">
+          <IconVue icon="material-symbols:download" class="text-lg" />
+          Download .conf
+        </button>
+      </div>
+      <button class="btn btn-error btn-sm rounded-lg" @click="deleteConfig">
+        Delete Configuration
       </button>
     </div>
     <div class="bg-base-100/50 border-base-300/50 rounded-lg border p-4 whitespace-pre">

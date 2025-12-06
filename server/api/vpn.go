@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {
-	var vpnUpdate internal.VPNUpdate
+	var vpnUpdate internal.VPNProfile
 	if err := json.NewDecoder(r.Body).Decode(&vpnUpdate); err != nil {
 		logger.Error("Failed to decode VPN update request", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -30,28 +33,6 @@ func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func internalCreateVPNConfig(w http.ResponseWriter, r *http.Request) {
-	var vpnCreate internal.VPNCreate
-	if err := json.NewDecoder(r.Body).Decode(&vpnCreate); err != nil {
-		logger.Error("Failed to decode VPN create request", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if vpnCreate.VPNConfig == "" || vpnCreate.VPNIP == "" || vpnCreate.UserID == 0 {
-		logger.Error("UserID, VPNConfig and VPNIP are required")
-		http.Error(w, "UserID, VPNConfig and VPNIP are required", http.StatusBadRequest)
-		return
-	}
-
-	err := db.CreateVPNConfig(vpnCreate.VPNConfig, vpnCreate.VPNIP, vpnCreate.UserID)
-	if err != nil {
-		logger.Error("Failed to create VPN config in DB", "error", err)
-		http.Error(w, "Failed to create VPN config", http.StatusInternalServerError)
-		return
-	}
-}
-
 func internalGetVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	vpnConfigs, err := db.GetAllVPNConfigs()
 	if err != nil {
@@ -60,12 +41,13 @@ func internalGetVPNConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var vpns []internal.VPNUpdate
+	var vpns []internal.VPNProfile
 	for i := range vpnConfigs {
-		vpns = append(vpns, internal.VPNUpdate{
+		vpns = append(vpns, internal.VPNProfile{
 			ID:        vpnConfigs[i].ID,
 			VPNConfig: vpnConfigs[i].VPNConfig,
 			VPNIP:     vpnConfigs[i].VPNIP,
+			UserID:    vpnConfigs[i].UserID,
 		})
 	}
 
@@ -82,7 +64,7 @@ type returnConfig struct {
 	VPNConfig string `json:"vpn_config"`
 }
 
-func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
+func getUserVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	vpnConfigs, err := db.GetVPNConfigsByUserID(userID)
@@ -100,6 +82,11 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 	returnConfigs := make([]returnConfig, 0, len(vpnConfigs))
 	for i := range vpnConfigs {
 		// Just to check if the config is valid base64
+		if vpnConfigs[i].VPNConfig == "" {
+			// New generated configs are empty, skip validation and do not return them
+			continue
+		}
+
 		_, err := base64.StdEncoding.DecodeString(vpnConfigs[i].VPNConfig)
 		if err != nil {
 			logger.Error("Failed to decode VPN config", "error", err)
@@ -121,10 +108,10 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
+func addVPNConfig(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
-	nConfigs, err := db.GetUserVPNConfigCount(userID)
+	nConfigs, err := db.CountVPNConfigsByUserID(userID)
 	if err != nil {
 		logger.Error("failed to get user VPN config count", "error", err)
 		http.Error(w, "Failed to get VPN config count", http.StatusInternalServerError)
@@ -135,10 +122,49 @@ func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.UpdateUserVPNConfigCount(userID, vpnConfigs.MaxProfilesPerUser)
+	// To add a VPN config with put an empty config, the actual config will be
+	// updated later by the internalUpdateVPNConfig endpoint (aka from the VPN
+	// service worker)
+
+	err = db.CreateVPNConfig("", "", userID)
 	if err != nil {
-		logger.Error("failed to update user VPN config count", "error", err)
-		http.Error(w, "Failed to update VPN config count", http.StatusInternalServerError)
+		logger.Error("failed to create VPN config", "error", err)
+		http.Error(w, "Failed to create VPN config", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	svpnID := chi.URLParam(r, "id")
+	vpnID, err := strconv.ParseUint(svpnID, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid VPN config ID format", http.StatusBadRequest)
+		return
+	}
+
+	vpnConfig, err := db.GetVPNConfigByID(uint(vpnID))
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "VPN config not found", http.StatusNotFound)
+			return
+		}
+		logger.Error("Failed to get VPN config by ID", "error", err)
+		http.Error(w, "Failed to get VPN config", http.StatusInternalServerError)
+		return
+	}
+	if vpnConfig.UserID != userID {
+		http.Error(w, "VPN config not found", http.StatusNotFound)
+		return
+	}
+
+	err = db.DeleteVPNConfigByID(uint(vpnID))
+	if err != nil {
+		logger.Error("Failed to delete VPN config", "error", err)
+		http.Error(w, "Failed to delete VPN config", http.StatusInternalServerError)
 		return
 	}
 

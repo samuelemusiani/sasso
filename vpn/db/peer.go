@@ -66,3 +66,10 @@ func GetAllPeers() ([]Peer, error) {
 	}
 	return ifaces, nil
 }
+
+func DeletePeerByID(id uint) error {
+	if err := db.Delete(&Peer{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}

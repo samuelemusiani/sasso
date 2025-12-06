@@ -73,3 +73,13 @@ func RemoveSubnet(subnet string) error {
 	}
 	return nil
 }
+
+func GetSubnetsByPeerID(peerID uint) ([]Subnet, error) {
+	var subnets []Subnet
+	if err := db.Joins("JOIN subnet_peers ON subnet_peers.subnet_id = subnets.id").
+		Where("subnet_peers.peer_id = ?", peerID).
+		Find(&subnets).Error; err != nil {
+		return nil, err
+	}
+	return subnets, nil
+}

@@ -18,7 +18,6 @@ import (
 	"samuelemusiani/sasso/vpn/wg"
 
 	shorewall "github.com/samuelemusiani/go-shorewall"
-	"gorm.io/gorm"
 )
 
 func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) error {
@@ -80,7 +79,6 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 	logger.Info("Worker started")
 
 	for {
-		// check peers
 		err := checkPeers(logger)
 		if err != nil {
 			logger.Error("Failed to check peers", "error", err)
@@ -88,7 +86,6 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			continue
 		}
 
-		// check firewall
 		err = checkFirewall(logger, fwConfig)
 		if err != nil {
 			logger.With("error", err).Error("Failed to check firewall")
@@ -103,14 +100,14 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			continue
 		}
 
-		users, err := internal.FetchUsers(serverConfig.Endpoint, serverConfig.Secret)
+		vpnConfigs, err := internal.FetchVPNConfigs(serverConfig.Endpoint, serverConfig.Secret)
+
+		err = deletePeers(logger, vpnConfigs, fwConfig)
 		if err != nil {
-			logger.Error("Failed to fetch users from main server", "error", err)
-			time.Sleep(10 * time.Second)
-			continue
+			logger.Error("Failed to delete peers", "error", err)
 		}
 
-		err = createPeers(logger, users, vpnSubnet)
+		err = createPeers(logger, vpnConfigs, vpnSubnet)
 		if err != nil {
 			logger.Error("Failed to create VNets", "error", err)
 		}
@@ -125,7 +122,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			logger.Error("Failed to delete VNets", "error", err)
 		}
 
-		err = updateNetsOnServer(logger, serverConfig.Endpoint, serverConfig.Secret)
+		err = updateNetsOnServer(logger, vpnConfigs, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
 			logger.Error("Failed to update nets on main server", "error", err)
 		}
@@ -141,6 +138,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 		return err
 	}
 
+	// Remove firewall rules and DB entries for nets that are no longer present
 	for _, ln := range localNets {
 		f := func(n internal.Net) bool { return n.Subnet == ln.Subnet }
 		if slices.IndexFunc(nets, f) != -1 {
@@ -178,45 +176,104 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 	return nil
 }
 
-func createPeers(logger *slog.Logger, users []internal.User, vpnSubnet string) error {
-	for _, u := range users {
-		peers, err := db.GetPeersByUserID(u.ID)
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("Failed to get peer from DB for creation", "error", err, "user_id", u.ID)
+func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig config.Firewall) error {
+	// We could optimize this by looking at which users have reduced their number
+	// of VPN configs, but for now we only iterate over all peers and check if they
+	// are still needed.
+	peers, err := db.GetAllPeers()
+	if err != nil {
+		logger.Error("Failed to get all peers from DB", "error", err)
+		return err
+	}
+
+	for _, p := range peers {
+		if !slices.ContainsFunc(vpnConfigs, func(v internal.VPNProfile) bool {
+			return v.VPNIP == p.Address
+		}) {
+
+			wgPeer := wg.PeerFromDB(&p)
+			err = wg.DeletePeer(&wgPeer)
+			if err != nil {
+				logger.Error("Failed to delete peer from WireGuard", "error", err, "peer_id", p.ID)
+				continue
+			}
+			nets, err := db.GetSubnetsByPeerID(p.ID)
+			if err != nil {
+				logger.Error("Failed to get subnets for deleted peer", "error", err, "peer_id", p.ID)
+				continue
+			}
+
+			for _, n := range nets {
+				logger.Warn("Deleting firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
+				err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", p.Address, n.Subnet))
+				if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
+					logger.Error("Failed to delete firewall rule for deleted peer", "error", err, "peer_id", p.ID, "subnet", n.Subnet)
+					continue
+				} else {
+					logger.Info("Successfully deleted firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
+				}
+			}
+			if err = shorewall.Reload(); err != nil {
+				logger.Error("Failed to reload firewall after deleting peer", "error", err, "peer_id", p.ID)
+				continue
+			}
+
+			err = db.DeletePeerByID(p.ID)
+			if err != nil {
+				logger.Error("Failed to delete peer from DB", "error", err, "peer_id", p.ID)
+				continue
+			}
+
+			logger.Info("Successfully deleted peer", "peer_id", p.ID, "address", p.Address)
+		}
+	}
+	return nil
+}
+
+func createPeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, vpnSubnet string) error {
+	peers, err := db.GetAllPeers()
+	if err != nil {
+		logger.Error("Failed to get all peers from DB", "error", err)
+		return err
+	}
+
+	for _, v := range vpnConfigs {
+		if slices.ContainsFunc(peers, func(p db.Peer) bool {
+			return p.ID == v.ID
+		}) {
+			// Peer already exists
 			continue
 		}
-		// TODO: Eliminate redundant peers if len(peers) > u.NumberOFVPNConfigs
-		if len(peers) >= int(u.NumberOFVPNConfigs) {
+
+		// Create new peer
+		logger.Info("Creating new peer", "ID", v.ID, "user_id", v.UserID)
+		newAddr, err := util.NextAvailableAddress(vpnSubnet)
+		if err != nil {
+			logger.Error("Failed to generate new address", "error", err)
 			continue
 		}
 
-		for i := range int(u.NumberOFVPNConfigs) - len(peers) {
-			logger.Info("Creating new peer", "i", i, "user_id", u.ID)
-			newAddr, err := util.NextAvailableAddress(vpnSubnet)
-			if err != nil {
-				logger.Error("Failed to generate new address", "error", err)
-				continue
-			}
-
-			wgPeer, err := wg.NewWGConfig(newAddr)
-			if err != nil {
-				logger.Error("Failed to generate WireGuard config", "error", err)
-				continue
-			}
-
-			err = db.NewPeer(wgPeer.PrivateKey, wgPeer.PublicKey, newAddr, u.ID)
-			if err != nil {
-				logger.Error("Failed to save peer to database", "error", err)
-				continue
-			}
-
-			logger.Info("Successfully created new peer", "user_id", u.ID, "address", newAddr)
+		wgPeer, err := wg.NewWGConfig(newAddr)
+		if err != nil {
+			logger.Error("Failed to generate WireGuard config", "error", err)
+			continue
 		}
+
+		err = db.NewPeer(wgPeer.PrivateKey, wgPeer.PublicKey, newAddr, v.UserID)
+		if err != nil {
+			logger.Error("Failed to save peer to database", "error", err)
+			continue
+		}
+
+		logger.Info("Successfully created new peer", "user_id", v.UserID, "address", newAddr)
 	}
 
 	return nil
 }
 
+// checkPeers compares the peers in the database with the peers in the WireGuard
+// and makes sure they are in sync. The DB state is considered the source of
+// truth.
 func checkPeers(logger *slog.Logger) error {
 	dbPeers, err := db.GetAllPeers()
 	if err != nil {
@@ -314,51 +371,26 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 	return nil
 }
 
-func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
-	vpns, err := internal.FetchVPNConfigs(endpoint, secret)
-	if err != nil {
-		logger.Error("Failed to fetch VPN configs from main server", "error", err)
-		return err
-	}
-
+func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoint, secret string) error {
+	// Updates existing VPN configs on the main server if they differ from the
+	// local ones
 	peers, err := db.GetAllPeers()
 	if err != nil {
 		logger.Error("Failed to get all peers from DB", "error", err)
 		return err
 	}
 
-	// Creates VPN configs on the main server for local peers that don't have one yet
-	for _, p := range peers {
-		f := func(v internal.VPNUpdate) bool { return v.VPNIP == p.Address }
-		if slices.IndexFunc(vpns, f) != -1 {
-			continue
-		}
-
-		wgIface := wg.PeerFromDB(&p)
-		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
-
-		logger.Info("Creating VPN config on main server", "peer_id", p.ID)
-		err = internal.CreateVPNConfig(endpoint, secret, internal.VPNCreate{
-			VPNUpdate: internal.VPNUpdate{
-				VPNConfig: base64Conf,
-				VPNIP:     wgIface.Address,
-			},
-			UserID: p.UserID,
-		})
-		if err != nil {
-			logger.Error("Failed to create VPN config on main server", "error", err)
-			continue
-		}
-	}
-
-	// Updates already existing VPN configs on the main server if they differ
-	// from the local ones
 	for _, v := range vpns {
-		peer, err := db.GetPeerByAddress(v.VPNIP)
-		if err != nil {
-			logger.Error("Failed to get Peer from DB", "error", err)
+		idx := slices.IndexFunc(peers, func(p db.Peer) bool {
+			return p.ID == v.ID
+		})
+
+		if idx == -1 {
+			logger.Warn("Peer not found in DB, skipping update. This should not happen.", "id", v.ID)
 			continue
 		}
+
+		peer := &peers[idx]
 
 		wgIface := wg.PeerFromDB(peer)
 		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
@@ -367,7 +399,7 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 		}
 
 		logger.Info("Updating VPN config on main server", "id", v.ID)
-		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNUpdate{
+		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNProfile{
 			ID:        v.ID,
 			VPNConfig: base64Conf,
 			VPNIP:     wgIface.Address,
@@ -377,6 +409,8 @@ func updateNetsOnServer(logger *slog.Logger, endpoint, secret string) error {
 	return nil
 }
 
+// checkFirewall checks that all firewall rules for the peers in the database
+// are actually present in shorewall, and adds them if they are missing.
 func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 	// for all subnets in the db, check if there is a rule in shorewall
 	subnets, err := db.GetAllSubnets()
