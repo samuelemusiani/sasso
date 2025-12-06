@@ -96,6 +96,16 @@ func GetAllVPNConfigs() ([]VPNConfig, error) {
 	return vpnConfigs, nil
 }
 
+func CountVPNConfigsByUserID(userID uint) (int64, error) {
+	var count int64
+	result := db.Model(&VPNConfig{}).Where("user_id = ?", userID).Count(&count)
+	if result.Error != nil {
+		logger.Error("Failed to count VPN configs by user ID", "error", result.Error)
+		return 0, result.Error
+	}
+	return count, nil
+}
+
 func DeleteVPNConfigByID(id uint) error {
 	result := db.Delete(&VPNConfig{}, id)
 	if result.Error != nil {

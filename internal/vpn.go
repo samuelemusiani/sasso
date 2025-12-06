@@ -11,7 +11,7 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchVPNConfigs(endpoint, secret string) ([]VPNUpdate, error) {
+func FetchVPNConfigs(endpoint, secret string) ([]VPNProfile, error) {
 	client := http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", endpoint+"/internal/vpn", nil)
 	if err != nil {
@@ -29,7 +29,7 @@ func FetchVPNConfigs(endpoint, secret string) ([]VPNUpdate, error) {
 		return nil, errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
 	}
 
-	var nets []VPNUpdate
+	var nets []VPNProfile
 	err = json.NewDecoder(res.Body).Decode(&nets)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to decode nets status"))
@@ -38,7 +38,7 @@ func FetchVPNConfigs(endpoint, secret string) ([]VPNUpdate, error) {
 	return nets, nil
 }
 
-func UpdateVPNConfig(endpoint, secret string, vpn VPNUpdate) error {
+func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) error {
 
 	body, err := json.Marshal(vpn)
 	if err != nil {
@@ -47,33 +47,6 @@ func UpdateVPNConfig(endpoint, secret string, vpn VPNUpdate) error {
 
 	client := http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("PUT", endpoint+"/internal/vpn", bytes.NewBuffer(body))
-	if err != nil {
-		return errors.Join(err, errors.New("failed to create request to fetch vpn status"))
-	}
-	auth.AddAuthToRequest(req, secret)
-
-	res, err := client.Do(req)
-	if err != nil {
-		return errors.Join(err, errors.New("failed to perform request to fetch vpn status"))
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
-	}
-
-	return nil
-}
-
-func CreateVPNConfig(endpoint, secret string, vpn VPNCreate) error {
-
-	body, err := json.Marshal(vpn)
-	if err != nil {
-		return errors.Join(err, errors.New("failed to marshal vpn create"))
-	}
-
-	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("POST", endpoint+"/internal/vpn", bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}

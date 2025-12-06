@@ -23,16 +23,15 @@ type loginRequest struct {
 }
 
 type returnUser struct {
-	ID                 uint        `json:"id"`
-	Username           string      `json:"username"`
-	Email              string      `json:"email"`
-	Realm              string      `json:"realm,omitempty"`
-	Role               db.UserRole `json:"role"`
-	MaxCores           uint        `json:"max_cores,omitempty"`
-	MaxRAM             uint        `json:"max_ram,omitempty"`
-	MaxDisk            uint        `json:"max_disk,omitempty"`
-	MaxNets            uint        `json:"max_nets,omitempty"`
-	NumberOfVPNConfigs uint        `json:"number_of_vpn_configs"`
+	ID       uint        `json:"id"`
+	Username string      `json:"username"`
+	Email    string      `json:"email"`
+	Realm    string      `json:"realm,omitempty"`
+	Role     db.UserRole `json:"role"`
+	MaxCores uint        `json:"max_cores,omitempty"`
+	MaxRAM   uint        `json:"max_ram,omitempty"`
+	MaxDisk  uint        `json:"max_disk,omitempty"`
+	MaxNets  uint        `json:"max_nets,omitempty"`
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -154,16 +153,15 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 			realm = "unknown"
 		}
 		returnUsers[i] = returnUser{
-			ID:                 user.ID,
-			Username:           user.Username,
-			Email:              user.Email,
-			Realm:              realm,
-			Role:               user.Role,
-			MaxCores:           user.MaxCores,
-			MaxRAM:             user.MaxRAM,
-			MaxDisk:            user.MaxDisk,
-			MaxNets:            user.MaxNets,
-			NumberOfVPNConfigs: user.NumberOfVPNConfigs,
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+			Realm:    realm,
+			Role:     user.Role,
+			MaxCores: user.MaxCores,
+			MaxRAM:   user.MaxRAM,
+			MaxDisk:  user.MaxDisk,
+			MaxNets:  user.MaxNets,
 		}
 	}
 

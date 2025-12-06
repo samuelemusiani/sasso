@@ -14,15 +14,11 @@ type Net struct {
 	UserIDs []uint `json:"user_ids"` // IDs of users who have access to this network
 }
 
-type VPNUpdate struct {
+type VPNProfile struct {
 	ID        uint   `json:"id"`
 	VPNConfig string `json:"vpn_config"`
 	VPNIP     string `json:"vpn_ip"`
-}
-
-type VPNCreate struct {
-	VPNUpdate
-	UserID uint `json:"user_id"`
+	UserID    uint   `json:"user_id"`
 }
 
 type PortForward struct {

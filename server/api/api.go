@@ -248,7 +248,6 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Put("/net/{id}", internalUpdateNet)
 
 		r.Get("/vpn", internalGetVPNConfigs)
-		r.Post("/vpn", internalCreateVPNConfig)
 		r.Put("/vpn", internalUpdateVPNConfig)
 
 		r.Get("/user", internalListUsers)
