@@ -67,7 +67,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		return nil, ErrInvalidVMState
 	}
 
-	_, _, _, mcontent, err := listBackups(vmID, since)
+	_, mcontent, err := listBackups(vmID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		return 0, ErrInvalidVMState
 	}
 
-	_, _, _, mcontent, err := listBackups(vmID, time.Time{})
+	_, mcontent, err := listBackups(vmID, time.Time{})
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 		return 0, err
@@ -190,7 +190,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, true)
+	volid, err := findVolid(vmID, backupid, since, true, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -228,7 +228,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, false)
+	volid, err := findVolid(vmID, backupid, since, false, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -247,35 +247,37 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 	return bkr.ID, nil
 }
 
-func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *proxmox.Node, vm *proxmox.VirtualMachine, scontent []*proxmox.StorageContent, err error) {
-	cluster, err = getProxmoxCluster(client)
+// Proxmox node is returned only for optimization purposes as often the caller
+// needs it right after calling this function.
+func listBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*proxmox.StorageContent, err error) {
+	cluster, err := getProxmoxCluster(client)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	m, err := mapVMIDToProxmoxNodes(cluster)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	nodeName, ok := m[vmID]
 	if !ok {
-		return nil, nil, nil, nil, ErrVMNotFound
+		return nil, nil, ErrVMNotFound
 	}
 
 	node, err = getProxmoxNode(client, nodeName)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	s, err := getProxmoxStorage(node, cBackup.Storage)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	mcontent, err := getProxmoxStorageBackups(s, uint(vmID))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	nContent := make([]*proxmox.StorageContent, 0, len(mcontent))
@@ -289,14 +291,20 @@ func listBackups(vmID uint64, since time.Time) (cluster *proxmox.Cluster, node *
 		}
 	}
 
-	return cluster, node, vm, nContent, nil
+	return node, nContent, nil
 }
 
-// Deletion is true if we are looking for a backup to delete, false if we are looking for a backup to restore
-func findVolid(vmID uint64, backupid string, since time.Time, deletion bool) (string, error) {
-	_, _, _, mcontent, err := listBackups(vmID, since)
-	if err != nil {
-		return "", err
+// deletion is true if we are looking for a backup to delete, false if we are looking for a backup to restore
+//
+// mcontent can be nil, in that case it will be fetched inside the function
+func findVolid(vmID uint64, backupid string, since time.Time, deletion bool, mcontent []*proxmox.StorageContent) (string, error) {
+
+	if mcontent == nil {
+		var err error
+		_, mcontent, err = listBackups(vmID, since)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	for _, item := range mcontent {
@@ -370,7 +378,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 	}
 
 	// We only need to check the upper limit if we are trying to protect a backup
-	_, node, _, mcontent, err := listBackups(vmID, since)
+	node, mcontent, err := listBackups(vmID, since)
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 		return false, err
@@ -389,8 +397,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		}
 	}
 
-	// TODO: optimize this, we search the backup twice
-	volid, err := findVolid(vmID, backupid, since, false)
+	volid, err := findVolid(vmID, backupid, since, false, mcontent)
 	if err != nil {
 		return false, err
 	}
