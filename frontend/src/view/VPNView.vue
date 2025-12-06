@@ -3,6 +3,9 @@ import { api } from '@/lib/api'
 import type { VPNConfig } from '@/types'
 import { onMounted, ref } from 'vue'
 import VPNConfigComponent from '@/components/VPNConfig.vue'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError, success: toastSuccess } = useToastService()
 
 const vpnConfig = ref<VPNConfig[]>([])
 
@@ -29,12 +32,27 @@ function fetchVPNConfig() {
 
 function newVPNConfig() {
   api
-    .post('/vpn/count')
+    .post('/vpn')
     .then(() => {
-      message.value = 'New VPN configuration will be available shortly.'
+      message.value =
+        'New VPN configuration will be available shortly. Refresh the page after waiting a moment.'
     })
     .catch((err) => {
       console.error('Failed to create new VPN config:', err)
+      toastError('Failed to create new VPN configuration.')
+    })
+}
+
+function deleteVPN(id: number) {
+  api
+    .delete(`/vpn/${id}`)
+    .then(() => {
+      fetchVPNConfig()
+      toastSuccess('VPN configuration deleted successfully.')
+    })
+    .catch((err) => {
+      console.error('Failed to delete VPN config:', err)
+      toastError('Failed to delete VPN configuration.')
     })
 }
 
@@ -51,9 +69,9 @@ onMounted(() => {
     </h2>
 
     <div v-for="config in vpnConfig" :key="config.id" class="my-4">
-      <VPNConfigComponent :vpnConfig="config" />
+      <VPNConfigComponent :vpnConfig="config" @delete="deleteVPN(config.id)" />
     </div>
-    <div v-if="vpnConfig.length < 2">
+    <div class="flex justify-center">
       <button @click="newVPNConfig" class="btn btn-primary rounded-lg">
         Create New VPN Configuration
       </button>

@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/server/db"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +85,7 @@ type returnConfig struct {
 	VPNConfig string `json:"vpn_config"`
 }
 
-func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
+func getUserVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	vpnConfigs, err := db.GetVPNConfigsByUserID(userID)
@@ -121,7 +124,7 @@ func getUserVPNConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
+func addVPNConfig(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	nConfigs, err := db.GetUserVPNConfigCount(userID)
@@ -135,10 +138,45 @@ func updateUserVPNConfigCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.UpdateUserVPNConfigCount(userID, vpnConfigs.MaxProfilesPerUser)
+	err = db.UpdateUserVPNConfigCount(userID, uint(nConfigs)+1)
 	if err != nil {
 		logger.Error("failed to update user VPN config count", "error", err)
 		http.Error(w, "Failed to update VPN config count", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
+	svpnID := chi.URLParam(r, "id")
+	vpnID, err := strconv.ParseUint(svpnID, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid VPN config ID format", http.StatusBadRequest)
+		return
+	}
+
+	vpnConfig, err := db.GetVPNConfigByID(uint(vpnID))
+	if err != nil {
+		if err == db.ErrNotFound {
+			http.Error(w, "VPN config not found", http.StatusNotFound)
+			return
+		}
+		logger.Error("Failed to get VPN config by ID", "error", err)
+		http.Error(w, "Failed to get VPN config", http.StatusInternalServerError)
+		return
+	}
+	if vpnConfig.UserID != userID {
+		http.Error(w, "VPN config not found", http.StatusNotFound)
+		return
+	}
+
+	err = db.DeleteVPNConfigByID(uint(vpnID))
+	if err != nil {
+		logger.Error("Failed to delete VPN config", "error", err)
+		http.Error(w, "Failed to delete VPN config", http.StatusInternalServerError)
 		return
 	}
 

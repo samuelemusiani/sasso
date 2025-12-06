@@ -95,3 +95,12 @@ func GetAllVPNConfigs() ([]VPNConfig, error) {
 
 	return vpnConfigs, nil
 }
+
+func DeleteVPNConfigByID(id uint) error {
+	result := db.Delete(&VPNConfig{}, id)
+	if result.Error != nil {
+		logger.Error("Failed to delete VPN config by ID", "error", result.Error)
+		return result.Error
+	}
+	return nil
+}

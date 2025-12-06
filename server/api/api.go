@@ -149,8 +149,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Post("/ssh-keys", addSSHKey)
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
-		r.Get("/vpn", getUserVPNConfig)
-		r.Post("/vpn/count", updateUserVPNConfigCount)
+		r.Get("/vpn", getUserVPNConfigs)
+		r.Post("/vpn", addVPNConfig)
+		r.Delete("/vpn/{id}", deleteVPNConfig)
 
 		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, r *http.Request) {
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
