@@ -320,14 +320,28 @@ func updateDNS(dnsViews []View) {
 		logger.Error("Error retrieving all nets from DB", "error", err)
 	}
 
-	for _, net := range nets {
+	UpdateVMsViews(nets, dnsViews)
+	logger.Debug("VMS updated -- 1/2")
+
+	vpns, err := db.GetAllVPNConfigs()
+	if err != nil {
+		logger.Error("Error retrieving all vpn configs from DB", "error", err)
+	}
+
+	UpdateUsersViews(vpns, dnsViews)
+	logger.Debug("VMS updated -- 2/2")
+
+}
+
+func UpdateUsersViews(vpnConfigs []db.VPNConfig, dnsViews []View) {
+	for _, vpn := range vpnConfigs {
 
 		//logger.Debug("Control on net", "network", net.ID)
 
 		//databaseView is what the dnsView must be like
-		databaseView, err := buildViewFromNet(net)
+		databaseView, err := buildViewFromVpnConfig(vpn)
 		if err != nil {
-			logger.Error("Error creating view from net", "error", err, "net", net.Subnet, "view", databaseView.Name)
+			logger.Error("Error creating view from vpn", "err", err, "vpn", vpn.VPNIP, "view", databaseView.Name)
 			continue
 		}
 
@@ -336,7 +350,7 @@ func updateDNS(dnsViews []View) {
 			logger.Debug("Creating new view on dns server", "newView", databaseView.Name)
 			err := setupNewStructViewOnDNS(&databaseView)
 			if err != nil {
-				logger.Error("Error setting up view on DNS for net", "netID", net.ID, "view", databaseView.Name, "error", err)
+				logger.Error("Error setting up view on DNS for net", "err", err, "netID", vpn.VPNIP, "view", databaseView.Name)
 			}
 			continue
 		}
@@ -344,14 +358,14 @@ func updateDNS(dnsViews []View) {
 		//get view from the dns server and first sync the zones (database and dns) and then rrsets (still database and dns)
 		dnsView, err := getViewFromViewsWithName(databaseView.Name, dnsViews)
 		if err != nil {
-			logger.Error("Error getting DNS view", "error", err)
+			logger.Error("Error getting DNS view", "err", err, "vpn", vpn.VPNIP)
 			continue
 		}
 
 		//we sync the zones between server and dns, and if it fails we remove the view from dns and recreate it
 		err = syncZones(databaseView.Zones, dnsView.Zones, databaseView)
 		if err != nil {
-			logger.Error("Error syncing zones, proceeding to delete and recreate", "error", err, "view", databaseView.Name)
+			logger.Error("Error syncing zones, proceeding to delete and recreate", "err", err, "vpn", vpn.VPNIP, "view", databaseView.Name)
 			setupNewStructViewOnDNS(&dnsView)
 			continue
 		}
@@ -360,12 +374,65 @@ func updateDNS(dnsViews []View) {
 		for _, databaseZone := range databaseView.Zones {
 			dnsZone, err := getZoneFromZonesWithName(databaseZone.Name, dnsView.Zones)
 			if err != nil {
-				logger.Error("Error getting zone", "error", err, "zone", databaseZone.Name)
+				logger.Error("Error getting zone", "err", err,  "vpn", vpn.VPNIP, "zone", databaseZone.Name)
 			}
 
 			err = syncRRSets(databaseZone.RRSets, dnsZone.RRSets, dnsZone)
 			if err != nil {
-				logger.Error("Error syncing RRSets", "error", err, "view", databaseView.Name, "zone", databaseZone.Name)
+				logger.Error("Error syncing RRSets", "err", err,  "vpn", vpn.VPNIP, "view", databaseView.Name, "zone", databaseZone.Name)
+			}
+		}
+
+	}
+}
+
+func UpdateVMsViews(nets []db.Net, dnsViews []View) {
+	for _, net := range nets {
+
+		//logger.Debug("Control on net", "network", net.ID)
+
+		//databaseView is what the dnsView must be like
+		databaseView, err := buildViewFromNet(net)
+		if err != nil {
+			logger.Error("Error creating view from net", "err", err, "net", net.Subnet, "view", databaseView.Name)
+			continue
+		}
+
+		//see if view exists in DNS, if not create a new one based on databaseView
+		if !viewsHasViewWithName(databaseView.Name, dnsViews) {
+			logger.Debug("Creating new view on dns server", "newView", databaseView.Name)
+			err := setupNewStructViewOnDNS(&databaseView)
+			if err != nil {
+				logger.Error("Error setting up view on DNS for net", "err", err, "netID", net.ID, "view", databaseView.Name)
+			}
+			continue
+		}
+
+		//get view from the dns server and first sync the zones (database and dns) and then rrsets (still database and dns)
+		dnsView, err := getViewFromViewsWithName(databaseView.Name, dnsViews)
+		if err != nil {
+			logger.Error("Error getting DNS view", "err", err, "netID", net.ID)
+			continue
+		}
+
+		//we sync the zones between server and dns, and if it fails we remove the view from dns and recreate it
+		err = syncZones(databaseView.Zones, dnsView.Zones, databaseView)
+		if err != nil {
+			logger.Error("Error syncing zones, proceeding to delete and recreate", "err", err, "netID", net.ID, "view", databaseView.Name)
+			setupNewStructViewOnDNS(&dnsView)
+			continue
+		}
+
+		//for each zone we sync the rrsets between database and dns
+		for _, databaseZone := range databaseView.Zones {
+			dnsZone, err := getZoneFromZonesWithName(databaseZone.Name, dnsView.Zones)
+			if err != nil {
+				logger.Error("Error getting zone", "err", err, "netID", net.ID, "zone", databaseZone.Name)
+			}
+
+			err = syncRRSets(databaseZone.RRSets, dnsZone.RRSets, dnsZone)
+			if err != nil {
+				logger.Error("Error syncing RRSets", "err", err, "netID", net.ID, "view", databaseView.Name, "zone", databaseZone.Name)
 			}
 		}
 
@@ -469,6 +536,43 @@ func syncRRSets(updatedRRSets []RRSet, behindRRSets []RRSet, dnsZone Zone) error
 	return nil
 }
 
+func buildViewFromVpnConfig(vpnConfig db.VPNConfig) (View, error) {
+
+	// to build the view we first setup the view and the zone structs
+	// then for each vm of the net we create an RRSet in (only) zone of the view
+
+	view := View{
+		Name:     fmt.Sprintf("userNet%d", vpnConfig.UserID),
+		Networks: []string{vpnConfig.VPNIP},
+	}
+
+	zone := Zone{
+		Name: fmt.Sprintf("sasso..user%d", vpnConfig.UserID), //userID or Name?
+	}
+
+	// Attach VMs of user as RRSets
+	vms, err := db.GetVMNameWithGatewayInterfaceOfUser(vpnConfig.UserID)
+	if err != nil {
+		return View{}, fmt.Errorf("Failed retrieving VMs from UserID", "UserID", vpnConfig.UserID, "err", err)
+	}
+
+	// for each vm we create an RRSet
+	// [TO IMPLEMENT: if vm is in a group we also add the vm.group.sasso record]
+	for _, vm := range vms {
+		ip := strings.Split(vm.InterfaceIP, "/")[0]
+		rr := RRSet{
+			Name:    fmt.Sprintf("%s.sasso.", vm.VMName),
+			Type:    "A",
+			TTL:     300,
+			Records: []Record{{Ip: ip, Disabled: false}},
+		}
+		zone.RRSets = append(zone.RRSets, rr)
+	}
+
+	view.Zones = []Zone{zone}
+	return view, nil
+}
+
 func buildViewFromNet(net db.Net) (View, error) {
 
 	// to build the view we first setup the view and the zone structs
@@ -486,7 +590,7 @@ func buildViewFromNet(net db.Net) (View, error) {
 	// Attach VMs as RRSets
 	vms, err := db.GetVMsWithPrimaryInterfaceInVNet(net.ID)
 	if err != nil {
-		return View{}, fmt.Errorf("Failed retrieving VMs", "netID", net.ID, "error", err)
+		return View{}, fmt.Errorf("Failed retrieving VMs", "netID", net.ID, "err", err)
 	}
 
 	// for each vm we create an RRSet
