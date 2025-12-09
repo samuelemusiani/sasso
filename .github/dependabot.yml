@@ -4,16 +4,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
 
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     groups:
       # Group all dependencies by with minor or patch version updates into one
       # PR with production and development dependencies grouped into separate
