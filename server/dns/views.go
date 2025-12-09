@@ -52,6 +52,7 @@ func newZoneInView(zone Zone, view View) error {
 
 	reqBody := map[string]interface{}{
 		"name": zone.Name,
+		"kind": "Native",
 	}
 
 	_, _, err := HttpRequest("POST", url, reqBody)
