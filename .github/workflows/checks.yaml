@@ -41,3 +41,6 @@ jobs:
       - name: Test
         run: just test
 
+      - name: Vet Go code
+        run: go vet ./...
+
