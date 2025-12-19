@@ -197,6 +197,10 @@ func DeleteGroup(groupID uint) error {
 			}
 		}
 		err = tx.Where("group_id = ?", groupID).Delete(&GroupResource{}).Error
+		if err != nil {
+			logger.Error("Failed to delete group resources", "error", err)
+			return err
+		}
 
 		// Delete the group
 		result := tx.Delete(&Group{}, groupID)
@@ -295,6 +299,10 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 		}
 
 		err = tx.Model(&invitation).Update("state", "accepted").Error
+		if err != nil {
+			logger.Error("Failed to update invitation state", "error", err)
+			return err
+		}
 		userGroup := UserGroup{
 			UserID:  userID,
 			GroupID: invitation.GroupID,

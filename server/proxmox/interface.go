@@ -54,7 +54,13 @@ func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 
 	InterfaceNumberMutex.Lock()
 	defer InterfaceNumberMutex.Unlock()
+
 	ifaceNumber, err := db.CountInterfacesOnVM(VMID)
+	if err != nil {
+		logger.Error("Failed to count interfaces on VM", "VMID", VMID, "error", err)
+		return nil, err
+	}
+
 	if ifaceNumber >= 32 {
 		logger.Error("VM has reached the maximum number of interfaces", "VMID", VMID)
 		return nil, ErrMaxNumberOfInterfaces

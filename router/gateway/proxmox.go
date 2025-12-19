@@ -83,6 +83,10 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 
 func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
 	vm, err := pg.getVM()
+	if err != nil {
+		logger.Error("Failed to get Proxmox VM", "error", err)
+		return nil, err
+	}
 
 	// TODO: Check if in the future the APIs will acctually support Nets maps
 	// https://github.com/luthermonson/go-proxmox/issues/211
@@ -298,6 +302,10 @@ func (pg *ProxmoxGateway) getVM() (*proxmox.VirtualMachine, error) {
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	resources, err := cluster.Resources(ctx, "vm")
 	cancel()
+	if err != nil {
+		logger.Error("Failed to get Proxmox cluster resources", "error", err)
+		return nil, err
+	}
 
 	var vmNode string
 	for i := range resources {

@@ -108,6 +108,10 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 	}
 
 	groups, err := db.GetGroupsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get groups by user ID", "userID", userID, "error", err)
+		return nil, err
+	}
 	for _, g := range groups {
 		gvms, err := db.GetVMsByGroupID(g.ID)
 		if err != nil {
@@ -709,11 +713,18 @@ func UpdateVMResources(VMID uint64, cores, ram, disk uint) error {
 	}
 
 	var currentCores, currentRAM, currentDisk uint
-
 	if group != nil {
 		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByGroupID(group.ID)
+		if err != nil {
+			logger.Error("Failed to get current VM resources from database for group", "groupID", group.ID, "error", err)
+			return err
+		}
 	} else {
 		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByUserID(vm.OwnerID)
+		if err != nil {
+			logger.Error("Failed to get current VM resources from database for user", "userID", vm.OwnerID, "error", err)
+			return err
+		}
 	}
 
 	var maxCores, maxRAM, maxDisk uint

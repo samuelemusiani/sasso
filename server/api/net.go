@@ -120,6 +120,12 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	groups, err := db.GetGroupsByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to get groups by user ID", "userID", userID, "err", err)
+		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+		return
+	}
+
 	for _, g := range groups {
 		groupNets, err := db.GetNetsByGroupID(g.ID)
 		if err != nil {

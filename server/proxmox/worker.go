@@ -281,6 +281,10 @@ func deleteVNets(cluster *gprox.Cluster) {
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	if err != nil {
+		logger.Error("Failed to wait for Proxmox task completion", "error", err)
+		return
+	}
 	if isSuccessful {
 		logger.Debug("SDN changes applied successfully")
 		for _, v := range vnets {
@@ -373,6 +377,10 @@ func createVMs() {
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(task)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
+			continue
+		}
 		if isSuccessful {
 			err = db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
 			if err != nil {
@@ -461,6 +469,10 @@ func deleteVMs(VMLocation map[uint64]string) {
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(task)
+		if err != nil {
+			logger.Error("Failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
+			continue
+		}
 		cancel()
 		if isSuccessful {
 			err = db.DeleteVMByID(v.ID)
@@ -524,6 +536,10 @@ func configureVNets(cluster *gprox.Cluster) {
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	if err != nil {
+		logger.Error("Failed to wait for Proxmox task completion", "error", err)
+		return
+	}
 	if isSuccessful {
 		logger.Debug("SDN changes applied successfully")
 		for _, v := range vnets {
@@ -690,6 +706,10 @@ func configureVMs(vmNodes map[uint64]string) {
 			}
 
 			isSuccessful, err := waitForProxmoxTaskCompletion(t)
+			if err != nil {
+				logger.Error("Failed to wait for resize disk task completion", "vmid", v.ID, "err", err)
+				continue
+			}
 			logger.Debug("Task finished", "isSuccessful", isSuccessful)
 			if !isSuccessful {
 				logger.Error("Failed to resize disk on VM", "vmid", v.ID)

@@ -101,6 +101,11 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		}
 
 		vpnConfigs, err := internal.FetchVPNConfigs(serverConfig.Endpoint, serverConfig.Secret)
+		if err != nil {
+			logger.Error("Failed to fetch VPN configs from main server", "error", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		err = deletePeers(logger, vpnConfigs, fwConfig)
 		if err != nil {
@@ -404,6 +409,10 @@ func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoin
 			VPNConfig: base64Conf,
 			VPNIP:     wgIface.Address,
 		})
+		if err != nil {
+			logger.Error("Failed to update VPN config on main server", "error", err, "id", v.ID)
+			continue
+		}
 	}
 
 	return nil
