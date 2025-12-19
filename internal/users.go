@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"samuelemusiani/sasso/internal/auth"
 	"time"
+
+	"samuelemusiani/sasso/internal/auth"
 )
 
 type User struct {

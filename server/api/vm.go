@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
+
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
-	"time"
 )
 
 func vms(w http.ResponseWriter, r *http.Request) {

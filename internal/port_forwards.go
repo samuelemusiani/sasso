@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"samuelemusiani/sasso/internal/auth"
 	"time"
+
+	"samuelemusiani/sasso/internal/auth"
 )
 
 func FetchPortForwards(endpoint, secret string) (portForwards []PortForward, err error) {

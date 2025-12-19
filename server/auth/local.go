@@ -3,9 +3,8 @@ package auth
 import (
 	"errors"
 
-	"samuelemusiani/sasso/server/db"
-
 	"golang.org/x/crypto/bcrypt"
+	"samuelemusiani/sasso/server/db"
 )
 
 type localAuthenticator struct {

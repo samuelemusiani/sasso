@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/proxmox"
 	"strings"
 	"time"
+
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/proxmox"
 )
 
 func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 )
 
 type returnGroup struct {

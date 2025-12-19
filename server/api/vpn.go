@@ -4,11 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"samuelemusiani/sasso/internal"
-	"samuelemusiani/sasso/server/db"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"samuelemusiani/sasso/internal"
+	"samuelemusiani/sasso/server/db"
 )
 
 func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {

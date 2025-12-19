@@ -2,9 +2,9 @@ package util
 
 import (
 	"log/slog"
-	"samuelemusiani/sasso/vpn/db"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
+	"samuelemusiani/sasso/vpn/db"
 )
 
 func NextAvailableAddress(subnet string) (string, error) {

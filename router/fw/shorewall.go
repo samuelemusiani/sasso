@@ -3,11 +3,11 @@ package fw
 import (
 	"errors"
 	"fmt"
-	"samuelemusiani/sasso/router/config"
 	"slices"
 	"sort"
 
 	goshorewall "github.com/samuelemusiani/go-shorewall"
+	"samuelemusiani/sasso/router/config"
 )
 
 type ShorewallFirewall struct {

@@ -5,9 +5,8 @@ import (
 	"slices"
 	"sync"
 
-	"samuelemusiani/sasso/server/db"
-
 	"github.com/seancfoley/ipaddress-go/ipaddr"
+	"samuelemusiani/sasso/server/db"
 )
 
 type InterfaceStatus string

@@ -5,13 +5,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"samuelemusiani/sasso/server/auth"
-	"samuelemusiani/sasso/server/db"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
+	"samuelemusiani/sasso/server/auth"
+	"samuelemusiani/sasso/server/db"
 )
 
 const ClaimUserID = "user_id"

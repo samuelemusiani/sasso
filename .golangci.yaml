@@ -98,7 +98,6 @@ linters:
     - spancheck
     - sqlclosecheck
     - staticcheck
-
     - tagalign
     # - tagliatelle
     - testableexamples
@@ -142,10 +141,10 @@ linters:
       - "./frontend/"
       - vendor
 
-# formatters:
-  # enable:
-    # - gci
-    # - gofmt
+formatters:
+  enable:
+    - gci
+    - gofmt
     # - golines
 
 issues:

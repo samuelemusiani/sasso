@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"samuelemusiani/sasso/router/config"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"samuelemusiani/sasso/router/config"
 )
 
 type LinuxGateway struct {

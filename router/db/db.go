@@ -6,12 +6,12 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"samuelemusiani/sasso/router/config"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gorm_logger "gorm.io/gorm/logger"
+	"samuelemusiani/sasso/router/config"
 )
 
 var (

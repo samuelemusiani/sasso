@@ -8,11 +8,10 @@ import (
 	"os"
 	"time"
 
-	"samuelemusiani/sasso/server/config"
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gorm_logger "gorm.io/gorm/logger"
+	"samuelemusiani/sasso/server/config"
 )
 
 var (

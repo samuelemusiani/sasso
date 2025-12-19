@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"samuelemusiani/sasso/server/db"
-
 	goprox "github.com/luthermonson/go-proxmox"
+	"samuelemusiani/sasso/server/db"
 )
 
 type VMStatus string

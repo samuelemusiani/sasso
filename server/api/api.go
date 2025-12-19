@@ -11,13 +11,12 @@ import (
 	"net/http"
 	"path"
 
-	"samuelemusiani/sasso/internal/auth"
-	"samuelemusiani/sasso/server/config"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"samuelemusiani/sasso/internal/auth"
+	"samuelemusiani/sasso/server/config"
 )
 
 var (

@@ -12,9 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"samuelemusiani/sasso/server/config"
-
 	"github.com/luthermonson/go-proxmox"
+	"samuelemusiani/sasso/server/config"
 )
 
 var (

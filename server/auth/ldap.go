@@ -6,9 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"samuelemusiani/sasso/server/db"
-
 	"github.com/go-ldap/ldap/v3"
+	"samuelemusiani/sasso/server/db"
 )
 
 type ldapAuthenticator struct {

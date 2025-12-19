@@ -9,10 +9,11 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
-	"samuelemusiani/sasso/vpn/config"
-	"samuelemusiani/sasso/vpn/db"
 	"strconv"
 	"strings"
+
+	"samuelemusiani/sasso/vpn/config"
+	"samuelemusiani/sasso/vpn/db"
 )
 
 var (

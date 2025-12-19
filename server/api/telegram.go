@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 )
 
 var (

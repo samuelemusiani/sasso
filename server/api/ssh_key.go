@@ -3,12 +3,12 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/ssh"
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 )
 
 func getSSHKeys(w http.ResponseWriter, r *http.Request) {

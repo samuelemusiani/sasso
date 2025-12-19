@@ -11,13 +11,12 @@ import (
 	"sort"
 	"time"
 
+	shorewall "github.com/samuelemusiani/go-shorewall"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/util"
 	"samuelemusiani/sasso/vpn/wg"
-
-	shorewall "github.com/samuelemusiani/go-shorewall"
 )
 
 func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) error {

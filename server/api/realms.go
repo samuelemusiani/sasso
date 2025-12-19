@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/db"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type Realm struct {

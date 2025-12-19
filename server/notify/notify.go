@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"samuelemusiani/sasso/server/config"
-	"samuelemusiani/sasso/server/db"
 	"time"
 
 	"github.com/wneessen/go-mail"
+	"samuelemusiani/sasso/server/config"
+	"samuelemusiani/sasso/server/db"
 )
 
 var (

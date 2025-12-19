@@ -4,10 +4,10 @@ import (
 	"errors"
 	"log/slog"
 	"net"
-	"samuelemusiani/sasso/router/config"
-	"samuelemusiani/sasso/router/db"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
+	"samuelemusiani/sasso/router/config"
+	"samuelemusiani/sasso/router/db"
 )
 
 var (

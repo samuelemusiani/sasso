@@ -13,11 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"samuelemusiani/sasso/router/config"
-	"samuelemusiani/sasso/router/utils"
-
 	"github.com/luthermonson/go-proxmox"
 	"github.com/vishvananda/netlink"
+	"samuelemusiani/sasso/router/config"
+	"samuelemusiani/sasso/router/utils"
 )
 
 type ProxmoxGateway struct {
