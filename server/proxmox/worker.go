@@ -1,5 +1,5 @@
 // Sasso will write to the DB what the current state should look like. The
-// worker will read the DB and take take care of all the operations that needs
+// worker will read the DB and take care of all the operations that needs
 // to be done
 
 package proxmox

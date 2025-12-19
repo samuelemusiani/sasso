@@ -161,6 +161,7 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 
 type Globals struct {
 	gorm.Model
+
 	Version string
 }
 

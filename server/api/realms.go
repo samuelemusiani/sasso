@@ -22,6 +22,7 @@ type Realm struct {
 
 type LDAPRealm struct {
 	Realm
+
 	URL        string `json:"url"`
 	UserBaseDN string `json:"user_base_dn"`
 	BindDN     string `json:"bind_dn"`
@@ -36,6 +37,7 @@ type LDAPRealm struct {
 
 type UpdateLDAPRealm struct {
 	Realm
+
 	URL        *string `json:"url"`
 	UserBaseDN *string `json:"user_base_dn"`
 	BindDN     *string `json:"bind_dn"`

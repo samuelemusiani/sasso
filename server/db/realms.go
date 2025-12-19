@@ -9,6 +9,7 @@ var (
 
 type Realm struct {
 	gorm.Model
+
 	Name        string `gorm:"uniqueIndex;not null"`
 	Description string `gorm:"not null"`
 	Type        string `gorm:"not null;default:'local'"`
@@ -17,7 +18,8 @@ type Realm struct {
 }
 
 type LDAPRealm struct {
-	Realm      `gorm:"embedded;embeddedPrefix:realm_"`
+	Realm `gorm:"embedded;embeddedPrefix:realm_"`
+
 	URL        string `gorm:"not null"`
 	UserBaseDN string `gorm:"not null"`
 	BindDN     string `gorm:"not null"`

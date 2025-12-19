@@ -6,41 +6,41 @@ run:
 
 linters:
   enable:
-    # - arangolint
-    # - asasalint
-    # - asciicheck
-    # - bidichk
-    # - bodyclose
-    # - canonicalheader
-    # - containedctx
+    - arangolint
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
     # - contextcheck
-    # - copyloopvar
+    - copyloopvar
     # - cyclop
-    # - decorder
+    - decorder
     # - depguard
     # - dogsled
     # - dupl
-    # - dupword
-    # - durationcheck
-    # - embeddedstructfieldcheck
+    - dupword
+    - durationcheck
+    - embeddedstructfieldcheck
     # - err113
     - errcheck
-    # - errchkjson
-    # - errname
+    - errchkjson
+    - errname
     # - errorlint
-    # - exhaustive
+    - exhaustive
     # - exhaustruct
-    # - exptostd
+    - exptostd
     # - fatcontext
     # - forbidigo
     # - forcetypeassert
     # - funcorder
     # - funlen
-    # - ginkgolinter
-    # - gocheckcompilerdirectives
+    - ginkgolinter
+    - gocheckcompilerdirectives
     # - gochecknoglobals
-    # - gochecknoinits
-    # - gochecksumtype
+    - gochecknoinits
+    - gochecksumtype
     # - gocognit
     # - goconst
     # - gocritic
@@ -48,25 +48,25 @@ linters:
     # - godoclint
     # - godot
     # - godox
-    # - goheader
+    - goheader
     # - gomoddirectives
-    # - gomodguard
-    # - goprintffuncname
+    - gomodguard
+    - goprintffuncname
     # - gosec
-    # - gosmopolitan
-    # - govet
-    # - grouper
-    # - iface
-    # - importas
-    # - inamedparam
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
     - ineffassign
-    # - interfacebloat
-    # - intrange
-    # - iotamixing
+    - interfacebloat
+    - intrange
+    - iotamixing
     # - ireturn
     # - lll
-    # - loggercheck
-    # - maintidx
+    - loggercheck
+    - maintidx
     # - makezero
     # - mirror
     # - misspell
@@ -75,48 +75,49 @@ linters:
     # - musttag
     # - nakedret
     # - nestif
-    # - nilerr
-    # - nilnesserr
-    # - nilnil
+    - nilerr
+    - nilnesserr
+    - nilnil
     # - nlreturn
     # - noctx
     # - noinlineerr
-    # - nolintlint
+    - nolintlint
     # - nonamedreturns
-    # - nosprintfhostport
-    # - paralleltest
+    - nosprintfhostport
+    - paralleltest
     # - perfsprint
     # - prealloc
-    # - predeclared
+    - predeclared
     # - promlinter
-    # - protogetter
-    # - reassign
-    # - recvcheck
+    - protogetter
+    - reassign
+    - recvcheck
     # - revive
-    # - rowserrcheck
-    # - sloglint
-    # - spancheck
-    # - sqlclosecheck
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
     - staticcheck
-    # - tagalign
+
+    - tagalign
     # - tagliatelle
-    # - testableexamples
-    # - testifylint
-    # - testpackage
-    # - thelper
-    # - tparallel
+    - testableexamples
+    - testifylint
+    - testpackage
+    - thelper
+    - tparallel
     # - unconvert
     # - unparam
-    # - unqueryvet
+    - unqueryvet
     - unused
     # - usestdlibvars
-    # - usetesting
+    - usetesting
     # - varnamelen
-    # - wastedassign
+    - wastedassign
     # - whitespace
     # - wrapcheck
     # - wsl_v5
-    # - zerologlint
+    - zerologlint
 
   # All available settings of specific linters.
   settings:
