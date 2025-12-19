@@ -169,7 +169,7 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 // not create the network in Proxmox
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	net := &Net{
-		Name:      string(name[:]),
+		Name:      name[:],
 		Alias:     alias,
 		Zone:      zone,
 		Tag:       tag,
@@ -193,7 +193,7 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 // not create the network in Proxmox
 func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	net := &Net{
-		Name:      string(name[:]),
+		Name:      name[:],
 		Alias:     alias,
 		Zone:      zone,
 		Tag:       tag,

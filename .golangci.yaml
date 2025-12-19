@@ -105,7 +105,7 @@ linters:
     - testpackage
     - thelper
     - tparallel
-    # - unconvert
+    - unconvert
     # - unparam
     - unqueryvet
     - unused

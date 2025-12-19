@@ -73,7 +73,7 @@ func convertDBVMToVM(dbVM *db.VM, groupID *uint, groupName, groupRole *string) *
 	vm := &VM{
 		ID:                   dbVM.ID,
 		CreatedAt:            dbVM.CreatedAt,
-		Status:               string(dbVM.Status),
+		Status:               dbVM.Status,
 		Name:                 dbVM.Name,
 		Notes:                dbVM.Notes,
 		Cores:                dbVM.Cores,
@@ -797,9 +797,9 @@ func UpdateVMResources(VMID uint64, cores, ram, disk uint) error {
 		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
 	}
 
-	if currentCores-uint(vm.Cores)+cores > maxCores ||
-		currentRAM-uint(vm.RAM)+ram > maxRAM ||
-		currentDisk-uint(vm.Disk)+disk > maxDisk {
+	if currentCores-vm.Cores+cores > maxCores ||
+		currentRAM-vm.RAM+ram > maxRAM ||
+		currentDisk-vm.Disk+disk > maxDisk {
 		return ErrInsufficientResources
 	}
 

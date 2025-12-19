@@ -183,7 +183,7 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 		return nil, errors.New("tag is out of range")
 	}
 
-	netName := cNetwork.SDNZone[0:3] + EncodeBase62(uint32(tag))
+	netName := cNetwork.SDNZone[0:3] + EncodeBase62(tag)
 
 	var net *db.Net
 	if groupID != nil {

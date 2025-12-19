@@ -753,9 +753,9 @@ func configureVMs(vmNodes map[uint64]string) {
 			continue
 		}
 
-		if st.Size < uint(v.Disk) {
+		if st.Size < v.Disk {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			diff := uint(v.Disk) - st.Size
+			diff := v.Disk - st.Size
 			t, err := vm.ResizeDisk(ctx, "scsi0", fmt.Sprintf("+%dG", diff))
 
 			cancel()
@@ -795,7 +795,7 @@ func configureVMs(vmNodes map[uint64]string) {
 			newStatus = string(VMStatusStopped)
 		}
 
-		err = db.UpdateVMStatus(v.ID, string(newStatus))
+		err = db.UpdateVMStatus(v.ID, newStatus)
 		if err != nil {
 			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusStopped, "err", err)
 		}

@@ -337,7 +337,7 @@ func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
 			IPAdd:     iface.IPAdd,
 			Gateway:   iface.Gateway,
 			Status:    iface.Status,
-			VMID:      uint(iface.VMID),
+			VMID:      iface.VMID,
 			VMName:    iface.VMName,
 			GroupID:   iface.GroupID,
 			GroupName: iface.GroupName,

@@ -580,7 +580,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	userID := mustGetUserIDFromContext(r)
 
-	m := getUserResourceMutex(uint(userID))
+	m := getUserResourceMutex(userID)
 
 	m.Lock()
 	defer m.Unlock()
@@ -601,7 +601,7 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
 
-	m := getUserResourceMutex(uint(userID))
+	m := getUserResourceMutex(userID)
 
 	m.Lock()
 	defer m.Unlock()
