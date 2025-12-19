@@ -40,8 +40,6 @@ var (
 	ErrNotFound               = errors.New("a resouces can't be found")
 
 	isProxmoxReachable = true
-	isGatewayReachable = true
-	isVPNReachable     = true
 )
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {

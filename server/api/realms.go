@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
 
 	"samuelemusiani/sasso/server/auth"
@@ -13,8 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
-
-var groupRegex = regexp.MustCompile(`^\w*$`)
 
 type Realm struct {
 	ID          uint   `json:"id"`
