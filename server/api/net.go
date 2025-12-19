@@ -74,7 +74,12 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(returnableNet)
+	err = json.NewEncoder(w).Encode(returnableNet)
+	if err != nil {
+		logger.Error("Failed to encode new net response", "error", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func listNets(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +153,12 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(returnableNets)
+	err = json.NewEncoder(w).Encode(returnableNets)
+	if err != nil {
+		logger.Error("Failed to encode nets", "error", err)
+		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
+		return
+	}
 }
 
 func deleteNet(w http.ResponseWriter, r *http.Request) {

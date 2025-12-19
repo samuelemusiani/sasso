@@ -165,7 +165,11 @@ type Globals struct {
 }
 
 func initGlobals() error {
-	db.AutoMigrate(&Globals{})
+	err := db.AutoMigrate(&Globals{})
+	if err != nil {
+		logger.Error("Failed to migrate Globals table", "error", err)
+		return err
+	}
 	var globals Globals
 	db.First(&globals)
 
@@ -177,7 +181,7 @@ func initGlobals() error {
 
 	logger.Info("Database version mismatch", "old", globals.Version, "current", currentVersion)
 	globals.Version = currentVersion
-	err := db.Save(&globals).Error
+	err = db.Save(&globals).Error
 	if err != nil {
 		logger.Error("Failed to update database version", "error", err)
 		return err

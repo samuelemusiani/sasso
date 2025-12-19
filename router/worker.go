@@ -1,18 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"slices"
 	"time"
 
 	"samuelemusiani/sasso/internal"
-	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
@@ -250,7 +246,6 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 // This function takes care of updating the nets on the main server that are
 // present on the local DB with the correct subnet, gateway and broadcast
 func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) error {
-
 	for _, n := range nets {
 		dbNet, err := db.GetInterfaceByVNet(n.Name)
 		if err != nil {
@@ -265,30 +260,9 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		n.Gateway = dbNet.RouterIP
 		n.Broadcast = dbNet.Broadcast
 
-		data, err := json.Marshal(n)
+		err = internal.UpdateNet(conf.Endpoint, conf.Secret, n)
 		if err != nil {
-			logger.Error("Failed to marshal net", "error", err, "vnet", n.Name)
-			continue
-		}
-
-		client := http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("PUT", fmt.Sprintf("%s/internal/net/%d", conf.Endpoint, n.ID), bytes.NewBuffer(data))
-		if err != nil {
-			logger.Error("Failed to create request to update net", "error", err, "vnet", n.Name)
-			continue
-		}
-
-		auth.AddAuthToRequest(req, conf.Secret)
-		req.Header.Set("Content-Type", "application/json")
-		res, err := client.Do(req)
-		if err != nil {
-			logger.Error("Failed to update net", "error", err, "vnet", n.Name)
-			continue
-		}
-		defer res.Body.Close()
-
-		if res.StatusCode != http.StatusOK {
-			logger.Error("Failed to update net", "status", res.StatusCode, "vnet", n.Name)
+			logger.Error("Failed to update net on main server", "error", err, "vnet", n.Name)
 			continue
 		}
 		logger.Info("Updated net on main server", "vnet", n.Name)

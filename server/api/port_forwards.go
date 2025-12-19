@@ -206,7 +206,12 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(returnPortForwardFromDB(pf))
+	err = json.NewEncoder(w).Encode(returnPortForwardFromDB(pf))
+	if err != nil {
+		logger.Error("Failed to write response header for new port forward", "error", err)
+		http.Error(w, "Failed to write response header", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 

@@ -285,7 +285,7 @@ func sendSingleTelegram(n *notification) error {
 	return nil
 }
 
-func sendTelegramMessage(bot *db.TelegramBot, text string) error {
+func sendTelegramMessage(bot *db.TelegramBot, text string) (err error) {
 	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, bot.Token)
 	msg := telegramMessage{
 		ChatID: bot.ChatID,
@@ -310,13 +310,19 @@ func sendTelegramMessage(bot *db.TelegramBot, text string) error {
 		logger.Error("Failed to send telegram message", "error", err)
 		return err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		if e := resp.Body.Close(); e != nil {
+			err = fmt.Errorf("error while closing telegram response body: %w", e)
+		}
+	}()
+
 	if resp.StatusCode != http.StatusOK {
 		logger.Error("Telegram API returned non-OK status", "status", resp.Status)
 		return fmt.Errorf("telegram API returned status: %s", resp.Status)
 	}
 	logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
-	return nil
+	return
 }
 
 func sendBulkTelegram(n *notification) error {

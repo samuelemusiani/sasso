@@ -32,7 +32,12 @@ func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ifaces)
+	err = json.NewEncoder(w).Encode(ifaces)
+	if err != nil {
+		logger.Error("Failed to encode interfaces response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func addInterface(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +155,12 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(iface)
+	err = json.NewEncoder(w).Encode(iface)
+	if err != nil {
+		logger.Error("Failed to encode new interface response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func updateInterface(w http.ResponseWriter, r *http.Request) {
@@ -318,5 +328,10 @@ func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pIfaces)
+	err = json.NewEncoder(w).Encode(pIfaces)
+	if err != nil {
+		logger.Error("Failed to encode all interfaces response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

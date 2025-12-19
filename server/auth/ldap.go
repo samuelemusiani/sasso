@@ -25,13 +25,17 @@ type ldapAuthenticator struct {
 	MailAttribute string
 }
 
-func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
+func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err error) {
 	l, err := ldap.DialURL(a.URL)
 	if err != nil {
 		logger.Error("Failed to connect to LDAP server", "url", a.URL, "error", err)
 		return nil, err
 	}
-	defer l.Close()
+	defer func() {
+		if e := l.Close(); e != nil {
+			err = errors.Join(err, e)
+		}
+	}()
 
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
@@ -90,7 +94,7 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 		}
 	}
 
-	user, err := db.GetUserByUsernameAndRealmID(username, a.ID)
+	u, err := db.GetUserByUsernameAndRealmID(username, a.ID)
 	if err != nil {
 		if err == db.ErrNotFound {
 			logger.Info("User not found in local DB, creating new user", "username", username)
@@ -118,14 +122,15 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 	if user.Email != email || user.Role != role {
 		user.Email = email
 		user.Role = role
-		err = db.UpdateUser(&user)
+		err = db.UpdateUser(&u)
 		if err != nil {
 			// Log the error but continue, as the user is authenticated
 			logger.Error("Failed to update user email", "error", err, "username", username, "role", role)
 		}
 	}
 
-	return &user, nil
+	user = &u
+	return
 }
 
 func (a *ldapAuthenticator) LoadConfigFromDB(realmID uint) error {

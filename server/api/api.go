@@ -325,7 +325,11 @@ func Shutdown() error {
 }
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Welcome to the Sasso API!"))
+	_, err := w.Write([]byte("Welcome to the Sasso API!"))
+	if err != nil {
+		slog.Error("Writing response", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func frontHandler(ui_fs fs.FS) http.HandlerFunc {
@@ -352,7 +356,11 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 					return
 				}
 				w.Header().Set("Content-Type", "text/html")
-				w.Write(f)
+				_, err = w.Write(f)
+				if err != nil {
+					slog.Error("Writing response", "err", err)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				}
 				return
 			}
 			slog.Error("Reading file", "path", p, "err", err)
@@ -361,7 +369,12 @@ func frontHandler(ui_fs fs.FS) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(p)))
-		w.Write(f)
+		_, err = w.Write(f)
+		if err != nil {
+			slog.Error("Writing response", "err", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

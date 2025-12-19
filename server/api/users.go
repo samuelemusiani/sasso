@@ -80,14 +80,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Authorization", "Bearer "+tokenString)
-	w.Write([]byte("Login successful!"))
+	_, err = w.Write([]byte("Login successful!"))
+	if err != nil {
+		logger.Error("failed to write login response", "error", err)
+		http.Error(w, "Failed to write login response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func whoami(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
 		logger.Error("failed to get user ID from context", "error", err)
-		w.Write([]byte("unauthenticated"))
+		_, err = w.Write([]byte("unauthenticated"))
+		if err != nil {
+			logger.Error("failed to write unauthenticated response", "error", err)
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 

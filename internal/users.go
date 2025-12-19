@@ -14,7 +14,7 @@ type User struct {
 	NumberOFVPNConfigs uint `json:"number_of_vpn_configs"`
 }
 
-func FetchUsers(endpoint, secret string) ([]User, error) {
+func FetchUsers(endpoint, secret string) (users []User, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", endpoint+"/internal/user", nil)
 	if err != nil {
@@ -26,17 +26,21 @@ func FetchUsers(endpoint, secret string) ([]User, error) {
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to perform request to fetch nets status"))
 	}
-	defer res.Body.Close()
+
+	defer func() {
+		if e := res.Body.Close(); e != nil {
+			err = fmt.Errorf("error while closing request body: %w", e)
+		}
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
 	}
 
-	var users []User
 	err = json.NewDecoder(res.Body).Decode(&users)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to decode nets status"))
 	}
 
-	return users, nil
+	return
 }
