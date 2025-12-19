@@ -54,15 +54,19 @@ func checkConfig(config *config.Wireguard) error {
 	if config.PublicKey == "" {
 		return fmt.Errorf("wireguard public key is empty")
 	}
+
 	if config.Endpoint == "" {
 		return fmt.Errorf("wireguard endpoint is empty")
 	}
+
 	if config.VPNSubnet == "" {
 		return fmt.Errorf("wireguard vpn subnet is empty")
 	}
+
 	if config.VMsSubnet == "" {
 		return fmt.Errorf("wireguard vms subnet is empty")
 	}
+
 	if config.Interface == "" {
 		return fmt.Errorf("wireguard interface name is empty")
 	}
@@ -81,6 +85,7 @@ func checkConfig(config *config.Wireguard) error {
 	if colonIndex == -1 {
 		return fmt.Errorf("wireguard endpoint (%s) must include port", config.Endpoint)
 	}
+
 	domainPart := config.Endpoint[:colonIndex]
 	portPart := config.Endpoint[colonIndex+1:]
 	// Check port is valid
@@ -95,13 +100,14 @@ func checkConfig(config *config.Wireguard) error {
 
 	if !rDomain.Match([]byte(domainPart)) {
 		// Could be an IP, check it
-
 		shouldBeV6 := false
+
 		if domainPart[0] == '[' && domainPart[len(domainPart)-1] == ']' {
 			// IPv6 in brackets, remove them
 			domainPart = domainPart[1 : len(domainPart)-1]
 			shouldBeV6 = true
 		}
+
 		ip := net.ParseIP(domainPart)
 
 		if ip == nil {
@@ -142,7 +148,9 @@ func NewWGConfig(address string) (*WGPeer, error) {
 		logger.Error("Error generating keys", "err", err)
 		return nil, err
 	}
+
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
+
 	return &WGPeer{address, privateKey, publicKey}, nil
 }
 
@@ -152,24 +160,34 @@ func (WG *WGPeer) String() string {
 
 func executeCommand(command string, args ...string) (string, string, error) {
 	logger.Debug("Executing command", "command", command, "args", args)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+
+	var (
+		stdout bytes.Buffer
+		stderr bytes.Buffer
+	)
+
 	cmd := exec.Command(command, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
+
 	return stdout.String(), stderr.String(), err
 }
 
 func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (string, string, error) {
 	logger.Debug("Executing command with stdin", "command", command, "args", args)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+
+	var (
+		stdout bytes.Buffer
+		stderr bytes.Buffer
+	)
+
 	cmd := exec.Command(command, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Stdin = stdin
 	err := cmd.Run()
+
 	return stdout.String(), stderr.String(), err
 }
 
@@ -179,7 +197,9 @@ func CreatePeer(i *WGPeer) error {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 		return err
 	}
+
 	logger.Info("WireGuard peer created", "stdout", stdout, "stderr", stderr)
+
 	return nil
 }
 
@@ -189,7 +209,9 @@ func DeletePeer(i *WGPeer) error {
 		logger.Error("Error deleting WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 		return err
 	}
+
 	logger.Info("WireGuard peer deleted", "stdout", stdout, "stderr", stderr)
+
 	return nil
 }
 
@@ -198,10 +220,12 @@ func UpdatePeer(i *WGPeer) error {
 	if err != nil {
 		return err
 	}
+
 	err = CreatePeer(i)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -211,11 +235,13 @@ func genKeys() (string, string, error) {
 		logger.Error("Error generating private key", "err", err, "stderr", stderr)
 		return "", "", err
 	}
+
 	publicKey, stderr, err := executeCommandWithStdin(strings.NewReader(privateKey), "wg", "pubkey")
 	if err != nil {
 		logger.Error("Error generating public key", "err", err, "stderr", stderr)
 		return "", "", err
 	}
+
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
@@ -233,6 +259,7 @@ func ParsePeers() (map[string]WGPeer, error) {
 		if i == 0 {
 			continue // fist is the interface
 		}
+
 		l = strings.TrimSpace(l)
 		fields := strings.Split(l, "\t")
 

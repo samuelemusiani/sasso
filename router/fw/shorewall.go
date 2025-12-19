@@ -20,9 +20,11 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 	if c.ExternalZone == "" {
 		return nil, fmt.Errorf("external zone cannot be empty")
 	}
+
 	if c.VMZone == "" {
 		return nil, fmt.Errorf("VM zone cannot be empty")
 	}
+
 	if c.PublicIP == "" {
 		return nil, fmt.Errorf("public IP cannot be empty")
 	}
@@ -31,12 +33,14 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shorewall version: %v", err)
 	}
+
 	logger.Info("Shorewall version", "version", v)
 
 	zones, err := goshorewall.GetZones()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shorewall zones: %v", err)
 	}
+
 	fwZones := []string{c.ExternalZone, c.VMZone}
 	for _, z := range fwZones {
 		if !slices.ContainsFunc(zones, func(sz goshorewall.Zone) bool {
@@ -84,6 +88,7 @@ func (s *ShorewallFirewall) shorewallRulefromRuleNatReflection(r Rule) goshorewa
 
 func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 	reload := false
+
 	err := goshorewall.AddRule(s.shorewallRulefromRule(r))
 	if err != nil {
 		if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
@@ -113,6 +118,7 @@ func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 
 func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	reload := false
+
 	for i, r := range rules {
 		err := goshorewall.AddRule(s.shorewallRulefromRule(r))
 		if err != nil {
@@ -138,11 +144,13 @@ func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
 func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 	reload := false
+
 	err := goshorewall.RemoveRule(s.shorewallRulefromRule(r))
 	if err != nil {
 		if !errors.Is(err, goshorewall.ErrRuleNotFound) {
@@ -166,11 +174,13 @@ func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
 func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	reload := false
+
 	for i, r := range rules {
 		err := goshorewall.RemoveRule(s.shorewallRulefromRule(r))
 		if err != nil {
@@ -196,6 +206,7 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
@@ -221,10 +232,12 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	}
 
 	sr1 := s.shorewallRulefromRule(r)
+
 	sr2 := s.shorewallRulefromRuleNatReflection(r)
 	if slices.Contains(srules, sr1) && slices.Contains(srules, sr2) {
 		return true, nil
 	}
+
 	return false, nil
 }
 
@@ -236,6 +249,7 @@ func (s *ShorewallFirewall) VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 	}
 
 	srules = sortRules(srules)
+
 	var faultyRules []Rule
 
 	for _, r := range rules {

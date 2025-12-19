@@ -29,7 +29,9 @@ func initNetworks() error {
 		logger.Error("Failed to migrate networks table", "error", err)
 		return err
 	}
+
 	logger.Debug("Networks table migrated successfully")
+
 	return nil
 }
 
@@ -39,6 +41,7 @@ func GetNetByID(ID uint) (*Net, error) {
 		logger.Error("Failed to find network by ID", "netID", ID, "error", err)
 		return nil, err
 	}
+
 	return &net, nil
 }
 
@@ -48,11 +51,13 @@ func GetNetByName(name string) (*Net, error) {
 		logger.Error("Failed to find network by name", "netName", name, "error", err)
 		return nil, err
 	}
+
 	return &net, nil
 }
 
 func GetRandomAvailableTagByZone(zone string, start, end uint32) (uint32, error) {
 	var tag int
+
 	query := `
 		SELECT n FROM generate_series(?::integer, ?::integer) AS n
 		LEFT JOIN nets a ON a.tag = n AND a.zone = ?
@@ -60,11 +65,13 @@ func GetRandomAvailableTagByZone(zone string, start, end uint32) (uint32, error)
 		ORDER BY RANDOM()
 		LIMIT 1;
 	`
+
 	err := db.Raw(query, start, end, zone).Scan(&tag).Error
 	if err != nil {
 		logger.Error("Failed to get random available tag by zone", "zone", zone, "error", err)
 		return 0, err
 	}
+
 	return uint32(tag), nil
 }
 
@@ -74,6 +81,7 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 		logger.Error("Failed to get nets for user", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	return nets, nil
 }
 
@@ -83,6 +91,7 @@ func GetNetsByGroupID(groupID uint) ([]Net, error) {
 		logger.Error("Failed to get nets for group", "groupID", groupID, "error", err)
 		return nil, err
 	}
+
 	return nets, nil
 }
 
@@ -93,6 +102,7 @@ func CountNetsByUserID(userID uint) (uint, error) {
 		logger.Error("Failed to count nets for user", "userID", userID, "error", err)
 		return 0, err
 	}
+
 	return uint(count), nil
 }
 
@@ -103,6 +113,7 @@ func CountNetsByGroupID(groupID uint) (uint, error) {
 		logger.Error("Failed to count nets for group", "groupID", groupID, "error", err)
 		return 0, err
 	}
+
 	return uint(count), nil
 }
 
@@ -112,11 +123,13 @@ func GetSubnetsByUserID(userID uint) ([]string, error) {
 		logger.Error("Failed to get subnets for user", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
 func GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID uint) ([]string, error) {
 	var subnets []string
+
 	err := db.Table("nets").
 		Joins("JOIN user_groups ug ON nets.owner_id = ug.group_id AND nets.owner_type = ?", "Group").
 		Where("ug.user_id = ? AND (ug.role = ? OR ug.role = ?)", userID, "admin", "owner").
@@ -125,6 +138,7 @@ func GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID uint) ([]string, error) 
 		logger.Error("Failed to get subnets from groups where user is admin or owner", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
@@ -134,6 +148,7 @@ func GetSubnetsByGroupID(groupID uint) ([]string, error) {
 		logger.Error("Failed to get subnets for group", "groupID", groupID, "error", err)
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
@@ -146,13 +161,13 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 		logger.Error("Failed to check if address is a gateway or broadcast", "address", address, "error", err)
 		return false, err
 	}
+
 	return count > 0, nil
 }
 
 // CreateNetForUser only creates a network for a user in the DB. It does
 // not create the network in Proxmox
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
-
 	net := &Net{
 		Name:      string(name[:]),
 		Alias:     alias,
@@ -177,7 +192,6 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 // CreateNetForGroup only creates a network for a group in the DB. It does
 // not create the network in Proxmox
 func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
-
 	net := &Net{
 		Name:      string(name[:]),
 		Alias:     alias,
@@ -205,6 +219,7 @@ func GetVNetsWithStatus(status string) ([]Net, error) {
 		logger.Error("Failed to get VNets with status", "status", status, "error", err)
 		return nil, err
 	}
+
 	return nets, nil
 }
 
@@ -213,7 +228,9 @@ func UpdateVNetStatus(ID uint, status string) error {
 		logger.Error("Failed to update VNet status", "netID", ID, "status", status, "error", err)
 		return err
 	}
+
 	logger.Debug("Updated VNet status", "netID", ID, "status", status)
+
 	return nil
 }
 
@@ -222,7 +239,9 @@ func DeleteNetByID(ID uint) error {
 		logger.Error("Failed to delete network", "netID", ID, "error", err)
 		return err
 	}
+
 	logger.Debug("Deleted network", "netID", ID)
+
 	return nil
 }
 
@@ -231,7 +250,9 @@ func UpdateVNet(net *Net) error {
 		logger.Error("Failed to update network", "netID", net.ID, "error", err)
 		return err
 	}
+
 	logger.Debug("Updated network", "netID", net.ID)
+
 	return nil
 }
 
@@ -243,7 +264,9 @@ func UpdateVNetName(ID uint, newName string) error {
 		logger.Error("Failed to update VNet name", "netID", ID, "newName", newName, "error", err)
 		return err
 	}
+
 	logger.Debug("Updated VNet name", "netID", ID, "newName", newName)
+
 	return nil
 }
 
@@ -253,6 +276,7 @@ func GetAllNets() ([]Net, error) {
 		logger.Error("Failed to get all VNets", "error", err)
 		return nil, err
 	}
+
 	return nets, nil
 }
 
@@ -262,6 +286,7 @@ func GetVNetBySubnet(subnet string) (*Net, error) {
 		logger.Error("Failed to find network by subnet", "subnet", subnet, "error", err)
 		return nil, err
 	}
+
 	return &net, nil
 }
 
@@ -271,5 +296,6 @@ func CountVNets() (int64, error) {
 		logger.Error("Failed to count VNets", "error", err)
 		return 0, err
 	}
+
 	return count, nil
 }

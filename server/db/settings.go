@@ -35,7 +35,9 @@ func initSettings() error {
 		logger.Error("Failed to migrate settings table", "error", err)
 		return err
 	}
+
 	logger.Debug("Settings table migrated successfully")
+
 	return nil
 }
 
@@ -45,9 +47,12 @@ func GetSettingsByUserID(userID uint) (*Setting, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
+
 		logger.Error("Failed to get settings by user ID", "userID", userID, "error", err)
+
 		return nil, err
 	}
+
 	return &setting, nil
 }
 
@@ -82,6 +87,7 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 		logger.Error("Failed to create default settings for user", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -90,5 +96,6 @@ func UpdateSettings(setting *Setting) error {
 		logger.Error("Failed to update settings", "error", err)
 		return err
 	}
+
 	return nil
 }

@@ -38,6 +38,7 @@ func main() {
 	}
 
 	slog.Debug("Parsing config file", "path", os.Args[1])
+
 	err := config.Parse(os.Args[1])
 	if err != nil {
 		slog.Error("Failed to parse config file", "error", err)
@@ -48,7 +49,9 @@ func main() {
 	slog.Debug("Config file parsed successfully", "config", c)
 
 	slog.Debug("Initializing utilities")
+
 	utilsLogger := slog.With("module", "utils")
+
 	err = utils.Init(utilsLogger, c.Network)
 	if err != nil {
 		slog.Error("Failed to initialize utilities", "error", err)
@@ -56,6 +59,7 @@ func main() {
 	}
 
 	gatewayLogger := slog.With("module", "gateway")
+
 	err = gateway.Init(gatewayLogger, c.Gateway)
 	if err != nil {
 		slog.Error("Failed to initialize gateway", "error", err)
@@ -63,6 +67,7 @@ func main() {
 	}
 
 	fwLogger := slog.With("module", "firewall")
+
 	err = fw.Init(fwLogger, c.Firewall)
 	if err != nil {
 		slog.Error("Failed to initialize firewall", "error", err)
@@ -71,7 +76,9 @@ func main() {
 
 	// Database
 	slog.Debug("Initializing database")
+
 	dbLogger := slog.With("module", "db")
+
 	err = db.Init(dbLogger, c.Database)
 	if err != nil {
 		slog.Error("Failed to initialize database", "error", err)

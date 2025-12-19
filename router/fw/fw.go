@@ -38,6 +38,7 @@ func Init(l *slog.Logger, c config.Firewall) error {
 	switch c.Type {
 	case "shorewall":
 		logger.Info("Initializing Shorewall firewall")
+
 		globalFirewall, err = NewShorewallFirewall(c.Shorewall)
 		if err != nil {
 			logger.Error("Failed to initialize Shorewall firewall", "error", err)

@@ -33,6 +33,7 @@ var (
 
 func TestEndpointNetZone() {
 	time.Sleep(5 * time.Second)
+
 	wasError := false
 	first := true
 
@@ -44,42 +45,58 @@ func TestEndpointNetZone() {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		cluster, err := client.Cluster(ctx)
+
 		cancel()
+
 		if err != nil {
 			logger.Error("Failed to get Proxmox cluster", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		zone, err := cluster.SDNZone(ctx, cNetwork.SDNZone)
+
 		cancel()
+
 		if err != nil {
 			logger.Error("Failed to get Proxmox SDN cluster zone", "error", err)
+
 			wasError = true
+
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
 		if zone.Name != cNetwork.SDNZone {
 			logger.Error("Proxmox SDN cluster zone name mismatch", "expected", cNetwork.SDNZone, "got", zone.Name)
+
 			wasError = true
+
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
 		if zone.Type != "vxlan" {
 			logger.Error("Proxmox SDN cluster zone type mismatch", "expected", "vxlan", "got", zone.Type)
+
 			wasError = true
+
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
 		if first {
 			logger.Info("Proxmox SDN cluster zone is valid", "name", zone.Name, "type", zone.Type)
+
 			first = false
 		} else if wasError {
 			logger.Info("Proxmox SDN cluster zone is valid again after error", "name", zone.Name, "type", zone.Type)
+
 			wasError = false
 		}
 
@@ -104,9 +121,12 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 			if errors.Is(err, db.ErrNotFound) {
 				return nil, ErrNotFound
 			}
+
 			logger.Error("Failed to get user role in group", "userID", userID, "groupID", *groupID, "error", err)
+
 			return nil, err
 		}
+
 		if role != "admin" && role != "owner" {
 			return nil, ErrPermissionDenied
 		}
@@ -146,6 +166,7 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	if groupID != nil {
 		l = logger.With("groupID", *groupID)
 	}
+
 	if slices.IndexFunc(nets, func(n db.Net) bool { return n.Alias == name }) != -1 {
 		l.Error("Network name already exists for user or group", "userID", userID, "name", name)
 		return nil, ErrVNetNameExists
@@ -194,6 +215,7 @@ func DeleteNet(userID uint, netID uint) error {
 		logger.Error("Failed to get interfaces by net ID", "userID", userID, "netID", netID, "error", err)
 		return err
 	}
+
 	if len(interfaces) > 0 {
 		logger.Error("Cannot delete net with active interfaces", "ownerID", userID, "netID", netID)
 		return ErrVNetHasActiveInterfaces
@@ -210,7 +232,9 @@ func DeleteNet(userID uint, netID uint) error {
 			if errors.Is(err, db.ErrNotFound) {
 				return ErrVNetNotFound
 			}
+
 			logger.Error("Failed to get user role in group", "userID", userID, "groupID", net.OwnerID, "netID", netID, "error", err)
+
 			return err
 		}
 
@@ -253,7 +277,9 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 			if errors.Is(err, db.ErrNotFound) {
 				return ErrVNetNotFound
 			}
+
 			logger.Error("Failed to get user role in group", "userID", userID, "groupID", net.OwnerID, "netID", vnetID, "error", err)
+
 			return err
 		}
 
@@ -291,6 +317,7 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 		net.Alias = name
 		changed = true
 	}
+
 	if net.VlanAware != vlanware {
 		// If vlanaware is changed, we need to set the status to reconfiguring
 		// so that the worker will apply the change
@@ -305,6 +332,7 @@ func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 			logger.Error("Failed to check for interfaces with vlan tags", "userID", userID, "vnetID", vnetID, "error", err)
 			return err
 		}
+
 		if n {
 			return ErrVNetHasTaggedInterfaces
 		}

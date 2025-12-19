@@ -40,6 +40,7 @@ func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	for i, pf := range pfs {
 		rpf[i] = returnPortForwardFromDB(&pf)
 	}
+
 	return rpf
 }
 
@@ -60,6 +61,7 @@ func returnAdminPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	for i, pf := range pfs {
 		rpf[i] = returnAdminPortForwardFromDB(&pf)
 	}
+
 	return rpf
 }
 
@@ -126,6 +128,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	// To avoid this we use a global mutex based on user ID.
 
 	m := getNetMutex(userID)
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -140,6 +143,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	// Check personal subnets first
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
+
 		ip := ipaddr.NewIPAddressString(req.DestIP)
 		if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
 			foundPersonal = true
@@ -156,6 +160,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		// Then check group subnets
 		for _, s := range gsubnets {
 			subnet := ipaddr.NewIPAddressString(s)
+
 			ip := ipaddr.NewIPAddressString(req.DestIP)
 			if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
 				foundGroup = true
@@ -174,6 +179,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to check if DestIP is a gateway or broadcast address", http.StatusInternalServerError)
 		return
 	}
+
 	if isGatewayOrBroadcast {
 		http.Error(w, "DestIP cannot be a gateway or broadcast address", http.StatusBadRequest)
 		return
@@ -210,8 +216,10 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to write response header for new port forward", "error", err)
 		http.Error(w, "Failed to write response header", http.StatusInternalServerError)
+
 		return
 	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -219,6 +227,7 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	sportForwardID := chi.URLParam(r, "id")
+
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
@@ -237,6 +246,7 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to get user role in group", http.StatusInternalServerError)
 			return
 		}
+
 		if role != "owner" && role != "admin" {
 			http.Error(w, "Port forward does not belong to the user's group", http.StatusForbidden)
 			return
@@ -262,6 +272,7 @@ type approvePortForwardRequest struct {
 
 func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	sportForwardID := chi.URLParam(r, "id")
+
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
@@ -296,6 +307,7 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 		err = notify.SendPortForwardNotification(pf.OwnerID, *pf)
 		l = logger.With("userID", pf.OwnerID)
 	}
+
 	if err != nil {
 		l.Error("Failed to send port forward notification", "pfID", portForwardID, "error", err)
 	}

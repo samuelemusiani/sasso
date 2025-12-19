@@ -40,12 +40,15 @@ func Authenticate(username, password string, realm uint) (*db.User, error) {
 	}
 
 	var l Authenticator
+
 	switch dbRealm.Type {
 	case db.LocalRealmType:
 		logger.Debug("Using local authentication for realm", "realmID", realm)
+
 		l = &localAuthenticator{}
 	case db.LDAPRealmType:
 		logger.Debug("Using LDAP authentication for realm", "realmID", realm)
+
 		l = &ldapAuthenticator{}
 	default:
 		logger.Error("Unsupported realm type for authentication", "realmType", dbRealm.Type)

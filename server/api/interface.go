@@ -33,10 +33,12 @@ func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(ifaces)
 	if err != nil {
 		logger.Error("Failed to encode interfaces response", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -100,6 +102,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
 		if role == "member" {
 			http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
 			return
@@ -124,6 +127,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		// We need to check if there is already another interface with a gateway
 		// on the same VM.
 		mutex := getVMMutex(uint(vm.ID))
+
 		mutex.Lock()
 		defer mutex.Unlock()
 
@@ -132,6 +136,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
 		for _, iface := range interfaces {
 			if iface.Gateway != "" {
 				http.Error(w, "only one interface with gateway allowed per VM", http.StatusBadRequest)
@@ -151,15 +156,19 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(iface)
 	if err != nil {
 		logger.Error("Failed to encode new interface response", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -203,12 +212,15 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 	if req.VNetID != nil {
 		piface.VNetID = *req.VNetID
 	}
+
 	if req.VlanTag != nil {
 		piface.VlanTag = *req.VlanTag
 	}
+
 	if req.IPAdd != nil {
 		piface.IPAdd = *req.IPAdd
 	}
+
 	if req.Gateway != nil {
 		piface.Gateway = *req.Gateway
 	}
@@ -233,6 +245,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
 		if role == "member" {
 			http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
 			return
@@ -248,6 +261,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -277,7 +291,9 @@ func deleteInterface(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -304,6 +320,7 @@ type returnedGenericInterface struct {
 
 func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
+
 	ifaces, err := db.GetAllInterfacesWithExtrasByUserID(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -329,10 +346,12 @@ func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(pIfaces)
 	if err != nil {
 		logger.Error("Failed to encode all interfaces response", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 }

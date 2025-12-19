@@ -30,6 +30,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 		logger.Error("Failed to connect to LDAP server", "url", a.URL, "error", err)
 		return nil, err
 	}
+
 	defer func() {
 		if e := l.Close(); e != nil {
 			err = errors.Join(err, e)
@@ -67,6 +68,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	}
 
 	userDN := sr.Entries[0].DN
+
 	err = l.Bind(userDN, password)
 	if err != nil {
 		return nil, ErrPasswordMismatch
@@ -87,6 +89,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 			role = db.RoleAdmin
 		}
 	}
+
 	if a.MaintainerGroupDN != "" && role == db.RoleUser {
 		if slices.Contains(sr.Entries[0].GetAttributeValues("memberOf"), a.MaintainerGroupDN) {
 			role = db.RoleMaintainer
@@ -111,9 +114,12 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 				logger.Error("Failed to create new user in local DB", "username", username, "error", err)
 				return nil, err
 			}
+
 			return &newUser, nil
 		}
+
 		logger.Error("Failed to get user by username from local DB", "username", username, "error", err)
+
 		return nil, err
 	}
 
@@ -121,6 +127,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	if user.Email != email || user.Role != role {
 		user.Email = email
 		user.Role = role
+
 		err = db.UpdateUser(&u)
 		if err != nil {
 			// Log the error but continue, as the user is authenticated
@@ -129,6 +136,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	}
 
 	user = &u
+
 	return
 }
 
@@ -155,10 +163,12 @@ func VerifyLDAPURL(lurl string) error {
 	if lurl == "" {
 		return errors.Join(ErrInvalidConfig, errors.New("LDAP URL cannot be empty"))
 	}
+
 	ldapURL, err := url.Parse(lurl)
 	if err != nil || (ldapURL.Scheme != "ldap" && ldapURL.Scheme != "ldaps") {
 		return errors.Join(ErrInvalidConfig, errors.New("invalid LDAP URL"))
 	}
+
 	return nil
 }
 
@@ -170,6 +180,7 @@ func VerifyLDAPLoginFilter(login string) error {
 	if !strings.Contains(login, "{{username}}") {
 		return errors.Join(ErrInvalidConfig, errors.New("login filter must contain {{username}} placeholder"))
 	}
+
 	return nil
 }
 
@@ -177,5 +188,6 @@ func VerifyLDAPAttribute(mailAttr string) error {
 	if mailAttr == "" {
 		return errors.Join(ErrInvalidConfig, errors.New("mail attribute cannot be empty"))
 	}
+
 	return nil
 }

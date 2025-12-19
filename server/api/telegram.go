@@ -26,10 +26,12 @@ type returnedTelegramBot struct {
 
 func listTelegramBots(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
+
 	bots, err := db.GetTelegramBotsByUserID(userID)
 	if err != nil {
 		logger.Error("Failed to retrieve telegram bots", "error", err)
 		http.Error(w, "Failed to retrieve telegram bots", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -47,6 +49,7 @@ func listTelegramBots(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(returnedBots); err != nil {
 		logger.Error("Failed to encode telegram bots", "error", err)
 		http.Error(w, "Failed to encode telegram bots", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -60,6 +63,7 @@ type createTelegramBotRequest struct {
 
 func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
+
 	var req createTelegramBotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -85,6 +89,7 @@ func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to create telegram bot", "userID", userID, "error", err)
 		http.Error(w, "Failed to create telegram bot", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -93,6 +98,7 @@ func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
+
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
@@ -100,6 +106,7 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := mustGetUserIDFromContext(r)
+
 	err = db.DeleteTelegramBot(uint(botID), userID)
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -108,12 +115,14 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 			logger.Error("Failed to delete telegram bot", "botID", botID, "userID", userID, "error", err)
 			http.Error(w, "Failed to delete telegram bot", http.StatusInternalServerError)
 		}
+
 		return
 	}
 }
 
 func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
+
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
@@ -121,6 +130,7 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := mustGetUserIDFromContext(r)
+
 	bot, err := db.GetTelegramBotByID(uint(botID))
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -129,8 +139,10 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 			logger.Error("Failed to retrieve telegram bot", "botID", botID, "userID", userID, "error", err)
 			http.Error(w, "Failed to retrieve telegram bot", http.StatusInternalServerError)
 		}
+
 		return
 	}
+
 	if bot.UserID != userID {
 		http.Error(w, "Telegram bot not found", http.StatusNotFound)
 		return
@@ -140,8 +152,10 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to send test notification", "botID", botID, "userID", userID, "error", err)
 		http.Error(w, "Failed to send test notification", http.StatusInternalServerError)
+
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -151,6 +165,7 @@ type toggleTelegramBotRequest struct {
 
 func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 	sbotID := chi.URLParam(r, "id")
+
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
@@ -164,6 +179,7 @@ func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := mustGetUserIDFromContext(r)
+
 	err = db.ChangeTelegramBotEnabled(uint(botID), userID, req.Enabled)
 	if err != nil {
 		if err == db.ErrNotFound {
@@ -172,7 +188,9 @@ func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 			logger.Error("Failed to change telegram bot enabled status", "botID", botID, "userID", userID, "error", err)
 			http.Error(w, "Failed to change telegram bot enabled status", http.StatusInternalServerError)
 		}
+
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

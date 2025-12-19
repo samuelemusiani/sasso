@@ -32,7 +32,9 @@ func initInterfaces() error {
 		logger.Error("Failed to migrate interfaces table", "error", err)
 		return err
 	}
+
 	logger.Debug("Interfaces table migrated successfully")
+
 	return nil
 }
 
@@ -42,6 +44,7 @@ func GetInterfaceByID(ID uint) (*Interface, error) {
 		logger.Error("Failed to find interface by ID", "ifaceID", ID, "error", err)
 		return nil, err
 	}
+
 	return &iface, nil
 }
 
@@ -51,6 +54,7 @@ func GetInterfacesByVMID(vmID uint64) ([]Interface, error) {
 		logger.Error("Failed to get interfaces for VM", "vmID", vmID, "error", err)
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
@@ -60,6 +64,7 @@ func GetInterfacesWithStatus(status string) ([]Interface, error) {
 		logger.Error("Failed to get interfaces with status", "status", status, "error", err)
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
@@ -72,10 +77,12 @@ func NewInterface(vmID uint, vNetID uint, vlanTag uint16, ipAdd string, gateway 
 		Gateway: gateway,
 		Status:  status,
 	}
+
 	result := db.Create(iface)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
 	return iface, nil
 }
 
@@ -101,6 +108,7 @@ func GetInterfacesByVNetID(vnetID uint) ([]Interface, error) {
 		logger.Error("Failed to get interfaces for VNet", "vnetID", vnetID, "error", err)
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
@@ -114,6 +122,7 @@ func AreThereInterfacesWithVlanTagsByVNetID(vnetID uint) (bool, error) {
 		logger.Error("Failed to count interfaces with VLAN tag for VNet", "vnetID", vnetID, "error", err)
 		return false, err
 	}
+
 	return count > 0, nil
 }
 
@@ -123,6 +132,7 @@ func CountInterfaces() (int64, error) {
 		logger.Error("Failed to count interfaces", "error", err)
 		return 0, err
 	}
+
 	return count, nil
 }
 
@@ -132,11 +142,13 @@ func CountInterfacesOnVM(vmID uint) (int64, error) {
 		logger.Error("Failed to count interfaces on VM", "vmID", vmID, "error", err)
 		return 0, err
 	}
+
 	return count, nil
 }
 
 func GetAllInterfacesWithExtrasByUserID(userID uint) ([]Interface, error) {
 	var ifaces []Interface
+
 	query := db.Raw(`SELECT interfaces.*, vms.name as vm_name, nets.alias as v_net_name, user_groups.role as group_role, groups.name as group_name, groups.id as group_id
 		FROM interfaces
 		JOIN vms ON vms.id = interfaces.vm_id
@@ -167,5 +179,6 @@ func ExistsIPInVNetWithVlanTag(vnetID uint, vlanTag uint16, ipAdd string) (bool,
 		logger.Error("Failed to check existence of IP in VNet with VLAN tag", "vnetID", vnetID, "vlanTag", vlanTag, "ipAdd", ipAdd, "error", err)
 		return false, err
 	}
+
 	return count > 0, nil
 }

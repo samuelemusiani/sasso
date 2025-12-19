@@ -7,5 +7,6 @@ import (
 func AreMACsEqual(a, b string) bool {
 	am := ipaddr.NewMACAddressString(a)
 	bm := ipaddr.NewMACAddressString(b)
+
 	return am.Compare(bm) == 0
 }

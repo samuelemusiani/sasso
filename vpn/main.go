@@ -37,6 +37,7 @@ func main() {
 	}
 
 	slog.Debug("Parsing config file", "path", os.Args[1])
+
 	err := config.Parse(os.Args[1])
 	if err != nil {
 		slog.Error("Error parsing config file", "error", err)
@@ -47,7 +48,9 @@ func main() {
 	slog.Debug("Config file parsed successfully", "config", c)
 
 	slog.Debug("Initializing Wireguard")
+
 	wireguardLogger := slog.With("module", "wireguard")
+
 	err = wg.Init(wireguardLogger, &c.Wireguard)
 	if err != nil {
 		fmt.Printf("Error initializing Wireguard: %v\n", err)
@@ -55,6 +58,7 @@ func main() {
 	}
 
 	slog.Debug("Initializing database")
+
 	dbLogger := slog.With("module", "db")
 	if err = db.Init(dbLogger, &c.Database); err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
@@ -62,6 +66,7 @@ func main() {
 	}
 
 	slog.Debug("Initializing utilities")
+
 	utilLogger := slog.With("module", "utils")
 	util.Init(utilLogger)
 
@@ -69,6 +74,7 @@ func main() {
 		slog.Error("Configuration error", "error", err)
 		os.Exit(1)
 	}
+
 	if err = checkFirewallStatus(c.Firewall); err != nil {
 		slog.Error("Firewall configuration error", "error", err)
 		os.Exit(1)

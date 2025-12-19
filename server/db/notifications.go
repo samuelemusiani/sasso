@@ -26,7 +26,9 @@ func initNotifications() error {
 		logger.Error("Failed to migrate notifications table", "error", err)
 		return err
 	}
+
 	logger.Debug("Notifications table migrated successfully")
+
 	return nil
 }
 
@@ -36,6 +38,7 @@ func GetPendingNotifications() ([]Notification, error) {
 		logger.Error("Failed to get pending notifications", "error", err)
 		return nil, err
 	}
+
 	return notifs, nil
 }
 
@@ -44,6 +47,7 @@ func SetNotificationAsSent(id uint) error {
 		logger.Error("Failed to set notification as sent", "id", id, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -61,6 +65,7 @@ func InsertNotification(userID uint, subject, body string, mail, telegram bool) 
 		logger.Error("Failed to insert notification", "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -81,7 +86,9 @@ func initTelegramBots() error {
 		logger.Error("Failed to migrate telegram_bots table", "error", err)
 		return err
 	}
+
 	logger.Debug("Telegram bots table migrated successfully")
+
 	return nil
 }
 
@@ -91,6 +98,7 @@ func GetTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
 		logger.Error("Failed to get telegram bots by user ID", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	return bots, nil
 }
 
@@ -100,6 +108,7 @@ func GetEnabledTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
 		logger.Error("Failed to get enabled telegram bots by user ID", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	return bots, nil
 }
 
@@ -115,6 +124,7 @@ func CreateTelegramBot(name, notes, token, chatID string, userID uint) error {
 		logger.Error("Failed to create telegram bot", "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -124,9 +134,12 @@ func DeleteTelegramBot(id uint, userID uint) error {
 		if err == gorm.ErrRecordNotFound {
 			return ErrNotFound
 		}
+
 		logger.Error("Failed to delete telegram bot", "id", id, "userID", userID, "error", err)
+
 		return err
 	}
+
 	return nil
 }
 
@@ -136,6 +149,7 @@ func GetUsersWithTelegramBots() ([]uint, error) {
 		logger.Error("Failed to get users with telegram bots", "error", err)
 		return nil, err
 	}
+
 	return userIDs, nil
 }
 
@@ -145,9 +159,12 @@ func GetTelegramBotByID(id uint) (*TelegramBot, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
+
 		logger.Error("Failed to get telegram bot by ID", "id", id, "error", err)
+
 		return nil, err
 	}
+
 	return &bot, nil
 }
 
@@ -156,8 +173,11 @@ func ChangeTelegramBotEnabled(id uint, userID uint, enabled bool) error {
 		if err == gorm.ErrRecordNotFound {
 			return ErrNotFound
 		}
+
 		logger.Error("Failed to change telegram bot enabled status", "id", id, "enabled", enabled, "error", err)
+
 		return err
 	}
+
 	return nil
 }

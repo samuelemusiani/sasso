@@ -40,19 +40,23 @@ func Init(l *slog.Logger, c config.Gateway) error {
 	switch c.Type {
 	case "proxmox":
 		pg := NewProxmoxGateway()
+
 		err := pg.Init(c)
 		if err != nil {
 			logger.Error("Failed to initialize Proxmox gateway", "error", err)
 			return err
 		}
+
 		globalGateway = pg
 	case "linux":
 		lg := NewLinuxGateway()
+
 		err := lg.Init(c)
 		if err != nil {
 			logger.Error("Failed to initialize Linux gateway", "error", err)
 			return err
 		}
+
 		globalGateway = lg
 	default:
 		logger.Error("Unsupported gateway type", "type", c.Type)
@@ -74,8 +78,8 @@ type Gateway interface {
 }
 
 func (i *Interface) SaveToDB() error {
-
 	var err error
+
 	inter, err := db.GetInterfaceByVNet(i.VNet)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		logger.Error("Failed to get interface from database", "error", err, "vnet", i.VNet)

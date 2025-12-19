@@ -37,6 +37,7 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 		if ip == nil {
 			return fmt.Errorf("failed to parse peer IP: %s", p)
 		}
+
 		lg.Peers = append(lg.Peers, ip)
 	}
 
@@ -50,7 +51,6 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 }
 
 func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
-
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  int(lg.MTU),
@@ -59,11 +59,13 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 		VxlanId: int(vnetID),
 		Port:    int(lg.Port),
 	}
+
 	err := netlink.LinkAdd(link)
 	if err != nil {
 		logger.Error("Failed to create VxLAN interface", "error", err)
 		return nil, err
 	}
+
 	ipAddr, err := netlink.ParseAddr(routerIP)
 	if err != nil {
 		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
@@ -116,12 +118,12 @@ func (lg *LinuxGateway) RemoveInterface(id uint) error {
 		logger.Error("Failed to remove VxLAN interface", "error", err, "id", id)
 		return err
 	}
+
 	return nil
 }
 
 // VerifyInterface returns True if interface is verified, false otherwise
 func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
-
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 
 	// not present, inconsistant

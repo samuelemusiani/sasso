@@ -58,9 +58,12 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		if errors.Is(err, db.ErrNotFound) {
 			return nil, ErrVMNotFound
 		}
+
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
+
 		return nil, err
 	}
+
 	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
 		return nil, ErrInvalidVMState
@@ -72,12 +75,16 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	}
 
 	var backups []Backup
+
 	for _, item := range mcontent {
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
 
-		var name, notes string
-		var canDelete bool
+		var (
+			name, notes string
+			canDelete   bool
+		)
+
 		bkn, err := parseBackupNotes(item.Notes)
 		if err != nil {
 			name = "unknown"
@@ -114,6 +121,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		logger.Error("failed to check for pending backup requests", "error", err)
 		return 0, err
 	}
+
 	if isPending {
 		return 0, ErrPendingBackupRequest
 	}
@@ -123,6 +131,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
 		return 0, err
 	}
+
 	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
 		return 0, ErrInvalidVMState
@@ -133,12 +142,15 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		logger.Error("failed to list backups", "error", err)
 		return 0, err
 	}
+
 	count := 0
+
 	for _, i := range mcontent {
 		bkn, err := parseBackupNotes(i.Notes)
 		if err != nil {
 			continue
 		}
+
 		if groupID != nil {
 			if bkn.OwnerID == *groupID {
 				count++
@@ -175,6 +187,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 		logger.Error("failed to check for pending backup requests", "error", err)
 		return 0, err
 	}
+
 	if isPending {
 		return 0, ErrPendingBackupRequest
 	}
@@ -184,6 +197,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
 		return 0, err
 	}
+
 	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
 		return 0, ErrInvalidVMState
@@ -200,10 +214,12 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 	} else {
 		bkr, err = db.NewBackupRequestWithVolidForUser(BackupRequestTypeDelete, BackupRequestStatusPending, &volid, uint(vmID), userID, "", "")
 	}
+
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
 	}
+
 	return bkr.ID, nil
 }
 
@@ -213,6 +229,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 		logger.Error("failed to check for pending backup requests", "error", err)
 		return 0, err
 	}
+
 	if isPending {
 		return 0, ErrPendingBackupRequest
 	}
@@ -222,6 +239,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
 		return 0, err
 	}
+
 	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
 		return 0, ErrInvalidVMState
@@ -238,6 +256,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 	} else {
 		bkr, err = db.NewBackupRequestWithVolidForUser(BackupRequestTypeRestore, BackupRequestStatusPending, &volid, uint(vmID), userID, "", "")
 	}
+
 	if err != nil {
 		logger.Error("failed to create backup request", "error", err)
 		return 0, err
@@ -297,9 +316,9 @@ func listBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*
 //
 // mcontent can be nil, in that case it will be fetched inside the function
 func findVolid(vmID uint64, backupid string, since time.Time, deletion bool, mcontent []*proxmox.StorageContent) (string, error) {
-
 	if mcontent == nil {
 		var err error
+
 		_, mcontent, err = listBackups(vmID, since)
 		if err != nil {
 			return "", err
@@ -344,24 +363,30 @@ func generateBackNotes(name, notes string, ownerID uint, ownerType string) (stri
 		OwnerType:     ownerType,
 		SassoVerifier: BackupSassoString,
 	}
+
 	b, err := json.Marshal(bn)
 	if err != nil {
 		return "", err
 	}
+
 	return string(b), nil
 }
 
 func parseBackupNotes(notes string) (*BackupNotes, error) {
 	var bn BackupNotes
+
 	err := json.Unmarshal([]byte(notes), &bn)
 	if err != nil {
 		return nil, err
 	}
+
 	decodedNotes, err := base64.StdEncoding.DecodeString(bn.Notes)
 	if err != nil {
 		return nil, err
 	}
+
 	bn.Notes = string(decodedNotes)
+
 	return &bn, nil
 }
 
@@ -371,6 +396,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
 		return false, err
 	}
+
 	if !slices.Contains(goodVMStatesForBackupManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to list backups", "VMID", vmID, "status", vm.Status)
 		return false, ErrInvalidVMState
@@ -385,6 +411,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 
 	if protected {
 		count := 0
+
 		for _, i := range mcontent {
 			if bool(i.Protected) {
 				count++
@@ -406,6 +433,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		logger.Error("failed to check for pending backup requests", "error", err)
 		return false, err
 	}
+
 	if pending {
 		return false, ErrPendingBackupRequest
 	}
@@ -417,14 +445,18 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	isSuccessful, err := s.ChangeProtection(ctx, protected, volid)
+
 	cancel()
+
 	if err != nil {
 		logger.Error("Failed to change backup protection", "error", err)
 		return false, err
 	}
+
 	if !isSuccessful {
 		logger.Error("Failed to change backup protection: operation not successful")
 		return false, errors.New("operation_not_successful")
 	}
+
 	return true, nil
 }

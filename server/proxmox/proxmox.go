@@ -43,12 +43,14 @@ var (
 
 func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	logger = proxmoxLogger
+
 	if err := checkConfig(&config); err != nil {
 		return err
 	}
 
 	// Generate a nonce for backup names
 	nonce = make([]byte, 32)
+
 	n, err := rand.Read(nonce)
 	if err != nil && n != 32 {
 		logger.Error("Failed to generate random key for nonce", "error", err)
@@ -60,6 +62,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 		if !strings.HasSuffix(config.URL, "/") {
 			url += "/"
 		}
+
 		url += "api2/json"
 	}
 
@@ -92,6 +95,7 @@ func checkConfig(c *config.Proxmox) error {
 	if c.TokenID == "" {
 		return errors.New("proxmox token ID is required")
 	}
+
 	if c.Secret == "" {
 		return errors.New("proxmox secret is required")
 	}
@@ -155,6 +159,7 @@ func checkConfig(c *config.Proxmox) error {
 		e := errors.New("proxmox backup storage is not configured")
 		return errors.Join(ErrInvalidStorage, e)
 	}
+
 	return nil
 }
 
@@ -166,18 +171,22 @@ func TestEndpointVersion() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 		version, err := client.Version(ctx)
+
 		cancel() // Cancel immediately after the call
 
 		if err != nil {
 			logger.Error("Failed to get Proxmox version", "error", err)
+
 			wasError = true
 			isProxmoxReachable = false
 		} else if first {
 			logger.Info("proxmox version", "version", version.Version)
+
 			first = false
 			isProxmoxReachable = true
 		} else if wasError {
 			logger.Info("proxmox version endpoint is back online", "version", version.Version)
+
 			wasError = false
 			isProxmoxReachable = true
 		}

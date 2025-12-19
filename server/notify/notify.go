@@ -60,6 +60,7 @@ func Init(l *slog.Logger, c config.Notifications) error {
 	email = c.Email.Username
 
 	var err error
+
 	emailClient, err = mail.NewClient(c.Email.SMTPServer, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(c.Email.Username), mail.WithPassword(c.Email.Password), mail.WithSSL(), mail.WithPort(465))
 	if err != nil {
 		slog.Error("Failed to create mail client", "error", err)
@@ -79,8 +80,10 @@ func Init(l *slog.Logger, c config.Notifications) error {
 
 func StartWorker() {
 	workerContext, workerCancelFunc = context.WithCancel(context.Background())
+
 	go func() {
 		workerReturnChan <- worker(workerContext)
+
 		close(workerReturnChan)
 	}()
 }
@@ -92,10 +95,12 @@ func ShutdownWorker() error {
 	}
 
 	workerCancelFunc()
+
 	var err error
 	if workerReturnChan != nil {
 		err = <-workerReturnChan
 	}
+
 	if err != nil && err != context.Canceled {
 		return err
 	} else {
@@ -214,10 +219,12 @@ func sendSingleEmail(n *notification) error {
 		logger.Error("Invalid 'From' address", "error", err)
 		return err
 	}
+
 	if err := message.To(user.Email); err != nil {
 		logger.Error("Invalid 'To' address", "error", err)
 		return err
 	}
+
 	message.Subject(n.Subject)
 	message.SetBodyString(mail.TypeTextPlain, n.Body)
 
@@ -227,6 +234,7 @@ func sendSingleEmail(n *notification) error {
 	}
 
 	logger.Debug("Email sent successfully", "to", user.Email)
+
 	return nil
 }
 
@@ -244,10 +252,12 @@ func sendBulkEmail(n *notification) error {
 			logger.Error("Invalid 'From' address", "error", err)
 			return err
 		}
+
 		if err := message.To(e); err != nil {
 			logger.Error("Invalid 'To' address", "error", err)
 			return err
 		}
+
 		message.Subject(n.Subject)
 		message.SetBodyString(mail.TypeTextPlain, n.Body)
 
@@ -264,6 +274,7 @@ func sendBulkEmail(n *notification) error {
 	}
 
 	logger.Debug("Emails sent successfully everyone")
+
 	return nil
 }
 
@@ -279,6 +290,7 @@ func sendSingleTelegram(n *notification) error {
 		if err != nil {
 			logger.Error("Failed to send telegram message", "userID", n.UserID, "botID", bot.ID, "error", err)
 		}
+
 		time.Sleep(150 * time.Millisecond)
 	}
 
@@ -299,12 +311,15 @@ func sendTelegramMessage(bot *db.TelegramBot, text string) (err error) {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonMessage))
 	if err != nil {
 		logger.Error("Failed to create telegram request", "error", err)
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send telegram message", "error", err)
@@ -321,7 +336,9 @@ func sendTelegramMessage(bot *db.TelegramBot, text string) (err error) {
 		logger.Error("Telegram API returned non-OK status", "status", resp.Status)
 		return fmt.Errorf("telegram API returned status: %s", resp.Status)
 	}
+
 	logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
+
 	return
 }
 
@@ -334,11 +351,13 @@ func sendBulkTelegram(n *notification) error {
 
 	for _, user := range users {
 		n.UserID = user
+
 		err := sendSingleTelegram(n)
 		if err != nil {
 			logger.Error("Failed to send telegram message to user", "userID", user, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -348,12 +367,14 @@ func SendPortForwardNotificationToGroup(groupID uint, pf db.PortForward) error {
 		logger.Error("Failed to get group members for port forward notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendPortForwardNotification(userID, pf)
 		if err != nil {
 			logger.Error("Failed to send port forward notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -379,11 +400,13 @@ Destination IP: %s
 		Telegram: s.TelegramPortForwardNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save port forward notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -393,12 +416,14 @@ func SendVMStatusUpdateNotificationToGroup(groupID uint, vmName string, status s
 		logger.Error("Failed to get group members for VM status update notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendVMStatusUpdateNotification(userID, vmName, status)
 		if err != nil {
 			logger.Error("Failed to send VM status update notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -424,11 +449,13 @@ If the status is "unknown" please contact an administrator.
 		Telegram: s.TelegramVMStatusUpdateNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM status update notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -451,11 +478,13 @@ At the next reboot you will probably get a warning from your SSH client about th
 		Telegram: s.TelegramGlobalSSHKeysChangeNotification,
 		Body:     t,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save global SSH keys change notification", "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -465,12 +494,14 @@ func SendVMExpirationNotificationToGroup(groupID uint, vmName string, daysLeft i
 		logger.Error("Failed to get group members for VM expiration notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendVMExpirationNotification(userID, vmName, daysLeft)
 		if err != nil {
 			logger.Error("Failed to send VM expiration notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -493,11 +524,13 @@ To extend the lifetime of your VM please login and extend it.
 		Telegram: s.TelegramVMExpirationNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM expiration notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -507,12 +540,14 @@ func SendVMEliminatedNotificationToGroup(groupID uint, vmName string) error {
 		logger.Error("Failed to get group members for VM eliminated notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendVMEliminatedNotification(userID, vmName)
 		if err != nil {
 			logger.Error("Failed to send VM eliminated notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -534,11 +569,13 @@ If you want to keep using our services please create a new VM.
 		Telegram: s.TelegramVMEliminatedNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM eliminated notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -548,12 +585,14 @@ func SendVMStoppedNotificationToGroup(groupID uint, vmName string) error {
 		logger.Error("Failed to get group members for VM stopped notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendVMStoppedNotification(userID, vmName)
 		if err != nil {
 			logger.Error("Failed to send VM stopped notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -575,11 +614,13 @@ To use it again please login and extend its lifetime.
 		Telegram: s.TelegramVMStoppedNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save VM stopped notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -589,12 +630,14 @@ func SendLifetimeOfVMExpiredToGroup(groupID uint, vmName string) error {
 		logger.Error("Failed to get group members for lifetime of VM expired notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendLifetimeOfVMExpired(userID, vmName)
 		if err != nil {
 			logger.Error("Failed to send lifetime of VM expired notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -616,11 +659,13 @@ To use it again please login and extend its lifetime.
 		Telegram: s.TelegramLifetimeOfVMExpiredNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save lifetime of VM expired notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -629,6 +674,7 @@ func SendTestBotNotification(bot *db.TelegramBot, text string) error {
 	if err != nil {
 		logger.Error("Failed to send test telegram message", "botID", bot.ID, "error", err)
 	}
+
 	return err
 }
 
@@ -638,12 +684,14 @@ func SendSSHKeysChangedOnVMToGroup(groupID uint, vmName string) error {
 		logger.Error("Failed to get group members for SSH keys changed notification", "groupID", groupID, "error", err)
 		return err
 	}
+
 	for _, userID := range members {
 		err := SendSSHKeysChangedOnVM(userID, vmName)
 		if err != nil {
 			logger.Error("Failed to send SSH keys changed notification to group member", "groupID", groupID, "userID", userID, "error", err)
 		}
 	}
+
 	return nil
 }
 
@@ -667,11 +715,13 @@ client about the host key being changed.
 		Telegram: s.TelegramSSHKeysChangedOnVMNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save SSH keys changed notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -694,11 +744,13 @@ groups section.
 		Telegram: s.TelegramUserInvitationNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save user invitation notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -718,11 +770,13 @@ func SendUserRemovalFromGroupNotification(userID uint, groupName string) error {
 		Telegram: s.TelegramUserRemovalFromGroupNotification,
 		Body:     body,
 	}
+
 	err = n.save()
 	if err != nil {
 		logger.Error("Failed to save user removal from group notification", "userID", userID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -735,6 +789,7 @@ func checkConfig(c config.Notifications) error {
 		if c.MaxPerDay <= 0 {
 			return fmt.Errorf("notifications max per day must be greater than 0 when rate limits are enabled")
 		}
+
 		if c.MaxPerMinute <= 0 {
 			return fmt.Errorf("notifications max per minute must be greater than 0 when rate limits are enabled")
 		}
@@ -744,12 +799,15 @@ func checkConfig(c config.Notifications) error {
 		if c.Email.SMTPServer == "" {
 			return fmt.Errorf("notifications SMTP server is empty")
 		}
+
 		if c.Email.Username == "" {
 			return fmt.Errorf("notifications SMTP username is empty")
 		}
+
 		if c.Email.Password == "" {
 			return fmt.Errorf("notifications SMTP password is empty")
 		}
 	}
+
 	return nil
 }

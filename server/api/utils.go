@@ -44,6 +44,7 @@ func mustGetUserIDFromContext(r *http.Request) uint {
 	if err != nil {
 		panic("mustGetUserIDFromContext: " + err.Error())
 	}
+
 	return id
 }
 
@@ -54,7 +55,6 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			token, claims, err := jwtauth.FromContext(r.Context())
-
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
@@ -77,7 +77,9 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 					http.Error(w, "User not found", http.StatusUnauthorized)
 					return
 				}
+
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 				return
 			}
 
@@ -90,6 +92,7 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 			// Token is authenticated, pass it through
 			next.ServeHTTP(w, r)
 		}
+
 		return http.HandlerFunc(hfn)
 	}
 }
@@ -106,6 +109,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			}
 
 			svmID := chi.URLParam(r, "vmid")
+
 			vmID, err := strconv.ParseUint(svmID, 10, 64)
 			if err != nil {
 				http.Error(w, "invalid vm id", http.StatusBadRequest)
@@ -119,10 +123,12 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			}
 
 			var role string
+
 			if vm.OwnerType == "User" && vm.OwnerID != userID {
 				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
 				return
 			}
+
 			if vm.OwnerType == "Group" {
 				role, err = db.GetUserRoleInGroup(userID, vm.OwnerID)
 				if err != nil {
@@ -130,8 +136,10 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 						http.Error(w, "vm does not belong to the user", http.StatusForbidden)
 						return
 					}
+
 					logger.Error("failed to get user role in group", "error", err)
 					http.Error(w, "internal server error", http.StatusInternalServerError)
+
 					return
 				}
 				// Role permission check is done in the handlers
@@ -154,6 +162,7 @@ func mustGetVMFromContext(r *http.Request) *proxmox.VM {
 	if !ok {
 		panic(fmt.Sprintf("mustGetVMFromContext: %s not found in context", vmIDKey))
 	}
+
 	return vm
 }
 
@@ -162,6 +171,7 @@ func mustGetUserRoleInGroupFromContext(r *http.Request) string {
 	if !ok {
 		panic(fmt.Sprintf("mustGetUserRoleInGroupFromContext: %s not found in context", groupUserRoleKey))
 	}
+
 	return role
 }
 
@@ -171,6 +181,7 @@ func mustGetGroupIDFromContext(r *http.Request) uint {
 	if !ok {
 		panic("mustGetGroupIDFromContext: group_id not found in context")
 	}
+
 	return groupID
 }
 
@@ -184,6 +195,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 			}
 
 			sifaceID := chi.URLParam(r, "ifaceid")
+
 			ifaceID, err := strconv.ParseUint(sifaceID, 10, 32)
 			if err != nil {
 				http.Error(w, "invalid interface id", http.StatusBadRequest)
@@ -212,8 +224,10 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 						http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 						return
 					}
+
 					logger.Error("failed to get user role in group", "error", err)
 					http.Error(w, "internal server error", http.StatusInternalServerError)
+
 					return
 				}
 
@@ -238,6 +252,7 @@ func mustGetInterfaceFromContext(r *http.Request) *db.Interface {
 	if !ok {
 		panic("getInterfaceFromContext: interface_id not found in context")
 	}
+
 	return iface
 }
 
@@ -251,6 +266,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			}
 
 			sgroupID := chi.URLParam(r, "groupid")
+
 			groupID, err := strconv.ParseUint(sgroupID, 10, 32)
 			if err != nil {
 				http.Error(w, "invalid group id", http.StatusBadRequest)
@@ -263,8 +279,10 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 					http.Error(w, "group not found", http.StatusBadRequest)
 					return
 				}
+
 				logger.Error("failed to get group by id", "error", err)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
+
 				return
 			}
 
@@ -274,8 +292,10 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 					http.Error(w, "group not found", http.StatusNotFound)
 					return
 				}
+
 				logger.Error("failed to get user role in group", "error", err)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
+
 				return
 			}
 
@@ -296,5 +316,6 @@ func mustGetGroupFromContext(r *http.Request) *db.Group {
 	if !ok {
 		panic("getGroupFromContext: group not found in context")
 	}
+
 	return group
 }

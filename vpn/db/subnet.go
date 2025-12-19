@@ -23,12 +23,12 @@ func GetAllSubnets() ([]Subnet, error) {
 	if err := db.Preload("Peers").Find(&subnets).Error; err != nil {
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
 func NewSubnet(subnet string, PeerID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-
 		var count int64
 
 		err := tx.Model(&SubnetPeer{}).
@@ -64,6 +64,7 @@ func NewSubnet(subnet string, PeerID uint) error {
 
 		return nil
 	})
+
 	return err
 }
 
@@ -71,6 +72,7 @@ func RemoveSubnet(subnet string) error {
 	if err := db.Where("subnet = ?", subnet).Delete(&Subnet{}).Error; err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -81,5 +83,6 @@ func GetSubnetsByPeerID(peerID uint) ([]Subnet, error) {
 		Find(&subnets).Error; err != nil {
 		return nil, err
 	}
+
 	return subnets, nil
 }

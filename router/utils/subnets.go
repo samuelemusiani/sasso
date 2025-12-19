@@ -32,6 +32,7 @@ func Init(l *slog.Logger, c config.Network) error {
 		logger.Error("new subnet prefix too large, must be <= 30", "prefix", c.NewSubnetPrefix)
 		return ErrPrefixTooLarge
 	}
+
 	ones, _ := n.Mask.Size()
 	if c.NewSubnetPrefix < ones {
 		logger.Error("new subnet prefix too small, must be >= usable subnet prefix", "prefix", c.NewSubnetPrefix, "usable_subnet", c.UsableSubnet)
@@ -44,18 +45,21 @@ func Init(l *slog.Logger, c config.Network) error {
 func NextAvailableSubnet() (string, error) {
 	usedSubnets, err := db.GetAllUsedSubnets()
 	logger.Debug("used subnets from database", "used_subnets", usedSubnets)
+
 	if err != nil {
 		logger.Error("failed to get all used subnets from database", "error", err)
 		return "", err
 	}
 
 	dbTrie := ipaddr.NewTrie[*ipaddr.IPAddress]()
+
 	for _, s := range usedSubnets {
 		addr := ipaddr.NewIPAddressString(s).GetAddress()
 		dbTrie.Add(addr)
 	}
 
 	subnet := ipaddr.NewIPAddressString(cNetwork.UsableSubnet).GetAddress()
+
 	iterator := subnet.SetPrefixLen(cNetwork.NewSubnetPrefix).PrefixIterator()
 	for iterator.HasNext() {
 		n := iterator.Next()

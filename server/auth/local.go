@@ -46,6 +46,8 @@ func (a *localAuthenticator) LoadConfigFromDB(realmID uint) error {
 		logger.Error("failed to get realm by ID", "realmID", realmID, "error", err)
 		return err
 	}
+
 	a.ID = realm.ID
+
 	return nil
 }

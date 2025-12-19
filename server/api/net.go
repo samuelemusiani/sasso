@@ -63,6 +63,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "Failed to create network", http.StatusInternalServerError)
 		}
+
 		return
 	}
 
@@ -74,10 +75,12 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+
 	err = json.NewEncoder(w).Encode(returnableNet)
 	if err != nil {
 		logger.Error("Failed to encode new net response", "error", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -97,6 +100,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			logger.Error(errMsg, "value", s)
 			return s
 		}
+
 		return tmp[0]
 	}
 
@@ -128,6 +132,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to get groups by user ID", "userID", userID, "err", err)
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -137,6 +142,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to get networks", http.StatusInternalServerError)
 			return
 		}
+
 		for _, net := range groupNets {
 			returnableNets = append(returnableNets, returnNet{
 				ID:        net.ID,
@@ -153,10 +159,12 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(returnableNets)
 	if err != nil {
 		logger.Error("Failed to encode nets", "error", err)
 		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -165,6 +173,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	netIDStr := chi.URLParam(r, "id")
+
 	netID, err := strconv.ParseUint(netIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
@@ -172,6 +181,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := getNetMutex(userID)
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -186,6 +196,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
 		}
+
 		return
 	}
 
@@ -196,6 +207,7 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	vnetIDStr := chi.URLParam(r, "id")
+
 	vnetID, err := strconv.ParseUint(vnetIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
@@ -220,6 +232,7 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "Failed to update net", http.StatusInternalServerError)
 		}
+
 		return
 	}
 
@@ -264,13 +277,16 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	vnet, err := db.GetNetByID(req.VNetID)
 	if err != nil {
 		slog.Error("Failed to get VNet by ID", "vnetID", req.VNetID, "err", err)
+
 		if err == db.ErrNotFound {
 			http.Error(w, "VNet not found", http.StatusNotFound)
 		} else {
 			http.Error(w, "Failed to get VNet", http.StatusInternalServerError)
 		}
+
 		return
 	}
+
 	if !vnet.VlanAware && req.VlanTag != 0 {
 		http.Error(w, "VLAN tag must be 0 for non-VLAN-aware VNets", http.StatusBadRequest)
 		return
@@ -289,6 +305,7 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 			} else {
 				slog.Error("Failed to get user role in group", "userID", userID, "groupID", vnet.OwnerID, "err", err)
 				http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
+
 				return
 			}
 		}
@@ -298,12 +315,14 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Failed to check if IP is in use", "err", err)
 		http.Error(w, "Failed to check IP", http.StatusInternalServerError)
+
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(responseIPCheck{InUse: used}); err != nil {
 		slog.Error("Failed to encode IP check response", "err", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -313,24 +332,30 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Failed to get all nets", "err", err)
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+
 		return
 	}
 
 	var returnNets []internal.Net
+
 	for _, n := range nets {
 		var users []uint
+
 		if n.OwnerType == "Group" {
 			groupUsers, err := db.GetUserIDsByGroupID(n.OwnerID)
 			if err != nil {
 				slog.Error("Failed to get users by group ID", "groupID", n.OwnerID, "err", err)
 				http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+
 				return
 			}
+
 			users = append(users, groupUsers...)
 		} else {
 			// OwnerType == "User"
 			users = append(users, n.OwnerID)
 		}
+
 		returnNets = append(returnNets, internal.Net{
 			ID:        n.ID,
 			Zone:      n.Zone,
@@ -344,20 +369,24 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(returnNets)
 	if err != nil {
 		slog.Error("Failed to encode nets", "err", err)
 		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
+
 		return
 	}
 }
 
 func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
+
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		slog.Error("Invalid net ID", "err", err)
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -365,6 +394,7 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
 		slog.Error("Failed to decode net", "err", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -372,6 +402,7 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Failed to get net by ID", "netID", id, "err", err)
 		http.Error(w, "Net not found", http.StatusNotFound)
+
 		return
 	}
 
@@ -382,6 +413,7 @@ func internalUpdateNet(w http.ResponseWriter, r *http.Request) {
 	if err := db.UpdateVNet(dbNet); err != nil {
 		slog.Error("Failed to update net", "netID", id, "err", err)
 		http.Error(w, "Failed to update net", http.StatusInternalServerError)
+
 		return
 	}
 }

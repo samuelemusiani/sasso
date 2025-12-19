@@ -18,6 +18,7 @@ func GetPortForwards() ([]PortForward, error) {
 	if err := db.Find(&pfs).Error; err != nil {
 		return nil, err
 	}
+
 	return pfs, nil
 }
 
@@ -27,8 +28,10 @@ func GetPortForwardByID(pfID uint) (*PortForward, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
+
 		return nil, err
 	}
+
 	return &pf, nil
 }
 

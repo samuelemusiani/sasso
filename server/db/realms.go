@@ -40,6 +40,7 @@ func initRealms() error {
 	}
 
 	var localRealm Realm
+
 	result := db.First(&localRealm, "name = ?", "Local")
 	if result.Error == nil {
 		logger.Debug("Local realm already exists")
@@ -51,6 +52,7 @@ func initRealms() error {
 		Description: "Local authentication realm",
 		Type:        "local",
 	}
+
 	result = db.Create(&localRealm)
 	if result.Error != nil {
 		logger.Error("Failed to create local realm", "error", result.Error)
@@ -58,16 +60,19 @@ func initRealms() error {
 	}
 
 	logger.Debug("Local realm initialized successfully")
+
 	return nil
 }
 
 func GetAllRealms() ([]Realm, error) {
 	var realms []Realm
+
 	result := db.Find(&realms)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve realms", "error", result.Error)
 		return nil, result.Error
 	}
+
 	return realms, nil
 }
 
@@ -84,6 +89,7 @@ func AddLDAPRealm(realm LDAPRealm) error {
 		}
 
 		logger.Debug("LDAP realm added successfully")
+
 		return nil
 	})
 }
@@ -94,6 +100,7 @@ func GetRealmByID(id uint) (*Realm, error) {
 		logger.Error("Failed to find realm by ID", "realmID", id, "error", err)
 		return nil, err
 	}
+
 	return &realm, nil
 }
 
@@ -103,6 +110,7 @@ func GetLDAPRealmByID(id uint) (*LDAPRealm, error) {
 		logger.Error("Failed to find LDAP realm by ID", "ldapRealmID", id, "error", err)
 		return nil, err
 	}
+
 	return &ldapRealm, nil
 }
 
@@ -119,6 +127,7 @@ func DeleteRealmByID(id uint) error {
 		}
 
 		logger.Debug("Realm deleted successfully", "realmID", id)
+
 		return nil
 	})
 }
@@ -136,6 +145,7 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 		}
 
 		logger.Debug("LDAP realm updated successfully", "realmID", realm.ID)
+
 		return nil
 	})
 }
@@ -146,5 +156,6 @@ func GetRealmByName(name string) (*Realm, error) {
 		logger.Error("Failed to find realm by name", "name", name, "error", err)
 		return nil, err
 	}
+
 	return &realm, nil
 }

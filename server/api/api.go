@@ -35,6 +35,7 @@ var (
 func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, pf config.PortForwards, vpn config.VPN) error {
 	// Logger
 	logger = apiLogger
+
 	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn); err != nil {
 		return err
 	}
@@ -71,6 +72,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	if publicServerConf.LogRequests {
 		apiRouter.Use(middleware.Logger)
 	}
+
 	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
@@ -78,6 +80,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	if privateServerConf.LogRequests {
 		privateRouter.Use(middleware.Logger)
 	}
+
 	privateRouter.Use(middleware.Recoverer)
 	privateRouter.Use(prometheusHandler("/internal"))
 	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
@@ -156,6 +159,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
 				slog.Error("marshaling public IP", "err", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 				return
 			}
 		})
@@ -267,6 +271,7 @@ func ListenAndServe() error {
 	if publicRouter == nil {
 		panic("Router not initialized")
 	}
+
 	if privateRouter == nil {
 		panic("Router not initialized")
 	}
@@ -279,6 +284,7 @@ func ListenAndServe() error {
 		err := publicServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("public server error", "err", err)
+
 			c <- err
 		}
 	}()
@@ -289,6 +295,7 @@ func ListenAndServe() error {
 		err := privateServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("private server error", "err", err)
+
 			c <- err
 		}
 	}()
@@ -298,25 +305,30 @@ func ListenAndServe() error {
 
 func Shutdown() error {
 	c := make(chan error, 2)
+
 	go func() {
 		logger.Info("Shutting down public server...")
+
 		err := publicServer.Shutdown(context.Background())
 		if err != nil {
 			slog.Error("public server shutdown failed", "err", err)
 		} else {
 			logger.Info("public server shut down")
 		}
+
 		c <- err
 	}()
 
 	go func() {
 		logger.Info("Shutting down private server...")
+
 		err := privateServer.Shutdown(context.Background())
 		if err != nil {
 			slog.Error("private server shutdown failed", "err", err)
 		} else {
 			logger.Info("private server shut down")
 		}
+
 		c <- err
 	}()
 
@@ -343,7 +355,6 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				// If the file does not exists it could be a route that the SPA router
 				// would catch. We serve the index.html instead
-
 				f, err = fs.ReadFile(uiFS, "index.html")
 				if err != nil {
 					if errors.Is(err, fs.ErrNotExist) {
@@ -352,26 +363,34 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 						slog.Error("reading index.html", "err", err)
 						http.Error(w, "", http.StatusInternalServerError)
 					}
+
 					return
 				}
+
 				w.Header().Set("Content-Type", "text/html")
+
 				_, err = w.Write(f)
 				if err != nil {
 					slog.Error("writing response", "err", err)
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				}
+
 				return
 			}
+
 			slog.Error("reading file", "path", p, "err", err)
 			http.Error(w, "", http.StatusInternalServerError)
+
 			return
 		}
 
 		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(p)))
+
 		_, err = w.Write(f)
 		if err != nil {
 			slog.Error("writing response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 			return
 		}
 	}
@@ -381,6 +400,7 @@ func checkConfig(key []byte, secret string, publicServerConf config.Server, priv
 	if len(key) == 0 {
 		return fmt.Errorf("api key cannot be empty")
 	}
+
 	if secret == "" {
 		return fmt.Errorf("internal secret cannot be empty")
 	}

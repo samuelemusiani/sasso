@@ -63,6 +63,7 @@ func worker(logger *slog.Logger, conf config.Server) {
 		if err != nil {
 			logger.Error("failed to get VNets with status", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -85,6 +86,7 @@ func worker(logger *slog.Logger, conf config.Server) {
 		if err != nil {
 			logger.Error("failed to get port forwards status", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -109,13 +111,13 @@ func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, err
 		logger.Error("failed to fetch nets status from main server", "error", err)
 		return nil, err
 	}
+
 	return nets, nil
 }
 
 // This function takes care of deleting the interfaces that are present on the DB
 // but not on the machine
 func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
-
 	dbInterfaces, err := db.GetAllInterfaces()
 	if err != nil {
 		logger.Error("failed to get all interfaces from database", "error", err)
@@ -124,7 +126,6 @@ func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
 
 	for _, dbIface := range dbInterfaces {
 		ok, err := gtw.VerifyInterface(gateway.InterfaceFromDB(&dbIface))
-
 		if err != nil {
 			return err
 		}
@@ -149,7 +150,6 @@ func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
 // This function takes care of deleting the nets that are present on the DB
 // but not on the nets slice anymore
 func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
-
 	dbInterfaces, err := db.GetAllInterfaces()
 	if err != nil {
 		logger.Error("failed to get all interfaces from database", "error", err)
@@ -172,11 +172,14 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			if errors.Is(err, db.ErrNotFound) {
 				continue
 			}
+
 			logger.Error("failed to get interface from database", "error", err, "vnet", n.VNet)
+
 			return err
 		}
 
 		iface := gateway.InterfaceFromDB(dbIface)
+
 		err = gtw.RemoveInterface(iface.LocalID)
 		if err != nil {
 			logger.Error("failed to remove interface from gateway", "error", err, "local_id", iface.LocalID)
@@ -186,8 +189,8 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 		if err != nil {
 			logger.Error("failed to delete interface from database", "error", err, "interface_id", iface.ID)
 		}
-
 	}
+
 	return nil
 }
 
@@ -256,6 +259,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		if dbNet.Subnet == n.Subnet && dbNet.RouterIP == n.Gateway && dbNet.Broadcast == n.Broadcast {
 			continue
 		}
+
 		n.Subnet = dbNet.Subnet
 		n.Gateway = dbNet.RouterIP
 		n.Broadcast = dbNet.Broadcast
@@ -265,6 +269,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 			logger.Error("failed to update net on main server", "error", err, "vnet", n.Name)
 			continue
 		}
+
 		logger.Info("Updated net on main server", "vnet", n.Name)
 	}
 
@@ -277,6 +282,7 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 		logger.Error("failed to fetch port forwards status from main server", "error", err)
 		return nil, err
 	}
+
 	return pfs, nil
 }
 
@@ -322,7 +328,6 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 // IMPORTANT: pfs are the desired port forwards from the main server, NOT THE ONES THAT MUST BE DELETED.
 // This function deletes the difference between the port forwards in database and the desired ones.
 func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
-
 	pdfDB, err := db.GetPortForwards()
 	if err != nil {
 		logger.Error("failed to get all port forwards from database", "error", err)
@@ -330,6 +335,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	}
 
 	var toBeDeleted []db.PortForward
+
 	for _, pfDB := range pdfDB {
 		// skip port forwards that are still desired
 		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
@@ -373,6 +379,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
 	// Get only the portForwards not in database
 	var pfsNotDB []db.PortForward
+
 	for _, pf := range pfs {
 		_, err := db.GetPortForwardByID(pf.ID)
 		if err == nil {
@@ -392,6 +399,7 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 
 	// create rules only if not present in database
 	rules := rulesFromPortForwardsDB(pfsNotDB)
+
 	err := firewall.AddPortForwardRules(rules)
 	if err != nil {
 		logger.Error("failed to add ports forward from firewall", "error", err)
@@ -405,5 +413,6 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 			continue
 		}
 	}
+
 	return nil
 }

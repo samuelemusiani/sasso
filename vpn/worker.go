@@ -23,6 +23,7 @@ func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet
 	if serverConfig.Endpoint == "" {
 		return errors.New("server endpoint is empty")
 	}
+
 	if serverConfig.Secret == "" {
 		return errors.New("server secret is empty")
 	}
@@ -57,12 +58,14 @@ func checkFirewallStatus(fwConfig config.Firewall) error {
 	if err != nil {
 		return fmt.Errorf("failed to get shorewall version: %v", err)
 	}
+
 	slog.Info("Shorewall version", "version", v)
 
 	zones, err := shorewall.GetZones()
 	if err != nil {
 		return fmt.Errorf("failed to get shorewall zones: %v", err)
 	}
+
 	fwZones := []string{fwConfig.VPNZone, fwConfig.SassoZone}
 	for _, z := range fwZones {
 		if !slices.ContainsFunc(zones, func(sz shorewall.Zone) bool {
@@ -71,6 +74,7 @@ func checkFirewallStatus(fwConfig config.Firewall) error {
 			return fmt.Errorf("shorewall zone %s not found", z)
 		}
 	}
+
 	return nil
 }
 
@@ -82,6 +86,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		if err != nil {
 			logger.Error("Failed to check peers", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -89,6 +94,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		if err != nil {
 			logger.With("error", err).Error("Failed to check firewall")
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -96,6 +102,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		if err != nil {
 			logger.Error("Failed to fetch nets status from main server", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -103,6 +110,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		if err != nil {
 			logger.Error("Failed to fetch VPN configs from main server", "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
@@ -157,6 +165,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 				logger.Error("Failed to get peer from DB while disabling nets", "error", err, "peer_id", sp.ID)
 				continue
 			}
+
 			err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, ln.Subnet))
 			if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
 				logger.Error("Failed to delete firewall rule", "error", err)
@@ -177,6 +186,7 @@ func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firew
 
 		logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
 	}
+
 	return nil
 }
 
@@ -194,13 +204,14 @@ func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig
 		if !slices.ContainsFunc(vpnConfigs, func(v internal.VPNProfile) bool {
 			return v.VPNIP == p.Address
 		}) {
-
 			wgPeer := wg.PeerFromDB(&p)
+
 			err = wg.DeletePeer(&wgPeer)
 			if err != nil {
 				logger.Error("Failed to delete peer from WireGuard", "error", err, "peer_id", p.ID)
 				continue
 			}
+
 			nets, err := db.GetSubnetsByPeerID(p.ID)
 			if err != nil {
 				logger.Error("Failed to get subnets for deleted peer", "error", err, "peer_id", p.ID)
@@ -209,6 +220,7 @@ func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig
 
 			for _, n := range nets {
 				logger.Warn("Deleting firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
+
 				err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", p.Address, n.Subnet))
 				if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
 					logger.Error("Failed to delete firewall rule for deleted peer", "error", err, "peer_id", p.ID, "subnet", n.Subnet)
@@ -217,6 +229,7 @@ func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig
 					logger.Info("Successfully deleted firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
 				}
 			}
+
 			if err = shorewall.Reload(); err != nil {
 				logger.Error("Failed to reload firewall after deleting peer", "error", err, "peer_id", p.ID)
 				continue
@@ -231,6 +244,7 @@ func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig
 			logger.Info("Successfully deleted peer", "peer_id", p.ID, "address", p.Address)
 		}
 	}
+
 	return nil
 }
 
@@ -251,6 +265,7 @@ func createPeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, vpnSubne
 
 		// Create new peer
 		logger.Info("Creating new peer", "ID", v.ID, "user_id", v.UserID)
+
 		newAddr, err := util.NextAvailableAddress(vpnSubnet)
 		if err != nil {
 			logger.Error("Failed to generate new address", "error", err)
@@ -293,10 +308,12 @@ func checkPeers(logger *slog.Logger) error {
 
 	for _, peer := range dbPeers {
 		dbp := wg.PeerFromDB(&peer)
+
 		wgp, ok := wgPeers[dbp.PublicKey]
 		if !ok {
 			// not present, recreate it
 			logger.Info("Peer not found in WireGuard config", "public_key", dbp.PublicKey)
+
 			err = wg.CreatePeer(&dbp)
 			if err != nil {
 				logger.Error("Failed to create peer", "error", err)
@@ -327,6 +344,7 @@ func checkPeers(logger *slog.Logger) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -340,12 +358,14 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 		logger.Debug("Enabling net", "net", n.Subnet)
 
 		reloadShorewall := false
+
 		for _, userID := range n.UserIDs {
 			peers, err := db.GetPeersByUserID(userID)
 			if err != nil {
 				logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", userID)
 				continue
 			}
+
 			for _, p := range peers {
 				err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", p.Address, n.Subnet))
 				if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
@@ -368,6 +388,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 				logger.Error("Failed to reload firewall", "error", err)
 				continue
 			}
+
 			logger.Info("Successfully enabled net", "net", n)
 		}
 	}
@@ -397,12 +418,14 @@ func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoin
 		peer := &peers[idx]
 
 		wgIface := wg.PeerFromDB(peer)
+
 		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
 		if base64Conf == v.VPNConfig && wgIface.Address == v.VPNIP {
 			continue
 		}
 
 		logger.Info("Updating VPN config on main server", "id", v.ID)
+
 		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNProfile{
 			ID:        v.ID,
 			VPNConfig: base64Conf,
@@ -438,9 +461,11 @@ func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 		if fwRules[i].Action != fwRules[j].Action {
 			return fwRules[i].Action < fwRules[j].Action
 		}
+
 		if fwRules[i].Source != fwRules[j].Source {
 			return fwRules[i].Source < fwRules[j].Source
 		}
+
 		return fwRules[i].Destination < fwRules[j].Destination
 	})
 
@@ -462,9 +487,11 @@ func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 				if fwRules[i].Action != rule.Action {
 					return fwRules[i].Action > rule.Action
 				}
+
 				if fwRules[i].Source != rule.Source {
 					return fwRules[i].Source > rule.Source
 				}
+
 				return fwRules[i].Destination >= rule.Destination
 			})
 
@@ -474,11 +501,13 @@ func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 				fwRules[index].Destination == rule.Destination
 			if !exists {
 				logger.Info("Firewall rule missing, adding it", "rule", rule)
+
 				err = shorewall.AddRule(rule)
 				if err != nil {
 					logger.With("error", err).Error("Failed to add firewall rule")
 					continue
 				}
+
 				reloadFirewall = true
 			}
 		}

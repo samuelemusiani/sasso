@@ -90,6 +90,7 @@ func convertDBVMToVM(dbVM *db.VM, groupID *uint, groupName, groupRole *string) *
 		vm.GroupName = *groupName
 		vm.GroupRole = *groupRole
 	}
+
 	return vm
 }
 
@@ -111,12 +112,14 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		logger.Error("Failed to get groups by user ID", "userID", userID, "error", err)
 		return nil, err
 	}
+
 	for _, g := range groups {
 		gvms, err := db.GetVMsByGroupID(g.ID)
 		if err != nil {
 			logger.Error("Failed to get VMs by group ID", "groupID", g.ID, "error", err)
 			return nil, err
 		}
+
 		role, err := db.GetUserRoleInGroup(userID, g.ID)
 		if err != nil {
 			logger.Error("Failed to get user role in group", "userID", userID, "groupID", g.ID, "error", err)
@@ -137,26 +140,35 @@ func GetVMByID(VMID uint64, userID uint) (*VM, error) {
 		if err == db.ErrNotFound {
 			return nil, ErrVMNotFound
 		}
+
 		logger.Error("Failed to get VM by ID", "vmID", VMID, "error", err)
+
 		return nil, err
 	}
 
-	var groupID *uint
-	var groupName, role *string
+	var (
+		groupID         *uint
+		groupName, role *string
+	)
+
 	if dbVM.OwnerType == "Group" {
 		group, err := db.GetGroupByID(dbVM.OwnerID)
 		if err != nil {
 			logger.Error("Failed to get group by ID for VM", "groupID", dbVM.OwnerID, "vmID", VMID, "error", err)
 			return nil, err
 		}
+
 		r, err := db.GetUserRoleInGroup(userID, group.ID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				return nil, ErrVMNotFound
 			}
+
 			logger.Error("Failed to get user role in group for VM", "userID", userID, "groupID", group.ID, "vmID", VMID, "error", err)
+
 			return nil, err
 		}
+
 		groupID = &group.ID
 		groupName = &group.Name
 		role = &r
@@ -171,6 +183,7 @@ func generateFullVMID(group bool, ownerID uint, vmOwnerID uint) (uint64, error) 
 	if group {
 		groupBit = 1
 	}
+
 	svmid := fmt.Sprintf("%d%0*d%0*d", groupBit, cClone.VMIDUserDigits, ownerID, cClone.VMIDVMDigits, vmOwnerID)
 
 	svmid = strings.Replace(cClone.IDTemplate, "{{vmid}}", svmid, 1)
@@ -201,9 +214,11 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	if cores < vmMinCores {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
 	}
+
 	if ram < vmMinRAM {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
 	}
+
 	if disk < VMCloneDiskSizeGB {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
 	}
@@ -234,6 +249,7 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	} else {
 		exists, err = db.ExistsVMWithUserIDAndName(userID, name)
 	}
+
 	if err != nil {
 		l.Error("Failed to check if VM name exists", "error", err)
 		return nil, err
@@ -283,6 +299,7 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	} else {
 		ids, err = db.GetAllVMsIDsByUserID(userID)
 	}
+
 	if err != nil {
 		l.Error("Failed to get existing VM IDs from database", "error", err)
 		return nil, err
@@ -295,10 +312,12 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	}
 
 	uniqueOwnerID++ // Increment the VM user ID for the new VM
+
 	ownerID := userID
 	if group != nil {
 		ownerID = *groupID
 	}
+
 	VMID, err := generateFullVMID(group != nil, ownerID, uniqueOwnerID)
 	if err != nil {
 		l.Error("Failed to generate full VM ID", "error", err)
@@ -320,11 +339,13 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	var groupName, role *string
 	if group != nil {
 		groupName = &group.Name
+
 		r, err := db.GetUserRoleInGroup(userID, group.ID)
 		if err != nil {
 			l.Error("Failed to get user role in group for new VM", "groupID", group.ID, "error", err)
 			return nil, err
 		}
+
 		role = &r
 	}
 
@@ -332,13 +353,17 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 }
 
 func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
-	var err error
-	var vm *db.VM
+	var (
+		err error
+		vm  *db.VM
+	)
+
 	if group {
 		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
 	} else {
 		vm, err = db.GetVMByUserIDAndVMID(userID, vmID)
 	}
+
 	if err != nil {
 		if err == db.ErrNotFound {
 			logger.Warn("VM not found for deletion", "userID", userID, "vmID", vmID)
@@ -356,9 +381,12 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
 				return ErrVMNotFound
 			}
+
 			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+
 			return err
 		}
+
 		if group && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
@@ -383,6 +411,7 @@ func deleteVMBypass(vmID uint64) error {
 	}
 
 	logger.Debug("VM set to 'deleting' successfully", "vmID", vmID)
+
 	return nil
 }
 
@@ -464,7 +493,9 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
 	var task *goprox.Task
+
 	switch action {
 	case "start":
 		task, err = vmr.Start(ctx)
@@ -473,7 +504,9 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	case "restart":
 		task, err = vmr.Reset(ctx)
 	}
+
 	cancel()
+
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to %s VM in Proxmox", action), "vmID", vmID, "node", nodeName, "error", err)
 		return err
@@ -491,6 +524,7 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	}
 
 	var vmStatus VMStatus
+
 	switch action {
 	case "start":
 		vmStatus = VMStatusRunning
@@ -506,18 +540,23 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	}
 
 	logger.Debug(fmt.Sprintf("VM %sed successfully", action), "vmID", vmID)
+
 	return nil
 }
 
 // ChangeVMStatus change status of a VM. If the VM belongs to a user, userID and ownerID are the same.
 func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string) error {
-	var err error
-	var vm *db.VM
+	var (
+		err error
+		vm  *db.VM
+	)
+
 	if group {
 		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
 	} else {
 		vm, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
 	}
+
 	if err != nil {
 		if err == db.ErrNotFound {
 			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", group)
@@ -535,9 +574,12 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 				logger.Warn("User has no role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID)
 				return ErrVMNotFound
 			}
+
 			logger.Error("Failed to get user role in group for changing VM status", "userID", userID, "groupID", ownerID, "vmID", vmID, "error", err)
+
 			return err
 		}
+
 		if group && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
@@ -554,6 +596,7 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 
 func TestEndpointClone() {
 	time.Sleep(5 * time.Second)
+
 	first := true
 	wasError := false
 
@@ -567,15 +610,18 @@ func TestEndpointClone() {
 		if err != nil {
 			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
 			time.Sleep(10 * time.Second)
+
 			continue
 		}
 
 		vm, err := getProxmoxVM(node, cTemplate.VMID)
 		if err != nil {
 			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
+
 			wasError = true
 		} else if first {
 			logger.Info("Proxmox VM is ready for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
+
 			first = false
 
 			s, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
@@ -587,9 +633,9 @@ func TestEndpointClone() {
 					VMCloneDiskSizeGB = sto.Size
 				}
 			}
-
 		} else if wasError {
 			logger.Info("Proxmox VM is back online for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
+
 			wasError = false
 		}
 
@@ -609,6 +655,7 @@ func UpdateVMLifetime(VMID uint64, extendBy uint) error {
 	}
 
 	months := int(extendBy / 2)
+
 	days := int((extendBy % 2) * 15)
 	if vm.LifeTime.After(time.Now().AddDate(0, months, days)) {
 		return errors.Join(ErrInvalidVMParam, errors.New("cannot update lifetime. Too soon"))
@@ -619,6 +666,7 @@ func UpdateVMLifetime(VMID uint64, extendBy uint) error {
 		logger.Error("Failed to update VM lifetime in database", "vmID", VMID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -635,13 +683,16 @@ func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
 	}
 
 	var maxID uint = 0
+
 	for _, id := range ids {
 		sid := strconv.Itoa(int(id))
 		if len(sid) < 1+cClone.VMIDUserDigits {
 			logger.Error("VM ID in database is shorter than expected", "id", id)
 			continue
 		}
+
 		sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
+
 		uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 		if err != nil {
 			logger.Error("Failed to convert unique owner ID to integer", "id", sid, "error", err)
@@ -652,6 +703,7 @@ func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
 			maxID = uint(uniqueOwnerID)
 		}
 	}
+
 	return maxID, nil
 }
 
@@ -669,10 +721,12 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 	}
 
 	sUniqueID := sid[first+1+cClone.VMIDUserDigits:]
+
 	uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
 	}
+
 	return uint(uniqueOwnerID), nil
 }
 
@@ -739,6 +793,7 @@ func UpdateVMResources(VMID uint64, cores, ram, disk uint) error {
 			logger.Error("Failed to get user from database for updating VM resources", "userID", vm.OwnerID, "vmID", VMID, "error", err)
 			return err
 		}
+
 		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
 	}
 

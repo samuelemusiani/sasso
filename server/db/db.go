@@ -27,6 +27,7 @@ var (
 
 func Init(dbLogger *slog.Logger, c config.Database) error {
 	logger = dbLogger
+
 	if err := checkConfig(&c); err != nil {
 		return err
 	}
@@ -170,6 +171,7 @@ func initGlobals() error {
 		logger.Error("Failed to migrate Globals table", "error", err)
 		return err
 	}
+
 	var globals Globals
 	db.First(&globals)
 
@@ -181,6 +183,7 @@ func initGlobals() error {
 
 	logger.Info("Database version mismatch", "old", globals.Version, "current", currentVersion)
 	globals.Version = currentVersion
+
 	err = db.Save(&globals).Error
 	if err != nil {
 		logger.Error("Failed to update database version", "error", err)
@@ -198,7 +201,6 @@ func applyFixes() error {
 		// After 6feb102b98a0c60516bf506c4e7a07b4f8cca750, the admin User is being
 		// created with the CreateUser function and has default settings created.
 		// We check if the admin user has settings, and if not, we create them.
-
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
 			logger.Error("Failed to get admin user ID during fixes application", "error", err)
@@ -206,10 +208,12 @@ func applyFixes() error {
 		}
 
 		var adminSettings Setting
+
 		err = tx.Where(&Setting{UserID: adminID}).First(&adminSettings).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				logger.Info("Admin user has no settings, creating default settings", "userID", adminID)
+
 				err = createDefaultSettingsForUserTransaction(tx, adminID)
 				if err != nil {
 					logger.Error("Failed to create default settings for admin user during fixes application", "error", err)
@@ -223,6 +227,7 @@ func applyFixes() error {
 
 		return nil
 	})
+
 	return err
 }
 
@@ -230,17 +235,22 @@ func checkConfig(c *config.Database) error {
 	if c.User == "" {
 		return fmt.Errorf("database user is empty")
 	}
+
 	if c.Password == "" {
 		return fmt.Errorf("database password is empty")
 	}
+
 	if c.Database == "" {
 		return fmt.Errorf("database name is empty")
 	}
+
 	if c.Host == "" {
 		return fmt.Errorf("database host is empty")
 	}
+
 	if c.Port == 0 {
 		return fmt.Errorf("database port is empty")
 	}
+
 	return nil
 }

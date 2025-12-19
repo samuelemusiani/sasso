@@ -46,6 +46,7 @@ func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 		logger.Error("Failed to get VM by ID", "VMID", VMID, "error", err)
 		return nil, err
 	}
+
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to add an interface", "VMID", VMID, "status", vm.Status)
 		return nil, ErrInvalidVMState
@@ -70,6 +71,7 @@ func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 		logger.Error("Failed to create new interface", "error", err)
 		return nil, err
 	}
+
 	return InterfaceFromDB(iface), nil
 }
 
@@ -91,14 +93,18 @@ func DeleteInterface(id uint) error {
 		if err == db.ErrNotFound {
 			return ErrInterfaceNotFound
 		}
+
 		logger.Error("Failed to get interface by ID", "interfaceID", id, "error", err)
+
 		return err
 	}
+
 	vm, err := db.GetVMByID(uint64(i.VMID))
 	if err != nil {
 		logger.Error("Failed to get VM by ID", "VMID", i.VMID, "error", err)
 		return err
 	}
+
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to add an interface", "VMID", i.VMID, "status", vm.Status)
 		return ErrInvalidVMState
@@ -109,6 +115,7 @@ func DeleteInterface(id uint) error {
 		logger.Error("Failed to set interface status to pre-deleting", "interfaceID", id, "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -118,7 +125,9 @@ func UpdateInterface(iface *Interface) error {
 		if err == db.ErrNotFound {
 			return ErrInterfaceNotFound
 		}
+
 		logger.Error("Failed to get interface by ID", "interfaceID", iface.ID, "error", err)
+
 		return err
 	}
 
@@ -133,6 +142,7 @@ func UpdateInterface(iface *Interface) error {
 		logger.Error("Failed to update interface", "interfaceID", iface.ID, "error", err)
 		return err
 	}
+
 	return nil
 }
 
