@@ -67,43 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if c.Secrets.Key != "" {
-		slog.Info("Using secrets key provided in config file")
-	} else if c.Secrets.Path != "" {
-		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
-
-		base64key, err := os.ReadFile(c.Secrets.Path)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				slog.Error("Failed to read secrets key file", "error", err)
-				os.Exit(1)
-			}
-
-			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
-
-			_, key, err := ed25519.GenerateKey(rand.Reader)
-			if err != nil {
-				slog.Error("Failed to generate new secrets key", "error", err)
-				os.Exit(1)
-			}
-
-			base64key = []byte(base64.StdEncoding.EncodeToString(key))
-
-			slog.Info("Saving key to file", "path", c.Secrets.Path)
-
-			err = os.WriteFile(c.Secrets.Path, base64key, 0600)
-			if err != nil {
-				slog.Error("Failed to write secrets key to file", "error", err)
-				os.Exit(1)
-			}
-
-			c.Secrets.Key = string(base64key)
-		}
-
-		c.Secrets.Key = string(base64key)
-	}
-
-	realKey, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
+	realKey, err := base64.StdEncoding.DecodeString(getSecretKey(c))
 	if err != nil {
 		slog.Error("Failed to decode secrets key", "error", err)
 		os.Exit(1)
@@ -235,4 +199,49 @@ func main() {
 
 	slog.Info("Server shut down gracefully")
 	os.Exit(0)
+}
+
+func getSecretKey(c *config.Config) string {
+	if c.Secrets.Key != "" {
+		slog.Info("Using secrets key provided in config file")
+		return c.Secrets.Key
+	} else if c.Secrets.Path != "" {
+		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
+
+		base64key, err := os.ReadFile(c.Secrets.Path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				slog.Error("Failed to read secrets key file", "error", err)
+				os.Exit(1)
+			}
+
+			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
+
+			return generateSecretKey(c.Secrets.Path)
+		}
+
+		c.Secrets.Key = string(base64key)
+	}
+
+	return c.Secrets.Key
+}
+
+func generateSecretKey(path string) string {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		slog.Error("Failed to generate new secrets key", "error", err)
+		os.Exit(1)
+	}
+
+	base64key := []byte(base64.StdEncoding.EncodeToString(key))
+
+	slog.Info("Saving key to file", "path", path)
+
+	err = os.WriteFile(path, base64key, 0600)
+	if err != nil {
+		slog.Error("Failed to write secrets key to file", "error", err)
+		os.Exit(1)
+	}
+
+	return string(base64key)
 }
