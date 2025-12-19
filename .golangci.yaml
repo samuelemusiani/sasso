@@ -33,7 +33,7 @@ linters:
     - exptostd
     # - fatcontext
     # - forbidigo
-    # - forcetypeassert
+    - forcetypeassert
     # - funcorder
     # - funlen
     - ginkgolinter
