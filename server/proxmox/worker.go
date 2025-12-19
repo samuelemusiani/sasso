@@ -6,6 +6,7 @@ package proxmox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -60,7 +61,7 @@ func ShutdownWorker() error {
 		err = <-workerReturnChan
 	}
 
-	if err != nil && err != context.Canceled {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	} else {
 		return nil

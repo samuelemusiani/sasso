@@ -14,7 +14,7 @@ type localAuthenticator struct {
 func (a *localAuthenticator) Login(username, password string) (*db.User, error) {
 	user, err := db.GetUserByUsernameAndRealmID(username, a.ID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, ErrUserNotFound
 		} else {
 			logger.Error("failed to get user by username", "error", err)

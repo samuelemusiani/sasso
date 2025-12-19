@@ -120,7 +120,7 @@ func GetVMByID(vmID uint64) (*VM, error) {
 
 	result := db.First(&vm, vmID)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -146,7 +146,7 @@ func DeleteVMByID(vmID uint64) error {
 func UpdateVMStatus(vmID uint64, status string) error {
 	result := db.Model(&VM{ID: vmID}).Update("status", status)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 
@@ -161,7 +161,7 @@ func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
 		UpdateColumns(VM{Cores: cores, RAM: ram, Disk: disk})
 
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 
@@ -184,7 +184,7 @@ func getVMByOwnerIDAndVMID(ownerID uint, ownerType string, vmID uint64) (*VM, er
 
 	result := db.Where(&VM{OwnerID: ownerID, OwnerType: ownerType, ID: vmID}).First(&vm)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -328,7 +328,7 @@ func GetVMsWithLifetimesLessThanAndStatusIN(t time.Time, states []string) ([]VM,
 func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
 	result := db.Model(&VM{ID: vmID}).Update("life_time", newLifetime)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 
@@ -394,7 +394,7 @@ func GetVMExpirationNotificationsByVMID(vmID uint64) ([]VMExpirationNotification
 
 	result := db.Model(&VMExpirationNotification{VMID: vmID}).Find(&notifications)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 

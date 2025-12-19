@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -101,7 +102,7 @@ func ShutdownWorker() error {
 		err = <-workerReturnChan
 	}
 
-	if err != nil && err != context.Canceled {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	} else {
 		return nil

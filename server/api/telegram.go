@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -109,7 +110,7 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 	err = db.DeleteTelegramBot(uint(botID), userID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Telegram bot not found", http.StatusNotFound)
 		} else {
 			logger.Error("Failed to delete telegram bot", "botID", botID, "userID", userID, "error", err)
@@ -133,7 +134,7 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 	bot, err := db.GetTelegramBotByID(uint(botID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Telegram bot not found", http.StatusNotFound)
 		} else {
 			logger.Error("Failed to retrieve telegram bot", "botID", botID, "userID", userID, "error", err)
@@ -182,7 +183,7 @@ func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 	err = db.ChangeTelegramBotEnabled(uint(botID), userID, req.Enabled)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Telegram bot not found", http.StatusNotFound)
 		} else {
 			logger.Error("Failed to change telegram bot enabled status", "botID", botID, "userID", userID, "error", err)

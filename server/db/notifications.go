@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -131,7 +132,7 @@ func CreateTelegramBot(name, notes, token, chatID string, userID uint) error {
 func DeleteTelegramBot(id uint, userID uint) error {
 	err := db.Where("id = ? AND user_id = ?", id, userID).Delete(&TelegramBot{}).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 
@@ -156,7 +157,7 @@ func GetUsersWithTelegramBots() ([]uint, error) {
 func GetTelegramBotByID(id uint) (*TelegramBot, error) {
 	var bot TelegramBot
 	if err := db.Where("id = ?", id).First(&bot).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -170,7 +171,7 @@ func GetTelegramBotByID(id uint) (*TelegramBot, error) {
 
 func ChangeTelegramBotEnabled(id uint, userID uint, enabled bool) error {
 	if err := db.Model(&TelegramBot{}).Where("id = ? AND user_id = ?", id, userID).Update("enabled", enabled).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 

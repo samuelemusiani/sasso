@@ -137,7 +137,7 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 func GetVMByID(VMID uint64, userID uint) (*VM, error) {
 	dbVM, err := db.GetVMByID(VMID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, ErrVMNotFound
 		}
 
@@ -365,7 +365,7 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 	}
 
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Warn("VM not found for deletion", "userID", userID, "vmID", vmID)
 			return ErrVMNotFound
 		} else {
@@ -418,7 +418,7 @@ func deleteVMBypass(vmID uint64) error {
 func changeVMStatusBypass(vmID uint64, action string) error {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Warn("VM not found for changing status", "vmID", vmID)
 			return ErrVMNotFound
 		} else {
@@ -558,7 +558,7 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 	}
 
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", group)
 			return ErrVMNotFound
 		} else {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -112,7 +113,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 
 	user, err := db.GetUserByID(userID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -217,7 +218,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := db.GetUserByID(uint(userID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}

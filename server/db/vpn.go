@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -26,7 +27,7 @@ func GetVPNConfigByID(id uint) (*VPNConfig, error) {
 
 	result := db.First(&vpnConfig, id)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		} else {
 			logger.Error("Failed to retrieve VPN config by ID", "error", result.Error)
@@ -54,7 +55,7 @@ func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
 
 	result := db.First(&vpnConfig, "vpn_ip = ?", vpnIP)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		} else {
 			logger.Error("Failed to retrieve VPN config by IP", "error", result.Error)

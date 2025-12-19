@@ -1,6 +1,10 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"errors"
+
+	"gorm.io/gorm"
+)
 
 type Setting struct {
 	ID     uint `gorm:"primaryKey"`
@@ -44,7 +48,7 @@ func initSettings() error {
 func GetSettingsByUserID(userID uint) (*Setting, error) {
 	var setting Setting
 	if err := db.Where(&Setting{UserID: userID}).First(&setting).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 

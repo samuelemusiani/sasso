@@ -63,7 +63,7 @@ func UpdateGroupByID(groupID uint, name, description string) error {
 		err := tx.Where("id != ? AND name = ?", groupID, name).First(&group).Error
 		if err == nil {
 			return ErrAlreadyExists
-		} else if err != gorm.ErrRecordNotFound {
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("Failed to check existing group", "error", err)
 			return err
 		}
@@ -109,7 +109,7 @@ func CreateGroup(name, description string, userID uint) error {
 		var group Group
 		if err := tx.Where(&Group{Name: name}).First(&group).Error; err == nil {
 			return ErrAlreadyExists
-		} else if err != gorm.ErrRecordNotFound {
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("Failed to check existing group", "error", err)
 			return err
 		}
@@ -224,7 +224,7 @@ func GetGroupByID(groupID uint) (*Group, error) {
 
 	err := db.First(&group, groupID).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -241,7 +241,7 @@ func GetUserRoleInGroup(userID, groupID uint) (string, error) {
 
 	err := db.First(&userGroup, "user_id = ? AND group_id = ?", userID, groupID).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrNotFound
 		}
 
@@ -292,7 +292,7 @@ func DeclineGroupInvitation(invitationID, userID uint) error {
 	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").
 		Update("state", "declined").Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil // No pending invitation found, nothing to do
 		}
 
@@ -310,7 +310,7 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 
 		err := tx.Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").First(&invitation).Error
 		if err != nil {
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrNotFound
 			}
 
@@ -354,10 +354,10 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 
 			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: 1}).
 				First(&adminResource).Error
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				logger.Error("Failed to check admin group resource", "error", err)
 				return err
-			} else if err == gorm.ErrRecordNotFound {
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
 				res := GroupResource{
 					GroupID: invitation.GroupID,
 					UserID:  1,
@@ -488,7 +488,7 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 
 			err = tx.Where(&GroupResource{GroupID: groupID, UserID: 1}).
 				First(&adminResource).Error
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				logger.Error("Failed to check admin group resource", "error", err)
 				return err
 			} else if err == nil {
@@ -723,7 +723,7 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 		var resource GroupResource
 
 		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
-		if err != nil && err != gorm.ErrRecordNotFound {
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("Failed to find group resource", "error", err)
 			return err
 		}
@@ -789,7 +789,7 @@ func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 
 	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// No resources to revoke
 			return nil
 		}

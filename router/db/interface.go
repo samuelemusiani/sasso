@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -51,7 +52,7 @@ func GetAllInterfaces() ([]Interface, error) {
 func GetInterfaceByVNet(vnet string) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net = ?", vnet).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -66,7 +67,7 @@ func GetInterfaceByVNet(vnet string) (*Interface, error) {
 func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net_id = ?", vnetID).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 

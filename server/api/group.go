@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -89,7 +90,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.CreateGroup(req.Name, req.Description, userID); err != nil {
-		if err == db.ErrAlreadyExists {
+		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "Group name already exists", http.StatusConflict)
 			return
 		}
@@ -134,7 +135,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.DeleteGroup(group.ID); err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
 			return
 		}
@@ -366,7 +367,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 
 	u, err := db.GetUserByUsernameAndRealmID(usernameToInvite, realmID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -388,7 +389,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.InviteUserToGroup(u.ID, group.ID, req.Role); err != nil {
-		if err == db.ErrAlreadyExists {
+		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "User already invited", http.StatusConflict)
 			return
 		}
@@ -420,7 +421,7 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.RevokeGroupInvitationToUser(uint(inviteID), group.ID); err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Invitation not found or already processed", http.StatusNotFound)
 			return
 		}
@@ -540,7 +541,7 @@ func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
 
 	role, err := db.GetUserRoleInGroup(userID, group.ID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
 			return
 		}
@@ -586,7 +587,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	defer m.Unlock()
 
 	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets); err != nil {
-		if err == db.ErrInsufficientResources {
+		if errors.Is(err, db.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
 			return
 		}
@@ -717,7 +718,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 
 	group, err := db.GetGroupByID(uint(groupid))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
 			return
 		}
@@ -750,7 +751,7 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	err = db.UpdateGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
 			return
 		}
@@ -789,7 +790,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	err := db.UpdateGroupByID(group.ID, req.Name, req.Description)
 	if err != nil {
-		if err == db.ErrAlreadyExists {
+		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "Group name already exists", http.StatusConflict)
 			return
 		}
@@ -814,7 +815,7 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	err := db.SetGroupResourcesByUserID(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets)
 	if err != nil {
-		if err == db.ErrResourcesInUse {
+		if errors.Is(err, db.ErrResourcesInUse) {
 			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
 			return
 		}

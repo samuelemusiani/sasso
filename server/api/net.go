@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -278,7 +279,7 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Failed to get VNet by ID", "vnetID", req.VNetID, "err", err)
 
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "VNet not found", http.StatusNotFound)
 		} else {
 			http.Error(w, "Failed to get VNet", http.StatusInternalServerError)
@@ -299,7 +300,7 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	} else if vnet.OwnerType == "Group" {
 		_, err := db.GetUserRoleInGroup(userID, vnet.OwnerID)
 		if err != nil {
-			if err == db.ErrNotFound {
+			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "Group not found or user not in group", http.StatusBadRequest)
 				return
 			} else {

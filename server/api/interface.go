@@ -94,7 +94,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 	case "Group":
 		role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 		if err != nil {
-			if err == db.ErrNotFound {
+			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
 				return
 			} else {
@@ -237,7 +237,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 	} else if n.OwnerType == "Group" {
 		role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 		if err != nil {
-			if err == db.ErrNotFound {
+			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
 				return
 			} else {

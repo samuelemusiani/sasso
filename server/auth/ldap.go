@@ -98,7 +98,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 
 	u, err := db.GetUserByUsernameAndRealmID(username, a.ID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Info("User not found in local DB, creating new user", "username", username)
 
 			newUser := db.User{

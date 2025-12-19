@@ -73,7 +73,7 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 
 			user, err := db.GetUserByID(uint(userID))
 			if err != nil {
-				if err == db.ErrNotFound {
+				if errors.Is(err, db.ErrNotFound) {
 					http.Error(w, "User not found", http.StatusUnauthorized)
 					return
 				}

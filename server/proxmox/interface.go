@@ -90,7 +90,7 @@ func InterfaceFromDB(dbIface *db.Interface) *Interface {
 func DeleteInterface(id uint) error {
 	i, err := db.GetInterfaceByID(id)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			return ErrInterfaceNotFound
 		}
 
@@ -122,7 +122,7 @@ func DeleteInterface(id uint) error {
 func UpdateInterface(iface *Interface) error {
 	dbIface, err := db.GetInterfaceByID(iface.ID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			return ErrInterfaceNotFound
 		}
 

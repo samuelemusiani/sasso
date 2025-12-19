@@ -208,7 +208,7 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 
@@ -236,7 +236,7 @@ func getRealm(w http.ResponseWriter, r *http.Request) {
 	case "ldap":
 		ldapRealm, err := db.GetLDAPRealmByID(uint(realmID))
 		if err != nil {
-			if err == db.ErrNotFound {
+			if errors.Is(err, db.ErrNotFound) {
 				logger.Error("LDAP Realm not found", "userID", userID, "realmID", realmID)
 				http.Error(w, "LDAP Realm not found", http.StatusNotFound)
 
@@ -291,7 +291,7 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 
@@ -313,7 +313,7 @@ func deleteRealm(w http.ResponseWriter, r *http.Request) {
 
 	err = db.DeleteRealmByID(uint(realmID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 
@@ -353,7 +353,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 
 	realm, err := db.GetRealmByID(uint(realmID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			logger.Error("Realm not found", "userID", userID, "realmID", realmID)
 			http.Error(w, "Realm not found", http.StatusNotFound)
 
@@ -373,7 +373,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 	case "ldap":
 		ldapRealm, err := db.GetLDAPRealmByID(uint(realmID))
 		if err != nil {
-			if err == db.ErrNotFound {
+			if errors.Is(err, db.ErrNotFound) {
 				logger.Error("LDAP Realm not found", "userID", userID, "realmID", realmID)
 				http.Error(w, "LDAP Realm not found", http.StatusNotFound)
 

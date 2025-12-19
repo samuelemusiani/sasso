@@ -257,7 +257,7 @@ func DeleteNet(userID uint, netID uint) error {
 func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 	net, err := db.GetNetByID(vnetID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			return ErrVNetNotFound
 		} else {
 			logger.Error("Failed to get net by ID", "userID", userID, "vnetID", vnetID, "error", err)

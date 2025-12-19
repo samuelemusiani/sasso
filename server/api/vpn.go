@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -162,7 +163,7 @@ func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	vpnConfig, err := db.GetVPNConfigByID(uint(vpnID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "VPN config not found", http.StatusNotFound)
 			return
 		}

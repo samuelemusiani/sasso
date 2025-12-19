@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -313,7 +314,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 
 	bkr, err := db.GetBackupRequestByID(uint(bkrID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
 			return
 		}

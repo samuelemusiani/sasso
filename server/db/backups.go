@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -38,7 +39,7 @@ func GetBackupRequestByID(id uint) (*BackupRequest, error) {
 
 	result := db.First(&backupRequest, id)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 
@@ -87,7 +88,7 @@ func newBackupRequestWithVolid(backupType, status string, volid *string, vmID, o
 func UpdateBackupRequestStatus(id uint, status string) error {
 	result := db.Model(&BackupRequest{ID: id}).Update("status", status)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		} else if result.RowsAffected == 0 {
 			return ErrNotFound
