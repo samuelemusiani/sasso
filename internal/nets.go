@@ -14,7 +14,7 @@ import (
 func FetchNets(endpoint, secret string) (nets []Net, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("GET", endpoint+"/internal/net", nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/net", nil)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to create request to fetch nets status"))
 	}
@@ -52,7 +52,7 @@ func UpdateNet(endpoint, secret string, net Net) (err error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("PUT", endpoint+"/internal/net/"+fmt.Sprintf("%d", net.ID), bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/net/"+fmt.Sprintf("%d", net.ID), bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch net status"))
 	}

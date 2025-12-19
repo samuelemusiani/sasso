@@ -13,7 +13,7 @@ import (
 func FetchPortForwards(endpoint, secret string) (portForwards []PortForward, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("GET", endpoint+"/internal/port-forwards", nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/port-forwards", nil)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to create request to fetch port forwards"))
 	}

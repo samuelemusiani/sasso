@@ -312,7 +312,7 @@ func sendTelegramMessage(bot *db.TelegramBot, text string) (err error) {
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonMessage))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonMessage))
 	if err != nil {
 		logger.Error("Failed to create telegram request", "error", err)
 		return err

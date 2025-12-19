@@ -109,7 +109,7 @@ linters:
     # - unparam
     - unqueryvet
     - unused
-    # - usestdlibvars
+    - usestdlibvars
     - usetesting
     # - varnamelen
     - wastedassign

@@ -14,7 +14,7 @@ import (
 func FetchVPNConfigs(endpoint, secret string) (vpns []VPNProfile, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("GET", endpoint+"/internal/vpn", nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/vpn", nil)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}
@@ -52,7 +52,7 @@ func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) (err error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("PUT", endpoint+"/internal/vpn", bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/vpn", bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}

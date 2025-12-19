@@ -18,7 +18,7 @@ type User struct {
 func FetchUsers(endpoint, secret string) (users []User, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest("GET", endpoint+"/internal/user", nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/user", nil)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to create request to fetch nets status"))
 	}
