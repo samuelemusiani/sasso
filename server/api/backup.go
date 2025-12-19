@@ -17,10 +17,11 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 
 	bks, err := proxmox.ListBackups(vm.ID, vm.CreatedAt)
 	if err != nil {
-		if err == proxmox.ErrVMNotFound {
+		switch err {
+		case proxmox.ErrVMNotFound:
 			http.Error(w, "VM not found", http.StatusNotFound)
 			return
-		} else if err == proxmox.ErrInvalidVMState {
+		case proxmox.ErrInvalidVMState:
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
@@ -74,13 +75,14 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.RestoreBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
-		if err == proxmox.ErrBackupNotFound {
+		switch err {
+		case proxmox.ErrBackupNotFound:
 			http.Error(w, "Backup not found", http.StatusNotFound)
 			return
-		} else if err == proxmox.ErrPendingBackupRequest {
+		case proxmox.ErrPendingBackupRequest:
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrInvalidVMState {
+		case proxmox.ErrInvalidVMState:
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
@@ -138,19 +140,20 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.CreateBackup(userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
-		if err == proxmox.ErrPendingBackupRequest {
+		switch err {
+		case proxmox.ErrPendingBackupRequest:
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrMaxBackupsReached {
+		case proxmox.ErrMaxBackupsReached:
 			http.Error(w, "Maximum number of backups reached for this user", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrBackupNameTooLong {
+		case proxmox.ErrBackupNameTooLong:
 			http.Error(w, "Backup name too long", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrBackupNotesTooLong {
+		case proxmox.ErrBackupNotesTooLong:
 			http.Error(w, "Backup notes too long", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrInvalidVMState {
+		case proxmox.ErrInvalidVMState:
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
@@ -191,16 +194,17 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 
 	id, err := proxmox.DeleteBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
-		if err == proxmox.ErrBackupNotFound {
+		switch err {
+		case proxmox.ErrBackupNotFound:
 			http.Error(w, "Backup not found", http.StatusNotFound)
 			return
-		} else if err == proxmox.ErrCantDeleteBackup {
+		case proxmox.ErrCantDeleteBackup:
 			http.Error(w, "Can't delete backup", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrPendingBackupRequest {
+		case proxmox.ErrPendingBackupRequest:
 			http.Error(w, "Pending backup request", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrInvalidVMState {
+		case proxmox.ErrInvalidVMState:
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}
@@ -345,13 +349,14 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 
 	protected, err := proxmox.ProtectBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt, reqBody.Protected)
 	if err != nil {
-		if err == proxmox.ErrBackupNotFound {
+		switch err {
+		case proxmox.ErrBackupNotFound:
 			http.Error(w, "Backup not found", http.StatusNotFound)
 			return
-		} else if err == proxmox.ErrMaxProtectedBackupsReached {
+		case proxmox.ErrMaxProtectedBackupsReached:
 			http.Error(w, "Max protected backups reached", http.StatusBadRequest)
 			return
-		} else if err == proxmox.ErrInvalidVMState {
+		case proxmox.ErrInvalidVMState:
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 			return
 		}

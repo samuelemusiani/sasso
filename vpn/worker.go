@@ -335,7 +335,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 
 		logger.Debug("Enabling net", "net", n.Subnet)
 
-		var reloadShorewall bool = false
+		reloadShorewall := false
 		for _, userID := range n.UserIDs {
 			peers, err := db.GetPeersByUserID(userID)
 			if err != nil {

@@ -758,9 +758,7 @@ func updateVMs(cluster *gprox.Cluster) {
 
 		statusInSlices := slices.Contains(allVMStatus, r.Status)
 		// If the VMs status becomes normal we need to delete it from the map
-		if _, exists := vmStatusTimeMap[r.VMID]; exists {
-			delete(vmStatusTimeMap, r.VMID)
-		}
+		delete(vmStatusTimeMap, r.VMID)
 
 		lastTimeVMWasPrelaunch, hasLastTimeVMWasPrelaunch := vmLastTimePrelaunchMap[r.VMID]
 		if !hasLastTimeVMWasPrelaunch {
@@ -926,8 +924,8 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		// To avoid increasing the netX index indefinitely, we find the first
 		// empty index
-		var snet = make([]int, len(mnets))
-		var i int = 0
+		snet := make([]int, len(mnets))
+		i := 0
 		for k := range mnets {
 			tmp := strings.TrimPrefix(k, "net")
 			tmpN, err := strconv.Atoi(tmp)
@@ -939,7 +937,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		}
 		slices.Sort(snet)
 		logger.Debug("Current network interfaces on Proxmox VM", "mnets", mnets, "snet", snet)
-		var firstEmptyIndex int = -1
+		firstEmptyIndex := -1
 		for i := range snet {
 			if snet[i] != i {
 				firstEmptyIndex = i

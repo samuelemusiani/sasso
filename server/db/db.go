@@ -169,7 +169,7 @@ func initGlobals() error {
 	var globals Globals
 	db.First(&globals)
 
-	var currentVersion string = "0.0.1"
+	currentVersion := "0.0.1"
 
 	if globals.Version == currentVersion {
 		return nil

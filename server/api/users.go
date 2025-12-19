@@ -52,13 +52,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := auth.Authenticate(loginReq.Username, loginReq.Password, loginReq.Realm)
 	if err != nil {
-		if err == auth.ErrUserNotFound {
+		switch err {
+		case auth.ErrUserNotFound:
 			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
-		} else if err == auth.ErrPasswordMismatch {
+		case auth.ErrPasswordMismatch:
 			http.Error(w, "Password mismatch", http.StatusUnauthorized)
 			return
-		} else {
+		default:
 			logger.Error("failed to authenticate user", "error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
@@ -140,7 +141,7 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var realmMap map[uint]string = make(map[uint]string)
+	realmMap := make(map[uint]string)
 	for _, realm := range realms {
 		realmMap[realm.ID] = realm.Name
 	}

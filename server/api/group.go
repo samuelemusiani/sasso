@@ -441,10 +441,11 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 	defer m2.Unlock()
 
 	if err := db.RemoveUserFromGroup(userID, group.ID); err != nil {
-		if err == db.ErrNotFound {
+		switch err {
+		case db.ErrNotFound:
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
 			return
-		} else if err == db.ErrResourcesInUse {
+		case db.ErrResourcesInUse:
 			http.Error(w, "Cannot leave group: resources are currently in use", http.StatusForbidden)
 			return
 		}
@@ -475,10 +476,11 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	defer m.Unlock()
 
 	if err := db.RemoveUserFromGroup(uint(userID), group.ID); err != nil {
-		if err == db.ErrNotFound {
+		switch err {
+		case db.ErrNotFound:
 			http.Error(w, "User is not a member of this group", http.StatusNotFound)
 			return
-		} else if err == db.ErrResourcesInUse {
+		case db.ErrResourcesInUse:
 			http.Error(w, "Cannot remove user: resources are currently in use", http.StatusForbidden)
 			return
 		}
@@ -562,10 +564,11 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 
 	err := db.RevokeGroupResources(group.ID, userID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		switch err {
+		case db.ErrNotFound:
 			http.Error(w, "No resources found for group member", http.StatusNotFound)
 			return
-		} else if err == db.ErrResourcesInUse {
+		case db.ErrResourcesInUse:
 			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusForbidden)
 			return
 		}

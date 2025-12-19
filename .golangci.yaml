@@ -119,7 +119,14 @@ linters:
     # - zerologlint
 
   # All available settings of specific linters.
-  # settings:
+  settings:
+    staticcheck:
+      checks:
+        - all
+
+        # Disable: Incorrect or missing package comment
+        # See: https://staticcheck.dev/docs/checks/#ST1000
+        - "-ST1000"
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.

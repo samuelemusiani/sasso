@@ -40,7 +40,7 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 	}
 
 	// LoginFilter is in the form (&(objectClass=person)(uid={{username}}))
-	lgQueryFilter := strings.Replace(a.LoginFilter, "{{username}}", username, -1)
+	lgQueryFilter := strings.ReplaceAll(a.LoginFilter, "{{username}}", username)
 
 	logger.Debug("LDAP login filter", "filter", lgQueryFilter)
 
@@ -77,7 +77,7 @@ func (a *ldapAuthenticator) Login(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	var role db.UserRole = db.RoleUser
+	role := db.RoleUser
 
 	if a.AdminGroupDN != "" {
 		if slices.Contains(sr.Entries[0].GetAttributeValues("memberOf"), a.AdminGroupDN) {
@@ -163,7 +163,7 @@ func VerifyLDAPLoginFilter(login string) error {
 		return errors.Join(ErrInvalidConfig, errors.New("login filter cannot be empty"))
 	}
 
-	if strings.Index(login, "{{username}}") == -1 {
+	if !strings.Contains(login, "{{username}}") {
 		return errors.Join(ErrInvalidConfig, errors.New("login filter must contain {{username}} placeholder"))
 	}
 	return nil

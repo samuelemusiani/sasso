@@ -74,7 +74,8 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if n.OwnerType == "User" {
+	switch n.OwnerType {
+	case "User":
 		if n.OwnerID != userID {
 			http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
 			return
@@ -82,7 +83,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "VM does not belong to the same user as the vnet", http.StatusForbidden)
 			return
 		}
-	} else if n.OwnerType == "Group" {
+	case "Group":
 		role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 		if err != nil {
 			if err == db.ErrNotFound {

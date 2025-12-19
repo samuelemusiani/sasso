@@ -92,8 +92,8 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	// mnets := map[net0:virtio=BC:24:11:D2:FA:F0,bridge=vmbr0,firewall=1 net1:virtio=BC:24:11:B6:1C:2A,bridge=sassoint,firewall=1]
 
 	// snet := [1, 2, 3, ..]
-	var snet = make([]int, len(mnets))
-	var i int = 0
+	snet := make([]int, len(mnets))
+	i := 0
 	for k := range mnets {
 		tmp := strings.TrimPrefix(k, "net")
 		tmpN, err := strconv.Atoi(tmp)
@@ -106,7 +106,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	slices.Sort(snet)
 	logger.Debug("Current network interfaces on Proxmox VM", "mnets", mnets, "snet", snet)
 
-	var firstEmptyIndex int = -1
+	firstEmptyIndex := -1
 	for i := range snet {
 		if snet[i] != i {
 			firstEmptyIndex = i
