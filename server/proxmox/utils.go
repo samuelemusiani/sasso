@@ -71,7 +71,7 @@ func parseStorageFromString(s string) (*Storage, error) {
 	np := parts[0]
 	npParts := strings.SplitN(np, ":", 2)
 	if len(npParts) != 2 {
-		err := errors.Join(ErrInvalidStorageString, errors.New("Missing ':'"))
+		err := errors.Join(ErrInvalidStorageString, errors.New("missing ':'"))
 		return nil, err
 	}
 	st.Name = npParts[0]

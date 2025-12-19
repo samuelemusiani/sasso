@@ -15,7 +15,7 @@ var (
 	logger        *slog.Logger
 	globalGateway Gateway
 
-	ErrUnsupportedGatewayType = errors.New("Unsupported gateway type")
+	ErrUnsupportedGatewayType = errors.New("unsupported gateway type")
 )
 
 type Interface struct {

@@ -14,7 +14,7 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 )
 
-const CLAIM_USER_ID = "user_id"
+const ClaimUserID = "user_id"
 
 type loginRequest struct {
 	Username string `json:"username"`
@@ -68,7 +68,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	logger.Info("User authenticated successfully", "userID", user.ID)
 
 	// Password matches, create JWT token
-	claims := map[string]any{CLAIM_USER_ID: user.ID}
+	claims := map[string]any{ClaimUserID: user.ID}
 	jwtauth.SetIssuedNow(claims)
 	jwtauth.SetExpiryIn(claims, time.Hour*12) // Set token expiry to 24 hours
 

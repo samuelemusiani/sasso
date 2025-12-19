@@ -30,21 +30,21 @@ func NewProxmoxGateway() *ProxmoxGateway {
 }
 
 func (pg *ProxmoxGateway) Init(c config.Gateway) error {
-	_, err := url.Parse(c.Proxmox.Url)
+	_, err := url.Parse(c.Proxmox.URL)
 	if err != nil {
-		logger.Error("Invalid Proxmox URL", "url", c.Proxmox.Url, "err", err)
+		logger.Error("Invalid Proxmox URL", "url", c.Proxmox.URL, "err", err)
 		return err
 	}
-	purl := c.Proxmox.Url
+	purl := c.Proxmox.URL
 
-	if !strings.Contains(c.Proxmox.Url, "api2/json") {
-		if !strings.HasSuffix(c.Proxmox.Url, "/") {
+	if !strings.Contains(c.Proxmox.URL, "api2/json") {
+		if !strings.HasSuffix(c.Proxmox.URL, "/") {
 			purl += "/"
 		}
 		purl += "api2/json"
 	}
 
-	http_client := http.Client{
+	httpClient := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: c.Proxmox.InsecureSkipVerify,
@@ -53,18 +53,18 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 	}
 
 	if c.Proxmox.TokenID == "" {
-		return errors.New("Proxmox token ID is required")
+		return errors.New("proxmox token ID is required")
 	}
 	if c.Proxmox.Secret == "" {
-		return errors.New("Proxmox secret is required")
+		return errors.New("proxmox secret is required")
 	}
 
 	pg.client = proxmox.NewClient(purl,
-		proxmox.WithHTTPClient(&http_client),
+		proxmox.WithHTTPClient(&httpClient),
 		proxmox.WithAPIToken(c.Proxmox.TokenID, c.Proxmox.Secret))
 
 	if c.Proxmox.VMID < 100 {
-		return errors.New("Proxmox VMID must be >= 100")
+		return errors.New("proxmox VMID must be >= 100")
 	}
 
 	pg.vmid = c.Proxmox.VMID
@@ -76,7 +76,7 @@ func (pg *ProxmoxGateway) Init(c config.Gateway) error {
 		logger.Error("Reading Proxmox API version endpoint", "err", err)
 		return err
 	}
-	logger.Info("Proxmox version", "version", version.Version)
+	logger.Info("proxmox version", "version", version.Version)
 
 	return nil
 }
@@ -348,12 +348,12 @@ func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
 	}
 
 	if !completed {
-		logger.Error("Proxmox task did not complete in time")
+		logger.Error("proxmox task did not complete in time")
 		return false, false, errors.New("task_timeout")
 	}
 
 	if !isSuccessful {
-		logger.Error("Proxmox task failed")
+		logger.Error("proxmox task failed")
 		return false, true, errors.New("task_failed")
 	}
 

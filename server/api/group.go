@@ -96,9 +96,9 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
-	user_role := mustGetUserRoleInGroupFromContext(r)
+	userRole := mustGetUserRoleInGroupFromContext(r)
 
-	if user_role != "owner" {
+	if userRole != "owner" {
 		http.Error(w, "Only group owners can delete the group", http.StatusForbidden)
 		return
 	}
@@ -429,9 +429,9 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 func leaveGroup(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
-	user_role := mustGetUserRoleInGroupFromContext(r)
+	userRole := mustGetUserRoleInGroupFromContext(r)
 
-	if user_role == "owner" {
+	if userRole == "owner" {
 		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusForbidden)
 		return
 	}
@@ -457,9 +457,9 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 
 func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
-	user_role := mustGetUserRoleInGroupFromContext(r)
+	userRole := mustGetUserRoleInGroupFromContext(r)
 
-	if user_role != "owner" {
+	if userRole != "owner" {
 		http.Error(w, "Only group owners can remove members", http.StatusForbidden)
 		return
 	}
@@ -668,7 +668,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, "group", group)
+	ctx = context.WithValue(ctx, groupIDKey, group)
 	r = r.WithContext(ctx)
 	getGroup(w, r)
 }
@@ -701,9 +701,9 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
-	user_role := mustGetUserRoleInGroupFromContext(r)
+	userRole := mustGetUserRoleInGroupFromContext(r)
 
-	if user_role != "owner" {
+	if userRole != "owner" {
 		http.Error(w, "Only group owners can update the group", http.StatusForbidden)
 		return
 	}

@@ -77,7 +77,7 @@ func UpdateGroupByID(groupID uint, name, description string) error {
 	})
 }
 
-// This struct is only used for queries
+// GroupMemberWithUsername is only used for queries
 type GroupMemberWithUsername struct {
 	UserID    uint
 	Username  string
@@ -255,8 +255,8 @@ func GetGroupMembers(groupID uint) ([]GroupMemberWithUsername, error) {
 	return members, nil
 }
 
-// This functions is used to get pending invitations for a user along with group
-// details
+// GetGroupsWithInvitationByUserID is used to get pending invitations for a
+// user along with group details
 func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
 	var invitations []GroupInvitation
 	err := db.Table("group_invitations as gi").
@@ -358,8 +358,8 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 	return nil
 }
 
-// This function is used to get pending invitations for a group along with
-// user details
+// GetPendingGroupInvitationsByGroupID is used to get pending invitations for
+// a group along with user details
 func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error) {
 	var invitations []GroupInvitation
 	err := db.Table("group_invitations as gi").
@@ -497,10 +497,11 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 	return userIDs, nil
 }
 
-// It is possible to asign resources to a group by admins. We have model this
-// as the admin user assigning some of their own resources to the group.
-// As the admin does not have resources, we need to check to avoid reassigning
-// them to it when revoking group resources.
+// GroupResource encodes the resources for a particular group. Admins can
+// asign resources to a group. We have model this as the admin user assigning
+// some of their own resources to the group. As the admin does not have
+// resources, we need to check to avoid reassigning them to it when revoking
+// group resources.
 type GroupResource struct {
 	GroupID uint `gorm:"primaryKey"`
 	UserID  uint `gorm:"primaryKey"`

@@ -86,7 +86,7 @@ func GetNetsByGroupID(groupID uint) ([]Net, error) {
 	return nets, nil
 }
 
-// Only counts nets owned by users, not groups
+// CountNetsByUserID only counts nets owned by users, not groups
 func CountNetsByUserID(userID uint) (uint, error) {
 	var count int64
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", userID, "User").Count(&count).Error; err != nil {
@@ -96,7 +96,7 @@ func CountNetsByUserID(userID uint) (uint, error) {
 	return uint(count), nil
 }
 
-// Only counts nets owned by groups, not users
+// CountNetsByGroupID only counts nets owned by groups, not users
 func CountNetsByGroupID(groupID uint) (uint, error) {
 	var count int64
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", groupID, "Group").Count(&count).Error; err != nil {
@@ -149,7 +149,7 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 	return count > 0, nil
 }
 
-// This function only creates a network for a user in the DB. It does
+// CreateNetForUser only creates a network for a user in the DB. It does
 // not create the network in Proxmox
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 
@@ -174,7 +174,7 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 	return net, nil
 }
 
-// This function only creates a network for a group in the DB. It does
+// CreateNetForGroup only creates a network for a group in the DB. It does
 // not create the network in Proxmox
 func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 

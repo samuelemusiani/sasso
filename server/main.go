@@ -24,10 +24,8 @@ import (
 //go:embed all:_front
 var frontFS embed.FS
 
-const DEFAULT_LOG_LEVEL = slog.LevelDebug
-
 func main() {
-	slog.SetLogLoggerLevel(DEFAULT_LOG_LEVEL)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	lLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if ok {
@@ -41,7 +39,7 @@ func main() {
 		case "ERROR":
 			slog.SetLogLoggerLevel(slog.LevelError)
 		default:
-			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+			slog.Warn("Invalid LOG_LEVEL value, using default debug", "value", lLevel)
 		}
 	}
 
@@ -100,7 +98,7 @@ func main() {
 		c.Secrets.Key = string(base64key)
 	}
 
-	real_key, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
+	realKey, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
 	if err != nil {
 		slog.Error("Failed to decode secrets key", "error", err)
 		os.Exit(1)
@@ -142,13 +140,17 @@ func main() {
 	if c.Notifications.Enabled {
 		notifyLogger := slog.With("module", "notify")
 		err = notify.Init(notifyLogger, c.Notifications)
+		if err != nil {
+			slog.Error("Failed to initialize notifications module", "error", err)
+			os.Exit(1)
+		}
 		notify.StartWorker()
 	}
 
 	// API
 	slog.Debug("Initializing API server")
 	apiLogger := slog.With("module", "api")
-	err = api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
+	err = api.Init(apiLogger, realKey, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
 	if err != nil {
 		slog.Error("Failed to initialize API server", "error", err)
 		os.Exit(1)

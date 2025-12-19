@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
@@ -12,6 +13,16 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 )
 
+type contextKey string
+
+const (
+	vmIDKey          contextKey = "vm_id"
+	groupUserRoleKey contextKey = "group_user_role"
+	groupIDKey       contextKey = "group_id"
+	groupKey         contextKey = "group"
+	interfaceIDKey   contextKey = "interface_id"
+)
+
 func getUserIDFromContext(r *http.Request) (uint, error) {
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
@@ -19,9 +30,9 @@ func getUserIDFromContext(r *http.Request) (uint, error) {
 		return 0, err
 	}
 	// All JSON numbers are decoded into float64 by default
-	userID, ok := claims[CLAIM_USER_ID].(float64)
+	userID, ok := claims[ClaimUserID].(float64)
 	if !ok {
-		logger.Error("User ID claim not found or not a float64", "claims", claims[CLAIM_USER_ID])
+		logger.Error("User ID claim not found or not a float64", "claims", claims[ClaimUserID])
 		return 0, errors.New("user ID claim not found or not a float64")
 	}
 
@@ -54,7 +65,7 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 				return
 			}
 
-			userID, ok := claims[CLAIM_USER_ID].(float64)
+			userID, ok := claims[ClaimUserID].(float64)
 			if !ok {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
@@ -127,9 +138,9 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "vm_id", vm)
-			ctx = context.WithValue(ctx, "group_user_role", role)
-			ctx = context.WithValue(ctx, "group_id", vm.OwnerID)
+			ctx = context.WithValue(ctx, vmIDKey, vm)
+			ctx = context.WithValue(ctx, groupUserRoleKey, role)
+			ctx = context.WithValue(ctx, groupIDKey, vm.OwnerID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -139,24 +150,24 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 }
 
 func mustGetVMFromContext(r *http.Request) *proxmox.VM {
-	vm, ok := r.Context().Value("vm_id").(*proxmox.VM)
+	vm, ok := r.Context().Value(vmIDKey).(*proxmox.VM)
 	if !ok {
-		panic("getVMFromContext: vm_id not found in context")
+		panic(fmt.Sprintf("mustGetVMFromContext: %s not found in context", vmIDKey))
 	}
 	return vm
 }
 
 func mustGetUserRoleInGroupFromContext(r *http.Request) string {
-	role, ok := r.Context().Value("group_user_role").(string)
+	role, ok := r.Context().Value(vmIDKey).(string)
 	if !ok {
-		panic("mustGetUserRoleInGroupFromContext: group_user_role not found in context")
+		panic(fmt.Sprintf("mustGetUserRoleInGroupFromContext: %s not found in context", groupUserRoleKey))
 	}
 	return role
 }
 
 // IMPORTANT: This only works under /vm/ paths
 func mustGetGroupIDFromContext(r *http.Request) uint {
-	groupID, ok := r.Context().Value("group_id").(uint)
+	groupID, ok := r.Context().Value(groupIDKey).(uint)
 	if !ok {
 		panic("mustGetGroupIDFromContext: group_id not found in context")
 	}
@@ -213,7 +224,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "interface_id", iface)
+			ctx = context.WithValue(ctx, interfaceIDKey, iface)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -223,7 +234,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 }
 
 func mustGetInterfaceFromContext(r *http.Request) *db.Interface {
-	iface, ok := r.Context().Value("interface_id").(*db.Interface)
+	iface, ok := r.Context().Value(interfaceIDKey).(*db.Interface)
 	if !ok {
 		panic("getInterfaceFromContext: interface_id not found in context")
 	}
@@ -269,8 +280,8 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "group", group)
-			ctx = context.WithValue(ctx, "group_user_role", userRole)
+			ctx = context.WithValue(ctx, groupKey, group)
+			ctx = context.WithValue(ctx, groupIDKey, userRole)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -281,7 +292,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 
 // IMPORTANT: This only works under /group/ paths
 func mustGetGroupFromContext(r *http.Request) *db.Group {
-	group, ok := r.Context().Value("group").(*db.Group)
+	group, ok := r.Context().Value(groupKey).(*db.Group)
 	if !ok {
 		panic("getGroupFromContext: group not found in context")
 	}

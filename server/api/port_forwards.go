@@ -103,8 +103,8 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.DestPort < 1 || req.DestPort > 65535 {
-		http.Error(w, "DestPort must be between 1 and 65535", http.StatusBadRequest)
+	if req.DestPort < 1 {
+		http.Error(w, "DestPort must greater than 1", http.StatusBadRequest)
 		return
 	}
 

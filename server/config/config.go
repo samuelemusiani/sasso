@@ -36,7 +36,7 @@ type Secrets struct {
 }
 
 type Proxmox struct {
-	Url                string          `toml:"url"`
+	URL                string          `toml:"url"`
 	TokenID            string          `toml:"token_id"`
 	Secret             string          `toml:"secret"`
 	InsecureSkipVerify bool            `toml:"insecure_skip_verify"`

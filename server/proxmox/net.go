@@ -89,7 +89,7 @@ func TestEndpointNetZone() {
 	}
 }
 
-// This Function only creates a network in the database.
+// CreateNewNet only creates a network in the database.
 func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.Net, error) {
 	user, err := db.GetUserByID(userID)
 	if err != nil {
@@ -158,8 +158,8 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	}
 
 	if tag < cNetwork.VXLANIDStart || tag > cNetwork.VXLANIDEnd {
-		logger.Error("Tag is out of range", "userID", userID, "tag", tag)
-		return nil, errors.New("Tag is out of range")
+		logger.Error("tag is out of range", "userID", userID, "tag", tag)
+		return nil, errors.New("tag is out of range")
 	}
 
 	netName := cNetwork.SDNZone[0:3] + EncodeBase62(uint32(tag))

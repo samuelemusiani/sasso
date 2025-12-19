@@ -59,15 +59,15 @@ func GetVMsByGroupID(groupID uint) ([]VM, error) {
 }
 
 func ExistsVMWithUserIDAndName(userID uint, name string) (bool, error) {
-	return existsVMWithOwnerIdAndName(userID, "User", name)
+	return existsVMWithOwnerIDAndName(userID, "User", name)
 }
 
 func ExistsVMWithGroupIDAndName(groupID uint, name string) (bool, error) {
-	return existsVMWithOwnerIdAndName(groupID, "Group", name)
+	return existsVMWithOwnerIDAndName(groupID, "Group", name)
 }
 
 // Returns true if a VM with the given userID and name exists
-func existsVMWithOwnerIdAndName(ownerID uint, ownerType, name string) (bool, error) {
+func existsVMWithOwnerIDAndName(ownerID uint, ownerType, name string) (bool, error) {
 	var count int64
 	result := db.Model(&VM{}).Where(&VM{OwnerID: ownerID, OwnerType: ownerType, Name: name}).
 		Count(&count)

@@ -56,15 +56,15 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 		return ErrCantGenerateNonce
 	}
 
-	url := config.Url
-	if !strings.Contains(config.Url, "api2/json") {
-		if !strings.HasSuffix(config.Url, "/") {
+	url := config.URL
+	if !strings.Contains(config.URL, "api2/json") {
+		if !strings.HasSuffix(config.URL, "/") {
 			url += "/"
 		}
 		url += "api2/json"
 	}
 
-	http_client := http.Client{
+	httpClient := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: config.InsecureSkipVerify,
@@ -73,7 +73,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	}
 
 	client = proxmox.NewClient(url,
-		proxmox.WithHTTPClient(&http_client),
+		proxmox.WithHTTPClient(&httpClient),
 		proxmox.WithAPIToken(config.TokenID, config.Secret))
 
 	cTemplate = &config.Template
@@ -85,36 +85,36 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 }
 
 func checkConfig(c *config.Proxmox) error {
-	_, err := url.Parse(c.Url)
+	_, err := url.Parse(c.URL)
 	if err != nil {
 		return fmt.Errorf("invalid Proxmox URL: %w", err)
 	}
 
 	if c.TokenID == "" {
-		return errors.New("Proxmox token ID is required")
+		return errors.New("proxmox token ID is required")
 	}
 	if c.Secret == "" {
-		return errors.New("Proxmox secret is required")
+		return errors.New("proxmox secret is required")
 	}
 
 	if c.Clone.TargetNode == "" {
-		return errors.New("Proxmox clone target node is required")
+		return errors.New("proxmox clone target node is required")
 	}
 
 	idTemplate := strings.TrimSpace(c.Clone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
-		e := fmt.Errorf("Invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'. template: %s", idTemplate)
+		e := fmt.Errorf("invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'. template: %s", idTemplate)
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
 	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + c.Clone.VMIDUserDigits + c.Clone.VMIDVMDigits
 	if tmp < 3 || tmp > 9 {
-		e := fmt.Errorf("Invalid Proxmox clone ID template. The total length must be between 3 and 9 characters. template: %s length: %d", idTemplate, tmp)
+		e := fmt.Errorf("invalid Proxmox clone ID template. The total length must be between 3 and 9 characters. template: %s length: %d", idTemplate, tmp)
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
 	if c.Clone.VMIDUserDigits < 1 || c.Clone.VMIDVMDigits < 1 {
-		e := fmt.Errorf("Invalid Proxmox clone ID template. The user digits and VM digits must be at least 1. user_digits: %d vm_digits: %d", c.Clone.VMIDUserDigits, c.Clone.VMIDVMDigits)
+		e := fmt.Errorf("invalid Proxmox clone ID template. The user digits and VM digits must be at least 1. user_digits: %d vm_digits: %d", c.Clone.VMIDUserDigits, c.Clone.VMIDVMDigits)
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
@@ -123,37 +123,37 @@ func checkConfig(c *config.Proxmox) error {
 	}
 
 	if c.Template.Node == "" {
-		return errors.New("Proxmox template node is required")
+		return errors.New("proxmox template node is required")
 	}
 
 	if c.Template.VMID == 0 {
-		return errors.New("Proxmox template VMID is required")
+		return errors.New("proxmox template VMID is required")
 	} else if c.Template.VMID < 100 {
-		return errors.New("Proxmox template VMID must be greater than or equal to 100")
+		return errors.New("proxmox template VMID must be greater than or equal to 100")
 	}
 
 	if c.Network.SDNZone == "" {
-		e := fmt.Errorf("Proxmox SDN zone is not configured. zone: %s", c.Network.SDNZone)
+		e := fmt.Errorf("proxmox SDN zone is not configured. zone: %s", c.Network.SDNZone)
 		return errors.Join(ErrInvalidSDNZone, e)
 	}
 
 	if c.Network.VXLANIDStart <= 0 {
-		e := fmt.Errorf("Proxmox VXLAN ID start must be greater than 0. vxlan_id_start%d", c.Network.VXLANIDStart)
+		e := fmt.Errorf("proxmox VXLAN ID start must be greater than 0. vxlan_id_start%d", c.Network.VXLANIDStart)
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Network.VXLANIDEnd <= c.Network.VXLANIDStart {
-		e := fmt.Errorf("Proxmox VXLAN ID end must be greater than VXLAN ID start. vxlan_id_start: %d. vxlan_id_end: %d", c.Network.VXLANIDStart, c.Network.VXLANIDEnd)
+		e := fmt.Errorf("proxmox VXLAN ID end must be greater than VXLAN ID start. vxlan_id_start: %d. vxlan_id_end: %d", c.Network.VXLANIDStart, c.Network.VXLANIDEnd)
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Network.VXLANIDEnd >= 1<<24 {
-		e := fmt.Errorf("Proxmox VXLAN ID end must be less than 16777216 (2^24). vxlan_id_end: %d", c.Network.VXLANIDEnd)
+		e := fmt.Errorf("proxmox VXLAN ID end must be less than 16777216 (2^24). vxlan_id_end: %d", c.Network.VXLANIDEnd)
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Backup.Storage == "" {
-		e := errors.New("Proxmox backup storage is not configured")
+		e := errors.New("proxmox backup storage is not configured")
 		return errors.Join(ErrInvalidStorage, e)
 	}
 	return nil
@@ -174,11 +174,11 @@ func TestEndpointVersion() {
 			wasError = true
 			isProxmoxReachable = false
 		} else if first {
-			logger.Info("Proxmox version", "version", version.Version)
+			logger.Info("proxmox version", "version", version.Version)
 			first = false
 			isProxmoxReachable = true
 		} else if wasError {
-			logger.Info("Proxmox version endpoint is back online", "version", version.Version)
+			logger.Info("proxmox version endpoint is back online", "version", version.Version)
 			wasError = false
 			isProxmoxReachable = true
 		}

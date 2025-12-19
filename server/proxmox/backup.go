@@ -27,8 +27,8 @@ type Backup struct {
 }
 
 const (
-	MAX_BACKUPS_PER_USER           = 2
-	MAX_PROTECTED_BACKUPS_PER_USER = 4
+	maxBackupsPerUser          = 2
+	maxProtectedBackupsPerUser = 4
 )
 
 var (
@@ -151,7 +151,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		}
 	}
 
-	if count >= MAX_BACKUPS_PER_USER {
+	if count >= maxBackupsPerUser {
 		return 0, ErrMaxBackupsReached
 	}
 
@@ -392,7 +392,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 			}
 		}
 
-		if count >= MAX_PROTECTED_BACKUPS_PER_USER {
+		if count >= maxProtectedBackupsPerUser {
 			return false, ErrMaxProtectedBackupsReached
 		}
 	}

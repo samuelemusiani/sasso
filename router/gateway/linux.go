@@ -23,25 +23,25 @@ func NewLinuxGateway() *LinuxGateway {
 
 func (lg *LinuxGateway) Init(c config.Gateway) error {
 	if c.Linux.Port == 0 {
-		return fmt.Errorf("Linux gateway port cannot be 0")
+		return fmt.Errorf("linux gateway port cannot be 0")
 	}
 
 	lg.Port = c.Linux.Port
 
 	if len(c.Linux.Peers) == 0 {
-		return fmt.Errorf("Linux gateway must have at least one peer")
+		return fmt.Errorf("linux gateway must have at least one peer")
 	}
 
 	for _, p := range c.Linux.Peers {
 		ip := net.ParseIP(p)
 		if ip == nil {
-			return fmt.Errorf("Failed to parse peer IP: %s", p)
+			return fmt.Errorf("failed to parse peer IP: %s", p)
 		}
 		lg.Peers = append(lg.Peers, ip)
 	}
 
 	if c.Linux.MTU == 0 {
-		return fmt.Errorf("Linux gateway MTU cannot be 0")
+		return fmt.Errorf("linux gateway MTU cannot be 0")
 	}
 
 	lg.MTU = c.Linux.MTU
@@ -119,7 +119,7 @@ func (lg *LinuxGateway) RemoveInterface(id uint) error {
 	return nil
 }
 
-// True if interface is verified, false otherwise
+// VerifyInterface returns True if interface is verified, false otherwise
 func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 
 	link, err := netlink.LinkByIndex(int(iface.LocalID))

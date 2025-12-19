@@ -146,7 +146,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	iface, err := proxmox.NewInterface(uint(vm.ID), req.VNetID, req.VlanTag, req.IPAdd, req.Gateway)
 	if err != nil {
-		if errors.Is(err, proxmox.ErrInvalidVMState) || errors.Is(err, proxmox.ErrInvalidVMState) {
+		if errors.Is(err, proxmox.ErrInvalidVMState) || errors.Is(err, proxmox.ErrMaxNumberOfInterfaces) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}

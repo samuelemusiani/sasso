@@ -10,10 +10,8 @@ import (
 	"samuelemusiani/sasso/router/utils"
 )
 
-const DEFAULT_LOG_LEVEL = slog.LevelDebug
-
 func main() {
-	slog.SetLogLoggerLevel(DEFAULT_LOG_LEVEL)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	lLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if ok {
@@ -27,7 +25,7 @@ func main() {
 		case "ERROR":
 			slog.SetLogLoggerLevel(slog.LevelError)
 		default:
-			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+			slog.Warn("Invalid LOG_LEVEL value, using default debug", "value", lLevel)
 		}
 	}
 
