@@ -37,7 +37,7 @@ func Init(l *slog.Logger, config *config.Wireguard) error {
 	// Check permission for wg command and its existence
 	_, stderr, err := executeCommand("wg", "--version")
 	if err != nil {
-		return fmt.Errorf("wg command not found or not executable: %v, stderr: %s", err, stderr)
+		return fmt.Errorf("wg command not found or not executable: %w, stderr: %s", err, stderr)
 	}
 
 	err = checkConfig(config)
@@ -74,7 +74,7 @@ func checkConfig(config *config.Wireguard) error {
 	// Public key is base64 encoded, check it
 	_, err := base64.StdEncoding.DecodeString(config.PublicKey)
 	if err != nil {
-		return fmt.Errorf("wireguard public key is not valid base64: %v", err)
+		return fmt.Errorf("wireguard public key is not valid base64: %w", err)
 	}
 
 	// Endpoint could be an IP or a domain name
@@ -91,7 +91,7 @@ func checkConfig(config *config.Wireguard) error {
 	// Check port is valid
 	_, err = strconv.ParseUint(portPart, 10, 16)
 	if err != nil {
-		return fmt.Errorf("wireguard endpoint (%s) has invalid port: %v", config.Endpoint, err)
+		return fmt.Errorf("wireguard endpoint (%s) has invalid port: %w", config.Endpoint, err)
 	}
 
 	if domainPart == "" {
@@ -123,14 +123,14 @@ func checkConfig(config *config.Wireguard) error {
 	// Check VPNSubnet and VMsSubnet are valid CIDRs
 	for _, cidr := range []string{config.VPNSubnet, config.VMsSubnet} {
 		if _, _, err := net.ParseCIDR(cidr); err != nil {
-			return fmt.Errorf("wireguard subnet %s is not a valid CIDR: %v", cidr, err)
+			return fmt.Errorf("wireguard subnet %s is not a valid CIDR: %w", cidr, err)
 		}
 	}
 
 	// Check interface exists
 	_, stderr, err := executeCommand("wg", "show", config.Interface)
 	if err != nil {
-		return fmt.Errorf("wireguard interface %s does not exist: %v, stderr: %s", config.Interface, err, stderr)
+		return fmt.Errorf("wireguard interface %s does not exist: %w, stderr: %s", config.Interface, err, stderr)
 	}
 
 	return nil

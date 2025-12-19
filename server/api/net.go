@@ -52,14 +52,14 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 
 	net, err := proxmox.CreateNewNet(userID, req.Name, req.VlanAware, req.GroupID)
 	if err != nil {
-		switch err {
-		case proxmox.ErrInsufficientResources:
+		switch {
+		case errors.Is(err, proxmox.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
-		case proxmox.ErrNotFound:
+		case errors.Is(err, proxmox.ErrNotFound):
 			http.Error(w, "Group not found", http.StatusBadRequest)
-		case proxmox.ErrVNetNameExists:
+		case errors.Is(err, proxmox.ErrVNetNameExists):
 			http.Error(w, "Network name already exists", http.StatusBadRequest)
-		case proxmox.ErrPermissionDenied:
+		case errors.Is(err, proxmox.ErrPermissionDenied):
 			http.Error(w, "Permission denied", http.StatusForbidden)
 		default:
 			http.Error(w, "Failed to create network", http.StatusInternalServerError)
@@ -187,12 +187,12 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	defer m.Unlock()
 
 	if err := proxmox.DeleteNet(userID, uint(netID)); err != nil {
-		switch err {
-		case proxmox.ErrVNetNotFound:
+		switch {
+		case errors.Is(err, proxmox.ErrVNetNotFound):
 			http.Error(w, "Net not found", http.StatusNotFound)
-		case proxmox.ErrVNetHasActiveInterfaces:
+		case errors.Is(err, proxmox.ErrVNetHasActiveInterfaces):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-		case proxmox.ErrPermissionDenied:
+		case errors.Is(err, proxmox.ErrPermissionDenied):
 			http.Error(w, "Permission denied", http.StatusForbidden)
 		default:
 			http.Error(w, "Failed to delete net", http.StatusInternalServerError)
@@ -223,12 +223,12 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 
 	err = proxmox.UpdateNet(userID, uint(vnetID), req.Name, req.VlanAware)
 	if err != nil {
-		switch err {
-		case proxmox.ErrVNetNotFound:
+		switch {
+		case errors.Is(err, proxmox.ErrVNetNotFound):
 			http.Error(w, "Net not found", http.StatusNotFound)
-		case proxmox.ErrVNetNameExists, proxmox.ErrVNetHasTaggedInterfaces:
+		case errors.Is(err, proxmox.ErrVNetNameExists), errors.Is(err, proxmox.ErrVNetHasTaggedInterfaces):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-		case proxmox.ErrPermissionDenied:
+		case errors.Is(err, proxmox.ErrPermissionDenied):
 			http.Error(w, "Permission denied", http.StatusForbidden)
 		default:
 			http.Error(w, "Failed to update net", http.StatusInternalServerError)

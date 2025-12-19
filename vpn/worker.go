@@ -47,7 +47,7 @@ func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet
 	}
 
 	if _, _, err := net.ParseCIDR(vpnSubnet); err != nil {
-		return fmt.Errorf("VPN subnet %s is not a valid CIDR: %v", vpnSubnet, err)
+		return fmt.Errorf("VPN subnet %s is not a valid CIDR: %w", vpnSubnet, err)
 	}
 
 	return nil
@@ -56,14 +56,14 @@ func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet
 func checkFirewallStatus(fwConfig config.Firewall) error {
 	v, err := shorewall.GetVersion()
 	if err != nil {
-		return fmt.Errorf("failed to get shorewall version: %v", err)
+		return fmt.Errorf("failed to get shorewall version: %w", err)
 	}
 
 	slog.Info("Shorewall version", "version", v)
 
 	zones, err := shorewall.GetZones()
 	if err != nil {
-		return fmt.Errorf("failed to get shorewall zones: %v", err)
+		return fmt.Errorf("failed to get shorewall zones: %w", err)
 	}
 
 	fwZones := []string{fwConfig.VPNZone, fwConfig.SassoZone}

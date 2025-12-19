@@ -120,7 +120,7 @@ func parseStorageFromString(s string) (*Storage, error) {
 
 			val, err := strconv.ParseUint(sizeStr, 10, 32)
 			if err != nil {
-				err := errors.Join(ErrInvalidStorageString, fmt.Errorf("invalid size: %v", err))
+				err := errors.Join(ErrInvalidStorageString, fmt.Errorf("invalid size: %w", err))
 				return nil, err
 			}
 

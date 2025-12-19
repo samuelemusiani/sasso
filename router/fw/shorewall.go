@@ -31,14 +31,14 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 
 	v, err := goshorewall.GetVersion()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shorewall version: %v", err)
+		return nil, fmt.Errorf("failed to get shorewall version: %w", err)
 	}
 
 	logger.Info("Shorewall version", "version", v)
 
 	zones, err := goshorewall.GetZones()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shorewall zones: %v", err)
+		return nil, fmt.Errorf("failed to get shorewall zones: %w", err)
 	}
 
 	fwZones := []string{c.ExternalZone, c.VMZone}

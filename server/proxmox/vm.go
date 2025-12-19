@@ -724,7 +724,7 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 
 	uniqueOwnerID, err := strconv.Atoi(sUniqueID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %v", err)
+		return 0, fmt.Errorf("failed to convert unique owner ID to integer: %w", err)
 	}
 
 	return uint(uniqueOwnerID), nil
