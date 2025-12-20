@@ -382,16 +382,17 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 
 	for _, pf := range pfs {
 		_, err := db.GetPortForwardByID(pf.ID)
-		if err == nil {
+		switch {
+		case err == nil:
 			continue
-		} else if errors.Is(err, db.ErrNotFound) {
+		case errors.Is(err, db.ErrNotFound):
 			pfsNotDB = append(pfsNotDB, db.PortForward{
 				ID:       pf.ID,
 				OutPort:  pf.OutPort,
 				DestPort: pf.DestPort,
 				DestIP:   pf.DestIP,
 			})
-		} else {
+		default:
 			logger.Error("failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
 			continue
 		}

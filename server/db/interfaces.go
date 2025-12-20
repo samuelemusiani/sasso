@@ -38,10 +38,10 @@ func initInterfaces() error {
 	return nil
 }
 
-func GetInterfaceByID(ID uint) (*Interface, error) {
+func GetInterfaceByID(id uint) (*Interface, error) {
 	var iface Interface
-	if err := db.First(&iface, ID).Error; err != nil {
-		logger.Error("Failed to find interface by ID", "ifaceID", ID, "error", err)
+	if err := db.First(&iface, id).Error; err != nil {
+		logger.Error("Failed to find interface by ID", "ifaceID", id, "error", err)
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func ExistsIPInVNetWithVlanTag(vnetID uint, vlanTag uint16, ipAdd string) (bool,
 		ipAdd = ipAdd[:slashIndex]
 	}
 
-	ipAdd = ipAdd + "/%"
+	ipAdd += "/%"
 
 	var count int64
 	if err := db.Model(&Interface{}).

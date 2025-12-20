@@ -84,17 +84,17 @@ func existsVMWithOwnerIDAndName(ownerID uint, ownerType, name string) (bool, err
 	return count > 0, nil
 }
 
-func NewVMForUser(ID uint64, userID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(ID, userID, "User", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
+func NewVMForUser(id uint64, userID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
+	return newvm(id, userID, "User", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
 }
 
-func NewVMForGroup(ID uint64, groupID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(ID, groupID, "Group", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
+func NewVMForGroup(id uint64, groupID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
+	return newvm(id, groupID, "Group", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
 }
 
-func newvm(ID uint64, ownerID uint, ownerType string, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
+func newvm(id uint64, ownerID uint, ownerType string, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
 	vm := &VM{
-		ID:                   ID,
+		ID:                   id,
 		Status:               status,
 		Name:                 name,
 		Notes:                notes,

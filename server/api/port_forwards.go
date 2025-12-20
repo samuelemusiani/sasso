@@ -251,11 +251,9 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Port forward does not belong to the user's group", http.StatusForbidden)
 			return
 		}
-	} else {
-		if pf.OwnerID != userID {
-			http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
-			return
-		}
+	} else if pf.OwnerID != userID {
+		http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
+		return
 	}
 
 	if err := db.DeletePortForward(uint(portForwardID)); err != nil {

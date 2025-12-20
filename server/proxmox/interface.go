@@ -40,33 +40,33 @@ type Interface struct {
 
 var goodVMStatesForInterfacesManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusPaused, VMStatusPreConfiguring, VMStatusConfiguring}
 
-func NewInterface(VMID uint, vnetID uint, vlanTag uint16, ipAdd string, gateway string) (*Interface, error) {
-	vm, err := db.GetVMByID(uint64(VMID))
+func NewInterface(vmid uint, vnetID uint, vlanTag uint16, ipAdd string, gateway string) (*Interface, error) {
+	vm, err := db.GetVMByID(uint64(vmid))
 	if err != nil {
-		logger.Error("Failed to get VM by ID", "VMID", VMID, "error", err)
+		logger.Error("Failed to get VM by ID", "VMID", vmid, "error", err)
 		return nil, err
 	}
 
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
-		logger.Error("VM is not in a valid state to add an interface", "VMID", VMID, "status", vm.Status)
+		logger.Error("VM is not in a valid state to add an interface", "VMID", vmid, "status", vm.Status)
 		return nil, ErrInvalidVMState
 	}
 
 	InterfaceNumberMutex.Lock()
 	defer InterfaceNumberMutex.Unlock()
 
-	ifaceNumber, err := db.CountInterfacesOnVM(VMID)
+	ifaceNumber, err := db.CountInterfacesOnVM(vmid)
 	if err != nil {
-		logger.Error("Failed to count interfaces on VM", "VMID", VMID, "error", err)
+		logger.Error("Failed to count interfaces on VM", "VMID", vmid, "error", err)
 		return nil, err
 	}
 
 	if ifaceNumber >= 32 {
-		logger.Error("VM has reached the maximum number of interfaces", "VMID", VMID)
+		logger.Error("VM has reached the maximum number of interfaces", "VMID", vmid)
 		return nil, ErrMaxNumberOfInterfaces
 	}
 
-	iface, err := db.NewInterface(VMID, vnetID, vlanTag, ipAdd, gateway, string(InterfaceStatusPreCreating))
+	iface, err := db.NewInterface(vmid, vnetID, vlanTag, ipAdd, gateway, string(InterfaceStatusPreCreating))
 	if err != nil {
 		logger.Error("Failed to create new interface", "error", err)
 		return nil, err

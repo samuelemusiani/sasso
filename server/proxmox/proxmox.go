@@ -174,17 +174,18 @@ func TestEndpointVersion() {
 
 		cancel() // Cancel immediately after the call
 
-		if err != nil {
+		switch {
+		case err != nil:
 			logger.Error("Failed to get Proxmox version", "error", err)
 
 			wasError = true
 			isProxmoxReachable = false
-		} else if first {
+		case first:
 			logger.Info("proxmox version", "version", version.Version)
 
 			first = false
 			isProxmoxReachable = true
-		} else if wasError {
+		case wasError:
 			logger.Info("proxmox version endpoint is back online", "version", version.Version)
 
 			wasError = false

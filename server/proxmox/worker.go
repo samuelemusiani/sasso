@@ -424,7 +424,7 @@ func createVMs() {
 }
 
 // deleteVMs deletes VMs from proxmox that are in the 'pre-deleting' status.
-func deleteVMs(VMLocation map[uint64]string) {
+func deleteVMs(vmsLocation map[uint64]string) {
 	logger.Debug("Deleting VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
@@ -441,7 +441,7 @@ func deleteVMs(VMLocation map[uint64]string) {
 			logger.Error("failed to delete interfaces for VM", "vmid", v.ID, "err", err)
 		}
 
-		nodeName, ok := VMLocation[v.ID]
+		nodeName, ok := vmsLocation[v.ID]
 		if !ok {
 			logger.Error("Can't delete VM. Not found on cluster resources", "vmid", v.ID)
 
@@ -850,7 +850,8 @@ func updateVMs(cluster *gprox.Cluster) {
 			lastTimeVMWasPrelaunch = time.Time{}
 		}
 
-		if vm.Status == string(VMStatusUnknown) && statusInSlices {
+		switch {
+		case vm.Status == string(VMStatusUnknown) && statusInSlices:
 			logger.Warn("VM changed status from unknown to a known status", "vmid", r.VMID, "new_status", r.Status)
 
 			err := db.UpdateVMStatus(r.VMID, r.Status)
@@ -869,7 +870,7 @@ func updateVMs(cluster *gprox.Cluster) {
 			}
 
 			delete(vmStatusTimeMap, r.VMID)
-		} else if !statusInSlices {
+		case !statusInSlices:
 			vmStatusTimeMapEntry, exists := vmStatusTimeMap[r.VMID]
 
 			timeToWait := 1 * time.Minute
@@ -912,9 +913,9 @@ func updateVMs(cluster *gprox.Cluster) {
 					Time:  t,
 				}
 			}
-		} else if r.Status != vm.Status &&
+		case r.Status != vm.Status &&
 			vm.UpdatedAt.Before(time.Now().Add(-1*time.Minute)) && // Avoid status flapping right after a status change from the APIs
-			lastTimeVMWasPrelaunch.Before(time.Now().Add(-5*time.Minute)) { // Avoid status flapping right after a prelaunch
+			lastTimeVMWasPrelaunch.Before(time.Now().Add(-5*time.Minute)): // Avoid status flapping right after a prelaunch
 			logger.Warn("VM changed status on proxmox unexpectedly", "vmid", r.VMID, "new_status", r.Status, "old_status", vm.Status)
 
 			status := r.Status
@@ -1734,7 +1735,8 @@ func enforceVMLifetimes() {
 			continue
 		}
 
-		if v.LifeTime.Before(time.Now().Add(-7 * 24 * time.Hour)) {
+		switch {
+		case v.LifeTime.Before(time.Now().Add(-7 * 24 * time.Hour)):
 			// The VM expired more than 7 days ago, we delete it
 			err := deleteVMBypass(v.ID)
 			if err != nil {
@@ -1751,7 +1753,7 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("failed to send VM eliminated notification", "vmid", v.ID, "error", err)
 			}
-		} else if v.LifeTime.Before(time.Now()) && !slices.ContainsFunc(notifications, fn(0)) {
+		case v.LifeTime.Before(time.Now()) && !slices.ContainsFunc(notifications, fn(0)):
 			if v.Status == string(VMStatusStopped) {
 				if v.OwnerType == "Group" {
 					err = notify.SendLifetimeOfVMExpiredToGroup(v.OwnerID, v.Name)
@@ -1805,7 +1807,7 @@ func enforceVMLifetimes() {
 			if err != nil {
 				logger.Error("failed to create VM expiration notification", "vmid", v.ID, "days_before", 0, "error", err)
 			}
-		} else {
+		default:
 			for _, i := range []int64{1, 2, 4, 7, 15, 30, 60, 90} {
 				if slices.ContainsFunc(notifications, fn(i)) {
 					break

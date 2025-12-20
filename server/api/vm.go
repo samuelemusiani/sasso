@@ -60,11 +60,12 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 
 	vm, err := proxmox.NewVM(userID, req.GroupID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
 	if err != nil {
-		if errors.Is(err, proxmox.ErrInsufficientResources) {
+		switch {
+		case errors.Is(err, proxmox.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
-		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
+		case errors.Is(err, proxmox.ErrInvalidVMParam):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-		} else {
+		default:
 			logger.Error("Failed to create new VM", "userID", userID, "error", err)
 			http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
 		}
@@ -136,11 +137,12 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
 
-		if errors.Is(err, proxmox.ErrVMNotFound) {
+		switch {
+		case errors.Is(err, proxmox.ErrVMNotFound):
 			http.Error(w, "Failed to delete VM", http.StatusNotFound)
-		} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+		case errors.Is(err, proxmox.ErrPermissionDenied):
 			http.Error(w, "Permission denied", http.StatusForbidden)
-		} else {
+		default:
 			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
 		}
 
@@ -200,13 +202,14 @@ func changeVMState(action string) http.HandlerFunc {
 		if err != nil {
 			logger.Error("Failed to change VM state", "userID", userID, "vmID", vmID, "action", action, "error", err)
 
-			if errors.Is(err, proxmox.ErrVMNotFound) {
+			switch {
+			case errors.Is(err, proxmox.ErrVMNotFound):
 				http.Error(w, "Failed to change VM state", http.StatusNotFound)
-			} else if errors.Is(err, proxmox.ErrInvalidVMState) {
+			case errors.Is(err, proxmox.ErrInvalidVMState):
 				http.Error(w, "Invalid VM state for this action", http.StatusConflict)
-			} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+			case errors.Is(err, proxmox.ErrPermissionDenied):
 				http.Error(w, "Permission denied", http.StatusForbidden)
-			} else {
+			default:
 				http.Error(w, "Failed to change VM state", http.StatusInternalServerError)
 			}
 

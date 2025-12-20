@@ -284,10 +284,10 @@ func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, er
 	return s, nil
 }
 
-func getProxmoxStorageBackups(s *proxmox.Storage, VMID uint) ([]*proxmox.StorageContent, error) {
+func getProxmoxStorageBackups(s *proxmox.Storage, vmid uint) ([]*proxmox.StorageContent, error) {
 	// Getting backups can take a while, so use a longer timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	content, err := s.GetBackupsForVM(ctx, VMID)
+	content, err := s.GetBackupsForVM(ctx, vmid)
 
 	cancel()
 

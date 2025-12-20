@@ -154,8 +154,8 @@ func NewWGConfig(address string) (*WGPeer, error) {
 	return &WGPeer{address, privateKey, publicKey}, nil
 }
 
-func (WG *WGPeer) String() string {
-	return fmt.Sprintf(fileTemplate, WG.Address, WG.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
+func (wg *WGPeer) String() string {
+	return fmt.Sprintf(fileTemplate, wg.Address, wg.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
 func executeCommand(command string, args ...string) (string, string, error) {

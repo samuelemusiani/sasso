@@ -90,10 +90,10 @@ func GetApprovedPortForwards() ([]PortForward, error) {
 	return pfs, nil
 }
 
-func GetPortForwardByID(ID uint) (*PortForward, error) {
+func GetPortForwardByID(id uint) (*PortForward, error) {
 	var pf PortForward
-	if err := db.First(&pf, ID).Error; err != nil {
-		logger.Error("Failed to find port forward by ID", "pfID", ID, "error", err)
+	if err := db.First(&pf, id).Error; err != nil {
+		logger.Error("Failed to find port forward by ID", "pfID", id, "error", err)
 		return nil, err
 	}
 

@@ -135,8 +135,7 @@ func main() {
 	}
 
 	// Proxmox workers start
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
-	defer cancel()
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 
 	slog.Debug("Starting background proxmox tasks")
 

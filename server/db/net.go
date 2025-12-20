@@ -35,10 +35,10 @@ func initNetworks() error {
 	return nil
 }
 
-func GetNetByID(ID uint) (*Net, error) {
+func GetNetByID(id uint) (*Net, error) {
 	var net Net
-	if err := db.First(&net, ID).Error; err != nil {
-		logger.Error("Failed to find network by ID", "netID", ID, "error", err)
+	if err := db.First(&net, id).Error; err != nil {
+		logger.Error("Failed to find network by ID", "netID", id, "error", err)
 		return nil, err
 	}
 
@@ -169,7 +169,7 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 // not create the network in Proxmox
 func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	net := &Net{
-		Name:      name[:],
+		Name:      name,
 		Alias:     alias,
 		Zone:      zone,
 		Tag:       tag,
@@ -193,7 +193,7 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 // not create the network in Proxmox
 func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	net := &Net{
-		Name:      name[:],
+		Name:      name,
 		Alias:     alias,
 		Zone:      zone,
 		Tag:       tag,
@@ -223,24 +223,24 @@ func GetVNetsWithStatus(status string) ([]Net, error) {
 	return nets, nil
 }
 
-func UpdateVNetStatus(ID uint, status string) error {
-	if err := db.Model(&Net{}).Where("id = ?", ID).Update("status", status).Error; err != nil {
-		logger.Error("Failed to update VNet status", "netID", ID, "status", status, "error", err)
+func UpdateVNetStatus(id uint, status string) error {
+	if err := db.Model(&Net{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+		logger.Error("Failed to update VNet status", "netID", id, "status", status, "error", err)
 		return err
 	}
 
-	logger.Debug("Updated VNet status", "netID", ID, "status", status)
+	logger.Debug("Updated VNet status", "netID", id, "status", status)
 
 	return nil
 }
 
-func DeleteNetByID(ID uint) error {
-	if err := db.Delete(&Net{}, ID).Error; err != nil {
-		logger.Error("Failed to delete network", "netID", ID, "error", err)
+func DeleteNetByID(id uint) error {
+	if err := db.Delete(&Net{}, id).Error; err != nil {
+		logger.Error("Failed to delete network", "netID", id, "error", err)
 		return err
 	}
 
-	logger.Debug("Deleted network", "netID", ID)
+	logger.Debug("Deleted network", "netID", id)
 
 	return nil
 }
@@ -256,16 +256,16 @@ func UpdateVNet(net *Net) error {
 	return nil
 }
 
-func UpdateVNetName(ID uint, newName string) error {
-	err := db.Model(&Net{}).Where("id = ?", ID).
+func UpdateVNetName(id uint, newName string) error {
+	err := db.Model(&Net{}).Where("id = ?", id).
 		UpdateColumn("name", newName).
 		Error
 	if err != nil {
-		logger.Error("Failed to update VNet name", "netID", ID, "newName", newName, "error", err)
+		logger.Error("Failed to update VNet name", "netID", id, "newName", newName, "error", err)
 		return err
 	}
 
-	logger.Debug("Updated VNet name", "netID", ID, "newName", newName)
+	logger.Debug("Updated VNet name", "netID", id, "newName", newName)
 
 	return nil
 }

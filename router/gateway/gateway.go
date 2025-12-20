@@ -81,9 +81,10 @@ func (i *Interface) SaveToDB() error {
 	var err error
 
 	inter, err := db.GetInterfaceByVNet(i.VNet)
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
+	switch {
+	case err != nil && !errors.Is(err, db.ErrNotFound):
 		logger.Error("Failed to get interface from database", "error", err, "vnet", i.VNet)
-	} else if inter != nil {
+	case inter != nil:
 		logger.Debug("Interface already exists in database", "vnet", i.VNet)
 
 		inter.LocalID = i.LocalID
@@ -94,7 +95,7 @@ func (i *Interface) SaveToDB() error {
 		inter.FirewallInterfaceName = i.FirewallInterfaceName
 
 		err = db.UpdateInterface(*inter)
-	} else {
+	default:
 		err = db.SaveInterface(db.Interface{
 			LocalID: i.LocalID,
 			VNet:    i.VNet,

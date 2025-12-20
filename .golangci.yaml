@@ -41,9 +41,9 @@ linters:
     # - gochecknoglobals
     - gochecknoinits
     - gochecksumtype
-    # - gocognit
-    # - goconst
-    # - gocritic
+    # - gocognit - Computes and checks the cognitive complexity of functions.
+    # - goconst - Finds repeated strings that could be replaced by a constant.
+    - gocritic
     # - gocyclo
     # - godoclint
     # - godot
