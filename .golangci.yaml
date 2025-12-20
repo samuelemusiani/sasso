@@ -44,15 +44,15 @@ linters:
     # - gocognit - Computes and checks the cognitive complexity of functions.
     # - goconst - Finds repeated strings that could be replaced by a constant.
     - gocritic
-    # - gocyclo
-    # - godoclint
-    # - godot
-    # - godox
+    # - gocyclo - Computes and checks the cyclomatic complexity of functions.
+    # - godoclint -  Checks Golang's documentation practice.
+    # - godot - Checks that comments end in a period.
+    # - godox - Detects usage of FIXME, TODO and other keywords inside comments.
     - goheader
-    # - gomoddirectives
+    # - gomoddirectives - Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
     - gomodguard
     - goprintffuncname
-    # - gosec
+    # - gosec - Inspects source code for security problems.
     - gosmopolitan
     - govet
     - grouper
@@ -63,11 +63,11 @@ linters:
     - interfacebloat
     - intrange
     - iotamixing
-    # - ireturn
-    # - lll
+    # - ireturn - Accept Interfaces, Return Concrete Types.
+    # - lll - Reports long lines.
     - loggercheck
     - maintidx
-    # - makezero
+    - makezero
     # - mirror
     # - misspell
     # - mnd

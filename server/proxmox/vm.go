@@ -101,10 +101,9 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		return nil, err
 	}
 
-	vms := make([]VM, len(dbVM))
-
-	for i := range vms {
-		vms[i] = *convertDBVMToVM(&dbVM[i], nil, nil, nil)
+	vms := make([]VM, 0, len(dbVM))
+	for _, vm := range dbVM {
+		vms = append(vms, *convertDBVMToVM(&vm, nil, nil, nil))
 	}
 
 	groups, err := db.GetGroupsByUserID(userID)

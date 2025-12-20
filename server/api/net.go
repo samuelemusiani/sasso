@@ -105,8 +105,8 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 		return tmp[0]
 	}
 
-	returnableNets := make([]returnNet, len(nets))
-	for i, net := range nets {
+	returnableNets := make([]returnNet, 0, len(nets))
+	for _, net := range nets {
 		var gtw, broad string
 		if net.Gateway == "" && net.Broadcast == "" {
 			// This is a new net and the gateway and broadcast have not been set yet.
@@ -118,7 +118,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			broad = f(net.Broadcast, "Invalid broadcast format")
 		}
 
-		returnableNets[i] = returnNet{
+		returnableNets = append(returnableNets, returnNet{
 			ID:        net.ID,
 			Name:      net.Alias,
 			Status:    net.Status,
@@ -126,7 +126,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 			Subnet:    net.Subnet,
 			Gateway:   gtw,
 			Broadcast: broad,
-		}
+		})
 	}
 
 	groups, err := db.GetGroupsByUserID(userID)

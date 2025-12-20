@@ -945,9 +945,9 @@ func updateVMs(cluster *gprox.Cluster) {
 	}
 
 	// Check if some VM that should be in proxmox is not present
-	proxmoxVmsIDs := make([]uint64, len(resources))
-	for i := range resources {
-		proxmoxVmsIDs = append(proxmoxVmsIDs, resources[i].VMID)
+	proxmoxVmsIDs := make([]uint64, 0, len(resources))
+	for _, r := range resources {
+		proxmoxVmsIDs = append(proxmoxVmsIDs, r.VMID)
 	}
 
 	slices.Sort(proxmoxVmsIDs)
