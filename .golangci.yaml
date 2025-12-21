@@ -70,9 +70,9 @@ linters:
     - makezero
     - mirror
     - misspell
-    # - mnd
-    # - modernize
-    # - musttag
+    # - mnd - An analyzer to detect magic numbers.
+    - modernize
+    - musttag
     # - nakedret
     # - nestif
     - nilerr
@@ -127,6 +127,13 @@ linters:
         # Disable: Incorrect or missing package comment
         # See: https://staticcheck.dev/docs/checks/#ST1000
         - "-ST1000"
+
+    modernize:
+      disable:
+        # Replace interface{} with any.
+        # With gorm UpdateColumns(map[string]interface{}{"field": value}) this
+        # does not work as gorm expects interface{} specifically.
+        - any
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
