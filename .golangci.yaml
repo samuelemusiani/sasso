@@ -13,11 +13,11 @@ linters:
     - bodyclose
     - canonicalheader
     - containedctx
-    # - contextcheck
+    # - contextcheck - Check whether the function uses a non-inherited context.
     - copyloopvar
-    # - cyclop
+    # - cyclop - Checks function and package cyclomatic complexity.
     - decorder
-    # - depguard
+    - depguard 
     # - dogsled
     # - dupl
     - dupword
@@ -111,15 +111,35 @@ linters:
     - unused
     - usestdlibvars
     - usetesting
-    # - varnamelen
+    # - varnamelen - Checks that the length of a variable's name matches its scope.
     - wastedassign
     - whitespace
-    # - wrapcheck
+    # - wrapcheck - Checks that errors returned from external packages are wrapped.
     - wsl_v5
     - zerologlint
 
   # All available settings of specific linters.
   settings:
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - samuelemusiani/sasso
+            - github.com/samuelemusiani/go-shorewall
+            - gorm.io/gorm
+            - gorm.io/driver
+            - github.com/seancfoley/ipaddress-go/ipaddr
+            - github.com/luthermonson/go-proxmox
+            - github.com/go-chi/jwtauth/v5
+            - github.com/go-chi/chi/v5
+            - github.com/go-ldap/ldap/v3
+            - golang.org/x/crypto
+            - golang.org/x/sys/unix
+            - github.com/vishvananda/netlink
+            - github.com/BurntSushi/toml
+            - github.com/wneessen/go-mail
+            - github.com/prometheus/client_golang
     staticcheck:
       checks:
         - all
