@@ -46,6 +46,7 @@ func listUserGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := db.GetGroupsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve groups", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -61,6 +62,7 @@ func listUserGroups(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnGroups); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -76,22 +78,26 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	var req createGroupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.Name == "" {
 		http.Error(w, "Group name is required", http.StatusBadRequest)
+
 		return
 	}
 
 	if len(req.Name) > 64 {
 		http.Error(w, "Group name too long", http.StatusBadRequest)
+
 		return
 	}
 
 	if err := db.CreateGroup(req.Name, req.Description, userID); err != nil {
 		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "Group name already exists", http.StatusConflict)
+
 			return
 		}
 
@@ -109,34 +115,40 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "owner" {
 		http.Error(w, "Only group owners can delete the group", http.StatusForbidden)
+
 		return
 	}
 
 	c, err := db.CountGroupVMs(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to check group VMs", http.StatusInternalServerError)
+
 		return
 	}
 
 	if c > 0 {
 		http.Error(w, "Cannot delete group: group has active VMs", http.StatusForbidden)
+
 		return
 	}
 
 	cn, err := db.CountNetsByGroupID(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to check group networks", http.StatusInternalServerError)
+
 		return
 	}
 
 	if cn > 0 {
 		http.Error(w, "Cannot delete group: group has active networks", http.StatusForbidden)
+
 		return
 	}
 
 	if err := db.DeleteGroup(group.ID); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -159,6 +171,7 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 	members, err := db.GetGroupMembers(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve group members", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -175,6 +188,7 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 	resources, err := db.GetGroupResourcesByGroupID(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve group resources", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -191,6 +205,7 @@ func getGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnGroup); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -213,6 +228,7 @@ func listGroupInvitations(w http.ResponseWriter, r *http.Request) {
 	invitations, err := db.GetGroupsWithInvitationByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve invitations", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -232,6 +248,7 @@ func listGroupInvitations(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnInvitations); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -247,17 +264,20 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 	invitationID, err := strconv.ParseUint(sInvitationID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid invitation ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req manageInvitationsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.Action != "accept" && req.Action != "decline" {
 		http.Error(w, "Invalid invitation ID or action", http.StatusBadRequest)
+
 		return
 	}
 
@@ -265,11 +285,13 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 	case "accept":
 		if err := db.AcceptGroupInvitation(uint(invitationID), userID); err != nil {
 			http.Error(w, "Failed to accept invitation", http.StatusInternalServerError)
+
 			return
 		}
 	case "decline":
 		if err := db.DeclineGroupInvitation(uint(invitationID), userID); err != nil {
 			http.Error(w, "Failed to decline invitation", http.StatusInternalServerError)
+
 			return
 		}
 	default:
@@ -283,6 +305,7 @@ func getGroupPendingInvitations(w http.ResponseWriter, r *http.Request) {
 	invitations, err := db.GetPendingGroupInvitationsByGroupID(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve invitations", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -303,6 +326,7 @@ func getGroupPendingInvitations(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnInvitations); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -318,16 +342,19 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 	var req requestInviteUser
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.Username == "" || (req.Role != "member" && req.Role != "admin") {
 		http.Error(w, "Invalid username or role", http.StatusBadRequest)
+
 		return
 	}
 
 	if mustGetUserRoleInGroupFromContext(r) != "owner" {
 		http.Error(w, "Only group owners can invite users", http.StatusForbidden)
+
 		return
 	}
 
@@ -349,6 +376,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		user, err := db.GetUserByID(userID)
 		if err != nil {
 			http.Error(w, "User who made the request was not found", http.StatusInternalServerError)
+
 			return
 		}
 
@@ -358,6 +386,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 		realm, err := db.GetRealmByName(splits[1])
 		if err != nil {
 			http.Error(w, "Realm not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -369,6 +398,7 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -380,17 +410,20 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 	belongs, err := db.DoesUserBelongToGroup(u.ID, group.ID)
 	if err != nil {
 		http.Error(w, "Failed to check user group membership", http.StatusInternalServerError)
+
 		return
 	}
 
 	if belongs {
 		http.Error(w, "User already in group", http.StatusConflict)
+
 		return
 	}
 
 	if err := db.InviteUserToGroup(u.ID, group.ID, req.Role); err != nil {
 		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "User already invited", http.StatusConflict)
+
 			return
 		}
 
@@ -412,17 +445,20 @@ func revokeGroupInvitation(w http.ResponseWriter, r *http.Request) {
 	inviteID, err := strconv.ParseUint(sInviteID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid invitation ID", http.StatusBadRequest)
+
 		return
 	}
 
 	if mustGetUserRoleInGroupFromContext(r) != "owner" {
 		http.Error(w, "Only group owners can revoke invitations", http.StatusForbidden)
+
 		return
 	}
 
 	if err := db.RevokeGroupInvitationToUser(uint(inviteID), group.ID); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Invitation not found or already processed", http.StatusNotFound)
+
 			return
 		}
 
@@ -438,6 +474,7 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 	members, err := db.GetGroupMembers(group.ID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve group members", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -453,6 +490,7 @@ func listGroupMembers(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnMembers); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -464,6 +502,7 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole == "owner" {
 		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusForbidden)
+
 		return
 	}
 
@@ -476,9 +515,11 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, db.ErrNotFound):
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
+
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
 			http.Error(w, "Cannot leave group: resources are currently in use", http.StatusForbidden)
+
 			return
 		}
 
@@ -496,6 +537,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "owner" {
 		http.Error(w, "Only group owners can remove members", http.StatusForbidden)
+
 		return
 	}
 
@@ -504,6 +546,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseUint(sUserID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -516,9 +559,11 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, db.ErrNotFound):
 			http.Error(w, "User is not a member of this group", http.StatusNotFound)
+
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
 			http.Error(w, "Cannot remove user: resources are currently in use", http.StatusForbidden)
+
 			return
 		}
 
@@ -543,6 +588,7 @@ func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "You are not a member of this group", http.StatusNotFound)
+
 			return
 		}
 
@@ -559,6 +605,7 @@ func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnMember); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -576,6 +623,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	var req addGroupResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -589,6 +637,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets); err != nil {
 		if errors.Is(err, db.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
+
 			return
 		}
 
@@ -612,9 +661,11 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, db.ErrNotFound):
 			http.Error(w, "No resources found for group member", http.StatusNotFound)
+
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
 			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusForbidden)
+
 			return
 		}
 
@@ -689,6 +740,7 @@ func adminListGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := db.GetAllGroups()
 	if err != nil {
 		http.Error(w, "Failed to retrieve groups", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -703,6 +755,7 @@ func adminListGroups(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(returnGroups); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -713,6 +766,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	groupid, err := strconv.ParseUint(groupids, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -720,6 +774,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -740,12 +795,14 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 	groupid, err := strconv.ParseUint(groupids, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req addGroupResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -753,6 +810,7 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -770,12 +828,14 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "owner" {
 		http.Error(w, "Only group owners can update the group", http.StatusForbidden)
+
 		return
 	}
 
 	var req createGroupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -785,6 +845,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if len(req.Name) > 64 {
 		http.Error(w, "Group name too long", http.StatusBadRequest)
+
 		return
 	}
 
@@ -792,6 +853,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "Group name already exists", http.StatusConflict)
+
 			return
 		}
 
@@ -810,6 +872,7 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 	var req addGroupResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -817,6 +880,7 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrResourcesInUse) {
 			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
+
 			return
 		}
 

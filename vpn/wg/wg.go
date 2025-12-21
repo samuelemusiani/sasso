@@ -146,6 +146,7 @@ func NewWGConfig(address string) (*WGPeer, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		logger.Error("Error generating keys", "err", err)
+
 		return nil, err
 	}
 
@@ -195,6 +196,7 @@ func CreatePeer(i *WGPeer) error {
 	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
+
 		return err
 	}
 
@@ -207,6 +209,7 @@ func DeletePeer(i *WGPeer) error {
 	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "remove")
 	if err != nil {
 		logger.Error("Error deleting WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
+
 		return err
 	}
 
@@ -233,12 +236,14 @@ func genKeys() (string, string, error) {
 	privateKey, stderr, err := executeCommand("wg", "genkey")
 	if err != nil {
 		logger.Error("Error generating private key", "err", err, "stderr", stderr)
+
 		return "", "", err
 	}
 
 	publicKey, stderr, err := executeCommandWithStdin(strings.NewReader(privateKey), "wg", "pubkey")
 	if err != nil {
 		logger.Error("Error generating public key", "err", err, "stderr", stderr)
+
 		return "", "", err
 	}
 
@@ -249,6 +254,7 @@ func ParsePeers() (map[string]WGPeer, error) {
 	stdout, stderr, err := executeCommand("wg", "show", c.Interface, "dump")
 	if err != nil {
 		logger.Error("Error dumping peers", "err", err, "stderr", stderr)
+
 		return nil, err
 	}
 

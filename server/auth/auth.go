@@ -19,6 +19,7 @@ var (
 
 func Init(l *slog.Logger) error {
 	logger = l
+
 	return nil
 }
 
@@ -36,6 +37,7 @@ func Authenticate(username, password string, realm uint) (*db.User, error) {
 	dbRealm, err := db.GetRealmByID(realm)
 	if err != nil {
 		logger.Error("Failed to get realm by ID", "realmID", realm, "error", err)
+
 		return nil, err
 	}
 
@@ -52,18 +54,21 @@ func Authenticate(username, password string, realm uint) (*db.User, error) {
 		l = &ldapAuthenticator{}
 	default:
 		logger.Error("Unsupported realm type for authentication", "realmType", dbRealm.Type)
+
 		return nil, errors.New("unsupported realm type for authentication")
 	}
 
 	err = l.LoadConfigFromDB(realm)
 	if err != nil {
 		logger.Error("Failed to load realm configuration from database", "realmID", realm, "error", err)
+
 		return nil, err
 	}
 
 	user, err := l.Login(username, password)
 	if err != nil {
 		logger.Error("Failed to authenticate user", "username", username, "realmID", realm, "error", err)
+
 		return nil, err
 	}
 

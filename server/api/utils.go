@@ -27,12 +27,14 @@ func getUserIDFromContext(r *http.Request) (uint, error) {
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
 		logger.Error("Failed to get claims from context", "error", err)
+
 		return 0, err
 	}
 	// All JSON numbers are decoded into float64 by default
 	userID, ok := claims[ClaimUserID].(float64)
 	if !ok {
 		logger.Error("User ID claim not found or not a float64", "claims", claims[ClaimUserID])
+
 		return 0, errors.New("user ID claim not found or not a float64")
 	}
 
@@ -57,17 +59,20 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 			token, claims, err := jwtauth.FromContext(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
+
 				return
 			}
 
 			if token == nil {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 				return
 			}
 
 			userID, ok := claims[ClaimUserID].(float64)
 			if !ok {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 				return
 			}
 
@@ -75,6 +80,7 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
 					http.Error(w, "User not found", http.StatusUnauthorized)
+
 					return
 				}
 
@@ -86,6 +92,7 @@ func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
 			// Check if the user has admin role
 			if user.Role != db.RoleAdmin {
 				http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+
 				return
 			}
 
@@ -105,6 +112,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			userID, err := getUserIDFromContext(r)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -113,12 +121,14 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 			vmID, err := strconv.ParseUint(svmID, 10, 64)
 			if err != nil {
 				http.Error(w, "invalid vm id", http.StatusBadRequest)
+
 				return
 			}
 
 			vm, err := proxmox.GetVMByID(vmID, userID)
 			if err != nil {
 				http.Error(w, "vm not found", http.StatusNotFound)
+
 				return
 			}
 
@@ -126,6 +136,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 
 			if vm.OwnerType == "User" && vm.OwnerID != userID {
 				http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+
 				return
 			}
 
@@ -134,6 +145,7 @@ func validateVMOwnership() func(http.Handler) http.Handler {
 				if err != nil {
 					if errors.Is(err, db.ErrNotFound) {
 						http.Error(w, "vm does not belong to the user", http.StatusForbidden)
+
 						return
 					}
 
@@ -191,6 +203,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 			userID, err := getUserIDFromContext(r)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -199,29 +212,34 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 			ifaceID, err := strconv.ParseUint(sifaceID, 10, 32)
 			if err != nil {
 				http.Error(w, "invalid interface id", http.StatusBadRequest)
+
 				return
 			}
 
 			iface, err := db.GetInterfaceByID(uint(ifaceID))
 			if err != nil {
 				http.Error(w, "interface not found", http.StatusBadRequest)
+
 				return
 			}
 
 			n, err := db.GetNetByID(iface.VNetID)
 			if err != nil {
 				http.Error(w, "vnet not found", http.StatusBadRequest)
+
 				return
 			}
 
 			if n.OwnerType == "User" && n.OwnerID != userID {
 				http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+
 				return
 			} else if n.OwnerType == "Group" {
 				role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 				if err != nil {
 					if errors.Is(err, db.ErrNotFound) {
 						http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+
 						return
 					}
 
@@ -233,6 +251,7 @@ func validateInterfaceOwnership() func(http.Handler) http.Handler {
 
 				if role == "member" {
 					http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
+
 					return
 				}
 			}
@@ -262,6 +281,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			userID, err := getUserIDFromContext(r)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -270,6 +290,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			groupID, err := strconv.ParseUint(sgroupID, 10, 32)
 			if err != nil {
 				http.Error(w, "invalid group id", http.StatusBadRequest)
+
 				return
 			}
 
@@ -277,6 +298,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
 					http.Error(w, "group not found", http.StatusBadRequest)
+
 					return
 				}
 
@@ -290,6 +312,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
 					http.Error(w, "group not found", http.StatusNotFound)
+
 					return
 				}
 

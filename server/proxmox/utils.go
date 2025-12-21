@@ -80,6 +80,7 @@ func parseStorageFromString(s string) (*Storage, error) {
 	npParts := strings.SplitN(np, ":", 2)
 	if len(npParts) != 2 {
 		err := errors.Join(ErrInvalidStorageString, errors.New("missing ':'"))
+
 		return nil, err
 	}
 
@@ -89,12 +90,14 @@ func parseStorageFromString(s string) (*Storage, error) {
 	vmFileParts := strings.SplitN(npParts[1], "/", 2)
 	if len(vmFileParts) != 2 {
 		err := errors.Join(ErrInvalidStorageString, errors.New("invalid VM/file format"))
+
 		return nil, err
 	}
 
 	vmid, err := strconv.ParseUint(vmFileParts[0], 10, 32)
 	if err != nil {
 		err := errors.Join(ErrInvalidStorageString, errors.New("invalid VMID"))
+
 		return nil, err
 	}
 
@@ -121,6 +124,7 @@ func parseStorageFromString(s string) (*Storage, error) {
 			val, err := strconv.ParseUint(sizeStr, 10, 32)
 			if err != nil {
 				err := errors.Join(ErrInvalidStorageString, fmt.Errorf("invalid size: %w", err))
+
 				return nil, err
 			}
 
@@ -185,6 +189,7 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 
 	if err != nil {
 		logger.Error("Failed to wait for Proxmox task completion", "error", err)
+
 		return false, err
 	}
 
@@ -194,6 +199,7 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 
 	if !isSuccessful {
 		logger.Error("Proxmox task failed")
+
 		return false, errors.New("task_failed")
 	}
 
@@ -208,6 +214,7 @@ func getProxmoxCluster(client *proxmox.Client) (*proxmox.Cluster, error) {
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox cluster", "error", err)
+
 		return nil, err
 	}
 
@@ -222,6 +229,7 @@ func getProxmoxNode(client *proxmox.Client, nodeName string) (*proxmox.Node, err
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox node", "error", err, "node", nodeName)
+
 		return nil, err
 	}
 
@@ -236,6 +244,7 @@ func getProxmoxVM(node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error)
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox VM", "error", err, "node", node.Name, "vmid", vmid)
+
 		return nil, err
 	}
 
@@ -250,6 +259,7 @@ func getProxmoxResources(cluster *proxmox.Cluster, filters ...string) (proxmox.C
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox resources", "error", err)
+
 		return nil, err
 	}
 
@@ -264,6 +274,7 @@ func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption
 
 	if err != nil {
 		logger.Error("Failed to set VM config", "error", err, "vmid", vm.VMID)
+
 		return false, err
 	}
 
@@ -278,6 +289,7 @@ func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, er
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox Storage", "error", err, "node", node.Name, "storage", storage)
+
 		return nil, err
 	}
 
@@ -293,6 +305,7 @@ func getProxmoxStorageBackups(s *proxmox.Storage, vmid uint) ([]*proxmox.Storage
 
 	if err != nil {
 		logger.Error("Failed to get Proxmox Storage content", "error", err, "storage", s.Name)
+
 		return nil, err
 	}
 

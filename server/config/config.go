@@ -113,5 +113,6 @@ func Get() *Config {
 
 func Parse(path string) error {
 	_, err := toml.DecodeFile(path, &config)
+
 	return err
 }

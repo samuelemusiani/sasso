@@ -17,6 +17,7 @@ func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 	dbIfaces, err := db.GetInterfacesByVMID(vm.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -50,6 +51,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "user does not have permission to add interface to this VM", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -63,6 +65,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
@@ -71,6 +74,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot add interface to expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -79,6 +83,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 	n, err := db.GetNetByID(req.VNetID)
 	if err != nil {
 		http.Error(w, "vnet not found", http.StatusBadRequest)
+
 		return
 	}
 
@@ -86,9 +91,11 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 	case "User":
 		if n.OwnerID != userID {
 			http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+
 			return
 		} else if vm.OwnerType == "Group" || vm.OwnerID != n.OwnerID {
 			http.Error(w, "VM does not belong to the same user as the vnet", http.StatusForbidden)
+
 			return
 		}
 	case "Group":
@@ -96,15 +103,18 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
+
 				return
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+
 				return
 			}
 		}
 
 		if role == "member" {
 			http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
+
 			return
 		}
 
@@ -112,6 +122,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		// to the same group as the vnet.
 		if vm.OwnerType != "Group" || vm.OwnerID != n.OwnerID {
 			http.Error(w, "VM does not belong to the same group as the vnet", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -134,12 +145,14 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		interfaces, err := db.GetInterfacesByVMID(vm.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+
 			return
 		}
 
 		for _, iface := range interfaces {
 			if iface.Gateway != "" {
 				http.Error(w, "only one interface with gateway allowed per VM", http.StatusBadRequest)
+
 				return
 			}
 		}
@@ -147,6 +160,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 
 	if err := proxmox.InterfacesChecks(n, &tmpFace); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
@@ -154,6 +168,7 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInvalidVMState) || errors.Is(err, proxmox.ErrMaxNumberOfInterfaces) {
 			http.Error(w, err.Error(), http.StatusConflict)
+
 			return
 		}
 
@@ -180,12 +195,14 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "user does not have permission to update interface to this VM", http.StatusForbidden)
+
 			return
 		}
 	}
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot modify interface in expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -200,6 +217,7 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
@@ -228,37 +246,44 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 	n, err := db.GetNetByID(piface.VNetID)
 	if err != nil {
 		http.Error(w, "vnet not found", http.StatusBadRequest)
+
 		return
 	}
 
 	if n.OwnerType == "User" && n.OwnerID != userID {
 		http.Error(w, "vnet does not belong to the user", http.StatusForbidden)
+
 		return
 	} else if n.OwnerType == "Group" {
 		role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
+
 				return
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+
 				return
 			}
 		}
 
 		if role == "member" {
 			http.Error(w, "user does not have permission to use this vnet", http.StatusForbidden)
+
 			return
 		}
 	}
 
 	if err := proxmox.InterfacesChecks(n, &piface); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
 	if err := proxmox.UpdateInterface(&piface); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -272,12 +297,14 @@ func deleteInterface(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "user does not have permission to delete interface to this VM", http.StatusForbidden)
+
 			return
 		}
 	}
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot delete interface in expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -286,9 +313,11 @@ func deleteInterface(w http.ResponseWriter, r *http.Request) {
 	if err := proxmox.DeleteInterface(iface.ID); err != nil {
 		if errors.Is(err, proxmox.ErrInterfaceNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
+
 			return
 		} else if errors.Is(err, proxmox.ErrInvalidVMState) {
 			http.Error(w, err.Error(), http.StatusConflict)
+
 			return
 		}
 
@@ -324,6 +353,7 @@ func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
 	ifaces, err := db.GetAllInterfacesWithExtrasByUserID(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 

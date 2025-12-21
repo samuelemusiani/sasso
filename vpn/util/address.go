@@ -13,6 +13,7 @@ func NextAvailableAddress(subnet string) (string, error) {
 
 	if err != nil {
 		slog.Error("Failed to get all used addresses from database", "error", err)
+
 		return "", err
 	}
 
@@ -37,6 +38,7 @@ func NextAvailableAddress(subnet string) (string, error) {
 
 		if !dbTrie.ElementContains(addr) {
 			logger.Debug("Found available address", "address", addr.String())
+
 			return addr.String(), nil
 		}
 

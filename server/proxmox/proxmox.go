@@ -54,6 +54,7 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 	n, err := rand.Read(nonce)
 	if err != nil && n != 32 {
 		logger.Error("Failed to generate random key for nonce", "error", err)
+
 		return ErrCantGenerateNonce
 	}
 
@@ -107,17 +108,20 @@ func checkConfig(c *config.Proxmox) error {
 	idTemplate := strings.TrimSpace(c.Clone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
 		e := fmt.Errorf("invalid Proxmox clone ID template. It must contain exactly '{{vmid}}'. template: %s", idTemplate)
+
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
 	tmp := len(strings.Replace(idTemplate, "{{vmid}}", "", 1)) + c.Clone.VMIDUserDigits + c.Clone.VMIDVMDigits
 	if tmp < 3 || tmp > 9 {
 		e := fmt.Errorf("invalid Proxmox clone ID template. The total length must be between 3 and 9 characters. template: %s length: %d", idTemplate, tmp)
+
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
 	if c.Clone.VMIDUserDigits < 1 || c.Clone.VMIDVMDigits < 1 {
 		e := fmt.Errorf("invalid Proxmox clone ID template. The user digits and VM digits must be at least 1. user_digits: %d vm_digits: %d", c.Clone.VMIDUserDigits, c.Clone.VMIDVMDigits)
+
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 
@@ -137,26 +141,31 @@ func checkConfig(c *config.Proxmox) error {
 
 	if c.Network.SDNZone == "" {
 		e := fmt.Errorf("proxmox SDN zone is not configured. zone: %s", c.Network.SDNZone)
+
 		return errors.Join(ErrInvalidSDNZone, e)
 	}
 
 	if c.Network.VXLANIDStart <= 0 {
 		e := fmt.Errorf("proxmox VXLAN ID start must be greater than 0. vxlan_id_start%d", c.Network.VXLANIDStart)
+
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Network.VXLANIDEnd <= c.Network.VXLANIDStart {
 		e := fmt.Errorf("proxmox VXLAN ID end must be greater than VXLAN ID start. vxlan_id_start: %d. vxlan_id_end: %d", c.Network.VXLANIDStart, c.Network.VXLANIDEnd)
+
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Network.VXLANIDEnd >= 1<<24 {
 		e := fmt.Errorf("proxmox VXLAN ID end must be less than 16777216 (2^24). vxlan_id_end: %d", c.Network.VXLANIDEnd)
+
 		return errors.Join(ErrInvalidVXLANRange, e)
 	}
 
 	if c.Backup.Storage == "" {
 		e := errors.New("proxmox backup storage is not configured")
+
 		return errors.Join(ErrInvalidStorage, e)
 	}
 

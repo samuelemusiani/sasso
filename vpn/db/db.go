@@ -43,16 +43,19 @@ func Init(l *slog.Logger, c *config.Database) error {
 	})
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
+
 		return err
 	}
 
 	if err := initSubnets(); err != nil {
 		logger.Error("Failed to initialize subnets in database", "error", err)
+
 		return err
 	}
 
 	if err := initPeers(); err != nil {
 		logger.Error("Failed to initialize peers in database", "error", err)
+
 		return err
 	}
 

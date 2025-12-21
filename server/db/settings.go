@@ -37,6 +37,7 @@ type Setting struct {
 func initSettings() error {
 	if err := db.AutoMigrate(&Setting{}); err != nil {
 		logger.Error("Failed to migrate settings table", "error", err)
+
 		return err
 	}
 
@@ -89,6 +90,7 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 
 	if err := tx.Create(&setting).Error; err != nil {
 		logger.Error("Failed to create default settings for user", "userID", userID, "error", err)
+
 		return err
 	}
 
@@ -98,6 +100,7 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 func UpdateSettings(setting *Setting) error {
 	if err := db.Save(setting).Error; err != nil {
 		logger.Error("Failed to update settings", "error", err)
+
 		return err
 	}
 

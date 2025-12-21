@@ -35,6 +35,7 @@ func initVMs() error {
 	err := db.AutoMigrate(&VM{})
 	if err != nil {
 		logger.Error("Failed to migrate VMs table", "error", err)
+
 		return err
 	}
 
@@ -369,6 +370,7 @@ func initVMExpirationNotifications() error {
 	err := db.AutoMigrate(&VMExpirationNotification{})
 	if err != nil {
 		logger.Error("Failed to migrate VMExpirationNotifications table", "error", err)
+
 		return err
 	}
 

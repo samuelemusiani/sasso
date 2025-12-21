@@ -57,9 +57,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, auth.ErrUserNotFound):
 			http.Error(w, "User not found", http.StatusUnauthorized)
+
 			return
 		case errors.Is(err, auth.ErrPasswordMismatch):
 			http.Error(w, "Password mismatch", http.StatusUnauthorized)
+
 			return
 		default:
 			logger.Error("failed to authenticate user", "error", err)
@@ -115,6 +117,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -220,6 +223,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -271,11 +275,13 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 	var req updateUserLimitsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if err := db.UpdateUserLimits(req.UserID, req.MaxCores, req.MaxRAM, req.MaxDisk, req.MaxNets); err != nil {
 		http.Error(w, "Failed to update user limits", http.StatusInternalServerError)
+
 		return
 	}
 

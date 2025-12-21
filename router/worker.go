@@ -109,6 +109,7 @@ func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, err
 	nets, err := internal.FetchNets(conf.Endpoint, conf.Secret)
 	if err != nil {
 		logger.Error("failed to fetch nets status from main server", "error", err)
+
 		return nil, err
 	}
 
@@ -121,6 +122,7 @@ func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
 	dbInterfaces, err := db.GetAllInterfaces()
 	if err != nil {
 		logger.Error("failed to get all interfaces from database", "error", err)
+
 		return err
 	}
 
@@ -153,6 +155,7 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 	dbInterfaces, err := db.GetAllInterfaces()
 	if err != nil {
 		logger.Error("failed to get all interfaces from database", "error", err)
+
 		return err
 	}
 
@@ -203,6 +206,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			continue
 		} else if !errors.Is(err, db.ErrNotFound) {
 			logger.Error("failed to get interface from database", "error", err, "vnet", n.Name)
+
 			continue
 		}
 
@@ -210,6 +214,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			n.Subnet, err = utils.NextAvailableSubnet()
 			if err != nil {
 				logger.Error("failed to get next available subnet", "error", err)
+
 				return err
 			}
 		}
@@ -218,6 +223,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			n.Gateway, err = utils.GatewayAddressFromSubnet(n.Subnet)
 			if err != nil {
 				logger.Error("failed to get gateway address from subnet", "error", err)
+
 				return err
 			}
 		}
@@ -226,6 +232,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			n.Broadcast, err = utils.GetBroadcastAddressFromSubnet(n.Subnet)
 			if err != nil {
 				logger.Error("failed to get broadcast address from subnet", "error", err)
+
 				return err
 			}
 		}
@@ -233,12 +240,14 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 		inter, err := gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
 		if err != nil {
 			logger.Error("failed to create new interface on gateway", "error", err)
+
 			return err
 		}
 
 		err = inter.SaveToDB()
 		if err != nil {
 			logger.Error("failed to save interface to database", "error", err)
+
 			return err
 		}
 	}
@@ -253,6 +262,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		dbNet, err := db.GetInterfaceByVNet(n.Name)
 		if err != nil {
 			logger.Error("failed to get interface from database", "error", err, "vnet", n.Name)
+
 			return err
 		}
 
@@ -267,6 +277,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		err = internal.UpdateNet(conf.Endpoint, conf.Secret, n)
 		if err != nil {
 			logger.Error("failed to update net on main server", "error", err, "vnet", n.Name)
+
 			continue
 		}
 
@@ -280,6 +291,7 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 	pfs, err := internal.FetchPortForwards(conf.Endpoint, conf.Secret)
 	if err != nil {
 		logger.Error("failed to fetch port forwards status from main server", "error", err)
+
 		return nil, err
 	}
 
@@ -303,6 +315,7 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	portForwards, err := db.GetPortForwards()
 	if err != nil {
 		logger.With("error", err).Error("failed to get all port forwards from DB")
+
 		return err
 	}
 
@@ -312,6 +325,7 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	faultyRules, err := firewall.VerifyPortForwardRules(rules)
 	if err != nil {
 		logger.With("error", err).Error("failed to verify port forward rules")
+
 		return err
 	}
 
@@ -319,6 +333,7 @@ func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
 	err = firewall.AddPortForwardRules(faultyRules)
 	if err != nil {
 		logger.With("error", err).Error("failed to add faulty rules")
+
 		return err
 	}
 
@@ -331,6 +346,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	pdfDB, err := db.GetPortForwards()
 	if err != nil {
 		logger.Error("failed to get all port forwards from database", "error", err)
+
 		return err
 	}
 
@@ -361,6 +377,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	err = firewall.RemovePortForwardRules(rules)
 	if err != nil {
 		logger.Error("failed to remove ports forward from firewall", "error", err)
+
 		return err
 	}
 
@@ -369,6 +386,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 		err = db.RemovePortForward(localPF.ID)
 		if err != nil {
 			logger.Error("failed to remove port forward from database", "error", err, "port_forward_id", localPF.ID)
+
 			continue
 		}
 	}
@@ -394,6 +412,7 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 			})
 		default:
 			logger.Error("failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
+
 			continue
 		}
 	}
@@ -404,6 +423,7 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	err := firewall.AddPortForwardRules(rules)
 	if err != nil {
 		logger.Error("failed to add ports forward from firewall", "error", err)
+
 		return err
 	}
 
@@ -411,6 +431,7 @@ func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 		err = db.AddPortForward(pfDB)
 		if err != nil {
 			logger.Error("failed to save port forward to database", "rule", pfDB, "error", err)
+
 			continue
 		}
 	}

@@ -44,6 +44,7 @@ func Init(l *slog.Logger, c config.Gateway) error {
 		err := pg.Init(c)
 		if err != nil {
 			logger.Error("Failed to initialize Proxmox gateway", "error", err)
+
 			return err
 		}
 
@@ -54,12 +55,14 @@ func Init(l *slog.Logger, c config.Gateway) error {
 		err := lg.Init(c)
 		if err != nil {
 			logger.Error("Failed to initialize Linux gateway", "error", err)
+
 			return err
 		}
 
 		globalGateway = lg
 	default:
 		logger.Error("Unsupported gateway type", "type", c.Type)
+
 		return ErrUnsupportedGatewayType
 	}
 

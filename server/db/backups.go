@@ -28,6 +28,7 @@ type BackupRequest struct {
 func initBackupRequests() error {
 	if err := db.AutoMigrate(&BackupRequest{}); err != nil {
 		logger.Error("Failed to migrate backup_requests table", "error", err)
+
 		return err
 	}
 

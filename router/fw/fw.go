@@ -42,10 +42,12 @@ func Init(l *slog.Logger, c config.Firewall) error {
 		globalFirewall, err = NewShorewallFirewall(c.Shorewall)
 		if err != nil {
 			logger.Error("Failed to initialize Shorewall firewall", "error", err)
+
 			return err
 		}
 	default:
 		logger.Error("Unsupported firewall type", "type", c.Type)
+
 		return ErrUnsupportedFirewallType
 	}
 

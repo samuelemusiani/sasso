@@ -46,6 +46,7 @@ func (b *bucketLimiter) allow() bool {
 
 	if b.tokens > 0 {
 		b.tokens--
+
 		return true
 	}
 

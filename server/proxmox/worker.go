@@ -85,6 +85,7 @@ func worker(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			logger.Info("Proxmox worker shutting down")
+
 			return ctx.Err()
 		case <-time.After(timeToWait):
 		}
@@ -94,6 +95,7 @@ func worker(ctx context.Context) error {
 		// For all VMs we must check the status and take the necessary actions
 		if !isProxmoxReachable {
 			time.Sleep(20 * time.Second)
+
 			continue
 		}
 
@@ -184,6 +186,7 @@ func createVNets(cluster *gprox.Cluster) {
 	vnets, err := db.GetVNetsWithStatus(string(VMStatusPreCreating))
 	if err != nil {
 		logger.Error("failed to get VNets with 'pre-creating' status", "error", err)
+
 		return
 	}
 
@@ -206,12 +209,14 @@ func createVNets(cluster *gprox.Cluster) {
 
 		if err != nil {
 			logger.Error("failed to create VNet in Proxmox", "vnet", v.Name, "error", err)
+
 			continue
 		}
 
 		err = db.UpdateVNetStatus(v.ID, string(VNetStatusCreating))
 		if err != nil {
 			logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusCreating, "err", err)
+
 			continue
 		}
 	}
@@ -223,12 +228,14 @@ func createVNets(cluster *gprox.Cluster) {
 
 	if err != nil {
 		logger.Error("failed to apply SDN changes in Proxmox", "error", err)
+
 		return
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 		return
 	}
 
@@ -261,6 +268,7 @@ func deleteVNets(cluster *gprox.Cluster) {
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusPreDeleting))
 	if err != nil {
 		logger.Error("failed to get VNets with 'pre-deleting' status", "error", err)
+
 		return
 	}
 
@@ -276,12 +284,14 @@ func deleteVNets(cluster *gprox.Cluster) {
 
 		if err != nil {
 			logger.Error("failed to delete VNet from Proxmox", "vnet", v.Name, "error", err)
+
 			continue
 		}
 
 		err = db.UpdateVNetStatus(v.ID, string(VNetStatusDeleting))
 		if err != nil {
 			logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusDeleting, "err", err)
+
 			continue
 		}
 	}
@@ -293,12 +303,14 @@ func deleteVNets(cluster *gprox.Cluster) {
 
 	if err != nil {
 		logger.Error("failed to apply SDN changes in Proxmox", "error", err)
+
 		return
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 		return
 	}
 
@@ -330,6 +342,7 @@ func createVMs() {
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreCreating))
 	if err != nil {
 		logger.Error("failed to get VMs with 'creating' status", "error", err)
+
 		return
 	}
 
@@ -371,6 +384,7 @@ func createVMs() {
 			uniqueID, err := getUniqueOwnerIDInVM(uint(v.ID))
 			if err != nil {
 				logger.Error("failed to get unique owner ID for VM naming", "vmid", v.ID, "err", err)
+
 				continue
 			}
 
@@ -393,6 +407,7 @@ func createVMs() {
 
 		if err != nil {
 			logger.Error("failed to clone VM", "vmid", v.ID, "error", err)
+
 			continue
 		}
 
@@ -404,6 +419,7 @@ func createVMs() {
 		isSuccessful, err := waitForProxmoxTaskCompletion(task)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
+
 			continue
 		}
 
@@ -430,6 +446,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
 	if err != nil {
 		logger.Error("failed to get VMs with 'deleting' status", "error", err)
+
 		return
 	}
 
@@ -472,17 +489,20 @@ func deleteVMs(vmsLocation map[uint64]string) {
 
 			if err != nil {
 				logger.Error("Can't stop VM before deletion", "err", err, "vmid", v.ID)
+
 				continue
 			}
 
 			isSuccessful, err := waitForProxmoxTaskCompletion(task)
 			if err != nil {
 				logger.Error("Can't wait for stop VM task completion", "err", err, "vmid", v.ID)
+
 				continue
 			}
 
 			if !isSuccessful {
 				logger.Error("Can't stop VM before deletion", "vmid", v.ID)
+
 				continue
 			}
 		}
@@ -494,6 +514,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 
 		if err != nil {
 			logger.Error("Can't delete VM", "err", err, "vmid", v.ID)
+
 			continue
 		}
 
@@ -505,6 +526,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 		isSuccessful, err := waitForProxmoxTaskCompletion(task)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
+
 			continue
 		}
 
@@ -532,6 +554,7 @@ func configureVNets(cluster *gprox.Cluster) {
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusReconfiguring))
 	if err != nil {
 		logger.Error("failed to get VNets with status", "status", VNetStatusReconfiguring, "error", err)
+
 		return
 	}
 
@@ -547,6 +570,7 @@ func configureVNets(cluster *gprox.Cluster) {
 
 		if err != nil {
 			logger.Error("failed to get VNet from Proxmox", "vnet", v.Name, "error", err)
+
 			continue
 		}
 
@@ -563,6 +587,7 @@ func configureVNets(cluster *gprox.Cluster) {
 
 		if err != nil {
 			logger.Error("failed to update VNet in Proxmox", "vnet", v.Name, "error", err)
+
 			continue
 		}
 	}
@@ -574,12 +599,14 @@ func configureVNets(cluster *gprox.Cluster) {
 
 	if err != nil {
 		logger.Error("failed to apply SDN changes in Proxmox", "error", err)
+
 		return
 	}
 
 	isSuccessful, err := waitForProxmoxTaskCompletion(task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 		return
 	}
 
@@ -610,6 +637,7 @@ func updateVNets(cluster *gprox.Cluster) {
 	dbVNets, err := db.GetVNetsWithStatus(string(VNetStatusReady))
 	if err != nil {
 		logger.Error("failed to get VNets with 'pre-creating' status", "error", err)
+
 		return
 	}
 
@@ -620,6 +648,7 @@ func updateVNets(cluster *gprox.Cluster) {
 
 	if err != nil {
 		logger.Error("failed to get VNets from Proxmox", "error", err)
+
 		return
 	}
 
@@ -682,6 +711,7 @@ func configureVMs(vmNodes map[uint64]string) {
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreConfiguring))
 	if err != nil {
 		logger.Error("failed to get VMs with 'pre-configuring' status", "error", err)
+
 		return
 	}
 
@@ -689,6 +719,7 @@ func configureVMs(vmNodes map[uint64]string) {
 		nodeName, ok := vmNodes[v.ID]
 		if !ok {
 			logger.Error("Can't configure VM. Not found on cluster resources", "vmid", v.ID)
+
 			continue
 		}
 
@@ -713,6 +744,7 @@ func configureVMs(vmNodes map[uint64]string) {
 			isSuccessful, err := configureVM(vm, coresOption)
 			if err != nil {
 				logger.Error("failed to set cores on VM", "vmid", v.ID, "err", err)
+
 				return
 			}
 
@@ -732,6 +764,7 @@ func configureVMs(vmNodes map[uint64]string) {
 			isSuccessful, err := configureVM(vm, ramOption)
 			if err != nil {
 				logger.Error("failed to set ram on VM", "vmid", v.ID, "err", err)
+
 				continue
 			}
 
@@ -745,12 +778,14 @@ func configureVMs(vmNodes map[uint64]string) {
 		scsi0, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
 		if !ok {
 			logger.Error("failed to find SCSI0 on VM", "vmid", v.ID)
+
 			continue
 		}
 
 		st, err := parseStorageFromString(scsi0)
 		if err != nil {
 			logger.Error("failed to parse storage on SCSI0", "vmid", v.ID, "scsi0", scsi0)
+
 			continue
 		}
 
@@ -763,12 +798,14 @@ func configureVMs(vmNodes map[uint64]string) {
 
 			if err != nil {
 				logger.Error("failed to set resize disk on VM", "vmid", v.ID, "err", err)
+
 				continue
 			}
 
 			isSuccessful, err := waitForProxmoxTaskCompletion(t)
 			if err != nil {
 				logger.Error("failed to wait for resize disk task completion", "vmid", v.ID, "err", err)
+
 				continue
 			}
 
@@ -812,6 +849,7 @@ func updateVMs(cluster *gprox.Cluster) {
 	resources, err := getProxmoxResources(cluster, "vm")
 	if err != nil {
 		logger.Error("failed to get Proxmox resources", "error", err)
+
 		return
 	}
 
@@ -820,6 +858,7 @@ func updateVMs(cluster *gprox.Cluster) {
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()
 	if err != nil {
 		logger.Error("Can't get active VMs from DB", "err", err)
+
 		return
 	}
 
@@ -979,6 +1018,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
 	if err != nil {
 		logger.Error("failed to get interfaces with 'pre-creating' status", "error", err)
+
 		return
 	}
 
@@ -986,29 +1026,34 @@ func createInterfaces(vmNodes map[uint64]string) {
 		dbVM, err := db.GetVMByID(uint64(iface.VMID))
 		if err != nil {
 			logger.Error("failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+
 			continue
 		}
 
 		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
 			logger.Warn("Can't create configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+
 			continue
 		}
 
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
 		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
 		vm, err := getProxmoxVM(node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
+
 			continue
 		}
 
@@ -1040,6 +1085,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		for i := range snet {
 			if snet[i] != i {
 				firstEmptyIndex = i
+
 				break
 			}
 		}
@@ -1051,6 +1097,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		vnet, err := db.GetNetByID(iface.VNetID)
 		if err != nil {
 			logger.Error("failed to get net by ID", "interface_id", iface.ID, "net_id", iface.VNetID, "err", err)
+
 			continue
 		}
 
@@ -1085,17 +1132,20 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to add network interface to Proxmox VM", "error", err)
+
 			continue
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 			continue
 		}
 
 		if !isSuccessful {
 			logger.Error("failed to add network interface to Proxmox VM")
+
 			continue
 		}
 
@@ -1120,17 +1170,20 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to configure network interface on Proxmox VM", "error", err)
+
 			continue
 		}
 
 		isSuccessful, err = waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 			continue
 		}
 
 		if !isSuccessful {
 			logger.Error("failed to configure network interface on Proxmox VM")
+
 			continue
 		}
 
@@ -1149,6 +1202,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 		err = db.UpdateInterface(&iface)
 		if err != nil {
 			logger.Error("failed to update interface status to ready", "interface", iface, "err", err)
+
 			continue
 		}
 	}
@@ -1160,6 +1214,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreDeleting))
 	if err != nil {
 		logger.Error("failed to get interfaces with 'pre-creating' status", "error", err)
+
 		return
 	}
 
@@ -1167,6 +1222,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
@@ -1177,6 +1233,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
@@ -1187,6 +1244,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
+
 			continue
 		}
 
@@ -1200,29 +1258,34 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to remove network interface from Proxmox VM", "error", err)
+
 			continue
 		}
 
 		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusDeleting))
 		if err != nil {
 			logger.Error("failed to update interface status to deleting", "interface", iface, "err", err)
+
 			continue
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 			continue
 		}
 
 		if !isSuccessful {
 			logger.Error("failed to remove network interface from Proxmox VM")
+
 			continue
 		}
 
 		err = db.DeleteInterfaceByID(iface.ID)
 		if err != nil {
 			logger.Error("failed to delete interface from DB", "interface", iface, "err", err)
+
 			continue
 		}
 	}
@@ -1234,6 +1297,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreConfiguring))
 	if err != nil {
 		logger.Error("failed to get interfaces with 'pre-creating' status", "error", err)
+
 		return
 	}
 
@@ -1241,41 +1305,48 @@ func configureInterfaces(vmNodes map[uint64]string) {
 		dbVM, err := db.GetVMByID(uint64(iface.VMID))
 		if err != nil {
 			logger.Error("failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
+
 			continue
 		}
 
 		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusConfiguring))
 		if err != nil {
 			logger.Error("failed to update interface status to configuring", "interface", iface, "err", err)
+
 			continue
 		}
 
 		if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(dbVM.Status)) {
 			logger.Warn("Can't configure interface. VM not in a good state for interface manipulation", "vmid", iface.VMID, "interface_id", iface.ID, "vm_status", dbVM.Status)
+
 			continue
 		}
 
 		dbNet, err := db.GetNetByID(iface.VNetID)
 		if err != nil {
 			logger.Error("failed to get net by ID", "interface_id", iface.ID, "net_id", iface.VNetID, "err", err)
+
 			continue
 		}
 
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
 		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
+
 			continue
 		}
 
 		vm, err := getProxmoxVM(node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
+
 			continue
 		}
 
@@ -1286,6 +1357,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 		pnet, ok := mnets[s]
 		if !ok {
 			logger.Error("Can't configure interface. Network not found on Proxmox VM", "interface_id", iface.ID, "vmid", iface.VMID, "local_id", iface.LocalID)
+
 			continue
 		}
 
@@ -1305,17 +1377,20 @@ func configureInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to add network interface to Proxmox VM", "error", err)
+
 			continue
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 			continue
 		}
 
 		if !isSuccessful {
 			logger.Error("failed to add network interface to Proxmox VM")
+
 			continue
 		}
 
@@ -1337,17 +1412,20 @@ func configureInterfaces(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to configure network interface on Proxmox VM", "error", err)
+
 			continue
 		}
 
 		isSuccessful, err = waitForProxmoxTaskCompletion(t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
+
 			continue
 		}
 
 		if !isSuccessful {
 			logger.Error("failed to configure network interface on Proxmox VM")
+
 			continue
 		}
 
@@ -1363,6 +1441,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 		err = db.UpdateInterfaceStatus(iface.ID, string(InterfaceStatusReady))
 		if err != nil {
 			logger.Error("failed to update interface status to ready", "interface", iface, "err", err)
+
 			continue
 		}
 	}
@@ -1374,6 +1453,7 @@ func deleteBackups(mapVMContent map[uint64]string) {
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeDelete)
 	if err != nil {
 		logger.Error("failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeDelete, "error", err)
+
 		return
 	}
 
@@ -1382,24 +1462,28 @@ func deleteBackups(mapVMContent map[uint64]string) {
 
 		if r.Volid == nil {
 			slog.Error("Can't delete backup. Volid is nil", "id", r.ID)
+
 			continue
 		}
 
 		nodeName, ok := mapVMContent[uint64(r.VMID)]
 		if !ok {
 			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+
 			continue
 		}
 
 		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
+
 			continue
 		}
 
 		storage, err := getProxmoxStorage(node, cBackup.Storage)
 		if err != nil {
 			logger.Error("failed to get Proxmox storage", "storage", cBackup.Storage, "error", err)
+
 			continue
 		}
 
@@ -1410,6 +1494,7 @@ func deleteBackups(mapVMContent map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to delete content", "error", err)
+
 			continue
 		}
 
@@ -1445,6 +1530,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeRestore)
 	if err != nil {
 		logger.Error("failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeRestore, "error", err)
+
 		return
 	}
 
@@ -1453,18 +1539,21 @@ func restoreBackups(mapVMContent map[uint64]string) {
 
 		if r.Volid == nil {
 			slog.Error("Can't restore backup. Volid is nil", "id", r.ID)
+
 			continue
 		}
 
 		nodeName, ok := mapVMContent[uint64(r.VMID)]
 		if !ok {
 			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+
 			continue
 		}
 
 		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
+
 			continue
 		}
 
@@ -1484,6 +1573,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to create new vm", "error", err)
+
 			continue
 		}
 
@@ -1519,6 +1609,7 @@ func createBackups(mapVMContent map[uint64]string) {
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeCreate)
 	if err != nil {
 		logger.Error("failed to get backup requests", "status", BackupRequestStatusPending, "type", BackupRequestTypeCreate, "error", err)
+
 		return
 	}
 
@@ -1528,18 +1619,21 @@ func createBackups(mapVMContent map[uint64]string) {
 		nodeName, ok := mapVMContent[uint64(r.VMID)]
 		if !ok {
 			logger.Error("Can't delete backup. Not found on cluster resources", "vmid", r.VMID)
+
 			continue
 		}
 
 		node, err := getProxmoxNode(client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
+
 			continue
 		}
 
 		notes, err := generateBackNotes(r.Name, r.Notes, r.OwnerID, r.OwnerType)
 		if err != nil {
 			logger.Error("failed to generate backup notes", "error", err)
+
 			continue
 		}
 
@@ -1557,6 +1651,7 @@ func createBackups(mapVMContent map[uint64]string) {
 
 		if err != nil {
 			slog.Error("failed to create vzdump", "error", err)
+
 			continue
 		}
 
@@ -1596,6 +1691,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
 	if err != nil {
 		logger.Error("failed to get time of last created VM with states", "error", err)
+
 		return
 	}
 
@@ -1607,6 +1703,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		lastConfigureSSHKeysTime.After(vmt) &&
 		lastConfigureSSHKeysTime.After(groupt) {
 		logger.Debug("No need to configure SSH keys. No new SSH keys or VMs")
+
 		return
 	}
 
@@ -1617,6 +1714,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	vms, err := db.GetVMsWithStates(states)
 	if err != nil {
 		logger.Error("failed to get VMs with 'stopped' status", "error", err)
+
 		return
 	}
 
@@ -1624,6 +1722,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		nodeName, ok := vmNodes[v.ID]
 		if !ok {
 			logger.Error("Can't configure VM. Not found on cluster resources", "vmid", v.ID)
+
 			continue
 		}
 
@@ -1646,6 +1745,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 
 		if err != nil {
 			logger.Error("failed to get SSH keys for user", "vmid", v.ID, "ownerID", v.OwnerID, "ownerType", v.OwnerType, "err", err)
+
 			continue
 		}
 
@@ -1653,6 +1753,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			globalKeys, err := db.GetGlobalSSHKeys()
 			if err != nil {
 				logger.Error("failed to get global SSH keys", "vmid", v.ID, "err ", err)
+
 				continue
 			}
 
@@ -1679,6 +1780,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 		isSuccessful, err := configureVM(vm, sshOption)
 		if err != nil {
 			logger.Error("failed to set ssh keys on VM", "vmid", v.ID, "err", err)
+
 			return
 		}
 
@@ -1686,6 +1788,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 
 		if !isSuccessful {
 			logger.Error("failed to set ssh keys on VM", "vmid", v.ID)
+
 			continue
 		}
 
@@ -1719,6 +1822,7 @@ func enforceVMLifetimes() {
 	})
 	if err != nil {
 		logger.Error("failed to get VMs with lifetimes less than", "time", t, "error", err)
+
 		return
 	}
 
@@ -1732,6 +1836,7 @@ func enforceVMLifetimes() {
 		notifications, err := db.GetVMExpirationNotificationsByVMID(v.ID)
 		if err != nil {
 			logger.Error("failed to get VM expiration notifications for VM", "vmid", v.ID, "error", err)
+
 			continue
 		}
 
@@ -1741,6 +1846,7 @@ func enforceVMLifetimes() {
 			err := deleteVMBypass(v.ID)
 			if err != nil {
 				logger.Error("failed to delete expired VM", "vmid", v.ID, "error", err)
+
 				continue
 			}
 
@@ -1823,6 +1929,7 @@ func enforceVMLifetimes() {
 
 					if err != nil {
 						logger.Error("failed to send VM expiration notification", "vmid", v.ID, "days_before", i, "error", err)
+
 						continue
 					}
 

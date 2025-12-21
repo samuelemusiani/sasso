@@ -21,16 +21,19 @@ var lastSSHKeyTableUpdate time.Time = time.Time{}
 
 func (s *SSHKey) AfterUpdate(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
 func (s *SSHKey) AfterCreate(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
 func (s *SSHKey) AfterDelete(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
@@ -42,6 +45,7 @@ func initSSHKeys() error {
 	err := db.AutoMigrate(&SSHKey{})
 	if err != nil {
 		logger.Error("Failed to migrate SSHKeys table", "error", err)
+
 		return err
 	}
 

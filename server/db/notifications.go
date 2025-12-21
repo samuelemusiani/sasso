@@ -25,6 +25,7 @@ type Notification struct {
 func initNotifications() error {
 	if err := db.AutoMigrate(&Notification{}); err != nil {
 		logger.Error("Failed to migrate notifications table", "error", err)
+
 		return err
 	}
 
@@ -37,6 +38,7 @@ func GetPendingNotifications() ([]Notification, error) {
 	var notifs []Notification
 	if err := db.Where(&Notification{Status: "pending"}).Find(&notifs).Error; err != nil {
 		logger.Error("Failed to get pending notifications", "error", err)
+
 		return nil, err
 	}
 
@@ -46,6 +48,7 @@ func GetPendingNotifications() ([]Notification, error) {
 func SetNotificationAsSent(id uint) error {
 	if err := db.Model(&Notification{ID: id}).Update("status", "sent").Error; err != nil {
 		logger.Error("Failed to set notification as sent", "id", id, "error", err)
+
 		return err
 	}
 
@@ -64,6 +67,7 @@ func InsertNotification(userID uint, subject, body string, mail, telegram bool) 
 
 	if err := db.Create(&ntf).Error; err != nil {
 		logger.Error("Failed to insert notification", "error", err)
+
 		return err
 	}
 
@@ -85,6 +89,7 @@ type TelegramBot struct {
 func initTelegramBots() error {
 	if err := db.AutoMigrate(&TelegramBot{}); err != nil {
 		logger.Error("Failed to migrate telegram_bots table", "error", err)
+
 		return err
 	}
 
@@ -97,6 +102,7 @@ func GetTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
 	var bots []TelegramBot
 	if err := db.Where("user_id = ?", userID).Find(&bots).Error; err != nil {
 		logger.Error("Failed to get telegram bots by user ID", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -107,6 +113,7 @@ func GetEnabledTelegramBotsByUserID(userID uint) ([]TelegramBot, error) {
 	var bots []TelegramBot
 	if err := db.Where("user_id = ? AND enabled = ?", userID, true).Find(&bots).Error; err != nil {
 		logger.Error("Failed to get enabled telegram bots by user ID", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -123,6 +130,7 @@ func CreateTelegramBot(name, notes, token, chatID string, userID uint) error {
 	}
 	if err := db.Create(bot).Error; err != nil {
 		logger.Error("Failed to create telegram bot", "error", err)
+
 		return err
 	}
 
@@ -148,6 +156,7 @@ func GetUsersWithTelegramBots() ([]uint, error) {
 	var userIDs []uint
 	if err := db.Model(&TelegramBot{}).Where("enabled = ?", true).Distinct().Pluck("user_id", &userIDs).Error; err != nil {
 		logger.Error("Failed to get users with telegram bots", "error", err)
+
 		return nil, err
 	}
 

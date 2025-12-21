@@ -105,6 +105,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 	switch newRealm.Type {
 	case "local":
 		http.Error(w, "Local realm cannot be added via API", http.StatusBadRequest)
+
 		return
 
 	case "ldap":
@@ -189,6 +190,7 @@ func addRealm(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		http.Error(w, "Unsupported realm type", http.StatusBadRequest)
+
 		return
 	}
 }
@@ -369,6 +371,7 @@ func updateRealm(w http.ResponseWriter, r *http.Request) {
 	switch realm.Type {
 	case "local":
 		http.Error(w, "Local realm cannot be updated via API", http.StatusBadRequest)
+
 		return
 	case "ldap":
 		ldapRealm, err := db.GetLDAPRealmByID(uint(realmID))

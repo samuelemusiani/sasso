@@ -73,12 +73,12 @@ linters:
     # - mnd - An analyzer to detect magic numbers.
     - modernize
     - musttag
-    # - nakedret
-    # - nestif
+    # - nakedret - Checks that functions with naked returns are not longer than a maximum size (can be zero).
+    # - nestif - Reports deeply nested if statements.
     - nilerr
     - nilnesserr
     - nilnil
-    # - nlreturn
+    - nlreturn
     # - noctx
     # - noinlineerr
     - nolintlint

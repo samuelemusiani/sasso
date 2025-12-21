@@ -42,11 +42,13 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 	var req createNetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.Name == "" {
 		http.Error(w, "Network name is required", http.StatusBadRequest)
+
 		return
 	}
 
@@ -92,6 +94,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	nets, err := db.GetNetsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -99,6 +102,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 		tmp := strings.SplitN(s, "/", 2)
 		if len(tmp) != 2 {
 			logger.Error(errMsg, "value", s)
+
 			return s
 		}
 
@@ -141,6 +145,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 		groupNets, err := db.GetNetsByGroupID(g.ID)
 		if err != nil {
 			http.Error(w, "Failed to get networks", http.StatusInternalServerError)
+
 			return
 		}
 
@@ -178,6 +183,7 @@ func deleteNet(w http.ResponseWriter, r *http.Request) {
 	netID, err := strconv.ParseUint(netIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -212,12 +218,14 @@ func updateNet(w http.ResponseWriter, r *http.Request) {
 	vnetID, err := strconv.ParseUint(vnetIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid net ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req createNetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -254,6 +262,7 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	var req requestIPCheck
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -261,17 +270,20 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 
 	if req.IP == "" {
 		http.Error(w, "IP address is required", http.StatusBadRequest)
+
 		return
 	}
 
 	reqIPAdd := ipaddr.NewIPAddressString(req.IP)
 	if !reqIPAdd.IsValid() {
 		http.Error(w, "Invalid IP address format", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.VlanTag > 4095 {
 		http.Error(w, "VLAN tag must be between 0 and 4095", http.StatusBadRequest)
+
 		return
 	}
 
@@ -290,18 +302,21 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 
 	if !vnet.VlanAware && req.VlanTag != 0 {
 		http.Error(w, "VLAN tag must be 0 for non-VLAN-aware VNets", http.StatusBadRequest)
+
 		return
 	}
 
 	userID := mustGetUserIDFromContext(r)
 	if vnet.OwnerType == "User" && vnet.OwnerID != userID {
 		http.Error(w, "VNet does not belong to the user", http.StatusForbidden)
+
 		return
 	} else if vnet.OwnerType == "Group" {
 		_, err := db.GetUserRoleInGroup(userID, vnet.OwnerID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				http.Error(w, "Group not found or user not in group", http.StatusBadRequest)
+
 				return
 			} else {
 				slog.Error("Failed to get user role in group", "userID", userID, "groupID", vnet.OwnerID, "err", err)

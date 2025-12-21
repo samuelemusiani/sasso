@@ -71,12 +71,14 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 	pfs, err := db.GetPortForwardsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
 	gpfs, err := db.GetGroupPortForwardsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get group port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -85,6 +87,7 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(pfs))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -102,22 +105,26 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	var req createPortForwardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.DestPort < 1 {
 		http.Error(w, "DestPort must greater than 1", http.StatusBadRequest)
+
 		return
 	}
 
 	addr := ipaddr.NewIPAddressString(req.DestIP)
 	if !addr.IsValid() {
 		http.Error(w, "DestIP is not a valid IP address", http.StatusBadRequest)
+
 		return
 	}
 
 	if addr.IsPrefixed() {
 		http.Error(w, "DestIP must be a single IP address, not a subnet", http.StatusBadRequest)
+
 		return
 	}
 
@@ -135,6 +142,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	subnets, err := db.GetSubnetsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get user subnets", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -155,6 +163,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		gsubnets, err := db.GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID)
 		if err != nil {
 			http.Error(w, "Failed to get group subnets", http.StatusInternalServerError)
+
 			return
 		}
 		// Then check group subnets
@@ -171,17 +180,20 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 
 	if !foundPersonal && !foundGroup {
 		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
+
 		return
 	}
 
 	isGatewayOrBroadcast, err := db.IsAddressAGatewayOrBroadcast(req.DestIP)
 	if err != nil {
 		http.Error(w, "Failed to check if DestIP is a gateway or broadcast address", http.StatusInternalServerError)
+
 		return
 	}
 
 	if isGatewayOrBroadcast {
 		http.Error(w, "DestIP cannot be a gateway or broadcast address", http.StatusBadRequest)
+
 		return
 	}
 
@@ -191,12 +203,14 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	randPort, err := db.GetRandomAvailableOutPort(portForwards.MinPort, portForwards.MaxPort)
 	if err != nil {
 		http.Error(w, "Failed to get random available out port", http.StatusInternalServerError)
+
 		return
 	}
 
 	net, err := db.GetVNetBySubnet(foundSubnet)
 	if err != nil {
 		http.Error(w, "Failed to get VNet for subnet", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -209,6 +223,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Failed to add port forward", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -231,12 +246,14 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+
 		return
 	}
 
 	pf, err := db.GetPortForwardByID(uint(portForwardID))
 	if err != nil {
 		http.Error(w, "Port forward not found", http.StatusNotFound)
+
 		return
 	}
 
@@ -244,20 +261,24 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 		role, err := db.GetUserRoleInGroup(userID, pf.OwnerID)
 		if err != nil {
 			http.Error(w, "Failed to get user role in group", http.StatusInternalServerError)
+
 			return
 		}
 
 		if role != "owner" && role != "admin" {
 			http.Error(w, "Port forward does not belong to the user's group", http.StatusForbidden)
+
 			return
 		}
 	} else if pf.OwnerID != userID {
 		http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
+
 		return
 	}
 
 	if err := db.DeletePortForward(uint(portForwardID)); err != nil {
 		http.Error(w, "Failed to delete port forward", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -274,17 +295,20 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req approvePortForwardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if err := db.UpdatePortForwardApproval(uint(portForwardID), req.Approve); err != nil {
 		http.Error(w, "Failed to approve port forward", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -293,6 +317,7 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	pf, err := db.GetPortForwardByID(uint(portForwardID))
 	if err != nil {
 		logger.Error("Failed to get port forward after approval", "pfID", portForwardID, "error", err)
+
 		return
 	}
 
@@ -315,12 +340,14 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 	portForwards, err := db.GetPortForwardsWithNames()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(returnAdminPortForwardsFromDB(portForwards))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -329,6 +356,7 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 	portForwards, err := db.GetApprovedPortForwards()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -345,6 +373,7 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(rpf)
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }

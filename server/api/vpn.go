@@ -84,6 +84,7 @@ func getUserVPNConfigs(w http.ResponseWriter, r *http.Request) {
 
 	if len(vpnConfigs) == 0 {
 		http.Error(w, "No VPN config found for user", http.StatusNotFound)
+
 		return
 	}
 
@@ -132,6 +133,7 @@ func addVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	if nConfigs >= int64(vpnConfigs.MaxProfilesPerUser) {
 		http.Error(w, "VPN config limit reached", http.StatusBadRequest)
+
 		return
 	}
 
@@ -158,6 +160,7 @@ func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
 	vpnID, err := strconv.ParseUint(svpnID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid VPN config ID format", http.StatusBadRequest)
+
 		return
 	}
 
@@ -165,6 +168,7 @@ func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "VPN config not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -176,6 +180,7 @@ func deleteVPNConfig(w http.ResponseWriter, r *http.Request) {
 
 	if vpnConfig.UserID != userID {
 		http.Error(w, "VPN config not found", http.StatusNotFound)
+
 		return
 	}
 

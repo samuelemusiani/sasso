@@ -51,108 +51,126 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	})
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
+
 		return err
 	}
 
 	err = initGlobals()
 	if err != nil {
 		logger.Error("Failed to set globals in database", "error", err)
+
 		return err
 	}
 
 	err = initRealms()
 	if err != nil {
 		logger.Error("Failed to initialize realms in database", "error", err)
+
 		return err
 	}
 
 	err = initBackupRequests()
 	if err != nil {
 		logger.Error("Failed to initialize backup requests in database", "error", err)
+
 		return err
 	}
 
 	err = initNotifications()
 	if err != nil {
 		logger.Error("Failed to initialize notifications in database", "error", err)
+
 		return err
 	}
 
 	err = initGroupResources()
 	if err != nil {
 		logger.Error("Failed to initialize group resources in database", "error", err)
+
 		return err
 	}
 
 	err = initVPNConfig()
 	if err != nil {
 		logger.Error("Failed to initialize VPN config in database", "error", err)
+
 		return err
 	}
 
 	err = initVMExpirationNotifications()
 	if err != nil {
 		logger.Error("Failed to initialize VM expiration notifications in database", "error", err)
+
 		return err
 	}
 
 	err = initGroups()
 	if err != nil {
 		logger.Error("Failed to initialize groups in database", "error", err)
+
 		return err
 	}
 
 	err = initUsers()
 	if err != nil {
 		logger.Error("Failed to initialize users in database", "error", err)
+
 		return err
 	}
 
 	err = initSettings()
 	if err != nil {
 		logger.Error("Failed to initialize settings in database", "error", err)
+
 		return err
 	}
 
 	err = initVMs()
 	if err != nil {
 		logger.Error("Failed to initialize VMs in database", "error", err)
+
 		return err
 	}
 
 	err = initPortForwards()
 	if err != nil {
 		logger.Error("Failed to initialize port forwards in database", "error", err)
+
 		return err
 	}
 
 	err = initNetworks()
 	if err != nil {
 		logger.Error("Failed to initialize networks in database", "error", err)
+
 		return err
 	}
 
 	err = initInterfaces()
 	if err != nil {
 		logger.Error("Failed to initialize interfaces in database", "error", err)
+
 		return err
 	}
 
 	err = initSSHKeys()
 	if err != nil {
 		logger.Error("Failed to initialize ssh keys in database", "error", err)
+
 		return err
 	}
 
 	err = initTelegramBots()
 	if err != nil {
 		logger.Error("Failed to initialize telegram bots in database", "error", err)
+
 		return err
 	}
 
 	err = applyFixes()
 	if err != nil {
 		logger.Error("Failed to apply fixes to database", "error", err)
+
 		return err
 	}
 
@@ -169,6 +187,7 @@ func initGlobals() error {
 	err := db.AutoMigrate(&Globals{})
 	if err != nil {
 		logger.Error("Failed to migrate Globals table", "error", err)
+
 		return err
 	}
 
@@ -187,6 +206,7 @@ func initGlobals() error {
 	err = db.Save(&globals).Error
 	if err != nil {
 		logger.Error("Failed to update database version", "error", err)
+
 		return err
 	}
 
@@ -204,6 +224,7 @@ func applyFixes() error {
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
 			logger.Error("Failed to get admin user ID during fixes application", "error", err)
+
 			return err
 		}
 
@@ -217,10 +238,12 @@ func applyFixes() error {
 				err = createDefaultSettingsForUserTransaction(tx, adminID)
 				if err != nil {
 					logger.Error("Failed to create default settings for admin user during fixes application", "error", err)
+
 					return err
 				}
 			} else {
 				logger.Error("Failed to find admin user settings during fixes application", "error", err)
+
 				return err
 			}
 		}

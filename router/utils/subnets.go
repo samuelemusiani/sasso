@@ -25,17 +25,20 @@ func Init(l *slog.Logger, c config.Network) error {
 	_, n, err := net.ParseCIDR(c.UsableSubnet)
 	if err != nil {
 		logger.Error("invalid usable subnet in config", "subnet", c.UsableSubnet)
+
 		return err
 	}
 
 	if c.NewSubnetPrefix > 30 {
 		logger.Error("new subnet prefix too large, must be <= 30", "prefix", c.NewSubnetPrefix)
+
 		return ErrPrefixTooLarge
 	}
 
 	ones, _ := n.Mask.Size()
 	if c.NewSubnetPrefix < ones {
 		logger.Error("new subnet prefix too small, must be >= usable subnet prefix", "prefix", c.NewSubnetPrefix, "usable_subnet", c.UsableSubnet)
+
 		return ErrPrefixTooLarge
 	}
 
@@ -48,6 +51,7 @@ func NextAvailableSubnet() (string, error) {
 
 	if err != nil {
 		logger.Error("failed to get all used subnets from database", "error", err)
+
 		return "", err
 	}
 
@@ -65,6 +69,7 @@ func NextAvailableSubnet() (string, error) {
 		n := iterator.Next()
 		if !dbTrie.ElementContains(n) {
 			logger.Debug("Found available subnet", "subnet", n.String())
+
 			return n.String(), nil
 		}
 	}
@@ -76,6 +81,7 @@ func GatewayAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
 		logger.Error("invalid subnet", "subnet", subnet)
+
 		return "", errors.New("invalid subnet")
 	}
 
@@ -86,6 +92,7 @@ func GetBroadcastAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
 		logger.Error("invalid subnet", "subnet", subnet)
+
 		return "", errors.New("invalid subnet")
 	}
 

@@ -28,6 +28,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	l, err := ldap.DialURL(a.URL)
 	if err != nil {
 		logger.Error("Failed to connect to LDAP server", "url", a.URL, "error", err)
+
 		return nil, err
 	}
 
@@ -40,6 +41,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
 		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
+
 		return nil, err
 	}
 
@@ -58,6 +60,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		logger.Error("Failed to search for user in LDAP", "baseDN", a.UserBaseDN, "username", username, "error", err)
+
 		return nil, err
 	}
 
@@ -79,6 +82,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	err = l.Bind(a.BindDN, a.Password)
 	if err != nil {
 		logger.Error("Failed to bind to LDAP server", "bindDN", a.BindDN, "error", err)
+
 		return nil, err
 	}
 
@@ -112,6 +116,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 			err = db.CreateUser(&newUser)
 			if err != nil {
 				logger.Error("Failed to create new user in local DB", "username", username, "error", err)
+
 				return nil, err
 			}
 
@@ -144,6 +149,7 @@ func (a *ldapAuthenticator) LoadConfigFromDB(realmID uint) error {
 	ldapRealm, err := db.GetLDAPRealmByID(realmID)
 	if err != nil {
 		logger.Error("Failed to get LDAP realm by ID", "realmID", realmID, "error", err)
+
 		return err
 	}
 

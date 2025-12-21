@@ -36,6 +36,7 @@ func initRealms() error {
 	err := db.AutoMigrate(&Realm{}, &LDAPRealm{})
 	if err != nil {
 		logger.Error("Failed to migrate Realms table", "error", err)
+
 		return err
 	}
 
@@ -44,6 +45,7 @@ func initRealms() error {
 	result := db.First(&localRealm, "name = ?", "Local")
 	if result.Error == nil {
 		logger.Debug("Local realm already exists")
+
 		return nil
 	}
 
@@ -56,6 +58,7 @@ func initRealms() error {
 	result = db.Create(&localRealm)
 	if result.Error != nil {
 		logger.Error("Failed to create local realm", "error", result.Error)
+
 		return result.Error
 	}
 
@@ -70,6 +73,7 @@ func GetAllRealms() ([]Realm, error) {
 	result := db.Find(&realms)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve realms", "error", result.Error)
+
 		return nil, result.Error
 	}
 
@@ -80,11 +84,13 @@ func AddLDAPRealm(realm LDAPRealm) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&realm.Realm).Error; err != nil {
 			logger.Error("Failed to create associated Realm for LDAP realm", "error", err)
+
 			return err
 		}
 
 		if err := tx.Create(&realm).Error; err != nil {
 			logger.Error("Failed to add LDAP realm", "error", err)
+
 			return err
 		}
 
@@ -98,6 +104,7 @@ func GetRealmByID(id uint) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, id).Error; err != nil {
 		logger.Error("Failed to find realm by ID", "realmID", id, "error", err)
+
 		return nil, err
 	}
 
@@ -108,6 +115,7 @@ func GetLDAPRealmByID(id uint) (*LDAPRealm, error) {
 	var ldapRealm LDAPRealm
 	if err := db.First(&ldapRealm, id).Error; err != nil {
 		logger.Error("Failed to find LDAP realm by ID", "ldapRealmID", id, "error", err)
+
 		return nil, err
 	}
 
@@ -118,11 +126,13 @@ func DeleteRealmByID(id uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&Realm{}, "id = ?", id).Error; err != nil {
 			logger.Error("Failed to delete realm", "realmID", id, "error", err)
+
 			return err
 		}
 
 		if err := tx.Delete(&LDAPRealm{}, "realm_id = ?", id).Error; err != nil {
 			logger.Error("Failed to delete associated LDAP realm", "realmID", id, "error", err)
+
 			return err
 		}
 
@@ -136,11 +146,13 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(&realm.Realm).Error; err != nil {
 			logger.Error("Failed to update associated Realm for LDAP realm", "error", err)
+
 			return err
 		}
 
 		if err := tx.Save(&realm).Error; err != nil {
 			logger.Error("Failed to update LDAP realm", "error", err)
+
 			return err
 		}
 
@@ -154,6 +166,7 @@ func GetRealmByName(name string) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, "name = ?", name).Error; err != nil {
 		logger.Error("Failed to find realm by name", "name", name, "error", err)
+
 		return nil, err
 	}
 

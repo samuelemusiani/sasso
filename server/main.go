@@ -203,6 +203,7 @@ func main() {
 func getSecretKey(c *config.Config) string {
 	if c.Secrets.Key != "" {
 		slog.Info("Using secrets key provided in config file")
+
 		return c.Secrets.Key
 	} else if c.Secrets.Path != "" {
 		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)

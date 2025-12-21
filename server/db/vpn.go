@@ -31,6 +31,7 @@ func GetVPNConfigByID(id uint) (*VPNConfig, error) {
 			return nil, ErrNotFound
 		} else {
 			logger.Error("Failed to retrieve VPN config by ID", "error", result.Error)
+
 			return nil, result.Error
 		}
 	}
@@ -44,6 +45,7 @@ func GetVPNConfigsByUserID(userID uint) ([]VPNConfig, error) {
 	result := db.Where("user_id = ?", userID).Find(&vpnConfigs)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve VPN configs by user ID", "error", result.Error)
+
 		return nil, result.Error
 	}
 
@@ -59,6 +61,7 @@ func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
 			return nil, ErrNotFound
 		} else {
 			logger.Error("Failed to retrieve VPN config by IP", "error", result.Error)
+
 			return nil, result.Error
 		}
 	}
@@ -76,6 +79,7 @@ func CreateVPNConfig(vpnConfig string, vpnIP string, userID uint) error {
 	result := db.Create(vpn)
 	if result.Error != nil {
 		logger.Error("Failed to create VPN config", "error", result.Error)
+
 		return result.Error
 	}
 
@@ -86,6 +90,7 @@ func UpdateVPNConfigByID(id uint, newConfig string, newIP string) error {
 	result := db.Model(&VPNConfig{}).Where("id = ?", id).Updates(VPNConfig{VPNConfig: newConfig, VPNIP: newIP})
 	if result.Error != nil {
 		logger.Error("Failed to update VPN config by ID", "error", result.Error)
+
 		return result.Error
 	}
 
@@ -98,6 +103,7 @@ func GetAllVPNConfigs() ([]VPNConfig, error) {
 	result := db.Find(&vpnConfigs)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve all VPN configs", "error", result.Error)
+
 		return nil, result.Error
 	}
 
@@ -110,6 +116,7 @@ func CountVPNConfigsByUserID(userID uint) (int64, error) {
 	result := db.Model(&VPNConfig{}).Where("user_id = ?", userID).Count(&count)
 	if result.Error != nil {
 		logger.Error("Failed to count VPN configs by user ID", "error", result.Error)
+
 		return 0, result.Error
 	}
 
@@ -120,6 +127,7 @@ func DeleteVPNConfigByID(id uint) error {
 	result := db.Delete(&VPNConfig{}, id)
 	if result.Error != nil {
 		logger.Error("Failed to delete VPN config by ID", "error", result.Error)
+
 		return result.Error
 	}
 

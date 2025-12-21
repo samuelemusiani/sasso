@@ -27,6 +27,7 @@ type Net struct {
 func initNetworks() error {
 	if err := db.AutoMigrate(&Net{}); err != nil {
 		logger.Error("Failed to migrate networks table", "error", err)
+
 		return err
 	}
 
@@ -39,6 +40,7 @@ func GetNetByID(id uint) (*Net, error) {
 	var net Net
 	if err := db.First(&net, id).Error; err != nil {
 		logger.Error("Failed to find network by ID", "netID", id, "error", err)
+
 		return nil, err
 	}
 
@@ -49,6 +51,7 @@ func GetNetByName(name string) (*Net, error) {
 	var net Net
 	if err := db.Where("name = ?", name).First(&net).Error; err != nil {
 		logger.Error("Failed to find network by name", "netName", name, "error", err)
+
 		return nil, err
 	}
 
@@ -69,6 +72,7 @@ func GetRandomAvailableTagByZone(zone string, start, end uint32) (uint32, error)
 	err := db.Raw(query, start, end, zone).Scan(&tag).Error
 	if err != nil {
 		logger.Error("Failed to get random available tag by zone", "zone", zone, "error", err)
+
 		return 0, err
 	}
 
@@ -79,6 +83,7 @@ func GetNetsByUserID(userID uint) ([]Net, error) {
 	var nets []Net
 	if err := db.Where("owner_id = ? AND owner_type = ?", userID, "User").Find(&nets).Error; err != nil {
 		logger.Error("Failed to get nets for user", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -89,6 +94,7 @@ func GetNetsByGroupID(groupID uint) ([]Net, error) {
 	var nets []Net
 	if err := db.Where("owner_id = ? AND owner_type = ?", groupID, "Group").Find(&nets).Error; err != nil {
 		logger.Error("Failed to get nets for group", "groupID", groupID, "error", err)
+
 		return nil, err
 	}
 
@@ -100,6 +106,7 @@ func CountNetsByUserID(userID uint) (uint, error) {
 	var count int64
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", userID, "User").Count(&count).Error; err != nil {
 		logger.Error("Failed to count nets for user", "userID", userID, "error", err)
+
 		return 0, err
 	}
 
@@ -111,6 +118,7 @@ func CountNetsByGroupID(groupID uint) (uint, error) {
 	var count int64
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ?", groupID, "Group").Count(&count).Error; err != nil {
 		logger.Error("Failed to count nets for group", "groupID", groupID, "error", err)
+
 		return 0, err
 	}
 
@@ -121,6 +129,7 @@ func GetSubnetsByUserID(userID uint) ([]string, error) {
 	var subnets []string
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", userID, "User", "ready").Pluck("subnet", &subnets).Error; err != nil {
 		logger.Error("Failed to get subnets for user", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -136,6 +145,7 @@ func GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID uint) ([]string, error) 
 		Pluck("nets.subnet", &subnets).Error
 	if err != nil {
 		logger.Error("Failed to get subnets from groups where user is admin or owner", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -146,6 +156,7 @@ func GetSubnetsByGroupID(groupID uint) ([]string, error) {
 	var subnets []string
 	if err := db.Model(&Net{}).Where("owner_id = ? AND owner_type = ? AND status = ?", groupID, "Group", "ready").Pluck("subnet", &subnets).Error; err != nil {
 		logger.Error("Failed to get subnets for group", "groupID", groupID, "error", err)
+
 		return nil, err
 	}
 
@@ -159,6 +170,7 @@ func IsAddressAGatewayOrBroadcast(address string) (bool, error) {
 
 	if err := db.Model(&Net{}).Where("gateway LIKE ? OR broadcast LIKE ?", addressLike, addressLike).Count(&count).Error; err != nil {
 		logger.Error("Failed to check if address is a gateway or broadcast", "address", address, "error", err)
+
 		return false, err
 	}
 
@@ -181,6 +193,7 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 
 	if err := db.Create(net).Error; err != nil {
 		logger.Error("Failed to create network for user", "userID", userID, "error", err)
+
 		return nil, err
 	}
 
@@ -205,6 +218,7 @@ func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanA
 
 	if err := db.Create(net).Error; err != nil {
 		logger.Error("Failed to create network for group", "groupID", groupID, "error", err)
+
 		return nil, err
 	}
 
@@ -217,6 +231,7 @@ func GetVNetsWithStatus(status string) ([]Net, error) {
 	var nets []Net
 	if err := db.Where("status = ?", status).Find(&nets).Error; err != nil {
 		logger.Error("Failed to get VNets with status", "status", status, "error", err)
+
 		return nil, err
 	}
 
@@ -226,6 +241,7 @@ func GetVNetsWithStatus(status string) ([]Net, error) {
 func UpdateVNetStatus(id uint, status string) error {
 	if err := db.Model(&Net{}).Where("id = ?", id).Update("status", status).Error; err != nil {
 		logger.Error("Failed to update VNet status", "netID", id, "status", status, "error", err)
+
 		return err
 	}
 
@@ -237,6 +253,7 @@ func UpdateVNetStatus(id uint, status string) error {
 func DeleteNetByID(id uint) error {
 	if err := db.Delete(&Net{}, id).Error; err != nil {
 		logger.Error("Failed to delete network", "netID", id, "error", err)
+
 		return err
 	}
 
@@ -248,6 +265,7 @@ func DeleteNetByID(id uint) error {
 func UpdateVNet(net *Net) error {
 	if err := db.Save(net).Error; err != nil {
 		logger.Error("Failed to update network", "netID", net.ID, "error", err)
+
 		return err
 	}
 
@@ -262,6 +280,7 @@ func UpdateVNetName(id uint, newName string) error {
 		Error
 	if err != nil {
 		logger.Error("Failed to update VNet name", "netID", id, "newName", newName, "error", err)
+
 		return err
 	}
 
@@ -274,6 +293,7 @@ func GetAllNets() ([]Net, error) {
 	var nets []Net
 	if err := db.Find(&nets).Error; err != nil {
 		logger.Error("Failed to get all VNets", "error", err)
+
 		return nil, err
 	}
 
@@ -284,6 +304,7 @@ func GetVNetBySubnet(subnet string) (*Net, error) {
 	var net Net
 	if err := db.Where("subnet = ?", subnet).First(&net).Error; err != nil {
 		logger.Error("Failed to find network by subnet", "subnet", subnet, "error", err)
+
 		return nil, err
 	}
 
@@ -294,6 +315,7 @@ func CountVNets() (int64, error) {
 	var count int64
 	if err := db.Model(&Net{}).Count(&count).Error; err != nil {
 		logger.Error("Failed to count VNets", "error", err)
+
 		return 0, err
 	}
 

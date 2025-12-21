@@ -228,6 +228,7 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	srules, err := goshorewall.GetRules()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
+
 		return false, err
 	}
 
@@ -245,6 +246,7 @@ func (s *ShorewallFirewall) VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 	srules, err := goshorewall.GetRules()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
+
 		return nil, err
 	}
 

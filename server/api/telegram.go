@@ -68,21 +68,25 @@ func createTelegramBot(w http.ResponseWriter, r *http.Request) {
 	var req createTelegramBotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if req.Name == "" || req.Token == "" || req.ChatID == "" {
 		http.Error(w, "Name, token, and chat_id are required", http.StatusBadRequest)
+
 		return
 	}
 
 	if !telegramBotTokenRegex.MatchString(req.Token) {
 		http.Error(w, "Invalid Telegram bot token format", http.StatusBadRequest)
+
 		return
 	}
 
 	if !telegramBotChatIDRegex.MatchString(req.ChatID) {
 		http.Error(w, "Invalid Telegram chat ID format", http.StatusBadRequest)
+
 		return
 	}
 
@@ -103,6 +107,7 @@ func deleteTelegramBot(w http.ResponseWriter, r *http.Request) {
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -127,6 +132,7 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -146,6 +152,7 @@ func testTelegramBot(w http.ResponseWriter, r *http.Request) {
 
 	if bot.UserID != userID {
 		http.Error(w, "Telegram bot not found", http.StatusNotFound)
+
 		return
 	}
 
@@ -170,12 +177,14 @@ func enableDisableTelegramBot(w http.ResponseWriter, r *http.Request) {
 	botID, err := strconv.ParseUint(sbotID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid bot ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req toggleTelegramBotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 

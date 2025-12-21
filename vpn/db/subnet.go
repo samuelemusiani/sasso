@@ -38,6 +38,7 @@ func NewSubnet(subnet string, peerID uint) error {
 			Count(&count).Error
 		if err != nil {
 			logger.Error("Failed to check existing subnet-peer association", "error", err)
+
 			return err
 		}
 
@@ -50,6 +51,7 @@ func NewSubnet(subnet string, peerID uint) error {
 		}
 		if err := tx.Create(s).Error; err != nil {
 			logger.Error("Failed to create subnet", "error", err)
+
 			return err
 		}
 
@@ -59,6 +61,7 @@ func NewSubnet(subnet string, peerID uint) error {
 		}
 		if err := tx.Create(sp).Error; err != nil {
 			logger.Error("Failed to create subnet-peer association", "error", err)
+
 			return err
 		}
 

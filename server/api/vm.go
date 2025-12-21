@@ -50,6 +50,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	var req newVMRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -126,6 +127,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 
 	if bkPending {
 		http.Error(w, "Cannot delete VM with pending backup requests", http.StatusConflict)
+
 		return
 	}
 
@@ -160,6 +162,7 @@ func changeVMState(action string) http.HandlerFunc {
 
 		if vm.LifeTime.Before(time.Now()) {
 			http.Error(w, "Cannot change state of expired VM", http.StatusForbidden)
+
 			return
 		}
 
@@ -188,6 +191,7 @@ func changeVMState(action string) http.HandlerFunc {
 
 		if len(bkRequests) > 0 {
 			http.Error(w, "Cannot update VM status with pending restore backup requests", http.StatusConflict)
+
 			return
 		}
 
@@ -196,6 +200,7 @@ func changeVMState(action string) http.HandlerFunc {
 			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
+
 			return
 		}
 
@@ -229,6 +234,7 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	var request updateVMLifetimeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -243,6 +249,7 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInvalidVMParam) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
 
@@ -265,6 +272,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	var request updateResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -272,6 +280,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot update resources of expired VM", http.StatusForbidden)
+
 		return
 	}
 
@@ -280,6 +289,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role != "admin" && role != "owner" {
 			http.Error(w, "Permission denied", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -300,9 +310,11 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
+
 			return
 		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
 

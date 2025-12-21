@@ -44,11 +44,13 @@ func NewInterface(vmid uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 	vm, err := db.GetVMByID(uint64(vmid))
 	if err != nil {
 		logger.Error("Failed to get VM by ID", "VMID", vmid, "error", err)
+
 		return nil, err
 	}
 
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to add an interface", "VMID", vmid, "status", vm.Status)
+
 		return nil, ErrInvalidVMState
 	}
 
@@ -58,17 +60,20 @@ func NewInterface(vmid uint, vnetID uint, vlanTag uint16, ipAdd string, gateway 
 	ifaceNumber, err := db.CountInterfacesOnVM(vmid)
 	if err != nil {
 		logger.Error("Failed to count interfaces on VM", "VMID", vmid, "error", err)
+
 		return nil, err
 	}
 
 	if ifaceNumber >= 32 {
 		logger.Error("VM has reached the maximum number of interfaces", "VMID", vmid)
+
 		return nil, ErrMaxNumberOfInterfaces
 	}
 
 	iface, err := db.NewInterface(vmid, vnetID, vlanTag, ipAdd, gateway, string(InterfaceStatusPreCreating))
 	if err != nil {
 		logger.Error("Failed to create new interface", "error", err)
+
 		return nil, err
 	}
 
@@ -102,17 +107,20 @@ func DeleteInterface(id uint) error {
 	vm, err := db.GetVMByID(uint64(i.VMID))
 	if err != nil {
 		logger.Error("Failed to get VM by ID", "VMID", i.VMID, "error", err)
+
 		return err
 	}
 
 	if !slices.Contains(goodVMStatesForInterfacesManipulation, VMStatus(vm.Status)) {
 		logger.Error("VM is not in a valid state to add an interface", "VMID", i.VMID, "status", vm.Status)
+
 		return ErrInvalidVMState
 	}
 
 	err = db.UpdateInterfaceStatus(id, string(InterfaceStatusPreDeleting))
 	if err != nil {
 		logger.Error("Failed to set interface status to pre-deleting", "interfaceID", id, "error", err)
+
 		return err
 	}
 
@@ -140,6 +148,7 @@ func UpdateInterface(iface *Interface) error {
 	err = db.UpdateInterface(dbIface)
 	if err != nil {
 		logger.Error("Failed to update interface", "interfaceID", iface.ID, "error", err)
+
 		return err
 	}
 

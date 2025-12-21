@@ -21,9 +21,11 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, proxmox.ErrVMNotFound):
 			http.Error(w, "VM not found", http.StatusNotFound)
+
 			return
 		case errors.Is(err, proxmox.ErrInvalidVMState):
 			http.Error(w, "Invalid VM state", http.StatusConflict)
+
 			return
 		}
 
@@ -52,6 +54,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot restore backup in expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -66,6 +69,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "Only group admins can restore backups", http.StatusForbidden)
+
 			return
 		}
 
@@ -75,6 +79,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	if vm.Status != string(proxmox.VMStatusStopped) {
 		http.Error(w, "VM must be stopped to restore a backup", http.StatusBadRequest)
+
 		return
 	}
 
@@ -85,12 +90,15 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):
 			http.Error(w, "Backup not found", http.StatusNotFound)
+
 			return
 		case errors.Is(err, proxmox.ErrPendingBackupRequest):
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrInvalidVMState):
 			http.Error(w, "Invalid VM state", http.StatusConflict)
+
 			return
 		}
 
@@ -120,6 +128,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot create backup in expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -132,6 +141,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "Only group admins can create backups", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -143,6 +153,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -156,18 +167,23 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, proxmox.ErrPendingBackupRequest):
 			http.Error(w, "There is already a pending backup request for this VM", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrMaxBackupsReached):
 			http.Error(w, "Maximum number of backups reached for this user", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrBackupNameTooLong):
 			http.Error(w, "Backup name too long", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrBackupNotesTooLong):
 			http.Error(w, "Backup notes too long", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrInvalidVMState):
 			http.Error(w, "Invalid VM state", http.StatusConflict)
+
 			return
 		}
 
@@ -192,6 +208,7 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot delete backup in expired VM", http.StatusConflict)
+
 		return
 	}
 
@@ -201,6 +218,7 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "Only group admins can delete backups", http.StatusForbidden)
+
 			return
 		}
 
@@ -215,15 +233,19 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):
 			http.Error(w, "Backup not found", http.StatusNotFound)
+
 			return
 		case errors.Is(err, proxmox.ErrCantDeleteBackup):
 			http.Error(w, "Can't delete backup", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrPendingBackupRequest):
 			http.Error(w, "Pending backup request", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrInvalidVMState):
 			http.Error(w, "Invalid VM state", http.StatusConflict)
+
 			return
 		}
 
@@ -309,6 +331,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	bkrID, err := strconv.ParseUint(sbkrID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid backup request ID", http.StatusBadRequest)
+
 		return
 	}
 
@@ -316,6 +339,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
+
 			return
 		}
 
@@ -328,11 +352,13 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	if mustGetVMFromContext(r).OwnerType == "Group" {
 		if bkr.OwnerType != "Group" || bkr.OwnerID != mustGetGroupIDFromContext(r) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
+
 			return
 		}
 	} else {
 		if bkr.OwnerType != "User" || bkr.OwnerID != userID {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
+
 			return
 		}
 	}
@@ -366,6 +392,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role == "member" {
 			http.Error(w, "Only group admins can protect backups", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -377,6 +404,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -385,12 +413,15 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):
 			http.Error(w, "Backup not found", http.StatusNotFound)
+
 			return
 		case errors.Is(err, proxmox.ErrMaxProtectedBackupsReached):
 			http.Error(w, "Max protected backups reached", http.StatusBadRequest)
+
 			return
 		case errors.Is(err, proxmox.ErrInvalidVMState):
 			http.Error(w, "Invalid VM state", http.StatusConflict)
+
 			return
 		}
 
@@ -402,6 +433,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 
 	if !protected {
 		http.Error(w, "Failed to protect backup", http.StatusInternalServerError)
+
 		return
 	}
 

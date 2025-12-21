@@ -18,6 +18,7 @@ func (a *localAuthenticator) Login(username, password string) (*db.User, error) 
 			return nil, ErrUserNotFound
 		} else {
 			logger.Error("failed to get user by username", "error", err)
+
 			return nil, err
 		}
 	}
@@ -30,9 +31,11 @@ func (a *localAuthenticator) Login(username, password string) (*db.User, error) 
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			logger.Info("password mismatch", "username", username)
+
 			return nil, ErrPasswordMismatch
 		} else {
 			logger.Error("failed to compare password", "error", err)
+
 			return nil, err
 		}
 	}
@@ -44,6 +47,7 @@ func (a *localAuthenticator) LoadConfigFromDB(realmID uint) error {
 	realm, err := db.GetRealmByID(realmID)
 	if err != nil {
 		logger.Error("failed to get realm by ID", "realmID", realmID, "error", err)
+
 		return err
 	}
 
