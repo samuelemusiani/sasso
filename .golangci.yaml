@@ -92,21 +92,21 @@ linters:
     - protogetter
     - reassign
     - recvcheck
-    # - revive
+    # - revive - Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
     - rowserrcheck
     - sloglint
     - spancheck
     - sqlclosecheck
     - staticcheck
     - tagalign
-    # - tagliatelle
+    - tagliatelle
     - testableexamples
     - testifylint
     - testpackage
     - thelper
     - tparallel
     - unconvert
-    # - unparam
+    - unparam
     - unqueryvet
     - unused
     - usestdlibvars
@@ -134,6 +134,11 @@ linters:
         # With gorm UpdateColumns(map[string]interface{}{"field": value}) this
         # does not work as gorm expects interface{} specifically.
         - any
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.

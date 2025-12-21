@@ -124,10 +124,7 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			logger.Error("Failed to create VNets", "error", err)
 		}
 
-		err = enableNets(logger, nets, fwConfig)
-		if err != nil {
-			logger.Error("Failed to enable VNets", "error", err)
-		}
+		enableNets(logger, nets, fwConfig)
 
 		err = disableNets(logger, nets, fwConfig)
 		if err != nil {
@@ -368,7 +365,7 @@ func checkPeers(logger *slog.Logger) error {
 	return nil
 }
 
-func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
+func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) {
 	for _, n := range nets {
 		if n.Subnet == "" {
 			// When just created, the net has no subnet assigned yet
@@ -416,8 +413,6 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 			logger.Info("Successfully enabled net", "net", n)
 		}
 	}
-
-	return nil
 }
 
 func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoint, secret string) error {

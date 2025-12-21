@@ -115,8 +115,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 			return nil, err
 		}
 
-		_, _, err = waitForTaskCompletion(t)
-		if err != nil {
+		if err = waitForTaskCompletion(t); err != nil {
 			logger.Error("Failed to wait for Proxmox task completion", "error", err)
 
 			return nil, err
@@ -151,8 +150,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 			return nil, err
 		}
 
-		_, _, err = waitForTaskCompletion(t)
-		if err != nil {
+		if err = waitForTaskCompletion(t); err != nil {
 			logger.Error("Failed to wait for Proxmox task completion", "error", err)
 
 			return nil, err
@@ -261,8 +259,7 @@ func (pg *ProxmoxGateway) RemoveInterface(id uint) error {
 		return err
 	}
 
-	_, _, err = waitForTaskCompletion(t)
-	if err != nil {
+	if err = waitForTaskCompletion(t); err != nil {
 		logger.Error("Failed to wait for Proxmox task completion", "error", err)
 
 		return err
@@ -336,7 +333,7 @@ func (pg *ProxmoxGateway) getVM() (*proxmox.VirtualMachine, error) {
 	return vm, nil
 }
 
-func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
+func waitForTaskCompletion(t *proxmox.Task) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 120, 1)
 
@@ -345,22 +342,22 @@ func waitForTaskCompletion(t *proxmox.Task) (bool, bool, error) {
 	if err != nil {
 		logger.Error("Failed to wait for Proxmox task completion", "error", err)
 
-		return false, false, err
+		return err
 	}
 
 	if !completed {
 		logger.Error("proxmox task did not complete in time")
 
-		return false, false, errors.New("task_timeout")
+		return errors.New("task_timeout")
 	}
 
 	if !isSuccessful {
 		logger.Error("proxmox task failed")
 
-		return false, true, errors.New("task_failed")
+		return errors.New("task_failed")
 	}
 
-	return true, true, nil
+	return nil
 }
 
 func extractMacFromInterfaceString(iface string) (string, error) {

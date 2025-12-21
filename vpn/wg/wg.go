@@ -36,7 +36,7 @@ func Init(l *slog.Logger, config *config.Wireguard) error {
 	logger = l
 
 	// Check permission for wg command and its existence
-	_, stderr, err := executeCommand("wg", "--version")
+	_, stderr, err := executeWGCommand("--version")
 	if err != nil {
 		return fmt.Errorf("wg command not found or not executable: %w, stderr: %s", err, stderr)
 	}
@@ -129,7 +129,7 @@ func checkConfig(config *config.Wireguard) error {
 	}
 
 	// Check interface exists
-	_, stderr, err := executeCommand("wg", "show", config.Interface)
+	_, stderr, err := executeWGCommand("show", config.Interface)
 	if err != nil {
 		return fmt.Errorf("wireguard interface %s does not exist: %w, stderr: %s", config.Interface, err, stderr)
 	}
@@ -160,15 +160,15 @@ func (wg *WGPeer) String() string {
 	return fmt.Sprintf(fileTemplate, wg.Address, wg.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
-func executeCommand(command string, args ...string) (string, string, error) {
-	logger.Debug("Executing command", "command", command, "args", args)
+func executeWGCommand(args ...string) (string, string, error) {
+	logger.Debug("Executing wg command", "args", args)
 
 	var (
 		stdout bytes.Buffer
 		stderr bytes.Buffer
 	)
 
-	cmd := exec.Command(command, args...)
+	cmd := exec.Command("wg", args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -194,7 +194,7 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreatePeer(i *WGPeer) error {
-	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "allowed-ips", i.Address)
+	stdout, stderr, err := executeWGCommand("set", c.Interface, "peer", i.PublicKey, "allowed-ips", i.Address)
 	if err != nil {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 
@@ -207,7 +207,7 @@ func CreatePeer(i *WGPeer) error {
 }
 
 func DeletePeer(i *WGPeer) error {
-	stdout, stderr, err := executeCommand("wg", "set", c.Interface, "peer", i.PublicKey, "remove")
+	stdout, stderr, err := executeWGCommand("set", c.Interface, "peer", i.PublicKey, "remove")
 	if err != nil {
 		logger.Error("Error deleting WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 
@@ -234,7 +234,7 @@ func UpdatePeer(i *WGPeer) error {
 }
 
 func genKeys() (string, string, error) {
-	privateKey, stderr, err := executeCommand("wg", "genkey")
+	privateKey, stderr, err := executeWGCommand("genkey")
 	if err != nil {
 		logger.Error("Error generating private key", "err", err, "stderr", stderr)
 
@@ -252,7 +252,7 @@ func genKeys() (string, string, error) {
 }
 
 func ParsePeers() (map[string]WGPeer, error) {
-	stdout, stderr, err := executeCommand("wg", "show", c.Interface, "dump")
+	stdout, stderr, err := executeWGCommand("show", c.Interface, "dump")
 	if err != nil {
 		logger.Error("Error dumping peers", "err", err, "stderr", stderr)
 

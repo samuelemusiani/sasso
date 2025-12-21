@@ -317,14 +317,7 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, err
 	}
 
-	uniqueOwnerID, err := getLastUsedUniqueOwnerIDInVMs(ids)
-	if err != nil {
-		l.Error("Failed to get last used unique owner ID in VMs", "error", err)
-
-		return nil, err
-	}
-
-	uniqueOwnerID++ // Increment the VM user ID for the new VM
+	uniqueOwnerID := getLastUsedUniqueOwnerIDInVMs(ids) + 1
 
 	ownerID := userID
 	if group != nil {
@@ -720,7 +713,9 @@ func UpdateVMLifetime(vmid uint64, extendBy uint) error {
 // VM IDs for a user or group and returns the highest unique owner ID used.
 // We do this here because it's based on the template and the DB should
 // not need to know about that.
-func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
+//
+// IMPORTANT: this function *panics* if the clone ID template is invalid.
+func getLastUsedUniqueOwnerIDInVMs(ids []uint) uint {
 	// like 600{{vmid}} or 60{{vmid}}0
 	first := strings.Index("60{{vmid}}", "{{vmid}}") //3
 	if first == -1 {
@@ -751,7 +746,7 @@ func getLastUsedUniqueOwnerIDInVMs(ids []uint) (uint, error) {
 		}
 	}
 
-	return maxID, nil
+	return maxID
 }
 
 // Like above (getLastUsedUniqueOwnerIDInVMs), but for a single VM ID.
