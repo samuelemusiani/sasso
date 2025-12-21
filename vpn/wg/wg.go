@@ -3,6 +3,7 @@ package wg
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -52,23 +53,23 @@ func Init(l *slog.Logger, config *config.Wireguard) error {
 
 func checkConfig(config *config.Wireguard) error {
 	if config.PublicKey == "" {
-		return fmt.Errorf("wireguard public key is empty")
+		return errors.New("wireguard public key is empty")
 	}
 
 	if config.Endpoint == "" {
-		return fmt.Errorf("wireguard endpoint is empty")
+		return errors.New("wireguard endpoint is empty")
 	}
 
 	if config.VPNSubnet == "" {
-		return fmt.Errorf("wireguard vpn subnet is empty")
+		return errors.New("wireguard vpn subnet is empty")
 	}
 
 	if config.VMsSubnet == "" {
-		return fmt.Errorf("wireguard vms subnet is empty")
+		return errors.New("wireguard vms subnet is empty")
 	}
 
 	if config.Interface == "" {
-		return fmt.Errorf("wireguard interface name is empty")
+		return errors.New("wireguard interface name is empty")
 	}
 
 	// Public key is base64 encoded, check it
@@ -275,7 +276,7 @@ func ParsePeers() (map[string]WGPeer, error) {
 
 		if len(fields) < 4 {
 			// not enough fields, error
-			return nil, fmt.Errorf("not enough fields in wg show dump output")
+			return nil, errors.New("not enough fields in wg show dump output")
 		}
 
 		publicKey := fields[0]

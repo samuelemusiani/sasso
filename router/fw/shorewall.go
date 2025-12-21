@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 
 	goshorewall "github.com/samuelemusiani/go-shorewall"
 	"samuelemusiani/sasso/router/config"
@@ -18,15 +19,15 @@ type ShorewallFirewall struct {
 
 func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall, error) {
 	if c.ExternalZone == "" {
-		return nil, fmt.Errorf("external zone cannot be empty")
+		return nil, errors.New("external zone cannot be empty")
 	}
 
 	if c.VMZone == "" {
-		return nil, fmt.Errorf("VM zone cannot be empty")
+		return nil, errors.New("VM zone cannot be empty")
 	}
 
 	if c.PublicIP == "" {
-		return nil, fmt.Errorf("public IP cannot be empty")
+		return nil, errors.New("public IP cannot be empty")
 	}
 
 	v, err := goshorewall.GetVersion()
@@ -71,7 +72,7 @@ func (s *ShorewallFirewall) shorewallRulefromRule(r Rule) goshorewall.Rule {
 		Source:      s.ExternalZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, r.DestIP, r.DestPort),
 		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", r.OutPort),
+		Dport:       strconv.FormatUint(uint64(r.OutPort), 10),
 	}
 }
 
@@ -81,7 +82,7 @@ func (s *ShorewallFirewall) shorewallRulefromRuleNatReflection(r Rule) goshorewa
 		Source:      s.VMZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, r.DestIP, r.DestPort),
 		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", r.OutPort),
+		Dport:       strconv.FormatUint(uint64(r.OutPort), 10),
 		Origdest:    s.PublicIP,
 	}
 }

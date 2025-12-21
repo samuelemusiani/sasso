@@ -127,7 +127,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	needToConfigureInterfaceOnProxmox := true
 
 	for i := range ipConfigs {
-		if strings.Contains(ipConfigs[i], fmt.Sprintf("ip=%s", routerIP)) {
+		if strings.Contains(ipConfigs[i], "ip="+routerIP) {
 			logger.Warn("IP configuration already exists on Proxmox VM", "routerIP", routerIP, "ipconfig", ipConfigs[i])
 
 			needToConfigureInterfaceOnProxmox = false
@@ -137,7 +137,7 @@ func (pg *ProxmoxGateway) NewInterface(vnet string, vnetID uint32, subnet, route
 	if needToConfigureInterfaceOnProxmox {
 		o2 := proxmox.VirtualMachineOption{
 			Name:  "ipconfig" + strconv.Itoa(interfaceIndex),
-			Value: fmt.Sprintf("ip=%s", routerIP),
+			Value: "ip=" + routerIP,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -442,7 +442,7 @@ func calculateNextAvailableInterfaceIndex(vm *proxmox.VirtualMachine, vnet strin
 	needToAddInterfaceOnProxmox := true
 
 	for i := range mnets {
-		if strings.Contains(mnets[i], fmt.Sprintf("bridge=%s", vnet)) {
+		if strings.Contains(mnets[i], "bridge="+vnet) {
 			logger.Warn("Network interface already exists on Proxmox VM", "vnet", vnet, "bridge", mnets[i])
 
 			needToAddInterfaceOnProxmox = false

@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"slices"
@@ -18,11 +17,11 @@ import (
 
 func checkConfig(c config.Server) error {
 	if c.Endpoint == "" {
-		return fmt.Errorf("server endpoint cannot be empty")
+		return errors.New("server endpoint cannot be empty")
 	}
 
 	if c.Secret == "" {
-		return fmt.Errorf("server secret cannot be empty")
+		return errors.New("server secret cannot be empty")
 	}
 
 	_, err := url.Parse(c.Endpoint)

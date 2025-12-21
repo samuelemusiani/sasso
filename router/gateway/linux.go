@@ -23,13 +23,13 @@ func NewLinuxGateway() *LinuxGateway {
 
 func (lg *LinuxGateway) Init(c config.Gateway) error {
 	if c.Linux.Port == 0 {
-		return fmt.Errorf("linux gateway port cannot be 0")
+		return errors.New("linux gateway port cannot be 0")
 	}
 
 	lg.Port = c.Linux.Port
 
 	if len(c.Linux.Peers) == 0 {
-		return fmt.Errorf("linux gateway must have at least one peer")
+		return errors.New("linux gateway must have at least one peer")
 	}
 
 	for _, p := range c.Linux.Peers {
@@ -42,7 +42,7 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 	}
 
 	if c.Linux.MTU == 0 {
-		return fmt.Errorf("linux gateway MTU cannot be 0")
+		return errors.New("linux gateway MTU cannot be 0")
 	}
 
 	lg.MTU = c.Linux.MTU

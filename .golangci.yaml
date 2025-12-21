@@ -79,13 +79,13 @@ linters:
     - nilnesserr
     - nilnil
     - nlreturn
-    # - noctx
-    # - noinlineerr
+    # - noctx - Detects function and method with missing usage of context.Context.
+    # - noinlineerr - Disallows inline error handling (`if err := ...; err != nil {`).
     - nolintlint
-    # - nonamedreturns
+    # - nonamedreturns - Reports all named returns.
     - nosprintfhostport
     - paralleltest
-    # - perfsprint
+    - perfsprint
     # - prealloc
     - predeclared
     # - promlinter

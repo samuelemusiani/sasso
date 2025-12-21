@@ -835,25 +835,25 @@ func checkConfig(c config.Notifications) error {
 
 	if c.RateLimits {
 		if c.MaxPerDay <= 0 {
-			return fmt.Errorf("notifications max per day must be greater than 0 when rate limits are enabled")
+			return errors.New("notifications max per day must be greater than 0 when rate limits are enabled")
 		}
 
 		if c.MaxPerMinute <= 0 {
-			return fmt.Errorf("notifications max per minute must be greater than 0 when rate limits are enabled")
+			return errors.New("notifications max per minute must be greater than 0 when rate limits are enabled")
 		}
 	}
 
 	if c.Email.Enabled {
 		if c.Email.SMTPServer == "" {
-			return fmt.Errorf("notifications SMTP server is empty")
+			return errors.New("notifications SMTP server is empty")
 		}
 
 		if c.Email.Username == "" {
-			return fmt.Errorf("notifications SMTP username is empty")
+			return errors.New("notifications SMTP username is empty")
 		}
 
 		if c.Email.Password == "" {
-			return fmt.Errorf("notifications SMTP password is empty")
+			return errors.New("notifications SMTP password is empty")
 		}
 	}
 

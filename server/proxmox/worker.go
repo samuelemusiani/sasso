@@ -1101,10 +1101,10 @@ func createInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		v := fmt.Sprintf("virtio,bridge=%s", vnet.Name)
+		v := "virtio,bridge=" + vnet.Name
 
 		if cClone.EnableFirewall {
-			v = fmt.Sprintf("%s,firewall=1", v)
+			v += ",firewall=1"
 		}
 
 		if cClone.MTU.Set {
@@ -1154,7 +1154,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		o2 := gprox.VirtualMachineOption{
 			Name:  "ipconfig" + strconv.Itoa(firstEmptyIndex),
-			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
+			Value: "ip=" + iface.IPAdd,
 		}
 
 		if iface.Gateway != "" {
@@ -1396,7 +1396,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 
 		o2 := gprox.VirtualMachineOption{
 			Name:  fmt.Sprintf("ipconfig%d", iface.LocalID),
-			Value: fmt.Sprintf("ip=%s", iface.IPAdd),
+			Value: "ip=" + iface.IPAdd,
 		}
 
 		if iface.Gateway != "" {

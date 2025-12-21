@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"mime"
@@ -398,39 +397,39 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 
 func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN) error {
 	if len(key) == 0 {
-		return fmt.Errorf("api key cannot be empty")
+		return errors.New("api key cannot be empty")
 	}
 
 	if secret == "" {
-		return fmt.Errorf("internal secret cannot be empty")
+		return errors.New("internal secret cannot be empty")
 	}
 
 	if publicServerConf.Bind == "" {
-		return fmt.Errorf("public server bind address cannot be empty")
+		return errors.New("public server bind address cannot be empty")
 	}
 
 	if privateServerConf.Bind == "" {
-		return fmt.Errorf("private server bind address cannot be empty")
+		return errors.New("private server bind address cannot be empty")
 	}
 
 	if portForwards.PublicIP == "" {
-		return fmt.Errorf("port forwards public IP cannot be empty")
+		return errors.New("port forwards public IP cannot be empty")
 	}
 
 	if portForwards.MinPort > portForwards.MaxPort {
-		return fmt.Errorf("port forwards min port cannot be greater than max port")
+		return errors.New("port forwards min port cannot be greater than max port")
 	}
 
 	if portForwards.MinPort == 0 || portForwards.MaxPort == 0 {
-		return fmt.Errorf("port forwards min and max port cannot be zero")
+		return errors.New("port forwards min and max port cannot be zero")
 	}
 
 	if portForwards.MaxPort-portForwards.MinPort < 10 {
-		return fmt.Errorf("port forwards range must be at least 10 ports")
+		return errors.New("port forwards range must be at least 10 ports")
 	}
 
 	if vpn.MaxProfilesPerUser == 0 {
-		return fmt.Errorf("vpn max profiles per user cannot be zero")
+		return errors.New("vpn max profiles per user cannot be zero")
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"samuelemusiani/sasso/internal/auth"
@@ -52,7 +53,7 @@ func UpdateNet(endpoint, secret string, net Net) (err error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/net/"+fmt.Sprintf("%d", net.ID), bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/net/"+strconv.FormatUint(uint64(net.ID), 10), bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch net status"))
 	}
