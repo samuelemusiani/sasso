@@ -69,7 +69,7 @@ linters:
     - maintidx
     - makezero
     - mirror
-    # - misspell
+    - misspell
     # - mnd
     # - modernize
     # - musttag

@@ -131,7 +131,7 @@ func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
 		}
 
 		if !ok {
-			// if is not consistant, remove it
+			// if is not consistent, remove it
 			err = gtw.RemoveInterface(dbIface.LocalID)
 			if err != nil {
 				logger.Error("failed to remove interface from gateway", "error", err, "local_id", dbIface.LocalID)

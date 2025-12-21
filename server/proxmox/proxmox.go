@@ -106,7 +106,7 @@ func checkConfig(c *config.Proxmox) error {
 
 	idTemplate := strings.TrimSpace(c.Clone.IDTemplate)
 	if !strings.Contains(idTemplate, "{{vmid}}") {
-		e := fmt.Errorf("invalid Proxmox clone ID template. It must contain exaclty '{{vmid}}'. template: %s", idTemplate)
+		e := fmt.Errorf("invalid Proxmox clone ID template. It must contain exactly '{{vmid}}'. template: %s", idTemplate)
 		return errors.Join(ErrInvalidCloneIDTemplate, e)
 	}
 

@@ -126,7 +126,7 @@ func (lg *LinuxGateway) RemoveInterface(id uint) error {
 func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 
-	// not present, inconsistant
+	// not present, inconsistent
 	var linkNotFoundErr netlink.LinkNotFoundError
 	if errors.As(err, &linkNotFoundErr) {
 		return false, nil
@@ -137,7 +137,7 @@ func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 		return false, err
 	}
 
-	// not a vxlan, inconsistant
+	// not a vxlan, inconsistent
 	if link.Type() != "vxlan" {
 		return false, nil
 	}
@@ -155,6 +155,6 @@ func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 		return false, nil
 	}
 
-	// else is consistant
+	// else is consistent
 	return true, nil
 }

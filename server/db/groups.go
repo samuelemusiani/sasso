@@ -544,7 +544,7 @@ func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 }
 
 // GroupResource encodes the resources for a particular group. Admins can
-// asign resources to a group. We have model this as the admin user assigning
+// assign resources to a group. We have model this as the admin user assigning
 // some of their own resources to the group. As the admin does not have
 // resources, we need to check to avoid reassigning them to it when revoking
 // group resources.
