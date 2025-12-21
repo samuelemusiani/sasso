@@ -68,7 +68,7 @@ linters:
     - loggercheck
     - maintidx
     - makezero
-    # - mirror
+    - mirror
     # - misspell
     # - mnd
     # - modernize

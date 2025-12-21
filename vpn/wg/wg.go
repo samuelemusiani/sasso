@@ -98,7 +98,7 @@ func checkConfig(config *config.Wireguard) error {
 		return fmt.Errorf("wireguard endpoint (%s) has empty domain or IP part", config.Endpoint)
 	}
 
-	if !rDomain.Match([]byte(domainPart)) {
+	if !rDomain.MatchString(domainPart) {
 		// Could be an IP, check it
 		shouldBeV6 := false
 
