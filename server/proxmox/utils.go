@@ -140,8 +140,7 @@ func substituteVlanTag(iface string, vlanTag uint16) string {
 	// Iface has the following format: "virtio=BC:24:11:64:07:FE,bridge=saspS,tag=7,firewall=1"
 	parts := strings.Split(iface, ",")
 
-	var newParts []string
-
+	newParts := make([]string, 0, len(parts))
 	for _, part := range parts {
 		if strings.HasPrefix(part, "tag=") {
 			if vlanTag == 0 {

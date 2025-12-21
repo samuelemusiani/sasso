@@ -36,7 +36,7 @@ func listTelegramBots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var returnedBots []returnedTelegramBot
+	returnedBots := make([]returnedTelegramBot, 0, len(bots))
 	for _, bot := range bots {
 		returnedBots = append(returnedBots, returnedTelegramBot{
 			ID:      bot.ID,

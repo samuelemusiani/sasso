@@ -46,7 +46,7 @@ func internalGetVPNConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var vpns []internal.VPNProfile
+	vpns := make([]internal.VPNProfile, 0, len(vpnConfigs))
 	for i := range vpnConfigs {
 		vpns = append(vpns, internal.VPNProfile{
 			ID:        vpnConfigs[i].ID,

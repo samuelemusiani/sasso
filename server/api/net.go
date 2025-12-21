@@ -352,8 +352,7 @@ func internalListNets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var returnNets []internal.Net
-
+	returnNets := make([]internal.Net, 0, len(nets))
 	for _, n := range nets {
 		var users []uint
 

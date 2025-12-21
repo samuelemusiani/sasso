@@ -298,7 +298,7 @@ func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.
 }
 
 func rulesFromPortForwardsDB(portForwards []db.PortForward) []fw.Rule {
-	var rules []fw.Rule
+	rules := make([]fw.Rule, 0, len(portForwards))
 	for _, pf := range portForwards {
 		rules = append(rules, fw.Rule{
 			OutPort:  pf.OutPort,
@@ -349,6 +349,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 		return err
 	}
 
+	//nolint:prealloc // Deletions are rare; preallocation would waste memory
 	var toBeDeleted []db.PortForward
 
 	for _, pfDB := range pdfDB {
@@ -364,7 +365,7 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 	}
 
 	// delete requested rules, even if are not in database
-	var rules []fw.Rule
+	rules := make([]fw.Rule, 0, len(toBeDeleted))
 	for _, r := range toBeDeleted {
 		rules = append(rules, fw.Rule{
 			OutPort:  r.OutPort,

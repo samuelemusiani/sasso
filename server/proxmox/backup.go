@@ -75,8 +75,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		return nil, err
 	}
 
-	var backups []Backup
-
+	backups := make([]Backup, 0, len(mcontent))
 	for _, item := range mcontent {
 		h := hmac.New(sha256.New, nonce)
 		h.Write([]byte(item.Volid))
