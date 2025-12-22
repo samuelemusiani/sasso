@@ -4,20 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"mime"
 	"net/http"
 	"path"
 
-	"samuelemusiani/sasso/internal/auth"
-	"samuelemusiani/sasso/server/config"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"samuelemusiani/sasso/internal/auth"
+	"samuelemusiani/sasso/server/config"
 )
 
 var (
@@ -36,6 +34,7 @@ var (
 func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, pf config.PortForwards, vpn config.VPN) error {
 	// Logger
 	logger = apiLogger
+
 	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn); err != nil {
 		return err
 	}
@@ -72,6 +71,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	if publicServerConf.LogRequests {
 		apiRouter.Use(middleware.Logger)
 	}
+
 	apiRouter.Use(middleware.Recoverer)
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
@@ -79,6 +79,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	if privateServerConf.LogRequests {
 		privateRouter.Use(middleware.Logger)
 	}
+
 	privateRouter.Use(middleware.Recoverer)
 	privateRouter.Use(prometheusHandler("/internal"))
 	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
@@ -155,8 +156,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, r *http.Request) {
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
-				slog.Error("Marshaling public IP", "err", err)
+				slog.Error("marshaling public IP", "err", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 				return
 			}
 		})
@@ -268,6 +270,7 @@ func ListenAndServe() error {
 	if publicRouter == nil {
 		panic("Router not initialized")
 	}
+
 	if privateRouter == nil {
 		panic("Router not initialized")
 	}
@@ -279,7 +282,8 @@ func ListenAndServe() error {
 		// err := http.ListenAndServe(publicServerConfig.Bind, publicRouter)
 		err := publicServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Public server error", "err", err)
+			slog.Error("public server error", "err", err)
+
 			c <- err
 		}
 	}()
@@ -289,7 +293,8 @@ func ListenAndServe() error {
 		// err := http.ListenAndServe(privateServerConfig.Bind, privateRouter)
 		err := privateServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Private server error", "err", err)
+			slog.Error("private server error", "err", err)
+
 			c <- err
 		}
 	}()
@@ -299,25 +304,30 @@ func ListenAndServe() error {
 
 func Shutdown() error {
 	c := make(chan error, 2)
+
 	go func() {
 		logger.Info("Shutting down public server...")
+
 		err := publicServer.Shutdown(context.Background())
 		if err != nil {
-			slog.Error("Public server shutdown failed", "err", err)
+			slog.Error("public server shutdown failed", "err", err)
 		} else {
-			logger.Info("Public server shut down")
+			logger.Info("public server shut down")
 		}
+
 		c <- err
 	}()
 
 	go func() {
 		logger.Info("Shutting down private server...")
+
 		err := privateServer.Shutdown(context.Background())
 		if err != nil {
-			slog.Error("Private server shutdown failed", "err", err)
+			slog.Error("private server shutdown failed", "err", err)
 		} else {
-			logger.Info("Private server shut down")
+			logger.Info("private server shut down")
 		}
+
 		c <- err
 	}()
 
@@ -325,80 +335,101 @@ func Shutdown() error {
 }
 
 func routeRoot(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Welcome to the Sasso API!"))
+	_, err := w.Write([]byte("Welcome to the Sasso API!"))
+	if err != nil {
+		slog.Error("writing response", "err", err)
+		http.Error(w, "internal Server Error", http.StatusInternalServerError)
+	}
 }
 
-func frontHandler(ui_fs fs.FS) http.HandlerFunc {
+func frontHandler(uiFS fs.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path[1:]
 		if p == "" || p == "static" || p == "static/" {
 			p = "index.html"
 		}
 
-		f, err := fs.ReadFile(ui_fs, p)
+		f, err := fs.ReadFile(uiFS, p)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				// If the file does not exists it could be a route that the SPA router
 				// would catch. We serve the index.html instead
-
-				f, err = fs.ReadFile(ui_fs, "index.html")
+				f, err = fs.ReadFile(uiFS, "index.html")
 				if err != nil {
 					if errors.Is(err, fs.ErrNotExist) {
 						http.Error(w, "", http.StatusNotFound)
 					} else {
-						slog.Error("Reading index.html", "err", err)
+						slog.Error("reading index.html", "err", err)
 						http.Error(w, "", http.StatusInternalServerError)
 					}
+
 					return
 				}
+
 				w.Header().Set("Content-Type", "text/html")
-				w.Write(f)
+
+				_, err = w.Write(f)
+				if err != nil {
+					slog.Error("writing response", "err", err)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				}
+
 				return
 			}
-			slog.Error("Reading file", "path", p, "err", err)
+
+			slog.Error("reading file", "path", p, "err", err)
 			http.Error(w, "", http.StatusInternalServerError)
+
 			return
 		}
 
 		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(p)))
-		w.Write(f)
+
+		_, err = w.Write(f)
+		if err != nil {
+			slog.Error("writing response", "err", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
+			return
+		}
 	}
 }
 
 func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN) error {
 	if len(key) == 0 {
-		return fmt.Errorf("API key cannot be empty")
+		return errors.New("api key cannot be empty")
 	}
+
 	if secret == "" {
-		return fmt.Errorf("Internal secret cannot be empty")
+		return errors.New("internal secret cannot be empty")
 	}
 
 	if publicServerConf.Bind == "" {
-		return fmt.Errorf("Public server bind address cannot be empty")
+		return errors.New("public server bind address cannot be empty")
 	}
 
 	if privateServerConf.Bind == "" {
-		return fmt.Errorf("Private server bind address cannot be empty")
+		return errors.New("private server bind address cannot be empty")
 	}
 
 	if portForwards.PublicIP == "" {
-		return fmt.Errorf("Port forwards public IP cannot be empty")
+		return errors.New("port forwards public IP cannot be empty")
 	}
 
 	if portForwards.MinPort > portForwards.MaxPort {
-		return fmt.Errorf("Port forwards min port cannot be greater than max port")
+		return errors.New("port forwards min port cannot be greater than max port")
 	}
 
 	if portForwards.MinPort == 0 || portForwards.MaxPort == 0 {
-		return fmt.Errorf("Port forwards min and max port cannot be zero")
+		return errors.New("port forwards min and max port cannot be zero")
 	}
 
 	if portForwards.MaxPort-portForwards.MinPort < 10 {
-		return fmt.Errorf("Port forwards range must be at least 10 ports")
+		return errors.New("port forwards range must be at least 10 ports")
 	}
 
 	if vpn.MaxProfilesPerUser == 0 {
-		return fmt.Errorf("VPN max profiles per user cannot be zero")
+		return errors.New("vpn max profiles per user cannot be zero")
 	}
 
 	return nil

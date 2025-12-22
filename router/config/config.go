@@ -27,7 +27,7 @@ type Gateway struct {
 }
 
 type ProxmoxGatewayConfig struct {
-	Url                string `toml:"url"`
+	URL                string `toml:"url"`
 	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
 	TokenID            string `toml:"token_id"`
 	Secret             string `toml:"secret"`
@@ -67,5 +67,6 @@ func Get() *Config {
 
 func Parse(path string) error {
 	_, err := toml.DecodeFile(path, &config)
+
 	return err
 }

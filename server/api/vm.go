@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
+
 	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
-	"time"
 )
 
 func vms(w http.ResponseWriter, r *http.Request) {
@@ -16,13 +17,16 @@ func vms(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to get VMs", "userID", userID, "error", err)
 		http.Error(w, "Failed to get VMs", http.StatusInternalServerError)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(vms); err != nil {
 		logger.Error("Failed to encode VMs to JSON", "error", err)
 		http.Error(w, "Failed to encode VMs to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -46,30 +50,36 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	var req newVMRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	m := getUserResourceMutex(userID)
+
 	m.Lock()
 	defer m.Unlock()
 
 	vm, err := proxmox.NewVM(userID, req.GroupID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
 	if err != nil {
-		if errors.Is(err, proxmox.ErrInsufficientResources) {
+		switch {
+		case errors.Is(err, proxmox.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
-		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
+		case errors.Is(err, proxmox.ErrInvalidVMParam):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-		} else {
+		default:
 			logger.Error("Failed to create new VM", "userID", userID, "error", err)
 			http.Error(w, "Failed to create new VM", http.StatusInternalServerError)
 		}
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(vm); err != nil {
 		logger.Error("Failed to encode new VM to JSON", "error", err)
 		http.Error(w, "Failed to encode new VM to JSON", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -80,9 +90,11 @@ func getVM(w http.ResponseWriter, r *http.Request) {
 	vm := mustGetVMFromContext(r)
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(vm); err != nil {
 		logger.Error("Failed to encode VM to JSON", "vmID", vm.ID, "error", err)
 		http.Error(w, "Failed to encode VM to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -94,12 +106,14 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 
 	ownerID := userID
 	isGroup := false
+
 	if vm.OwnerType == "Group" {
 		ownerID = vm.OwnerID
 		isGroup = true
 	}
 
 	m := getVMMutex(uint(vmID))
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -107,27 +121,33 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to check for pending backup requests", "vmID", vmID, "error", err)
 		http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
+
 		return
 	}
 
 	if bkPending {
 		http.Error(w, "Cannot delete VM with pending backup requests", http.StatusConflict)
+
 		return
 	}
 
 	m2 := getUserResourceMutex(userID)
+
 	m2.Lock()
 	defer m2.Unlock()
 
 	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
-		if errors.Is(err, proxmox.ErrVMNotFound) {
+
+		switch {
+		case errors.Is(err, proxmox.ErrVMNotFound):
 			http.Error(w, "Failed to delete VM", http.StatusNotFound)
-		} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+		case errors.Is(err, proxmox.ErrPermissionDenied):
 			http.Error(w, "Permission denied", http.StatusForbidden)
-		} else {
+		default:
 			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
 		}
+
 		return
 	}
 
@@ -142,17 +162,20 @@ func changeVMState(action string) http.HandlerFunc {
 
 		if vm.LifeTime.Before(time.Now()) {
 			http.Error(w, "Cannot change state of expired VM", http.StatusForbidden)
+
 			return
 		}
 
 		ownerID := userID
 		isGroup := false
+
 		if vm.OwnerType == "Group" {
 			ownerID = vm.OwnerID
 			isGroup = true
 		}
 
 		m := getVMMutex(uint(vmID))
+
 		m.Lock()
 		defer m.Unlock()
 
@@ -162,11 +185,13 @@ func changeVMState(action string) http.HandlerFunc {
 		if err != nil {
 			logger.Error("Failed to check for pending backup requests", "vmID", vmID, "error", err)
 			http.Error(w, "Failed to delete VM", http.StatusInternalServerError)
+
 			return
 		}
 
 		if len(bkRequests) > 0 {
 			http.Error(w, "Cannot update VM status with pending restore backup requests", http.StatusConflict)
+
 			return
 		}
 
@@ -175,20 +200,24 @@ func changeVMState(action string) http.HandlerFunc {
 			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
+
 			return
 		}
 
 		if err != nil {
 			logger.Error("Failed to change VM state", "userID", userID, "vmID", vmID, "action", action, "error", err)
-			if errors.Is(err, proxmox.ErrVMNotFound) {
+
+			switch {
+			case errors.Is(err, proxmox.ErrVMNotFound):
 				http.Error(w, "Failed to change VM state", http.StatusNotFound)
-			} else if errors.Is(err, proxmox.ErrInvalidVMState) {
+			case errors.Is(err, proxmox.ErrInvalidVMState):
 				http.Error(w, "Invalid VM state for this action", http.StatusConflict)
-			} else if errors.Is(err, proxmox.ErrPermissionDenied) {
+			case errors.Is(err, proxmox.ErrPermissionDenied):
 				http.Error(w, "Permission denied", http.StatusForbidden)
-			} else {
+			default:
 				http.Error(w, "Failed to change VM state", http.StatusInternalServerError)
 			}
+
 			return
 		}
 
@@ -205,12 +234,14 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	var request updateVMLifetimeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	vmID := mustGetVMFromContext(r).ID
 
 	m := getVMMutex(uint(vmID))
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -218,12 +249,16 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInvalidVMParam) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
+
 		logger.Error("Failed to update VM lifetime", "vmID", vmID, "error", err)
 		http.Error(w, "Failed to update VM lifetime", http.StatusInternalServerError)
+
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -237,6 +272,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	var request updateResourcesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -244,6 +280,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 
 	if vm.LifeTime.Before(time.Now()) {
 		http.Error(w, "Cannot update resources of expired VM", http.StatusForbidden)
+
 		return
 	}
 
@@ -252,6 +289,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 		role := mustGetUserRoleInGroupFromContext(r)
 		if role != "admin" && role != "owner" {
 			http.Error(w, "Permission denied", http.StatusForbidden)
+
 			return
 		}
 	}
@@ -259,10 +297,12 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	m := getVMMutex(uint(vmid))
+
 	m.Lock()
 	defer m.Unlock()
 
 	m2 := getUserResourceMutex(userID)
+
 	m2.Lock()
 	defer m2.Unlock()
 
@@ -270,14 +310,19 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusForbidden)
+
 			return
 		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
+
 		logger.Error("Failed to update VM resources", "vmID", vmid, "error", err)
 		http.Error(w, "Failed to update VM resources", http.StatusInternalServerError)
+
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

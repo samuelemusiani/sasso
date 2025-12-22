@@ -21,16 +21,19 @@ var lastSSHKeyTableUpdate time.Time = time.Time{}
 
 func (s *SSHKey) AfterUpdate(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
 func (s *SSHKey) AfterCreate(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
 func (s *SSHKey) AfterDelete(tx *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
+
 	return nil
 }
 
@@ -42,26 +45,32 @@ func initSSHKeys() error {
 	err := db.AutoMigrate(&SSHKey{})
 	if err != nil {
 		logger.Error("Failed to migrate SSHKeys table", "error", err)
+
 		return err
 	}
+
 	return nil
 }
 
 func GetSSHKeysByUserID(userID uint) ([]SSHKey, error) {
 	var keys []SSHKey
+
 	result := db.Where("user_id = ?", userID).Find(&keys)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
 	return keys, nil
 }
 
 func GetGlobalSSHKeys() ([]SSHKey, error) {
 	var keys []SSHKey
+
 	result := db.Where("global = true").Find(&keys)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
 	return keys, nil
 }
 
@@ -71,10 +80,12 @@ func CreateSSHKey(name string, key string, userID uint) (*SSHKey, error) {
 		Key:    key,
 		UserID: userID,
 	}
+
 	result := db.Create(sshKey)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
 	return sshKey, nil
 }
 
@@ -83,16 +94,19 @@ func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	sshKey := &SSHKey{
 		Name:   name,
 		Key:    key,
 		Global: true,
 		UserID: admin.ID,
 	}
+
 	result := db.Create(sshKey)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
 	return sshKey, nil
 }
 
@@ -101,9 +115,11 @@ func DeleteSSHKey(id uint, userID uint) error {
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
+
 	return nil
 }
 
@@ -112,14 +128,17 @@ func DeleteGlobalSSHKey(id uint) error {
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
+
 	return nil
 }
 
 func GetSSHKeysByGroupID(groupID uint) ([]SSHKey, error) {
 	var keys []SSHKey
+
 	result := db.Table("ssh_keys").
 		Select("ssh_keys.*").
 		Joins("JOIN user_groups ON ssh_keys.user_id = user_groups.user_id").
@@ -129,6 +148,6 @@ func GetSSHKeysByGroupID(groupID uint) ([]SSHKey, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return keys, nil
 
+	return keys, nil
 }

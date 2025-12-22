@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -35,6 +36,7 @@ func GetAllUsedSubnets() ([]string, error) {
 	if err := db.Model(&Interface{}).Pluck("subnet", &subnets).Error; err != nil {
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
@@ -43,30 +45,37 @@ func GetAllInterfaces() ([]Interface, error) {
 	if err := db.Find(&ifaces).Error; err != nil {
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
 func GetInterfaceByVNet(vnet string) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net = ?", vnet).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
+
 		logger.Error("Failed to retrieve interface by VNet", "error", err)
+
 		return nil, err
 	}
+
 	return &iface, nil
 }
 
 func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net_id = ?", vnetID).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
+
 		logger.Error("Failed to retrieve interface by VNet ID", "error", err)
+
 		return nil, err
 	}
+
 	return &iface, nil
 }
 

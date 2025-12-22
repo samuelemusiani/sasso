@@ -11,56 +11,68 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchVPNConfigs(endpoint, secret string) ([]VPNProfile, error) {
+func FetchVPNConfigs(endpoint, secret string) (vpns []VPNProfile, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", endpoint+"/internal/vpn", nil)
+
+	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/vpn", nil)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}
+
 	auth.AddAuthToRequest(req, secret)
 
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to perform request to fetch vpn status"))
 	}
-	defer res.Body.Close()
+
+	defer func() {
+		if e := res.Body.Close(); e != nil {
+			err = fmt.Errorf("error while closing request body: %w", e)
+		}
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
 	}
 
-	var nets []VPNProfile
-	err = json.NewDecoder(res.Body).Decode(&nets)
+	err = json.NewDecoder(res.Body).Decode(&vpns)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to decode nets status"))
 	}
 
-	return nets, nil
+	return
 }
 
-func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) error {
-
+func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) (err error) {
 	body, err := json.Marshal(vpn)
 	if err != nil {
 		return errors.Join(err, errors.New("failed to marshal vpn update"))
 	}
 
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("PUT", endpoint+"/internal/vpn", bytes.NewBuffer(body))
+
+	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/vpn", bytes.NewBuffer(body))
 	if err != nil {
 		return errors.Join(err, errors.New("failed to create request to fetch vpn status"))
 	}
+
 	auth.AddAuthToRequest(req, secret)
 
 	res, err := client.Do(req)
 	if err != nil {
 		return errors.Join(err, errors.New("failed to perform request to fetch vpn status"))
 	}
-	defer res.Body.Close()
+
+	defer func() {
+		if e := res.Body.Close(); e != nil {
+			err = fmt.Errorf("error while closing request body: %w", e)
+		}
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		return errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
 	}
 
-	return nil
+	return
 }

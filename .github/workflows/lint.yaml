@@ -1,0 +1,31 @@
+name: Lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # This is mandatory to avoid errors during compilations
+      - name: Fix embed fronted
+        run: |
+          mkdir server/_front
+          touch server/_front/tmp
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.6.2
+          only-new-issues: true

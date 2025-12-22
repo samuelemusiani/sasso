@@ -24,10 +24,8 @@ import (
 //go:embed all:_front
 var frontFS embed.FS
 
-const DEFAULT_LOG_LEVEL = slog.LevelDebug
-
 func main() {
-	slog.SetLogLoggerLevel(DEFAULT_LOG_LEVEL)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	lLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if ok {
@@ -41,7 +39,7 @@ func main() {
 		case "ERROR":
 			slog.SetLogLoggerLevel(slog.LevelError)
 		default:
-			slog.Warn("Invalid LOG_LEVEL value, using default", "value", lLevel, "default", DEFAULT_LOG_LEVEL)
+			slog.Warn("Invalid LOG_LEVEL value, using default debug", "value", lLevel)
 		}
 	}
 
@@ -53,6 +51,7 @@ func main() {
 	}
 
 	slog.Debug("Parsing config file", "path", os.Args[1])
+
 	err := config.Parse(os.Args[1])
 	if err != nil {
 		slog.Error("Failed to parse config file", "error", err)
@@ -68,39 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if c.Secrets.Key != "" {
-		slog.Info("Using secrets key provided in config file")
-	} else if c.Secrets.Path != "" {
-		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
-		base64key, err := os.ReadFile(c.Secrets.Path)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				slog.Error("Failed to read secrets key file", "error", err)
-				os.Exit(1)
-			}
-
-			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
-			_, key, err := ed25519.GenerateKey(rand.Reader)
-			if err != nil {
-				slog.Error("Failed to generate new secrets key", "error", err)
-				os.Exit(1)
-			}
-
-			base64key = []byte(base64.StdEncoding.EncodeToString(key))
-
-			slog.Info("Saving key to file", "path", c.Secrets.Path)
-			err = os.WriteFile(c.Secrets.Path, base64key, 0600)
-			if err != nil {
-				slog.Error("Failed to write secrets key to file", "error", err)
-				os.Exit(1)
-			}
-
-			c.Secrets.Key = string(base64key)
-		}
-		c.Secrets.Key = string(base64key)
-	}
-
-	real_key, err := base64.StdEncoding.DecodeString(c.Secrets.Key)
+	realKey, err := base64.StdEncoding.DecodeString(getSecretKey(c))
 	if err != nil {
 		slog.Error("Failed to decode secrets key", "error", err)
 		os.Exit(1)
@@ -114,7 +81,9 @@ func main() {
 
 	// Database
 	slog.Debug("Initializing database")
+
 	dbLogger := slog.With("module", "db")
+
 	err = db.Init(dbLogger, c.Database)
 	if err != nil {
 		slog.With("error", err).Error("Failed to initialize database")
@@ -123,6 +92,7 @@ func main() {
 
 	// Auth
 	authLogger := slog.With("module", "auth")
+
 	err = auth.Init(authLogger)
 	if err != nil {
 		slog.Error("Failed to initialize authentication module", "error", err)
@@ -131,7 +101,9 @@ func main() {
 
 	// Proxmox init
 	slog.Debug("Initializing proxmox module")
+
 	proxmoxLogger := slog.With("module", "proxmox")
+
 	err = proxmox.Init(proxmoxLogger, c.Proxmox)
 	if err != nil {
 		slog.Error("Failed to initialize Proxmox client", "error", err)
@@ -141,27 +113,36 @@ func main() {
 	// Notifications
 	if c.Notifications.Enabled {
 		notifyLogger := slog.With("module", "notify")
+
 		err = notify.Init(notifyLogger, c.Notifications)
+		if err != nil {
+			slog.Error("Failed to initialize notifications module", "error", err)
+			os.Exit(1)
+		}
+
 		notify.StartWorker()
 	}
 
 	// API
 	slog.Debug("Initializing API server")
+
 	apiLogger := slog.With("module", "api")
-	err = api.Init(apiLogger, real_key, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
+
+	err = api.Init(apiLogger, realKey, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
 	if err != nil {
 		slog.Error("Failed to initialize API server", "error", err)
 		os.Exit(1)
 	}
 
 	// Proxmox workers start
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
-	defer cancel()
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 
 	slog.Debug("Starting background proxmox tasks")
+
 	go proxmox.TestEndpointVersion()
 	go proxmox.TestEndpointClone()
 	go proxmox.TestEndpointNetZone()
+
 	proxmox.StartWorker()
 
 	channelError := make(chan error, 1)
@@ -171,6 +152,7 @@ func main() {
 		if err != nil {
 			slog.Error("Failed to start API server", "error", err)
 		}
+
 		channelError <- err
 	}()
 
@@ -180,11 +162,13 @@ func main() {
 		os.Exit(1)
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
+
 		var waitGroup sync.WaitGroup
 		waitGroup.Add(3)
 
 		go func() {
 			defer waitGroup.Done()
+
 			err := api.Shutdown()
 			if err != nil {
 				slog.Error("Failed to shut down API server", "error", err)
@@ -211,6 +195,53 @@ func main() {
 
 		waitGroup.Wait()
 	}
+
 	slog.Info("Server shut down gracefully")
 	os.Exit(0)
+}
+
+func getSecretKey(c *config.Config) string {
+	if c.Secrets.Key != "" {
+		slog.Info("Using secrets key provided in config file")
+
+		return c.Secrets.Key
+	} else if c.Secrets.Path != "" {
+		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
+
+		base64key, err := os.ReadFile(c.Secrets.Path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				slog.Error("Failed to read secrets key file", "error", err)
+				os.Exit(1)
+			}
+
+			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
+
+			return generateSecretKey(c.Secrets.Path)
+		}
+
+		c.Secrets.Key = string(base64key)
+	}
+
+	return c.Secrets.Key
+}
+
+func generateSecretKey(path string) string {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		slog.Error("Failed to generate new secrets key", "error", err)
+		os.Exit(1)
+	}
+
+	base64key := []byte(base64.StdEncoding.EncodeToString(key))
+
+	slog.Info("Saving key to file", "path", path)
+
+	err = os.WriteFile(path, base64key, 0600)
+	if err != nil {
+		slog.Error("Failed to write secrets key to file", "error", err)
+		os.Exit(1)
+	}
+
+	return string(base64key)
 }

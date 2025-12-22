@@ -7,9 +7,9 @@ type Net struct {
 	Name string `json:"name"` // Name of the VNet in Proxmox
 	Tag  uint32 `json:"tag"`  // VXLAN tag in Proxmox
 
-	Subnet    string `gorm:"not null"` // CIDR notation of the subnet
-	Gateway   string `gorm:"not null"` // IP address of the gateway
-	Broadcast string `gorm:"not null"` // Broadcast address of the subnet
+	Subnet    string `json:"subnet"`    // CIDR notation of the subnet
+	Gateway   string `json:"gateway"`   // IP address of the gateway
+	Broadcast string `json:"broadcast"` // Broadcast address of the subnet
 
 	UserIDs []uint `json:"user_ids"` // IDs of users who have access to this network
 }

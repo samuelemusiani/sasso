@@ -24,6 +24,7 @@ func NewPeer(privateKey, publicKey, address string, userID uint) error {
 	if err := db.Create(iface).Error; err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -32,6 +33,7 @@ func GetPeerByID(id uint) (*Peer, error) {
 	if err := db.First(&iface, id).Error; err != nil {
 		return nil, err
 	}
+
 	return &iface, nil
 }
 
@@ -40,6 +42,7 @@ func GetPeersByUserID(userID uint) ([]Peer, error) {
 	if err := db.Where("user_id = ?", userID).Find(&ifaces).Error; err != nil {
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
@@ -48,6 +51,7 @@ func GetPeerByAddress(address string) (*Peer, error) {
 	if err := db.First(&iface, "address = ?", address).Error; err != nil {
 		return nil, err
 	}
+
 	return &iface, nil
 }
 
@@ -56,6 +60,7 @@ func GetAllAddresses() ([]string, error) {
 	if err := db.Model(&Peer{}).Pluck("address", &addresses).Error; err != nil {
 		return nil, err
 	}
+
 	return addresses, nil
 }
 
@@ -64,6 +69,7 @@ func GetAllPeers() ([]Peer, error) {
 	if err := db.Find(&ifaces).Error; err != nil {
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
@@ -71,5 +77,6 @@ func DeletePeerByID(id uint) error {
 	if err := db.Delete(&Peer{}, id).Error; err != nil {
 		return err
 	}
+
 	return nil
 }

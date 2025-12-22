@@ -1,0 +1,184 @@
+version: "2"
+
+run:
+  go: "1.24"
+  tests: true
+
+linters:
+  enable:
+    - arangolint
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    # - contextcheck - Check whether the function uses a non-inherited context.
+    - copyloopvar
+    # - cyclop - Checks function and package cyclomatic complexity.
+    - decorder
+    - depguard 
+    # - dogsled - Checks assignments with too many blank identifiers 
+    # - dupl - Detects duplicate fragments of code. 
+    - dupword
+    - durationcheck
+    - embeddedstructfieldcheck
+    # - err113 - Check errors handling expressions.
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    # - exhaustruct - Checks if all structure fields are initialized.
+    - exptostd
+    # - fatcontext - Detects nested contexts in loops and function literals.
+    # - forbidigo - Forbids identifiers.
+    - forcetypeassert
+    # - funcorder -  Checks the order of functions, methods, and constructors.
+    # - funlen - Checks for long functions.
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    # - gochecknoglobals - Check that no global variables exist.
+    - gochecknoinits
+    - gochecksumtype
+    # - gocognit - Computes and checks the cognitive complexity of functions.
+    # - goconst - Finds repeated strings that could be replaced by a constant.
+    - gocritic
+    # - gocyclo - Computes and checks the cyclomatic complexity of functions.
+    # - godoclint -  Checks Golang's documentation practice.
+    # - godot - Checks that comments end in a period.
+    # - godox - Detects usage of FIXME, TODO and other keywords inside comments.
+    - goheader
+    # - gomoddirectives - Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
+    - gomodguard
+    - goprintffuncname
+    # - gosec - Inspects source code for security problems.
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - iotamixing
+    # - ireturn - Accept Interfaces, Return Concrete Types.
+    # - lll - Reports long lines.
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    # - mnd - An analyzer to detect magic numbers.
+    - modernize
+    - musttag
+    # - nakedret - Checks that functions with naked returns are not longer than a maximum size (can be zero).
+    # - nestif - Reports deeply nested if statements.
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    # - noctx - Detects function and method with missing usage of context.Context.
+    # - noinlineerr - Disallows inline error handling (`if err := ...; err != nil {`).
+    - nolintlint
+    # - nonamedreturns - Reports all named returns.
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    # - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    # - revive - Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - testifylint
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unqueryvet
+    - unused
+    - usestdlibvars
+    - usetesting
+    # - varnamelen - Checks that the length of a variable's name matches its scope.
+    - wastedassign
+    - whitespace
+    # - wrapcheck - Checks that errors returned from external packages are wrapped.
+    - wsl_v5
+    - zerologlint
+
+  # All available settings of specific linters.
+  settings:
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - samuelemusiani/sasso
+            - github.com/samuelemusiani/go-shorewall
+            - gorm.io/gorm
+            - gorm.io/driver
+            - github.com/seancfoley/ipaddress-go/ipaddr
+            - github.com/luthermonson/go-proxmox
+            - github.com/go-chi/jwtauth/v5
+            - github.com/go-chi/chi/v5
+            - github.com/go-ldap/ldap/v3
+            - golang.org/x/crypto
+            - golang.org/x/sys/unix
+            - github.com/vishvananda/netlink
+            - github.com/BurntSushi/toml
+            - github.com/wneessen/go-mail
+            - github.com/prometheus/client_golang
+    staticcheck:
+      checks:
+        - all
+
+        # Disable: Incorrect or missing package comment
+        # See: https://staticcheck.dev/docs/checks/#ST1000
+        - "-ST1000"
+
+    modernize:
+      disable:
+        # Replace interface{} with any.
+        # With gorm UpdateColumns(map[string]interface{}{"field": value}) this
+        # does not work as gorm expects interface{} specifically.
+        - any
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+  # Defines a set of rules to ignore issues.
+  # It does not skip the analysis, and so does not ignore "typecheck" errors.
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+
+    paths:
+      - "./frontend/"
+      - vendor
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    # - golines
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

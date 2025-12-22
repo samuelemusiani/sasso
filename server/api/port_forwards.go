@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"samuelemusiani/sasso/internal"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
 	"strconv"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
+	"samuelemusiani/sasso/internal"
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 )
 
 type returnPortForward struct {
@@ -40,6 +40,7 @@ func returnPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	for i, pf := range pfs {
 		rpf[i] = returnPortForwardFromDB(&pf)
 	}
+
 	return rpf
 }
 
@@ -60,6 +61,7 @@ func returnAdminPortForwardsFromDB(pfs []db.PortForward) []returnPortForward {
 	for i, pf := range pfs {
 		rpf[i] = returnAdminPortForwardFromDB(&pf)
 	}
+
 	return rpf
 }
 
@@ -69,12 +71,14 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 	pfs, err := db.GetPortForwardsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
 	gpfs, err := db.GetGroupPortForwardsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get group port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -83,6 +87,7 @@ func listPortForwards(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(returnPortForwardsFromDB(pfs))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -100,22 +105,26 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	var req createPortForwardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
-	if req.DestPort < 1 || req.DestPort > 65535 {
-		http.Error(w, "DestPort must be between 1 and 65535", http.StatusBadRequest)
+	if req.DestPort < 1 {
+		http.Error(w, "DestPort must greater than 1", http.StatusBadRequest)
+
 		return
 	}
 
 	addr := ipaddr.NewIPAddressString(req.DestIP)
 	if !addr.IsValid() {
 		http.Error(w, "DestIP is not a valid IP address", http.StatusBadRequest)
+
 		return
 	}
 
 	if addr.IsPrefixed() {
 		http.Error(w, "DestIP must be a single IP address, not a subnet", http.StatusBadRequest)
+
 		return
 	}
 
@@ -126,12 +135,14 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	// To avoid this we use a global mutex based on user ID.
 
 	m := getNetMutex(userID)
+
 	m.Lock()
 	defer m.Unlock()
 
 	subnets, err := db.GetSubnetsByUserID(userID)
 	if err != nil {
 		http.Error(w, "Failed to get user subnets", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -140,6 +151,7 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	// Check personal subnets first
 	for _, s := range subnets {
 		subnet := ipaddr.NewIPAddressString(s)
+
 		ip := ipaddr.NewIPAddressString(req.DestIP)
 		if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
 			foundPersonal = true
@@ -151,11 +163,13 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 		gsubnets, err := db.GetSubnetsFromGroupsWhereUserIsAdminOrOwner(userID)
 		if err != nil {
 			http.Error(w, "Failed to get group subnets", http.StatusInternalServerError)
+
 			return
 		}
 		// Then check group subnets
 		for _, s := range gsubnets {
 			subnet := ipaddr.NewIPAddressString(s)
+
 			ip := ipaddr.NewIPAddressString(req.DestIP)
 			if subnet.Contains(ip) && !ip.GetAddress().Equal(subnet.GetAddress().GetLower()) {
 				foundGroup = true
@@ -166,16 +180,20 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 
 	if !foundPersonal && !foundGroup {
 		http.Error(w, "DestIP is not in any of your subnets", http.StatusBadRequest)
+
 		return
 	}
 
 	isGatewayOrBroadcast, err := db.IsAddressAGatewayOrBroadcast(req.DestIP)
 	if err != nil {
 		http.Error(w, "Failed to check if DestIP is a gateway or broadcast address", http.StatusInternalServerError)
+
 		return
 	}
+
 	if isGatewayOrBroadcast {
 		http.Error(w, "DestIP cannot be a gateway or broadcast address", http.StatusBadRequest)
+
 		return
 	}
 
@@ -185,12 +203,14 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 	randPort, err := db.GetRandomAvailableOutPort(portForwards.MinPort, portForwards.MaxPort)
 	if err != nil {
 		http.Error(w, "Failed to get random available out port", http.StatusInternalServerError)
+
 		return
 	}
 
 	net, err := db.GetVNetBySubnet(foundSubnet)
 	if err != nil {
 		http.Error(w, "Failed to get VNet for subnet", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -203,10 +223,18 @@ func addPortForward(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Failed to add port forward", http.StatusInternalServerError)
+
 		return
 	}
 
-	json.NewEncoder(w).Encode(returnPortForwardFromDB(pf))
+	err = json.NewEncoder(w).Encode(returnPortForwardFromDB(pf))
+	if err != nil {
+		logger.Error("Failed to write response header for new port forward", "error", err)
+		http.Error(w, "Failed to write response header", http.StatusInternalServerError)
+
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -214,15 +242,18 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
 	sportForwardID := chi.URLParam(r, "id")
+
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+
 		return
 	}
 
 	pf, err := db.GetPortForwardByID(uint(portForwardID))
 	if err != nil {
 		http.Error(w, "Port forward not found", http.StatusNotFound)
+
 		return
 	}
 
@@ -230,21 +261,24 @@ func deletePortForward(w http.ResponseWriter, r *http.Request) {
 		role, err := db.GetUserRoleInGroup(userID, pf.OwnerID)
 		if err != nil {
 			http.Error(w, "Failed to get user role in group", http.StatusInternalServerError)
+
 			return
 		}
+
 		if role != "owner" && role != "admin" {
 			http.Error(w, "Port forward does not belong to the user's group", http.StatusForbidden)
+
 			return
 		}
-	} else {
-		if pf.OwnerID != userID {
-			http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
-			return
-		}
+	} else if pf.OwnerID != userID {
+		http.Error(w, "Port forward does not belong to the user", http.StatusForbidden)
+
+		return
 	}
 
 	if err := db.DeletePortForward(uint(portForwardID)); err != nil {
 		http.Error(w, "Failed to delete port forward", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -257,20 +291,24 @@ type approvePortForwardRequest struct {
 
 func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	sportForwardID := chi.URLParam(r, "id")
+
 	portForwardID, err := strconv.ParseUint(sportForwardID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid port forward ID", http.StatusBadRequest)
+
 		return
 	}
 
 	var req approvePortForwardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if err := db.UpdatePortForwardApproval(uint(portForwardID), req.Approve); err != nil {
 		http.Error(w, "Failed to approve port forward", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -279,6 +317,7 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	pf, err := db.GetPortForwardByID(uint(portForwardID))
 	if err != nil {
 		logger.Error("Failed to get port forward after approval", "pfID", portForwardID, "error", err)
+
 		return
 	}
 
@@ -291,6 +330,7 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 		err = notify.SendPortForwardNotification(pf.OwnerID, *pf)
 		l = logger.With("userID", pf.OwnerID)
 	}
+
 	if err != nil {
 		l.Error("Failed to send port forward notification", "pfID", portForwardID, "error", err)
 	}
@@ -300,12 +340,14 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 	portForwards, err := db.GetPortForwardsWithNames()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
 	err = json.NewEncoder(w).Encode(returnAdminPortForwardsFromDB(portForwards))
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -314,6 +356,7 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 	portForwards, err := db.GetApprovedPortForwards()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -330,6 +373,7 @@ func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(rpf)
 	if err != nil {
 		http.Error(w, "Failed to encode port forwards", http.StatusInternalServerError)
+
 		return
 	}
 }

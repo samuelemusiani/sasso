@@ -2,19 +2,20 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
-	"samuelemusiani/sasso/server/auth"
-	"samuelemusiani/sasso/server/db"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
+	"samuelemusiani/sasso/server/auth"
+	"samuelemusiani/sasso/server/db"
 )
 
-const CLAIM_USER_ID = "user_id"
+const ClaimUserID = "user_id"
 
 type loginRequest struct {
 	Username string `json:"username"`
@@ -35,11 +36,11 @@ type returnUser struct {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Error("failed to read body", "error", err)
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -47,27 +48,33 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &loginReq); err != nil {
 		logger.Error("failed to unmarshal login request", "error", err)
 		http.Error(w, "Failed to unmarshal login request", http.StatusBadRequest)
+
 		return
 	}
 
 	user, err := auth.Authenticate(loginReq.Username, loginReq.Password, loginReq.Realm)
 	if err != nil {
-		if err == auth.ErrUserNotFound {
+		switch {
+		case errors.Is(err, auth.ErrUserNotFound):
 			http.Error(w, "User not found", http.StatusUnauthorized)
+
 			return
-		} else if err == auth.ErrPasswordMismatch {
+		case errors.Is(err, auth.ErrPasswordMismatch):
 			http.Error(w, "Password mismatch", http.StatusUnauthorized)
+
 			return
-		} else {
+		default:
 			logger.Error("failed to authenticate user", "error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 			return
 		}
 	}
+
 	logger.Info("User authenticated successfully", "userID", user.ID)
 
 	// Password matches, create JWT token
-	claims := map[string]any{CLAIM_USER_ID: user.ID}
+	claims := map[string]any{ClaimUserID: user.ID}
 	jwtauth.SetIssuedNow(claims)
 	jwtauth.SetExpiryIn(claims, time.Hour*12) // Set token expiry to 24 hours
 
@@ -75,29 +82,48 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to create JWT token", "error", err)
 		http.Error(w, "Failed to create JWT token", http.StatusInternalServerError)
+
 		return
 	}
 
 	w.Header().Set("Authorization", "Bearer "+tokenString)
-	w.Write([]byte("Login successful!"))
+
+	_, err = w.Write([]byte("Login successful!"))
+	if err != nil {
+		logger.Error("failed to write login response", "error", err)
+		http.Error(w, "Failed to write login response", http.StatusInternalServerError)
+
+		return
+	}
 }
 
 func whoami(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
 		logger.Error("failed to get user ID from context", "error", err)
-		w.Write([]byte("unauthenticated"))
+
+		_, err = w.Write([]byte("unauthenticated"))
+		if err != nil {
+			logger.Error("failed to write unauthenticated response", "error", err)
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+
+			return
+		}
+
 		return
 	}
 
 	user, err := db.GetUserByID(userID)
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
+
 			return
 		}
+
 		logger.Error("failed to get user by ID", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -105,10 +131,12 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get realm by ID", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	returnUser := returnUser{
 		ID:       user.ID,
 		Username: user.Username,
@@ -121,6 +149,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to encode user to JSON", "error", err)
 		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -130,6 +159,7 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get all users", "error", err)
 		http.Error(w, "Failed to get users", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -137,10 +167,11 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get all realms", "error", err)
 		http.Error(w, "Failed to get realms", http.StatusInternalServerError)
+
 		return
 	}
 
-	var realmMap map[uint]string = make(map[uint]string)
+	realmMap := make(map[uint]string)
 	for _, realm := range realms {
 		realmMap[realm.ID] = realm.Name
 	}
@@ -150,8 +181,10 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 		realm, ok := realmMap[user.RealmID]
 		if !ok {
 			slog.Error("realm not found for user", "userID", user.ID, "realmID", user.RealmID)
+
 			realm = "unknown"
 		}
+
 		returnUsers[i] = returnUser{
 			ID:       user.ID,
 			Username: user.Username,
@@ -166,30 +199,37 @@ func internalListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(returnUsers); err != nil {
 		logger.Error("failed to encode users to JSON", "error", err)
 		http.Error(w, "Failed to encode users to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) {
 	suserID := chi.URLParam(r, "id")
+
 	userID, err := strconv.ParseUint(suserID, 10, 32)
 	if err != nil {
 		logger.Error("failed to parse user ID", "error", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+
 		return
 	}
 
 	user, err := db.GetUserByID(uint(userID))
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
+
 			return
 		}
+
 		logger.Error("failed to get user by ID", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -197,6 +237,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get realm by ID", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -213,9 +254,11 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(returnUser); err != nil {
 		logger.Error("failed to encode user to JSON", "error", err)
 		http.Error(w, "Failed to encode user to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -232,11 +275,13 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 	var req updateUserLimitsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	if err := db.UpdateUserLimits(req.UserID, req.MaxCores, req.MaxRAM, req.MaxDisk, req.MaxNets); err != nil {
 		http.Error(w, "Failed to update user limits", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -264,15 +309,20 @@ type returnUserResources struct {
 
 func getUserResources(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
-	var userResources returnUserResources
-	var err error
+
+	var (
+		userResources returnUserResources
+		err           error
+	)
 
 	user, err := db.GetUserByID(userID)
 	if err != nil {
 		logger.Error("failed to get user by ID", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
+
 	userResources.MaxCores = user.MaxCores
 	userResources.MaxRAM = user.MaxRAM
 	userResources.MaxDisk = user.MaxDisk
@@ -282,6 +332,7 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get group resources by user ID", "error", err)
 		http.Error(w, "Failed to get group resources", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -299,12 +350,15 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get VM resources by user ID", "error", err)
 		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
+
 		return
 	}
+
 	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
 	if err != nil {
 		logger.Error("failed to count networks by user ID", "error", err)
 		http.Error(w, "Failed to count networks", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -312,12 +366,14 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get active VM resources by user ID", "error", err)
 		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
+
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(userResources); err != nil {
 		logger.Error("failed to encode resources to JSON", "error", err)
 		http.Error(w, "Failed to encode resources to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -353,6 +409,7 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get user settings", "error", err)
 		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -383,6 +440,7 @@ func getUserSettings(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(returnSettings); err != nil {
 		logger.Error("failed to encode user settings to JSON", "error", err)
 		http.Error(w, "Failed to encode user settings to JSON", http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -394,6 +452,7 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Error("failed to decode user settings from JSON", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -401,6 +460,7 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to get user settings", "error", err)
 		http.Error(w, "Failed to get user settings", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -429,6 +489,7 @@ func updateUserSettings(w http.ResponseWriter, r *http.Request) {
 	if err := db.UpdateSettings(s); err != nil {
 		logger.Error("failed to update user settings", "error", err)
 		http.Error(w, "Failed to update user settings", http.StatusInternalServerError)
+
 		return
 	}
 

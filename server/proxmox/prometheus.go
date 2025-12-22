@@ -31,9 +31,11 @@ var (
 
 func workerCycleDurationObserve(function string, f func()) {
 	now := time.Now()
+
 	defer func() {
 		workerFunctionsDuration.WithLabelValues(function).Observe(time.Since(now).Seconds())
 	}()
+
 	f()
 }
 

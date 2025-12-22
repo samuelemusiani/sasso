@@ -3,11 +3,12 @@ package fw
 import (
 	"errors"
 	"fmt"
-	"samuelemusiani/sasso/router/config"
 	"slices"
 	"sort"
+	"strconv"
 
 	goshorewall "github.com/samuelemusiani/go-shorewall"
+	"samuelemusiani/sasso/router/config"
 )
 
 type ShorewallFirewall struct {
@@ -18,25 +19,29 @@ type ShorewallFirewall struct {
 
 func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall, error) {
 	if c.ExternalZone == "" {
-		return nil, fmt.Errorf("external zone cannot be empty")
+		return nil, errors.New("external zone cannot be empty")
 	}
+
 	if c.VMZone == "" {
-		return nil, fmt.Errorf("VM zone cannot be empty")
+		return nil, errors.New("VM zone cannot be empty")
 	}
+
 	if c.PublicIP == "" {
-		return nil, fmt.Errorf("public IP cannot be empty")
+		return nil, errors.New("public IP cannot be empty")
 	}
 
 	v, err := goshorewall.GetVersion()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shorewall version: %v", err)
+		return nil, fmt.Errorf("failed to get shorewall version: %w", err)
 	}
+
 	logger.Info("Shorewall version", "version", v)
 
 	zones, err := goshorewall.GetZones()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shorewall zones: %v", err)
+		return nil, fmt.Errorf("failed to get shorewall zones: %w", err)
 	}
+
 	fwZones := []string{c.ExternalZone, c.VMZone}
 	for _, z := range fwZones {
 		if !slices.ContainsFunc(zones, func(sz goshorewall.Zone) bool {
@@ -67,7 +72,7 @@ func (s *ShorewallFirewall) shorewallRulefromRule(r Rule) goshorewall.Rule {
 		Source:      s.ExternalZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, r.DestIP, r.DestPort),
 		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", r.OutPort),
+		Dport:       strconv.FormatUint(uint64(r.OutPort), 10),
 	}
 }
 
@@ -77,13 +82,14 @@ func (s *ShorewallFirewall) shorewallRulefromRuleNatReflection(r Rule) goshorewa
 		Source:      s.VMZone,
 		Destination: fmt.Sprintf("%s:%s:%d", s.VMZone, r.DestIP, r.DestPort),
 		Protocol:    "tcp,udp",
-		Dport:       fmt.Sprintf("%d", r.OutPort),
+		Dport:       strconv.FormatUint(uint64(r.OutPort), 10),
 		Origdest:    s.PublicIP,
 	}
 }
 
 func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 	reload := false
+
 	err := goshorewall.AddRule(s.shorewallRulefromRule(r))
 	if err != nil {
 		if !errors.Is(err, goshorewall.ErrRuleAlreadyExists) {
@@ -113,6 +119,7 @@ func (s *ShorewallFirewall) AddPortForwardRule(r Rule) error {
 
 func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	reload := false
+
 	for i, r := range rules {
 		err := goshorewall.AddRule(s.shorewallRulefromRule(r))
 		if err != nil {
@@ -138,11 +145,13 @@ func (s *ShorewallFirewall) AddPortForwardRules(rules []Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
 func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 	reload := false
+
 	err := goshorewall.RemoveRule(s.shorewallRulefromRule(r))
 	if err != nil {
 		if !errors.Is(err, goshorewall.ErrRuleNotFound) {
@@ -166,11 +175,13 @@ func (s *ShorewallFirewall) RemovePortForwardRule(r Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
 func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	reload := false
+
 	for i, r := range rules {
 		err := goshorewall.RemoveRule(s.shorewallRulefromRule(r))
 		if err != nil {
@@ -196,6 +207,7 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 	if reload {
 		return goshorewall.Reload()
 	}
+
 	return nil
 }
 
@@ -217,14 +229,17 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	srules, err := goshorewall.GetRules()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
+
 		return false, err
 	}
 
 	sr1 := s.shorewallRulefromRule(r)
+
 	sr2 := s.shorewallRulefromRuleNatReflection(r)
 	if slices.Contains(srules, sr1) && slices.Contains(srules, sr2) {
 		return true, nil
 	}
+
 	return false, nil
 }
 
@@ -232,10 +247,12 @@ func (s *ShorewallFirewall) VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 	srules, err := goshorewall.GetRules()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
+
 		return nil, err
 	}
 
 	srules = sortRules(srules)
+
 	var faultyRules []Rule
 
 	for _, r := range rules {

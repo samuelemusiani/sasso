@@ -6,12 +6,12 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"samuelemusiani/sasso/router/config"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gorm_logger "gorm.io/gorm/logger"
+	"samuelemusiani/sasso/router/config"
 )
 
 var (
@@ -46,18 +46,21 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	})
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
+
 		return err
 	}
 
 	err = initInterfaces()
 	if err != nil {
 		logger.Error("Failed to initialize subnets in database", "error", err)
+
 		return err
 	}
 
 	err = initPortForwards()
 	if err != nil {
 		logger.Error("Failed to initialize port forwards in database", "error", err)
+
 		return err
 	}
 
@@ -66,19 +69,24 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 
 func checkConfig(c config.Database) error {
 	if c.User == "" {
-		return fmt.Errorf("database user is empty")
+		return errors.New("database user is empty")
 	}
+
 	if c.Password == "" {
-		return fmt.Errorf("database password is empty")
+		return errors.New("database password is empty")
 	}
+
 	if c.Database == "" {
-		return fmt.Errorf("database name is empty")
+		return errors.New("database name is empty")
 	}
+
 	if c.Host == "" {
-		return fmt.Errorf("database host is empty")
+		return errors.New("database host is empty")
 	}
+
 	if c.Port == 0 {
-		return fmt.Errorf("database port is empty")
+		return errors.New("database port is empty")
 	}
+
 	return nil
 }
