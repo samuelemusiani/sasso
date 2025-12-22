@@ -18,27 +18,27 @@ linters:
     # - cyclop - Checks function and package cyclomatic complexity.
     - decorder
     - depguard 
-    # - dogsled
-    # - dupl
+    # - dogsled - Checks assignments with too many blank identifiers 
+    # - dupl - Detects duplicate fragments of code. 
     - dupword
     - durationcheck
     - embeddedstructfieldcheck
-    # - err113
+    # - err113 - Check errors handling expressions.
     - errcheck
     - errchkjson
     - errname
     - errorlint
     - exhaustive
-    # - exhaustruct
+    # - exhaustruct - Checks if all structure fields are initialized.
     - exptostd
-    # - fatcontext
-    # - forbidigo
+    # - fatcontext - Detects nested contexts in loops and function literals.
+    # - forbidigo - Forbids identifiers.
     - forcetypeassert
-    # - funcorder
-    # - funlen
+    # - funcorder -  Checks the order of functions, methods, and constructors.
+    # - funlen - Checks for long functions.
     - ginkgolinter
     - gocheckcompilerdirectives
-    # - gochecknoglobals
+    # - gochecknoglobals - Check that no global variables exist.
     - gochecknoinits
     - gochecksumtype
     # - gocognit - Computes and checks the cognitive complexity of functions.
