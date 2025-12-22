@@ -3,7 +3,7 @@ module samuelemusiani/sasso
 go 1.24.6
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/jwtauth/v5 v5.3.3
 	github.com/go-ldap/ldap/v3 v3.4.12
