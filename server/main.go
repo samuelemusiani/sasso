@@ -126,8 +126,6 @@ func main() {
 			slog.Error("Failed to initialize notifications module", "error", err)
 			os.Exit(1)
 		}
-
-		notify.StartWorker()
 	}
 
 	// API
@@ -141,70 +139,55 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Proxmox workers start
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 
-	slog.Debug("Starting background proxmox tasks")
+	var waitGroup sync.WaitGroup
 
-	go proxmox.TestEndpointVersion()
-	go proxmox.TestEndpointClone()
-	go proxmox.TestEndpointNetZone()
+	waitGroup.Go(func() {
+		proxmox.TestEndpointVersion(ctx)
+	})
+	waitGroup.Go(func() {
+		proxmox.TestEndpointClone(ctx)
+	})
+	waitGroup.Go(func() {
+		proxmox.TestEndpointNetZone(ctx)
+	})
+	waitGroup.Go(func() {
+		proxmox.Worker(ctx)
+	})
+	waitGroup.Go(func() {
+		notify.Worker(ctx)
+	})
 
-	proxmox.StartWorker()
-
-	channelError := make(chan error, 1)
-
-	go func() {
-		err = api.ListenAndServe()
-		if err != nil {
-			slog.Error("Failed to start API server", "error", err)
-		}
-
-		channelError <- err
-	}()
+	apiChannelError := api.ListenAndServe()
 
 	select {
-	case err := <-channelError:
-		slog.Error("Server error", "error", err)
-		os.Exit(1)
+	case err = <-apiChannelError:
+		slog.Error("Api Server error", "error", err)
+		slog.Info("Shutting down due to API server error...")
+		cancel()
 	case <-ctx.Done():
 		slog.Info("Received termination signal, shutting down...")
 
-		var waitGroup sync.WaitGroup
-		waitGroup.Add(3)
+		pubServerCtx, pubServerCtxCancel := context.WithTimeout(context.Background(), c.PublicServer.ShutdownTimeout)
+		privateServerCtx, privateServerCtxCancel := context.WithTimeout(context.Background(), c.PrivateServer.ShutdownTimeout)
 
-		go func() {
-			defer waitGroup.Done()
+		err = api.Shutdown(pubServerCtx, privateServerCtx)
+		if err != nil {
+			slog.Error("Failed to shut down API server gracefully", "error", err)
+		}
 
-			err := api.Shutdown()
-			if err != nil {
-				slog.Error("Failed to shut down API server", "error", err)
-			}
-		}()
+		pubServerCtxCancel()
+		privateServerCtxCancel()
+	}
 
-		go func() {
-			defer waitGroup.Done()
+	waitGroup.Wait()
 
-			err = proxmox.ShutdownWorker()
-			if err != nil {
-				slog.Error("Failed to shut down Proxmox worker", "error", err)
-			}
-		}()
-
-		go func() {
-			defer waitGroup.Done()
-
-			err = notify.ShutdownWorker()
-			if err != nil {
-				slog.Error("Failed to shut down notifications worker", "error", err)
-			}
-		}()
-
-		waitGroup.Wait()
+	if err != nil {
+		os.Exit(1)
 	}
 
 	slog.Info("Server shut down gracefully")
-	os.Exit(0)
 }
 
 func getSecretKey(c *config.Config) (string, error) {

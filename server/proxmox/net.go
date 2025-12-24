@@ -31,32 +31,40 @@ var (
 	ErrVNetHasTaggedInterfaces error = errors.New("VNet has tagged interfaces")
 )
 
-func TestEndpointNetZone() {
-	time.Sleep(5 * time.Second)
+func TestEndpointNetZone(parentCtx context.Context) {
+	select {
+	case <-time.After(5 * time.Second):
+	case <-parentCtx.Done():
+		return
+	}
 
 	wasError := false
 	first := true
 
 	for {
+		timeToWait := 10 * time.Second
 		if !isProxmoxReachable {
-			time.Sleep(20 * time.Second)
-
-			continue
+			timeToWait *= 2
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		select {
+		case <-time.After(timeToWait):
+		case <-parentCtx.Done():
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		cluster, err := client.Cluster(ctx)
 
 		cancel()
 
 		if err != nil {
 			logger.Error("Failed to get Proxmox cluster", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		zone, err := cluster.SDNZone(ctx, cNetwork.SDNZone)
 
 		cancel()
@@ -66,8 +74,6 @@ func TestEndpointNetZone() {
 
 			wasError = true
 
-			time.Sleep(10 * time.Second)
-
 			continue
 		}
 
@@ -76,8 +82,6 @@ func TestEndpointNetZone() {
 
 			wasError = true
 
-			time.Sleep(10 * time.Second)
-
 			continue
 		}
 
@@ -85,8 +89,6 @@ func TestEndpointNetZone() {
 			logger.Error("Proxmox SDN cluster zone type mismatch", "expected", "vxlan", "got", zone.Type)
 
 			wasError = true
-
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
@@ -100,10 +102,6 @@ func TestEndpointNetZone() {
 
 			wasError = false
 		}
-
-		// Should check the state or if it's pending?
-
-		time.Sleep(10 * time.Second)
 	}
 }
 

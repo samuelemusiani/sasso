@@ -479,7 +479,7 @@ func deleteVMBypass(vmID uint64) error {
 	return nil
 }
 
-func changeVMStatusBypass(vmID uint64, action string) error {
+func changeVMStatusBypass(parentCtx context.Context, vmID uint64, action string) error {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
@@ -516,14 +516,14 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 		return errors.Join(ErrInvalidVMState, errors.New("vm lifetime has expired; cannot start or restart"))
 	}
 
-	cluster, err := getProxmoxCluster(client)
+	cluster, err := getProxmoxCluster(parentCtx, client)
 	if err != nil {
 		logger.Error("Failed to get Proxmox cluster for changing VM status", "vmID", vmID, "error", err)
 
 		return err
 	}
 
-	vmNodes, err := mapVMIDToProxmoxNodes(cluster)
+	vmNodes, err := mapVMIDToProxmoxNodes(parentCtx, cluster)
 	if err != nil {
 		logger.Error("Failed to map VM IDs to Proxmox nodes for changing VM status", "vmID", vmID, "error", err)
 
@@ -537,14 +537,14 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 		return ErrVMNotFound
 	}
 
-	node, err := getProxmoxNode(client, nodeName)
+	node, err := getProxmoxNode(parentCtx, client, nodeName)
 	if err != nil {
 		logger.Error("Failed to get Proxmox node for changing VM status", "vmID", vmID, "node", nodeName, "error", err)
 
 		return err
 	}
 
-	vmr, err := getProxmoxVM(node, int(vmID))
+	vmr, err := getProxmoxVM(parentCtx, node, int(vmID))
 	if err != nil {
 		logger.Error("Failed to get Proxmox VM for changing VM status", "vmID", vmID, "node", nodeName, "error", err)
 
@@ -568,7 +568,7 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 		return ErrInvalidVMState
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 
 	var (
 		task     *goprox.Task
@@ -595,7 +595,7 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 		return err
 	}
 
-	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to wait for Proxmox task completion when trying to %s VM", action), "vmID", vmID, "node", nodeName, "error", err)
 
@@ -628,7 +628,7 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 // action is the action to perform: "start", "stop", or "restart".
 //
 // If the VM belongs to a user, userID and ownerID must be the same.
-func ChangeVMStatus(ownerType OwnerType, ownerID uint, userID uint, vmID uint64, action string) error {
+func ChangeVMStatus(parentCtx context.Context, ownerType OwnerType, ownerID uint, userID uint, vmID uint64, action string) error {
 	if ownerType == OwnerTypeUser && ownerID != userID {
 		panic("ownerID and userID must be the same for OwnerTypeUser in ChangeVMStatus")
 	}
@@ -682,23 +682,30 @@ func ChangeVMStatus(ownerType OwnerType, ownerID uint, userID uint, vmID uint64,
 		return ErrInvalidVMState
 	}
 
-	return changeVMStatusBypass(vmID, action)
+	return changeVMStatusBypass(parentCtx, vmID, action)
 }
 
-func TestEndpointClone() {
-	time.Sleep(5 * time.Second)
+func TestEndpointClone(parentCtx context.Context) {
+	select {
+	case <-time.After(5 * time.Second):
+	case <-parentCtx.Done():
+		return
+	}
 
 	first := true
 	wasError := false
 
 	for {
 		if !isProxmoxReachable {
-			time.Sleep(20 * time.Second)
-
-			continue
+			select {
+			case <-time.After(20 * time.Second):
+				continue
+			case <-parentCtx.Done():
+				return
+			}
 		}
 
-		node, err := getProxmoxNode(client, cTemplate.Node)
+		node, err := getProxmoxNode(parentCtx, client, cTemplate.Node)
 		if err != nil {
 			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
 			time.Sleep(10 * time.Second)
@@ -706,7 +713,7 @@ func TestEndpointClone() {
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, cTemplate.VMID)
+		vm, err := getProxmoxVM(parentCtx, node, cTemplate.VMID)
 		switch {
 		case err != nil:
 			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
@@ -732,7 +739,11 @@ func TestEndpointClone() {
 			wasError = false
 		}
 
-		time.Sleep(10 * time.Second)
+		select {
+		case <-time.After(10 * time.Second):
+		case <-parentCtx.Done():
+			return
+		}
 	}
 }
 

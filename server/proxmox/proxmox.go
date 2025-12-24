@@ -185,16 +185,15 @@ func checkConfig(c *config.Proxmox) error {
 	return nil
 }
 
-func TestEndpointVersion() {
+func TestEndpointVersion(parentCtx context.Context) {
 	first := true
 	wasError := false
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		version, err := client.Version(ctx)
 
-		cancel() // Cancel immediately after the call
+		cancel()
 
 		switch {
 		case err != nil:
@@ -214,6 +213,10 @@ func TestEndpointVersion() {
 			isProxmoxReachable = true
 		}
 
-		time.Sleep(10 * time.Second)
+		select {
+		case <-time.After(10 * time.Second):
+		case <-parentCtx.Done():
+			return
+		}
 	}
 }

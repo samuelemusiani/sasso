@@ -62,7 +62,7 @@ var (
 
 var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusPaused}
 
-func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
+func ListBackups(parentCtx context.Context, vmID uint64, since time.Time) ([]Backup, error) {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
@@ -80,7 +80,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		return nil, ErrInvalidVMState
 	}
 
-	_, mcontent, err := fetchBackups(vmID, since)
+	_, mcontent, err := fetchBackups(parentCtx, vmID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 	return backups, nil
 }
 
-func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (uint, error) {
+func CreateBackup(parentCtx context.Context, userID uint, groupID *uint, vmID uint64, name, notes string) (uint, error) {
 	if len(name) > 40 {
 		return 0, ErrBackupNameTooLong
 	} else if len(notes)*4/3 > 800 {
@@ -150,7 +150,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		return 0, ErrInvalidVMState
 	}
 
-	_, mcontent, err := fetchBackups(vmID, time.Time{})
+	_, mcontent, err := fetchBackups(parentCtx, vmID, time.Time{})
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 
@@ -196,7 +196,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 	return bkr.ID, nil
 }
 
-func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
+func DeleteBackup(parentCtx context.Context, userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)
@@ -221,7 +221,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, volidActionDelete, nil)
+	volid, err := findVolid(parentCtx, vmID, backupid, since, volidActionDelete, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -242,7 +242,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 	return bkr.ID, nil
 }
 
-func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
+func RestoreBackup(parentCtx context.Context, userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
 		logger.Error("failed to check for pending backup requests", "error", err)
@@ -267,7 +267,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, volidActionSearch, nil)
+	volid, err := findVolid(parentCtx, vmID, backupid, since, volidActionSearch, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -290,13 +290,13 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 
 // Proxmox node is returned only for optimization purposes as often the caller
 // needs it right after calling this function.
-func fetchBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*proxmox.StorageContent, err error) {
-	cluster, err := getProxmoxCluster(client)
+func fetchBackups(parentCtx context.Context, vmID uint64, since time.Time) (node *proxmox.Node, scontent []*proxmox.StorageContent, err error) {
+	cluster, err := getProxmoxCluster(parentCtx, client)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	m, err := mapVMIDToProxmoxNodes(cluster)
+	m, err := mapVMIDToProxmoxNodes(parentCtx, cluster)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -306,17 +306,17 @@ func fetchBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []
 		return nil, nil, ErrVMNotFound
 	}
 
-	node, err = getProxmoxNode(client, nodeName)
+	node, err = getProxmoxNode(parentCtx, client, nodeName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	s, err := getProxmoxStorage(node, cBackup.Storage)
+	s, err := getProxmoxStorage(parentCtx, node, cBackup.Storage)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	mcontent, err := getProxmoxStorageBackups(s, uint(vmID))
+	mcontent, err := getProxmoxStorageBackups(parentCtx, s, uint(vmID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -340,11 +340,11 @@ func fetchBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []
 // If action is volidActionDelete, it also checks if the backup can be deleted.
 // If mcontent is nil, it will be fetched inside the function. Mcontent can be
 // provided to optimize multiple calls to this function.
-func findVolid(vmID uint64, backupid string, since time.Time, action volidAction, mcontent []*proxmox.StorageContent) (string, error) {
+func findVolid(parentCtx context.Context, vmID uint64, backupid string, since time.Time, action volidAction, mcontent []*proxmox.StorageContent) (string, error) {
 	if mcontent == nil {
 		var err error
 
-		_, mcontent, err = fetchBackups(vmID, since)
+		_, mcontent, err = fetchBackups(parentCtx, vmID, since)
 		if err != nil {
 			return "", err
 		}
@@ -416,7 +416,7 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 }
 
 //nolint:revive // protected is fine here, we're not considering it as a control flag.
-func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
+func ProtectBackup(parentCtx context.Context, userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
 		logger.Error("failed to get VM by ID", "VMID", vmID, "error", err)
@@ -431,7 +431,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 	}
 
 	// We only need to check the upper limit if we are trying to protect a backup
-	node, mcontent, err := fetchBackups(vmID, since)
+	node, mcontent, err := fetchBackups(parentCtx, vmID, since)
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 
@@ -452,7 +452,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		}
 	}
 
-	volid, err := findVolid(vmID, backupid, since, volidActionSearch, mcontent)
+	volid, err := findVolid(parentCtx, vmID, backupid, since, volidActionSearch, mcontent)
 	if err != nil {
 		return false, err
 	}
@@ -468,12 +468,12 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		return false, ErrPendingBackupRequest
 	}
 
-	s, err := getProxmoxStorage(node, cBackup.Storage)
+	s, err := getProxmoxStorage(parentCtx, node, cBackup.Storage)
 	if err != nil {
 		return false, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	isSuccessful, err := s.ChangeProtection(ctx, protected, volid)
 
 	cancel()

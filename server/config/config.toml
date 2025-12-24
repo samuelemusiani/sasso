@@ -3,10 +3,12 @@
 [public_server]
 bind = ":8080"
 log_requests = true
+shutdown_timeout = "30s"
 
 [private_server]
 bind = ":8081"
 log_requests = false
+shutdown_timeout = "30s"
 
 [database]
 user = "user"

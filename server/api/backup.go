@@ -16,7 +16,7 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 	vm := mustGetVMFromContext(r)
 
-	bks, err := proxmox.ListBackups(vm.ID, vm.CreatedAt)
+	bks, err := proxmox.ListBackups(r.Context(), vm.ID, vm.CreatedAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrVMNotFound):
@@ -85,7 +85,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 	backupid := chi.URLParam(r, "backupid")
 
-	id, err := proxmox.RestoreBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
+	id, err := proxmox.RestoreBackup(r.Context(), userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):
@@ -162,7 +162,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	id, err := proxmox.CreateBackup(userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
+	id, err := proxmox.CreateBackup(r.Context(), userID, groupID, vm.ID, reqBody.Name, reqBody.Notes)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrPendingBackupRequest):
@@ -228,7 +228,7 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 
 	backupid := chi.URLParam(r, "backupid")
 
-	id, err := proxmox.DeleteBackup(userID, groupID, vm.ID, backupid, vm.CreatedAt)
+	id, err := proxmox.DeleteBackup(r.Context(), userID, groupID, vm.ID, backupid, vm.CreatedAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):
@@ -408,7 +408,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	protected, err := proxmox.ProtectBackup(uint64(userID), vm.ID, backupid, vm.CreatedAt, reqBody.Protected)
+	protected, err := proxmox.ProtectBackup(r.Context(), uint64(userID), vm.ID, backupid, vm.CreatedAt, reqBody.Protected)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrBackupNotFound):

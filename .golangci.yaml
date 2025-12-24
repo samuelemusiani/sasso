@@ -13,7 +13,7 @@ linters:
     - bodyclose
     - canonicalheader
     - containedctx
-    # - contextcheck - Check whether the function uses a non-inherited context.
+    - contextcheck
     - copyloopvar
     # - cyclop - Checks function and package cyclomatic complexity.
     - decorder
@@ -92,7 +92,7 @@ linters:
     - protogetter
     - reassign
     - recvcheck
-    - revive #- Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
+    - revive
     - rowserrcheck
     - sloglint
     - spancheck

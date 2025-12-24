@@ -266,7 +266,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	return nil
 }
 
-func ListenAndServe() error {
+func ListenAndServe() chan error {
 	if publicRouter == nil {
 		panic("Router not initialized")
 	}
@@ -279,7 +279,7 @@ func ListenAndServe() error {
 
 	go func() {
 		logger.Info("Public router listening", "bind", publicServer.Addr)
-		// err := http.ListenAndServe(publicServerConfig.Bind, publicRouter)
+
 		err := publicServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("public server error", "err", err)
@@ -290,7 +290,7 @@ func ListenAndServe() error {
 
 	go func() {
 		logger.Info("Private router listening", "bind", privateServer.Addr)
-		// err := http.ListenAndServe(privateServerConfig.Bind, privateRouter)
+
 		err := privateServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("private server error", "err", err)
@@ -299,16 +299,16 @@ func ListenAndServe() error {
 		}
 	}()
 
-	return <-c
+	return c
 }
 
-func Shutdown() error {
+func Shutdown(publicServerCtx, privateServerCtx context.Context) error {
 	c := make(chan error, 2)
 
 	go func() {
 		logger.Info("Shutting down public server...")
 
-		err := publicServer.Shutdown(context.Background())
+		err := publicServer.Shutdown(publicServerCtx)
 		if err != nil {
 			slog.Error("public server shutdown failed", "err", err)
 		} else {
@@ -321,7 +321,7 @@ func Shutdown() error {
 	go func() {
 		logger.Info("Shutting down private server...")
 
-		err := privateServer.Shutdown(context.Background())
+		err := privateServer.Shutdown(privateServerCtx)
 		if err != nil {
 			slog.Error("private server shutdown failed", "err", err)
 		} else {

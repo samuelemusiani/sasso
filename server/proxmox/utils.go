@@ -160,8 +160,8 @@ func substituteVlanTag(iface string, vlanTag uint16) string {
 	return strings.Join(newParts, ",")
 }
 
-func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) {
-	resources, err := getProxmoxResources(cluster, "vm")
+func mapVMIDToProxmoxNodes(parentCtx context.Context, cluster *proxmox.Cluster) (map[uint64]string, error) {
+	resources, err := getProxmoxResources(parentCtx, cluster, "vm")
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +180,8 @@ func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) 
 	return vmNodes, nil
 }
 
-func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+func waitForProxmoxTaskCompletion(parentCtx context.Context, t *proxmox.Task) (bool, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 240*time.Second)
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 240, 1)
 
 	cancel()
@@ -193,7 +193,7 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 	}
 
 	if !completed {
-		return waitForProxmoxTaskCompletion(t)
+		return waitForProxmoxTaskCompletion(parentCtx, t)
 	}
 
 	if !isSuccessful {
@@ -205,107 +205,93 @@ func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
 	return true, nil
 }
 
-func getProxmoxCluster(client *proxmox.Client) (*proxmox.Cluster, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxCluster(parentCtx context.Context, client *proxmox.Client) (*proxmox.Cluster, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	cluster, err := client.Cluster(ctx)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox cluster", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox cluster: %w", err)
 	}
 
 	return cluster, nil
 }
 
-func getProxmoxNode(client *proxmox.Client, nodeName string) (*proxmox.Node, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxNode(parentCtx context.Context, client *proxmox.Client, nodeName string) (*proxmox.Node, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	node, err := client.Node(ctx, nodeName)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox node", "error", err, "node", nodeName)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox node %s: %w", nodeName, err)
 	}
 
 	return node, nil
 }
 
-func getProxmoxVM(node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxVM(parentCtx context.Context, node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	vm, err := node.VirtualMachine(ctx, vmid)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox VM", "error", err, "node", node.Name, "vmid", vmid)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox VM %d on node %s: %w", vmid, node.Name, err)
 	}
 
 	return vm, nil
 }
 
-func getProxmoxResources(cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+func getProxmoxResources(parentCtx context.Context, cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 20*time.Second)
 	resources, err := cluster.Resources(ctx, filters...)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox resources", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox cluster resources: %w", err)
 	}
 
 	return resources, nil
 }
 
-func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func configureVM(parentCtx context.Context, vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption) (bool, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	task, err := vm.Config(ctx, config)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to set VM config", "error", err, "vmid", vm.VMID)
-
-		return false, err
+		return false, fmt.Errorf("failed to set VM config: %w", err)
 	}
 
-	return waitForProxmoxTaskCompletion(task)
+	return waitForProxmoxTaskCompletion(parentCtx, task)
 }
 
-func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxStorage(parentCtx context.Context, node *proxmox.Node, storage string) (*proxmox.Storage, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	s, err := node.Storage(ctx, storage)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox Storage", "error", err, "node", node.Name, "storage", storage)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox storage %s on node %s: %w", storage, node.Name, err)
 	}
 
 	return s, nil
 }
 
-func getProxmoxStorageBackups(s *proxmox.Storage, vmid uint) ([]*proxmox.StorageContent, error) {
+func getProxmoxStorageBackups(parentCtx context.Context, s *proxmox.Storage, vmid uint) ([]*proxmox.StorageContent, error) {
 	// Getting backups can take a while, so use a longer timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(parentCtx, 1*time.Minute)
 	content, err := s.GetBackupsForVM(ctx, vmid)
 
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to get Proxmox Storage content", "error", err, "storage", s.Name)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox storage backups for VMID %d on storage %s: %w", vmid, s.Name, err)
 	}
 
 	return content, nil

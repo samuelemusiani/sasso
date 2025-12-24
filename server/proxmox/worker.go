@@ -1,12 +1,7 @@
-// Sasso will write to the DB what the current state should look like. The
-// worker will read the DB and take care of all the operations that needs
-// to be done
-
 package proxmox
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -35,43 +30,14 @@ var (
 	vmFailedChangeStatus = make(map[uint64]time.Time)
 
 	lastConfigureSSHKeysTime time.Time
-
-	workerContext    context.Context
-	workerCancelFunc context.CancelFunc
-	workerReturnChan = make(chan error, 1)
 )
 
-func StartWorker() {
-	workerContext, workerCancelFunc = context.WithCancel(context.Background())
-
-	go func() {
-		workerReturnChan <- worker(workerContext)
-
-		close(workerReturnChan)
-	}()
-}
-
-func ShutdownWorker() error {
-	if workerCancelFunc != nil {
-		workerCancelFunc()
-	}
-
-	var err error
-	if workerReturnChan != nil {
-		err = <-workerReturnChan
-	}
-
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
-	}
-
-	return nil
-}
-
-func worker(ctx context.Context) error {
+func Worker(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		logger.Info("Proxmox worker shutting down")
+
+		return
 	case <-time.After(10 * time.Second):
 		// Just a small delay to let other components start
 	}
@@ -81,63 +47,58 @@ func worker(ctx context.Context) error {
 	timeToWait := 10 * time.Second
 
 	for {
+		if !isProxmoxReachable {
+			timeToWait = 20 * time.Second
+		}
+
 		// Handle graceful shutdown at the start of each cycle
 		select {
+		case <-time.After(timeToWait):
 		case <-ctx.Done():
 			logger.Info("Proxmox worker shutting down")
 
-			return ctx.Err()
-		case <-time.After(timeToWait):
+			return
 		}
 
 		now := time.Now()
 
-		// For all VMs we must check the status and take the necessary actions
-		if !isProxmoxReachable {
-			time.Sleep(20 * time.Second)
-
-			continue
-		}
-
 		objectCountHelper()
 
-		cluster, err := getProxmoxCluster(client)
+		cluster, err := getProxmoxCluster(ctx, client)
 		if err != nil {
 			logger.Error("failed to get Proxmox cluster", "error", err)
-			time.Sleep(5 * time.Second)
 
 			continue
 		}
 
-		workerCycleDurationObserve("create_vnets", func() { createVNets(cluster) })
-		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(cluster) })
-		workerCycleDurationObserve("configure_vnets", func() { configureVNets(cluster) })
-		workerCycleDurationObserve("update_vnets", func() { updateVNets(cluster) })
+		workerCycleDurationObserve("create_vnets", func() { createVNets(ctx, cluster) })
+		workerCycleDurationObserve("delete_vnets", func() { deleteVNets(ctx, cluster) })
+		workerCycleDurationObserve("configure_vnets", func() { configureVNets(ctx, cluster) })
+		workerCycleDurationObserve("update_vnets", func() { updateVNets(ctx, cluster) })
 
-		workerCycleDurationObserve("create_vms", func() { createVMs() })
-		workerCycleDurationObserve("update_vms", func() { updateVMs(cluster) })
+		workerCycleDurationObserve("create_vms", func() { createVMs(ctx) })
+		workerCycleDurationObserve("update_vms", func() { updateVMs(ctx, cluster) })
 
-		workerCycleDurationObserve("lifetime_vms", func() { enforceVMLifetimes() })
+		workerCycleDurationObserve("lifetime_vms", func() { enforceVMLifetimes(ctx) })
 
-		vmNodes, err := mapVMIDToProxmoxNodes(cluster)
+		vmNodes, err := mapVMIDToProxmoxNodes(ctx, cluster)
 		if err != nil {
 			logger.Error("failed to map VMID to Proxmox nodes", "error", err)
-			time.Sleep(5 * time.Second)
 
 			continue
 		}
 
-		workerCycleDurationObserve("delete_vms", func() { deleteVMs(vmNodes) })
-		workerCycleDurationObserve("configure_ssh_keys", func() { configureSSHKeys(vmNodes) })
-		workerCycleDurationObserve("configure_vms", func() { configureVMs(vmNodes) })
+		workerCycleDurationObserve("delete_vms", func() { deleteVMs(ctx, vmNodes) })
+		workerCycleDurationObserve("configure_ssh_keys", func() { configureSSHKeys(ctx, vmNodes) })
+		workerCycleDurationObserve("configure_vms", func() { configureVMs(ctx, vmNodes) })
 
-		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(vmNodes) })
-		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(vmNodes) })
-		workerCycleDurationObserve("configure_interfaces", func() { configureInterfaces(vmNodes) })
+		workerCycleDurationObserve("create_interfaces", func() { createInterfaces(ctx, vmNodes) })
+		workerCycleDurationObserve("delete_interfaces", func() { deleteInterfaces(ctx, vmNodes) })
+		workerCycleDurationObserve("configure_interfaces", func() { configureInterfaces(ctx, vmNodes) })
 
-		workerCycleDurationObserve("delete_backups", func() { deleteBackups(vmNodes) })
-		workerCycleDurationObserve("restore_backups", func() { restoreBackups(vmNodes) })
-		workerCycleDurationObserve("create_backups", func() { createBackups(vmNodes) })
+		workerCycleDurationObserve("delete_backups", func() { deleteBackups(ctx, vmNodes) })
+		workerCycleDurationObserve("restore_backups", func() { restoreBackups(ctx, vmNodes) })
+		workerCycleDurationObserve("create_backups", func() { createBackups(ctx, vmNodes) })
 
 		elapsed := time.Since(now)
 		workerCycleDuration.Observe(elapsed.Seconds())
@@ -180,7 +141,11 @@ func objectCountHelper() {
 	}
 }
 
-func createVNets(cluster *gprox.Cluster) {
+func createVNets(parentCtx context.Context, cluster *gprox.Cluster) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Creating VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VMStatusPreCreating))
@@ -202,7 +167,7 @@ func createVNets(cluster *gprox.Cluster) {
 			VlanAware: v.VlanAware,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		err := cluster.NewSDNVNet(ctx, options)
 
 		cancel()
@@ -221,7 +186,7 @@ func createVNets(cluster *gprox.Cluster) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
 
 	cancel()
@@ -232,7 +197,7 @@ func createVNets(cluster *gprox.Cluster) {
 		return
 	}
 
-	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -262,7 +227,11 @@ func createVNets(cluster *gprox.Cluster) {
 	}
 }
 
-func deleteVNets(cluster *gprox.Cluster) {
+func deleteVNets(parentCtx context.Context, cluster *gprox.Cluster) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Deleting VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusPreDeleting))
@@ -277,7 +246,7 @@ func deleteVNets(cluster *gprox.Cluster) {
 	}
 
 	for _, v := range vnets {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		err := cluster.DeleteSDNVNet(ctx, v.Name)
 
 		cancel()
@@ -296,7 +265,7 @@ func deleteVNets(cluster *gprox.Cluster) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
 
 	cancel()
@@ -307,7 +276,7 @@ func deleteVNets(cluster *gprox.Cluster) {
 		return
 	}
 
-	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -336,7 +305,11 @@ func deleteVNets(cluster *gprox.Cluster) {
 }
 
 // createVMs creates VMs from proxmox that are in the 'pre-creating' status.
-func createVMs() {
+func createVMs(parentCtx context.Context) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Creating VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreCreating))
@@ -350,12 +323,12 @@ func createVMs() {
 		return
 	}
 
-	node, err := getProxmoxNode(client, cTemplate.Node)
+	node, err := getProxmoxNode(parentCtx, client, cTemplate.Node)
 	if err != nil {
 		return
 	}
 
-	templateVM, err := getProxmoxVM(node, cTemplate.VMID)
+	templateVM, err := getProxmoxVM(parentCtx, node, cTemplate.VMID)
 	if err != nil {
 		return
 	}
@@ -400,7 +373,7 @@ func createVMs() {
 		// Create the VM in Proxmox
 		// Creation implies cloning a template
 		cloningOptions.NewID = int(v.ID)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		_, task, err := templateVM.Clone(ctx, &cloningOptions)
 
 		cancel()
@@ -416,7 +389,7 @@ func createVMs() {
 			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusCreating, "err", err)
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(task)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
 
@@ -440,7 +413,11 @@ func createVMs() {
 }
 
 // deleteVMs deletes VMs from proxmox that are in the 'pre-deleting' status.
-func deleteVMs(vmsLocation map[uint64]string) {
+func deleteVMs(parentCtx context.Context, vmsLocation map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Deleting VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreDeleting))
@@ -471,18 +448,18 @@ func deleteVMs(vmsLocation map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, int(v.ID))
+		vm, err := getProxmoxVM(parentCtx, node, int(v.ID))
 		if err != nil {
 			continue
 		}
 
 		if vm.Status == "running" {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 			task, err := vm.Stop(ctx)
 
 			cancel()
@@ -493,7 +470,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 				continue
 			}
 
-			isSuccessful, err := waitForProxmoxTaskCompletion(task)
+			isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 			if err != nil {
 				logger.Error("Can't wait for stop VM task completion", "err", err, "vmid", v.ID)
 
@@ -507,7 +484,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 			}
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		task, err := vm.Delete(ctx)
 
 		cancel()
@@ -523,7 +500,7 @@ func deleteVMs(vmsLocation map[uint64]string) {
 			logger.Warn("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusDeleting, "err", err)
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(task)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "err", err, "vmid", v.ID)
 
@@ -548,7 +525,11 @@ func deleteVMs(vmsLocation map[uint64]string) {
 	}
 }
 
-func configureVNets(cluster *gprox.Cluster) {
+func configureVNets(parentCtx context.Context, cluster *gprox.Cluster) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Configuring VNets in worker")
 
 	vnets, err := db.GetVNetsWithStatus(string(VNetStatusReconfiguring))
@@ -563,7 +544,7 @@ func configureVNets(cluster *gprox.Cluster) {
 	}
 
 	for _, v := range vnets {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		vnet, err := cluster.SDNVNet(ctx, v.Name)
 
 		cancel()
@@ -580,7 +561,7 @@ func configureVNets(cluster *gprox.Cluster) {
 			vnet.VlanAware = 0
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		err = cluster.UpdateSDNVNet(ctx, vnet)
 
 		cancel()
@@ -592,7 +573,7 @@ func configureVNets(cluster *gprox.Cluster) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	task, err := cluster.SDNApply(ctx)
 
 	cancel()
@@ -603,7 +584,7 @@ func configureVNets(cluster *gprox.Cluster) {
 		return
 	}
 
-	isSuccessful, err := waitForProxmoxTaskCompletion(task)
+	isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, task)
 	if err != nil {
 		logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -631,7 +612,11 @@ func configureVNets(cluster *gprox.Cluster) {
 	}
 }
 
-func updateVNets(cluster *gprox.Cluster) {
+func updateVNets(parentCtx context.Context, cluster *gprox.Cluster) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Updating VNets in worker")
 
 	dbVNets, err := db.GetVNetsWithStatus(string(VNetStatusReady))
@@ -641,7 +626,7 @@ func updateVNets(cluster *gprox.Cluster) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	pVNets, err := cluster.SDNVNets(ctx)
 
 	cancel()
@@ -705,7 +690,11 @@ func updateVNets(cluster *gprox.Cluster) {
 
 // This function configures VMs that are in the 'pre-configuring' status.
 // Configuration includes setting the number of cores, RAM and disk size
-func configureVMs(vmNodes map[uint64]string) {
+func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Configuring VMs in worker")
 
 	vms, err := db.GetVMsWithStatus(string(VMStatusPreConfiguring))
@@ -723,12 +712,12 @@ func configureVMs(vmNodes map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, int(v.ID))
+		vm, err := getProxmoxVM(parentCtx, node, int(v.ID))
 		if err != nil {
 			continue
 		}
@@ -741,7 +730,7 @@ func configureVMs(vmNodes map[uint64]string) {
 				Value: v.Cores,
 			}
 
-			isSuccessful, err := configureVM(vm, coresOption)
+			isSuccessful, err := configureVM(parentCtx, vm, coresOption)
 			if err != nil {
 				logger.Error("failed to set cores on VM", "vmid", v.ID, "err", err)
 
@@ -761,7 +750,7 @@ func configureVMs(vmNodes map[uint64]string) {
 				Value: v.RAM,
 			}
 
-			isSuccessful, err := configureVM(vm, ramOption)
+			isSuccessful, err := configureVM(parentCtx, vm, ramOption)
 			if err != nil {
 				logger.Error("failed to set ram on VM", "vmid", v.ID, "err", err)
 
@@ -790,7 +779,7 @@ func configureVMs(vmNodes map[uint64]string) {
 		}
 
 		if st.Size < v.Disk {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 			diff := v.Disk - st.Size
 			t, err := vm.ResizeDisk(ctx, "scsi0", fmt.Sprintf("+%dG", diff))
 
@@ -802,7 +791,7 @@ func configureVMs(vmNodes map[uint64]string) {
 				continue
 			}
 
-			isSuccessful, err := waitForProxmoxTaskCompletion(t)
+			isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 			if err != nil {
 				logger.Error("failed to wait for resize disk task completion", "vmid", v.ID, "err", err)
 
@@ -843,10 +832,14 @@ func configureVMs(vmNodes map[uint64]string) {
 }
 
 // updateVMs updates the status of VMs in the database based on their current status in Proxmox.
-func updateVMs(cluster *gprox.Cluster) {
+func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Updating VMs in worker")
 
-	resources, err := getProxmoxResources(cluster, "vm")
+	resources, err := getProxmoxResources(parentCtx, cluster, "vm")
 	if err != nil {
 		logger.Error("failed to get Proxmox resources", "error", err)
 
@@ -1012,7 +1005,11 @@ func updateVMs(cluster *gprox.Cluster) {
 	}
 }
 
-func createInterfaces(vmNodes map[uint64]string) {
+func createInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Creating interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreCreating))
@@ -1043,14 +1040,14 @@ func createInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
 
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, int(iface.VMID))
+		vm, err := getProxmoxVM(parentCtx, node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
 
@@ -1125,20 +1122,9 @@ func createInterfaces(vmNodes map[uint64]string) {
 			Value: v,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		t, err := vm.Config(ctx, o)
-
-		cancel()
-
+		isSuccessful, err := configureVM(parentCtx, vm, o)
 		if err != nil {
 			logger.Error("failed to add network interface to Proxmox VM", "error", err)
-
-			continue
-		}
-
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
-		if err != nil {
-			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
 			continue
 		}
@@ -1163,20 +1149,9 @@ func createInterfaces(vmNodes map[uint64]string) {
 
 		logger.Debug("Configuring network interface on Proxmox VM", "option", o2)
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		t, err = vm.Config(ctx, o2)
-
-		cancel()
-
+		isSuccessful, err = configureVM(parentCtx, vm, o2)
 		if err != nil {
 			logger.Error("failed to configure network interface on Proxmox VM", "error", err)
-
-			continue
-		}
-
-		isSuccessful, err = waitForProxmoxTaskCompletion(t)
-		if err != nil {
-			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
 			continue
 		}
@@ -1187,7 +1162,7 @@ func createInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		err = vm.RegenerateCloudInitImage(ctx)
 
 		cancel()
@@ -1208,7 +1183,11 @@ func createInterfaces(vmNodes map[uint64]string) {
 	}
 }
 
-func deleteInterfaces(vmNodes map[uint64]string) {
+func deleteInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Configuring interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreDeleting))
@@ -1226,7 +1205,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		node, err := client.Node(ctx, nodeName)
 
 		cancel()
@@ -1237,7 +1216,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		vm, err := node.VirtualMachine(ctx, int(iface.VMID))
 
 		cancel()
@@ -1248,7 +1227,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		t, err := vm.Config(ctx, gprox.VirtualMachineOption{
 			Name:  "delete",
 			Value: fmt.Sprintf("net%d", iface.LocalID),
@@ -1269,7 +1248,7 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1291,7 +1270,11 @@ func deleteInterfaces(vmNodes map[uint64]string) {
 	}
 }
 
-func configureInterfaces(vmNodes map[uint64]string) {
+func configureInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Configuring interfaces in worker")
 
 	interfaces, err := db.GetInterfacesWithStatus(string(InterfaceStatusPreConfiguring))
@@ -1336,14 +1319,14 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			logger.Error("Can't get node. Can't configure interface", "err", err, "vmid", iface.VMID, "interface_id", iface.ID)
 
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, int(iface.VMID))
+		vm, err := getProxmoxVM(parentCtx, node, int(iface.VMID))
 		if err != nil {
 			logger.Error("Can't get VM. Can't configure VM", "err", err, "vmid", iface.VMID)
 
@@ -1370,7 +1353,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			Value: pnet,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		t, err := vm.Config(ctx, o)
 
 		cancel()
@@ -1381,7 +1364,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1405,7 +1388,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 
 		logger.Debug("Configuring network interface on Proxmox VM", "option", o2)
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		t, err = vm.Config(ctx, o2)
 
 		cancel()
@@ -1416,7 +1399,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err = waitForProxmoxTaskCompletion(t)
+		isSuccessful, err = waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1429,7 +1412,7 @@ func configureInterfaces(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		err = vm.RegenerateCloudInitImage(ctx)
 
 		cancel()
@@ -1447,7 +1430,11 @@ func configureInterfaces(vmNodes map[uint64]string) {
 	}
 }
 
-func deleteBackups(mapVMContent map[uint64]string) {
+func deleteBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Deleting backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeDelete)
@@ -1473,21 +1460,21 @@ func deleteBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
 
 			continue
 		}
 
-		storage, err := getProxmoxStorage(node, cBackup.Storage)
+		storage, err := getProxmoxStorage(parentCtx, node, cBackup.Storage)
 		if err != nil {
 			logger.Error("failed to get Proxmox storage", "storage", cBackup.Storage, "error", err)
 
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		t, err := storage.DeleteContent(ctx, *r.Volid)
 
 		cancel()
@@ -1498,7 +1485,7 @@ func deleteBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1524,7 +1511,11 @@ func deleteBackups(mapVMContent map[uint64]string) {
 	}
 }
 
-func restoreBackups(mapVMContent map[uint64]string) {
+func restoreBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Restoring backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeRestore)
@@ -1550,7 +1541,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
 
@@ -1566,7 +1557,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 			Value: r.Volid,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		t, err := node.NewVirtualMachine(ctx, int(r.VMID), o1, o2)
 
 		cancel()
@@ -1577,7 +1568,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1603,7 +1594,11 @@ func restoreBackups(mapVMContent map[uint64]string) {
 	}
 }
 
-func createBackups(mapVMContent map[uint64]string) {
+func createBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Creating backups in worker")
 
 	bkr, err := db.GetBackupRequestWithStatusAndType(BackupRequestStatusPending, BackupRequestTypeCreate)
@@ -1623,7 +1618,7 @@ func createBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			logger.Error("failed to get Proxmox node", "node", nodeName, "error", err)
 
@@ -1637,7 +1632,7 @@ func createBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		t, err := node.Vzdump(ctx, &gprox.VirtualMachineBackupOptions{
 			Storage:       cBackup.Storage,
 			VMID:          uint64(r.VMID),
@@ -1655,7 +1650,7 @@ func createBackups(mapVMContent map[uint64]string) {
 			continue
 		}
 
-		isSuccessful, err := waitForProxmoxTaskCompletion(t)
+		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
 		if err != nil {
 			logger.Error("failed to wait for Proxmox task completion", "error", err)
 
@@ -1681,7 +1676,11 @@ func createBackups(mapVMContent map[uint64]string) {
 	}
 }
 
-func configureSSHKeys(vmNodes map[uint64]string) {
+func configureSSHKeys(parentCtx context.Context, vmNodes map[uint64]string) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	logger.Debug("Configuring SSH keys in worker")
 
 	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusPaused)}
@@ -1726,12 +1725,12 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			continue
 		}
 
-		node, err := getProxmoxNode(client, nodeName)
+		node, err := getProxmoxNode(parentCtx, client, nodeName)
 		if err != nil {
 			continue
 		}
 
-		vm, err := getProxmoxVM(node, int(v.ID))
+		vm, err := getProxmoxVM(parentCtx, node, int(v.ID))
 		if err != nil {
 			continue
 		}
@@ -1777,7 +1776,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			Value: cloudInitKeys,
 		}
 
-		isSuccessful, err := configureVM(vm, sshOption)
+		isSuccessful, err := configureVM(parentCtx, vm, sshOption)
 		if err != nil {
 			logger.Error("failed to set ssh keys on VM", "vmid", v.ID, "err", err)
 
@@ -1792,7 +1791,7 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		err = vm.RegenerateCloudInitImage(ctx)
 
 		cancel()
@@ -1812,7 +1811,11 @@ func configureSSHKeys(vmNodes map[uint64]string) {
 	lastConfigureSSHKeysTime = time.Now()
 }
 
-func enforceVMLifetimes() {
+func enforceVMLifetimes(parentCtx context.Context) {
+	if parentCtx.Err() != nil {
+		return
+	}
+
 	t := time.Now().AddDate(0, 3, 0) // 3 months from now
 
 	vms, err := db.GetVMsWithLifetimesLessThanAndStatusIN(t, []string{
@@ -1889,7 +1892,7 @@ func enforceVMLifetimes() {
 			// The VM expired, but less than 7 days ago, we send the last notification
 			// and stop the VM if it is running
 			if v.Status != string(VMStatusStopped) {
-				err := changeVMStatusBypass(v.ID, "stop")
+				err := changeVMStatusBypass(parentCtx, v.ID, "stop")
 				if err != nil {
 					vmFailedChangeStatus[v.ID] = time.Now()
 					logger.Error("failed to stop expired VM", "vmid", v.ID, "error", err)

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -16,8 +18,9 @@ type Config struct {
 }
 
 type Server struct {
-	Bind        string `toml:"bind"`
-	LogRequests bool   `toml:"log_requests"`
+	Bind            string        `toml:"bind"`
+	LogRequests     bool          `toml:"log_requests"`
+	ShutdownTimeout time.Duration `toml:"shutdown_timeout"`
 }
 
 type Database struct {

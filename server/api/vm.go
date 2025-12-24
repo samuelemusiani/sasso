@@ -215,7 +215,7 @@ func changeVMState(action string) http.HandlerFunc {
 
 		switch action {
 		case "start", "stop", "restart":
-			err = proxmox.ChangeVMStatus(ownerType, ownerID, userID, vm.ID, action)
+			err = proxmox.ChangeVMStatus(r.Context(), ownerType, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
 

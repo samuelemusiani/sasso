@@ -21,10 +21,6 @@ var (
 
 	emailClient *mail.Client
 
-	workerContext    context.Context
-	workerCancelFunc context.CancelFunc
-	workerReturnChan = make(chan error, 1)
-
 	bucketLimiter24hInstance *bucketLimiter
 	bucketLimiter1mInstance  *bucketLimiter
 )
@@ -81,40 +77,12 @@ func Init(l *slog.Logger, c config.Notifications) error {
 	return nil
 }
 
-func StartWorker() {
-	workerContext, workerCancelFunc = context.WithCancel(context.Background())
-
-	go func() {
-		workerReturnChan <- worker(workerContext)
-
-		close(workerReturnChan)
-	}()
-}
-
-func ShutdownWorker() error {
-	if workerCancelFunc == nil {
-		// If notifications are disabled
-		return nil
-	}
-
-	workerCancelFunc()
-
-	var err error
-	if workerReturnChan != nil {
-		err = <-workerReturnChan
-	}
-
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
-	}
-
-	return nil
-}
-
-func worker(ctx context.Context) error {
+func Worker(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		logger.Info("Notification worker shutting down before start")
+
+		return
 	case <-time.After(10 * time.Second):
 		// Just a small delay to let other components start
 	}
@@ -128,7 +96,7 @@ func worker(ctx context.Context) error {
 		case <-ctx.Done():
 			logger.Info("Notification worker shutting down")
 
-			return ctx.Err()
+			return
 		case <-time.After(timeToWait):
 			logger.Debug("Checking for new notifications to send")
 		}
