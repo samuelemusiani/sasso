@@ -16,17 +16,17 @@ import (
 )
 
 var (
-	logger *slog.Logger = nil
+	logger *slog.Logger
 	email  string
 
-	emailClient *mail.Client = nil
+	emailClient *mail.Client
 
 	workerContext    context.Context
 	workerCancelFunc context.CancelFunc
-	workerReturnChan chan error = make(chan error, 1)
+	workerReturnChan = make(chan error, 1)
 
-	bucketLimiter24hInstance *bucketLimiter = nil
-	bucketLimiter1mInstance  *bucketLimiter = nil
+	bucketLimiter24hInstance *bucketLimiter
+	bucketLimiter1mInstance  *bucketLimiter
 )
 
 const telegramAPIURL = "https://api.telegram.org/bot"
@@ -106,9 +106,9 @@ func ShutdownWorker() error {
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func worker(ctx context.Context) error {
@@ -201,17 +201,17 @@ func (n *notification) save() error {
 func sendEmail(n *notification) error {
 	if n.UserID == 0 {
 		return sendBulkEmail(n)
-	} else {
-		return sendSingleEmail(n)
 	}
+
+	return sendSingleEmail(n)
 }
 
 func sendTelegram(n *notification) error {
 	if n.UserID == 0 {
 		return sendBulkTelegram(n)
-	} else {
-		return sendSingleTelegram(n)
 	}
+
+	return sendSingleTelegram(n)
 }
 
 func sendSingleEmail(n *notification) error {
@@ -322,44 +322,36 @@ func sendTelegramMessage(bot *db.TelegramBot, text string) (err error) {
 
 	jsonMessage, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error("Failed to marshal telegram message", "error", err)
-
-		return err
+		return fmt.Errorf("error while marshaling telegram message: %w", err)
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonMessage))
 	if err != nil {
-		logger.Error("Failed to create telegram request", "error", err)
-
-		return err
+		return fmt.Errorf("error while creating telegram message request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Error("Failed to send telegram message", "error", err)
-
-		return err
+		return fmt.Errorf("error while sending telegram message: %w", err)
 	}
 
 	defer func() {
-		if e := resp.Body.Close(); e != nil {
-			err = fmt.Errorf("error while closing telegram response body: %w", e)
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing telegram response body: %w", closeErr)
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		logger.Error("Telegram API returned non-OK status", "status", resp.Status)
-
 		return fmt.Errorf("telegram API returned status: %s", resp.Status)
 	}
 
-	logger.Debug("Telegram message sent successfully", "to", bot.ChatID)
+	logger.Debug("telegram message sent successfully", "to", bot.ChatID)
 
-	return
+	return nil
 }
 
 func sendBulkTelegram(n *notification) error {

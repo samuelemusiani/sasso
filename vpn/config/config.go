@@ -37,7 +37,7 @@ type Firewall struct {
 	SassoZone string `toml:"sasso"`
 }
 
-var config Config = Config{}
+var config Config
 
 func Get() *Config {
 	return &config

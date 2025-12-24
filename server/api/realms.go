@@ -49,7 +49,7 @@ type UpdateLDAPRealm struct {
 	MailAttribute *string `json:"mail_attribute"`
 }
 
-func listRealms(w http.ResponseWriter, r *http.Request) {
+func listRealms(w http.ResponseWriter, _ *http.Request) {
 	realms, err := db.GetAllRealms()
 	if err != nil {
 		logger.Error("Failed to get realms", "error", err)

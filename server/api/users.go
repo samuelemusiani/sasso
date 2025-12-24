@@ -154,7 +154,7 @@ func whoami(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func internalListUsers(w http.ResponseWriter, r *http.Request) {
+func internalListUsers(w http.ResponseWriter, _ *http.Request) {
 	users, err := db.GetAllUsers()
 	if err != nil {
 		logger.Error("failed to get all users", "error", err)
@@ -346,13 +346,17 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 	userResources.GroupMaxDisk += groupRes.Disk
 	userResources.GroupMaxNets += groupRes.Nets
 
-	userResources.AllocatedCores, userResources.AllocatedRAM, userResources.AllocatedDisk, err = db.GetVMResourcesByUserID(userID)
+	allocatedResources, err := db.GetVMResourcesByUserID(userID)
 	if err != nil {
 		logger.Error("failed to get VM resources by user ID", "error", err)
 		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
 
 		return
 	}
+
+	userResources.AllocatedCores = allocatedResources.Cores
+	userResources.AllocatedRAM = allocatedResources.RAM
+	userResources.AllocatedDisk = allocatedResources.Disk
 
 	userResources.AllocatedNets, err = db.CountNetsByUserID(userID)
 	if err != nil {
@@ -362,13 +366,17 @@ func getUserResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userResources.ActiveVMsCores, userResources.ActiveVMsRAM, userResources.ActiveVMsDisk, err = db.GetResourcesActiveVMsByUserID(userID)
+	activeResources, err := db.GetResourcesActiveVMsByUserID(userID)
 	if err != nil {
 		logger.Error("failed to get active VM resources by user ID", "error", err)
 		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
 
 		return
 	}
+
+	userResources.ActiveVMsCores = activeResources.Cores
+	userResources.ActiveVMsRAM = activeResources.RAM
+	userResources.ActiveVMsDisk = activeResources.Disk
 
 	if err := json.NewEncoder(w).Encode(userResources); err != nil {
 		logger.Error("failed to encode resources to JSON", "error", err)

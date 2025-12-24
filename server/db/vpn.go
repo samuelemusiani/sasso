@@ -29,11 +29,11 @@ func GetVPNConfigByID(id uint) (*VPNConfig, error) {
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
-		} else {
-			logger.Error("Failed to retrieve VPN config by ID", "error", result.Error)
-
-			return nil, result.Error
 		}
+
+		logger.Error("Failed to retrieve VPN config by ID", "error", result.Error)
+
+		return nil, result.Error
 	}
 
 	return &vpnConfig, nil
@@ -59,11 +59,11 @@ func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
-		} else {
-			logger.Error("Failed to retrieve VPN config by IP", "error", result.Error)
-
-			return nil, result.Error
 		}
+
+		logger.Error("Failed to retrieve VPN config by IP", "error", result.Error)
+
+		return nil, result.Error
 	}
 
 	return &vpnConfig, nil

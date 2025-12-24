@@ -41,8 +41,6 @@ func NextAvailableAddress(subnet string) (string, error) {
 
 			return addr.String(), nil
 		}
-
-		println(addr.String())
 	}
 
 	return "", err

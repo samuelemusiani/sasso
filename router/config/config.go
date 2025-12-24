@@ -59,7 +59,7 @@ type ShorewallFirewallConfig struct {
 	PublicIP     string `toml:"public_ip"`
 }
 
-var config Config = Config{}
+var config Config
 
 func Get() *Config {
 	return &config

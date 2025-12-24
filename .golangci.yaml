@@ -92,7 +92,7 @@ linters:
     - protogetter
     - reassign
     - recvcheck
-    # - revive - Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
+    - revive #- Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
     - rowserrcheck
     - sloglint
     - spancheck
@@ -159,6 +159,44 @@ linters:
       case:
         rules:
           json: snake
+
+    revive:
+      enable-all-rules: true
+      enable-default-rules: true
+      rules:
+        - name: cognitive-complexity
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: file-length-limit
+          disabled: true
+        - name: function-length
+          disabled: true
+        - name: add-constant
+          disabled: true
+        - name: enforce-switch-style
+          arguments:
+            # Allow switch statements without a default case.
+            # This is needed as the linter does not recognize switches without
+            # any case statements (used for if-else chains).
+            - allowNoDefault
+        - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skip-package-name-checks: true
+        - name: use-any
+          # disable replacing interface{} with any as gorm needs interface{}
+          # for UpdateColumns
+          disabled: true
+        - name: max-public-structs
+          disabled: true
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.

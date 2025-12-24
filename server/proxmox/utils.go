@@ -145,9 +145,9 @@ func substituteVlanTag(iface string, vlanTag uint16) string {
 		if strings.HasPrefix(part, "tag=") {
 			if vlanTag == 0 {
 				continue // skip existing tag
-			} else {
-				part = fmt.Sprintf("tag=%d", vlanTag)
 			}
+
+			part = fmt.Sprintf("tag=%d", vlanTag)
 		}
 
 		newParts = append(newParts, part)

@@ -634,7 +634,13 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	if err := db.AddGroupResources(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets); err != nil {
+	err := db.AddGroupResources(group.ID, userID, db.ResourcesWithNets{
+		Cores: req.Cores,
+		RAM:   req.RAM,
+		Disk:  req.Disk,
+		Nets:  req.Nets,
+	})
+	if err != nil {
 		if errors.Is(err, db.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
 
@@ -683,7 +689,7 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		err        error
 	)
 
-	mc, mr, md, mn, err := db.GetGroupResourceLimits(group.ID)
+	maxResources, err := db.GetGroupResourceLimits(group.ID)
 	if err != nil {
 		logger.Error("failed to get group resource limits", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -691,12 +697,12 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gResources.MaxCores = mc
-	gResources.MaxRAM = mr
-	gResources.MaxDisk = md
-	gResources.MaxNets = mn
+	gResources.MaxCores = maxResources.Cores
+	gResources.MaxRAM = maxResources.RAM
+	gResources.MaxDisk = maxResources.Disk
+	gResources.MaxNets = maxResources.Nets
 
-	ac, ar, ad, err := db.GetVMResourcesByGroupID(group.ID)
+	allocatedResources, err := db.GetVMResourcesByGroupID(group.ID)
 	if err != nil {
 		logger.Error("failed to get VM resources by group ID", "error", err)
 		http.Error(w, "Failed to get VM resources", http.StatusInternalServerError)
@@ -704,9 +710,9 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gResources.AllocatedCores = ac
-	gResources.AllocatedRAM = ar
-	gResources.AllocatedDisk = ad
+	gResources.AllocatedCores = allocatedResources.Cores
+	gResources.AllocatedRAM = allocatedResources.RAM
+	gResources.AllocatedDisk = allocatedResources.Disk
 
 	gResources.AllocatedNets, err = db.CountNetsByGroupID(group.ID)
 	if err != nil {
@@ -716,7 +722,7 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ac, ar, ad, err = db.GetResourcesActiveVMsByGroupID(group.ID)
+	activeResources, err := db.GetResourcesActiveVMsByGroupID(group.ID)
 	if err != nil {
 		logger.Error("failed to get active VM resources by group ID", "error", err)
 		http.Error(w, "Failed to get active VM resources", http.StatusInternalServerError)
@@ -724,9 +730,9 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gResources.ActiveVMsCores = ac
-	gResources.ActiveVMsRAM = ar
-	gResources.ActiveVMsDisk = ad
+	gResources.ActiveVMsCores = activeResources.Cores
+	gResources.ActiveVMsRAM = activeResources.RAM
+	gResources.ActiveVMsDisk = activeResources.Disk
 
 	if err := json.NewEncoder(w).Encode(gResources); err != nil {
 		logger.Error("failed to encode resources to JSON", "error", err)
@@ -736,7 +742,7 @@ func getGroupResources(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func adminListGroups(w http.ResponseWriter, r *http.Request) {
+func adminListGroups(w http.ResponseWriter, _ *http.Request) {
 	groups, err := db.GetAllGroups()
 	if err != nil {
 		http.Error(w, "Failed to retrieve groups", http.StatusInternalServerError)

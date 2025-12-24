@@ -10,13 +10,13 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	gorm_logger "gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 	"samuelemusiani/sasso/server/config"
 )
 
 var (
-	db     *gorm.DB     = nil
-	logger *slog.Logger = nil
+	db     *gorm.DB
+	logger *slog.Logger
 
 	ErrNotFound              = errors.New("record not found")
 	ErrForbidden             = errors.New("forbidden")
@@ -39,11 +39,11 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	logger.Debug("Connecting to database", "url", url)
 
 	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
-		Logger: gorm_logger.New(
+		Logger: gormlogger.New(
 			log.New(os.Stdout, "\r\n", log.LstdFlags),
-			gorm_logger.Config{
+			gormlogger.Config{
 				SlowThreshold:             time.Second,
-				LogLevel:                  gorm_logger.Error,
+				LogLevel:                  gormlogger.Error,
 				IgnoreRecordNotFoundError: true,
 				Colorful:                  true,
 			},
@@ -231,21 +231,23 @@ func applyFixes() error {
 		var adminSettings Setting
 
 		err = tx.Where(&Setting{UserID: adminID}).First(&adminSettings).Error
+		if err == nil {
+			return nil
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("Failed to find admin user settings during fixes application", "error", err)
+
+			return err
+		}
+
+		logger.Info("Admin user has no settings, creating default settings", "userID", adminID)
+
+		err = createDefaultSettingsForUserTransaction(tx, adminID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				logger.Info("Admin user has no settings, creating default settings", "userID", adminID)
+			logger.Error("Failed to create default settings for admin user during fixes application", "error", err)
 
-				err = createDefaultSettingsForUserTransaction(tx, adminID)
-				if err != nil {
-					logger.Error("Failed to create default settings for admin user during fixes application", "error", err)
-
-					return err
-				}
-			} else {
-				logger.Error("Failed to find admin user settings during fixes application", "error", err)
-
-				return err
-			}
+			return err
 		}
 
 		return nil

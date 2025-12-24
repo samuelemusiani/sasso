@@ -124,7 +124,7 @@ func deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func getGlobalSSHKeys(w http.ResponseWriter, r *http.Request) {
+func getGlobalSSHKeys(w http.ResponseWriter, _ *http.Request) {
 	keys, err := db.GetGlobalSSHKeys()
 	if err != nil {
 		logger.Error("Failed to get global SSH keys", "error", err)

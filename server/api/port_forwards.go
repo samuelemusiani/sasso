@@ -336,7 +336,7 @@ func approvePortForward(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
+func listAllPortForwards(w http.ResponseWriter, _ *http.Request) {
 	portForwards, err := db.GetPortForwardsWithNames()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)
@@ -352,7 +352,7 @@ func listAllPortForwards(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func internalListProtForwards(w http.ResponseWriter, r *http.Request) {
+func internalListProtForwards(w http.ResponseWriter, _ *http.Request) {
 	portForwards, err := db.GetApprovedPortForwards()
 	if err != nil {
 		http.Error(w, "Failed to get port forwards", http.StatusInternalServerError)

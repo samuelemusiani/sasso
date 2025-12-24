@@ -59,7 +59,25 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	vm, err := proxmox.NewVM(userID, req.GroupID, req.Name, req.Notes, req.Cores, req.RAM, req.Disk, req.LifeTime, req.IncludeGlobalSSHKeys)
+	newVMRequest := proxmox.NewVMRequest{
+		Name:                 req.Name,
+		Notes:                req.Notes,
+		Cores:                req.Cores,
+		RAM:                  req.RAM,
+		Disk:                 req.Disk,
+		LifeTime:             req.LifeTime,
+		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
+	}
+
+	ownerID := userID
+	ownerType := proxmox.OwnerTypeUser
+
+	if req.GroupID != nil {
+		ownerID = *req.GroupID
+		ownerType = proxmox.OwnerTypeGroup
+	}
+
+	vm, err := proxmox.NewVM(ownerType, ownerID, userID, newVMRequest)
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrInsufficientResources):
@@ -105,11 +123,11 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	vmID := vm.ID
 
 	ownerID := userID
-	isGroup := false
+	owerType := proxmox.OwnerTypeUser
 
 	if vm.OwnerType == "Group" {
 		ownerID = vm.OwnerID
-		isGroup = true
+		owerType = proxmox.OwnerTypeGroup
 	}
 
 	m := getVMMutex(uint(vmID))
@@ -136,7 +154,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	m2.Lock()
 	defer m2.Unlock()
 
-	if err := proxmox.DeleteVM(isGroup, ownerID, userID, vm.ID); err != nil {
+	if err := proxmox.DeleteVM(owerType, ownerID, userID, vm.ID); err != nil {
 		logger.Error("Failed to delete VM", "userID", userID, "vmID", vmID, "error", err)
 
 		switch {
@@ -167,11 +185,11 @@ func changeVMState(action string) http.HandlerFunc {
 		}
 
 		ownerID := userID
-		isGroup := false
+		ownerType := proxmox.OwnerTypeUser
 
 		if vm.OwnerType == "Group" {
 			ownerID = vm.OwnerID
-			isGroup = true
+			ownerType = proxmox.OwnerTypeGroup
 		}
 
 		m := getVMMutex(uint(vmID))
@@ -197,7 +215,7 @@ func changeVMState(action string) http.HandlerFunc {
 
 		switch action {
 		case "start", "stop", "restart":
-			err = proxmox.ChangeVMStatus(isGroup, ownerID, userID, vm.ID, action)
+			err = proxmox.ChangeVMStatus(ownerType, ownerID, userID, vm.ID, action)
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
 

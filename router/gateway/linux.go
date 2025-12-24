@@ -116,7 +116,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	}, nil
 }
 
-func (lg *LinuxGateway) RemoveInterface(id uint) error {
+func (*LinuxGateway) RemoveInterface(id uint) error {
 	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(id)}})
 	if err != nil && !errors.Is(err, unix.ENODEV) {
 		logger.Error("Failed to remove VxLAN interface", "error", err, "id", id)
@@ -128,7 +128,7 @@ func (lg *LinuxGateway) RemoveInterface(id uint) error {
 }
 
 // VerifyInterface returns True if interface is verified, false otherwise
-func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
+func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 
 	// not present, inconsistent

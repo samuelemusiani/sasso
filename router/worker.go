@@ -42,8 +42,8 @@ func worker(logger *slog.Logger, conf config.Server) {
 		panic("Gateway not initialized")
 	}
 
-	fw := fw.Get()
-	if fw == nil {
+	firewall := fw.Get()
+	if firewall == nil {
 		panic("Firewall not initialized")
 	}
 
@@ -53,7 +53,7 @@ func worker(logger *slog.Logger, conf config.Server) {
 			logger.Error("failed to verify VNets", "error", err)
 		}
 
-		err = checkPortForwards(logger, fw)
+		err = checkPortForwards(logger, firewall)
 		if err != nil {
 			logger.Error("failed to verify port forwards", "error", err)
 		}
@@ -89,12 +89,12 @@ func worker(logger *slog.Logger, conf config.Server) {
 			continue
 		}
 
-		err = deletePortForwards(logger, fw, portForwards)
+		err = deletePortForwards(logger, firewall, portForwards)
 		if err != nil {
 			logger.Error("failed to delete port forwards", "error", err)
 		}
 
-		err = createPortForwards(logger, fw, portForwards)
+		err = createPortForwards(logger, firewall, portForwards)
 		if err != nil {
 			logger.Error("failed to create port forwards", "error", err)
 		}

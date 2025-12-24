@@ -19,19 +19,19 @@ type SSHKey struct {
 
 var lastSSHKeyTableUpdate time.Time = time.Time{}
 
-func (s *SSHKey) AfterUpdate(tx *gorm.DB) (err error) {
+func (*SSHKey) AfterUpdate(_ *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
 
 	return nil
 }
 
-func (s *SSHKey) AfterCreate(tx *gorm.DB) (err error) {
+func (*SSHKey) AfterCreate(_ *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
 
 	return nil
 }
 
-func (s *SSHKey) AfterDelete(tx *gorm.DB) (err error) {
+func (*SSHKey) AfterDelete(_ *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()
 
 	return nil

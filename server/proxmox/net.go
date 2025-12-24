@@ -137,7 +137,7 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	var nets []db.Net
 
 	if groupID != nil {
-		_, _, _, maxNets, err := db.GetGroupResourceLimits(*groupID)
+		res, err := db.GetGroupResourceLimits(*groupID)
 		if err != nil {
 			logger.Error("Failed to get group resources by group ID", "groupID", *groupID, "error", err)
 
@@ -151,7 +151,7 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 			return nil, err
 		}
 
-		if len(nets)+1 > int(maxNets) {
+		if len(nets)+1 > int(res.Nets) {
 			return nil, ErrInsufficientResources
 		}
 	} else {
@@ -269,16 +269,17 @@ func DeleteNet(userID uint, netID uint) error {
 	return nil
 }
 
+//nolint:revive // vlanware is fine here, we're not considering it as a control flag.
 func UpdateNet(userID, vnetID uint, name string, vlanware bool) error {
 	net, err := db.GetNetByID(vnetID)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			return ErrVNetNotFound
-		} else {
-			logger.Error("Failed to get net by ID", "userID", userID, "vnetID", vnetID, "error", err)
-
-			return err
 		}
+
+		logger.Error("Failed to get net by ID", "userID", userID, "vnetID", vnetID, "error", err)
+
+		return err
 	}
 
 	switch net.OwnerType {

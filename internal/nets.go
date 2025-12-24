@@ -3,7 +3,6 @@ package internal
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -17,63 +16,64 @@ func FetchNets(endpoint, secret string) (nets []Net, err error) {
 
 	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/net", nil)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to create request to fetch nets status"))
+		return nil, fmt.Errorf("failed to create request to fetch nets: %w", err)
 	}
 
-	auth.AddAuthToRequest(req, secret)
+	req = auth.AddAuthToRequest(req, secret)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to perform request to fetch nets status"))
+		return nil, fmt.Errorf("failed to perform request to fetch nets: %w", err)
 	}
 
 	defer func() {
-		if e := res.Body.Close(); e != nil {
-			err = fmt.Errorf("error while closing request body: %w", e)
+		// Checking for nil err to avoid overwriting previous errors
+		if closeErr := res.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing request body: %w", closeErr)
 		}
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.Join(err, fmt.Errorf("failed to fetch nets status: non-200 status code. %s", res.Status))
+		return nil, fmt.Errorf("failed to fetch nets: non-200 status code. %s", res.Status)
 	}
 
 	err = json.NewDecoder(res.Body).Decode(&nets)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to decode nets status"))
+		return nil, fmt.Errorf("failed to decode nets response: %w", err)
 	}
 
-	return
+	return nets, nil
 }
 
 func UpdateNet(endpoint, secret string, net Net) (err error) {
 	body, err := json.Marshal(net)
 	if err != nil {
-		return errors.Join(err, errors.New("failed to marshal net update"))
+		return fmt.Errorf("failed to marshal net data: %w", err)
 	}
 
 	client := http.Client{Timeout: 10 * time.Second}
 
 	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/net/"+strconv.FormatUint(uint64(net.ID), 10), bytes.NewBuffer(body))
 	if err != nil {
-		return errors.Join(err, errors.New("failed to create request to fetch net status"))
+		return fmt.Errorf("failed to create request to update net: %w", err)
 	}
 
-	auth.AddAuthToRequest(req, secret)
+	req = auth.AddAuthToRequest(req, secret)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return errors.Join(err, errors.New("failed to perform request to fetch net status"))
+		return fmt.Errorf("failed to perform request to update net: %w", err)
 	}
 
 	defer func() {
-		if e := res.Body.Close(); e != nil {
-			err = fmt.Errorf("error while closing request body: %w", e)
+		if closeErr := res.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing request body: %w", closeErr)
 		}
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return errors.Join(err, fmt.Errorf("failed to update net: non-200 status code. %s", res.Status))
+		return fmt.Errorf("failed to update net: non-200 status code. %s", res.Status)
 	}
 
-	return
+	return nil
 }

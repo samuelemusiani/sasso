@@ -105,11 +105,11 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
 
 				return
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-
-				return
 			}
+
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+			return
 		}
 
 		if role == "member" {
@@ -261,11 +261,11 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "group not found or user not in group", http.StatusBadRequest)
 
 				return
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-
-				return
 			}
+
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+			return
 		}
 
 		if role == "member" {

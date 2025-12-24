@@ -69,8 +69,21 @@ type VM struct {
 	GroupRole string `json:"group_role,omitempty"`
 }
 
-func convertDBVMToVM(dbVM *db.VM, groupID *uint, groupName, groupRole *string) *VM {
-	vm := &VM{
+type NewVMRequest struct {
+	Name                 string
+	Notes                string
+	Cores                uint
+	RAM                  uint
+	Disk                 uint
+	LifeTime             uint
+	IncludeGlobalSSHKeys bool
+}
+
+// convertDBVMToVM converts a db.VM to a VM.
+// If groupID, groupName, and groupRole want to be set,
+// use [convertDBVMToVMForGroup].
+func convertDBVMToVM(dbVM *db.VM) *VM {
+	return &VM{
 		ID:                   dbVM.ID,
 		CreatedAt:            dbVM.CreatedAt,
 		Status:               dbVM.Status,
@@ -84,12 +97,14 @@ func convertDBVMToVM(dbVM *db.VM, groupID *uint, groupName, groupRole *string) *
 		OwnerID:              dbVM.OwnerID,
 		OwnerType:            dbVM.OwnerType,
 	}
+}
 
-	if groupID != nil && groupName != nil && groupRole != nil {
-		vm.GroupID = *groupID
-		vm.GroupName = *groupName
-		vm.GroupRole = *groupRole
-	}
+// convertDBVMToVMForGroup converts a db.VM to a VM and sets the group-related fields.
+func convertDBVMToVMForGroup(dbVM *db.VM, groupID uint, groupName, groupRole string) *VM {
+	vm := convertDBVMToVM(dbVM)
+	vm.GroupID = groupID
+	vm.GroupName = groupName
+	vm.GroupRole = groupRole
 
 	return vm
 }
@@ -104,7 +119,7 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 
 	vms := make([]VM, 0, len(dbVM))
 	for _, vm := range dbVM {
-		vms = append(vms, *convertDBVMToVM(&vm, nil, nil, nil))
+		vms = append(vms, *convertDBVMToVM(&vm))
 	}
 
 	groups, err := db.GetGroupsByUserID(userID)
@@ -130,7 +145,7 @@ func GetVMsByUserID(userID uint) ([]VM, error) {
 		}
 
 		for i := range gvms {
-			vms = append(vms, *convertDBVMToVM(&gvms[i], &g.ID, &g.Name, &role))
+			vms = append(vms, *convertDBVMToVMForGroup(&gvms[i], g.ID, g.Name, role))
 		}
 	}
 
@@ -148,11 +163,6 @@ func GetVMByID(vmid uint64, userID uint) (*VM, error) {
 
 		return nil, err
 	}
-
-	var (
-		groupID         *uint
-		groupName, role *string
-	)
 
 	if dbVM.OwnerType == "Group" {
 		group, err := db.GetGroupByID(dbVM.OwnerID)
@@ -173,27 +183,24 @@ func GetVMByID(vmid uint64, userID uint) (*VM, error) {
 			return nil, err
 		}
 
-		groupID = &group.ID
-		groupName = &group.Name
-		role = &r
+		return convertDBVMToVMForGroup(dbVM, group.ID, group.Name, r), nil
 	}
 
-	return convertDBVMToVM(dbVM, groupID, groupName, role), nil
+	return convertDBVMToVM(dbVM), nil
 }
 
 // Generate a full VM ID based on the user ID and VM user ID.
-func generateFullVMID(group bool, ownerID uint, vmOwnerID uint) (uint64, error) {
+func generateFullVMID(ownerType OwnerType, ownerID uint, vmOwnerID uint) (uint64, error) {
 	groupBit := 0
-	if group {
+	if ownerType == OwnerTypeGroup {
 		groupBit = 1
 	}
 
 	svmid := fmt.Sprintf("%d%0*d%0*d", groupBit, cClone.VMIDUserDigits, ownerID, cClone.VMIDVMDigits, vmOwnerID)
-
 	svmid = strings.Replace(cClone.IDTemplate, "{{vmid}}", svmid, 1)
 
 	if len(svmid) < 3 || len(svmid) > 9 {
-		logger.Error("Invalid clone ID template length", "length", len(svmid), "vmid", svmid, "group", group, "ownerID", ownerID, "vmOwnerID", vmOwnerID)
+		logger.Error("Invalid clone ID template length", "length", len(svmid), "vmid", svmid, "group", ownerType == OwnerTypeGroup, "ownerID", ownerID, "vmOwnerID", vmOwnerID)
 
 		return 0, fmt.Errorf("invalid clone ID template length: %d", len(svmid))
 	}
@@ -206,29 +213,41 @@ func generateFullVMID(group bool, ownerID uint, vmOwnerID uint) (uint64, error) 
 	return vmid, nil
 }
 
-func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ram uint, disk uint, lifeTime uint, includeGlobalSSHKeys bool) (*VM, error) {
-	l := logger.With("userID", userID, "vmName", name)
-	if groupID != nil {
-		l = logger.With("groupID", *groupID)
+// NewVM creates a new virtual machine for a user or group.
+//
+// ownerType indicates whether the VM is for a user or a group.
+// ownerID is the ID of the user or group that will own the VM.
+// userID is the ID of the user requesting the VM creation.
+// req contains the parameters for the new VM.
+//
+// If ownerType is OwnerTypeUser, ownerID and userID must be the same.
+func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*VM, error) {
+	if ownerType == OwnerTypeUser && ownerID != userID {
+		panic("ownerID and userID must be the same for OwnerTypeUser in NewVM")
 	}
 
-	if !vmNameRegex.MatchString(name) || len(name) > 16 {
+	l := logger.With("userID", userID, "vmName", req.Name)
+	if ownerType == OwnerTypeGroup {
+		l = logger.With("groupID", ownerID)
+	}
+
+	if !vmNameRegex.MatchString(req.Name) || len(req.Name) > 16 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
 	}
 
-	if cores < vmMinCores {
+	if req.Cores < vmMinCores {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("cores must be at least 1"))
 	}
 
-	if ram < vmMinRAM {
+	if req.RAM < vmMinRAM {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
 	}
 
-	if disk < VMCloneDiskSizeGB {
+	if req.Disk < VMCloneDiskSizeGB {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
 	}
 
-	if !slices.Contains(vmLifeTimes, lifeTime) {
+	if !slices.Contains(vmLifeTimes, req.LifeTime) {
 		err := fmt.Errorf("lifetime must be one of the following values: %v", vmLifeTimes)
 
 		return nil, errors.Join(ErrInvalidVMParam, err)
@@ -242,20 +261,20 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 	}
 
 	var group *db.Group
-	if groupID != nil {
-		group, err = db.GetGroupByID(*groupID)
+	if ownerType == OwnerTypeGroup {
+		group, err = db.GetGroupByID(ownerID)
 		if err != nil {
-			logger.Error("Failed to get group from database", "groupID", *groupID, "error", err)
+			logger.Error("Failed to get group from database", "groupID", ownerID, "error", err)
 
 			return nil, err
 		}
 	}
 
 	var exists bool
-	if group != nil {
-		exists, err = db.ExistsVMWithGroupIDAndName(*groupID, name)
+	if ownerType == OwnerTypeGroup {
+		exists, err = db.ExistsVMWithGroupIDAndName(ownerID, req.Name)
 	} else {
-		exists, err = db.ExistsVMWithUserIDAndName(userID, name)
+		exists, err = db.ExistsVMWithUserIDAndName(userID, req.Name)
 	}
 
 	if err != nil {
@@ -266,12 +285,11 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("vm name already exists"))
 	}
 
-	var currentCores, currentRAM, currentDisk uint
-
-	if group != nil {
-		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByGroupID(*groupID)
+	var currentResources db.Resources
+	if ownerType == OwnerTypeGroup {
+		currentResources, err = db.GetVMResourcesByGroupID(ownerID)
 	} else {
-		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByUserID(userID)
+		currentResources, err = db.GetVMResourcesByUserID(userID)
 	}
 
 	if err != nil {
@@ -280,33 +298,37 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, err
 	}
 
-	var maxCores, maxRAM, maxDisk uint
-	if group != nil {
-		maxCores, maxRAM, maxDisk, _, err = db.GetGroupResourceLimits(*groupID)
+	var maxResources db.ResourcesWithNets
+	if ownerType == OwnerTypeGroup {
+		maxResources, err = db.GetGroupResourceLimits(ownerID)
 		if err != nil {
-			l.Error("Failed to get group resource limits from database", "groupID", *groupID, "error", err)
+			l.Error("Failed to get group resource limits from database", "groupID", ownerID, "error", err)
 
 			return nil, err
 		}
 	} else {
-		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
+		maxResources = db.ResourcesWithNets{
+			Cores: user.MaxCores,
+			RAM:   user.MaxRAM,
+			Disk:  user.MaxDisk,
+		}
 	}
 
-	if currentCores+cores > maxCores {
+	if currentResources.Cores+req.Cores > maxResources.Cores {
 		return nil, ErrInsufficientResources
 	}
 
-	if currentRAM+ram > maxRAM {
+	if currentResources.RAM+req.RAM > maxResources.RAM {
 		return nil, ErrInsufficientResources
 	}
 
-	if currentDisk+disk > maxDisk {
+	if currentResources.Disk+req.Disk > maxResources.Disk {
 		return nil, ErrInsufficientResources
 	}
 
 	var ids []uint
-	if group != nil {
-		ids, err = db.GetAllVMsIDsByGroupID(*groupID)
+	if ownerType == OwnerTypeGroup {
+		ids, err = db.GetAllVMsIDsByGroupID(ownerID)
 	} else {
 		ids, err = db.GetAllVMsIDsByUserID(userID)
 	}
@@ -319,23 +341,32 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 
 	uniqueOwnerID := getLastUsedUniqueOwnerIDInVMs(ids) + 1
 
-	ownerID := userID
-	if group != nil {
-		ownerID = *groupID
-	}
-
-	VMID, err := generateFullVMID(group != nil, ownerID, uniqueOwnerID)
+	vmid, err := generateFullVMID(ownerType, ownerID, uniqueOwnerID)
 	if err != nil {
 		l.Error("Failed to generate full VM ID", "error", err)
 
 		return nil, err
 	}
 
+	lifeTime := time.Now().AddDate(0, int(req.LifeTime), 0)
+
+	dbNewVMRequest := db.NewVMRequest{
+		ID:                   vmid,
+		Status:               string(VMStatusPreCreating),
+		Name:                 req.Name,
+		Notes:                req.Notes,
+		Cores:                req.Cores,
+		RAM:                  req.RAM,
+		Disk:                 req.Disk,
+		LifeTime:             lifeTime,
+		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
+	}
+
 	var dbVM *db.VM
-	if group != nil {
-		dbVM, err = db.NewVMForGroup(VMID, *groupID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
+	if ownerType == OwnerTypeGroup {
+		dbVM, err = db.NewVMForGroup(dbNewVMRequest, ownerID)
 	} else {
-		dbVM, err = db.NewVMForUser(VMID, userID, string(VMStatusPreCreating), name, notes, cores, ram, disk, time.Now().AddDate(0, int(lifeTime), 0), includeGlobalSSHKeys)
+		dbVM, err = db.NewVMForUser(dbNewVMRequest, ownerID)
 	}
 
 	if err != nil {
@@ -344,9 +375,9 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 		return nil, err
 	}
 
-	var groupName, role *string
-	if group != nil {
-		groupName = &group.Name
+	var groupName, role string
+	if ownerType == OwnerTypeGroup {
+		groupName = group.Name
 
 		r, err := db.GetUserRoleInGroup(userID, group.ID)
 		if err != nil {
@@ -355,22 +386,41 @@ func NewVM(userID uint, groupID *uint, name string, notes string, cores uint, ra
 			return nil, err
 		}
 
-		role = &r
+		role = r
 	}
 
-	return convertDBVMToVM(dbVM, groupID, groupName, role), nil
+	if ownerType == OwnerTypeGroup {
+		return convertDBVMToVMForGroup(dbVM, ownerID, groupName, role), nil
+	}
+
+	return convertDBVMToVM(dbVM), nil
 }
 
-func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
+// DeleteVM deletes a virtual machine.
+//
+// ownerType indicates whether the VM belongs to a user or a group.
+// ownerID is the ID of the user or group that owns the VM.
+// userID is the ID of the user requesting the deletion.
+// vmID is the ID of the virtual machine to delete.
+//
+// If the VM belongs to a user, userID and ownerID must be the same.
+func DeleteVM(ownerType OwnerType, ownerID, userID uint, vmID uint64) error {
+	if ownerType == OwnerTypeUser && ownerID != userID {
+		panic("ownerID and userID must be the same for OwnerTypeUser in DeleteVM")
+	}
+
 	var (
 		err error
 		vm  *db.VM
 	)
 
-	if group {
+	switch ownerType {
+	case OwnerTypeGroup:
 		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
-	} else {
+	case OwnerTypeUser:
 		vm, err = db.GetVMByUserIDAndVMID(userID, vmID)
+	default:
+		return fmt.Errorf("invalid owner type: %v", ownerType)
 	}
 
 	if err != nil {
@@ -378,14 +428,14 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 			logger.Warn("VM not found for deletion", "userID", userID, "vmID", vmID)
 
 			return ErrVMNotFound
-		} else {
-			logger.Error("Failed to get VM from database for deletion", "userID", userID, "vmID", vmID, "error", err)
-
-			return err
 		}
+
+		logger.Error("Failed to get VM from database for deletion", "userID", userID, "vmID", vmID, "error", err)
+
+		return err
 	}
 
-	if group {
+	if ownerType == OwnerTypeGroup {
 		role, err := db.GetUserRoleInGroup(userID, ownerID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -399,7 +449,7 @@ func DeleteVM(group bool, ownerID, userID uint, vmID uint64) error {
 			return err
 		}
 
-		if group && role != "admin" && role != "owner" {
+		if ownerType == OwnerTypeGroup && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
 	}
@@ -436,11 +486,11 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 			logger.Warn("VM not found for changing status", "vmID", vmID)
 
 			return ErrVMNotFound
-		} else {
-			logger.Error("Failed to get VM from database for changing status", "vmID", vmID, "error", err)
-
-			return err
 		}
+
+		logger.Error("Failed to get VM from database for changing status", "vmID", vmID, "error", err)
+
+		return err
 	}
 
 	switch action {
@@ -520,15 +570,21 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
-	var task *goprox.Task
+	var (
+		task     *goprox.Task
+		vmStatus VMStatus
+	)
 
 	switch action {
 	case "start":
 		task, err = vmr.Start(ctx)
+		vmStatus = VMStatusRunning
 	case "stop":
 		task, err = vmr.Stop(ctx)
+		vmStatus = VMStatusStopped
 	case "restart":
 		task, err = vmr.Reset(ctx)
+		vmStatus = VMStatusRunning
 	}
 
 	cancel()
@@ -552,17 +608,6 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 		return ErrTaskFailed
 	}
 
-	var vmStatus VMStatus
-
-	switch action {
-	case "start":
-		vmStatus = VMStatusRunning
-	case "stop":
-		vmStatus = VMStatusStopped
-	case "restart":
-		vmStatus = VMStatusRunning
-	}
-
 	if err := db.UpdateVMStatus(vmID, string(vmStatus)); err != nil {
 		logger.Error("Failed to update VM status from database", "vmID", vmID, "error", err)
 
@@ -574,14 +619,26 @@ func changeVMStatusBypass(vmID uint64, action string) error {
 	return nil
 }
 
-// ChangeVMStatus change status of a VM. If the VM belongs to a user, userID and ownerID are the same.
-func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string) error {
+// ChangeVMStatus changes the status of a virtual machine.
+//
+// ownerType indicates whether the VM belongs to a user or a group.
+// ownerID is the ID of the user or group that owns the VM.
+// userID is the ID of the user requesting the change.
+// vmID is the ID of the virtual machine.
+// action is the action to perform: "start", "stop", or "restart".
+//
+// If the VM belongs to a user, userID and ownerID must be the same.
+func ChangeVMStatus(ownerType OwnerType, ownerID uint, userID uint, vmID uint64, action string) error {
+	if ownerType == OwnerTypeUser && ownerID != userID {
+		panic("ownerID and userID must be the same for OwnerTypeUser in ChangeVMStatus")
+	}
+
 	var (
 		err error
 		vm  *db.VM
 	)
 
-	if group {
+	if ownerType == OwnerTypeGroup {
 		vm, err = db.GetVMByGroupIDAndVMID(ownerID, vmID)
 	} else {
 		vm, err = db.GetVMByUserIDAndVMID(ownerID, vmID)
@@ -589,17 +646,17 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", group)
+			logger.Warn("VM not found for changing status", "ownerID", ownerID, "vmID", vmID, "group", ownerType == OwnerTypeGroup)
 
 			return ErrVMNotFound
-		} else {
-			logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
-
-			return err
 		}
+
+		logger.Error("Failed to get VM from database for changing status", "userID", userID, "vmID", vmID, "error", err)
+
+		return err
 	}
 
-	if group {
+	if ownerType == OwnerTypeGroup {
 		role, err := db.GetUserRoleInGroup(userID, ownerID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -613,7 +670,7 @@ func ChangeVMStatus(group bool, ownerID, userID uint, vmID uint64, action string
 			return err
 		}
 
-		if group && role != "admin" && role != "owner" {
+		if ownerType == OwnerTypeGroup && role != "admin" && role != "owner" {
 			return ErrPermissionDenied
 		}
 	}
@@ -717,12 +774,12 @@ func UpdateVMLifetime(vmid uint64, extendBy uint) error {
 // IMPORTANT: this function *panics* if the clone ID template is invalid.
 func getLastUsedUniqueOwnerIDInVMs(ids []uint) uint {
 	// like 600{{vmid}} or 60{{vmid}}0
-	first := strings.Index("60{{vmid}}", "{{vmid}}") //3
+	first := strings.Index("60{{vmid}}", "{{vmid}}") // 3
 	if first == -1 {
 		panic("invalid clone ID template")
 	}
 
-	var maxID uint = 0
+	var maxID uint
 
 	for _, id := range ids {
 		sid := strconv.Itoa(int(id))
@@ -800,7 +857,7 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 		return ErrInvalidVMState
 	}
 
-	var group *db.Group = nil
+	var group *db.Group
 	if vm.OwnerType == "Group" {
 		group, err = db.GetGroupByID(vm.OwnerID)
 		if err != nil {
@@ -810,16 +867,16 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 		}
 	}
 
-	var currentCores, currentRAM, currentDisk uint
+	var currentResources db.Resources
 	if group != nil {
-		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByGroupID(group.ID)
+		currentResources, err = db.GetVMResourcesByGroupID(group.ID)
 		if err != nil {
 			logger.Error("Failed to get current VM resources from database for group", "groupID", group.ID, "error", err)
 
 			return err
 		}
 	} else {
-		currentCores, currentRAM, currentDisk, err = db.GetVMResourcesByUserID(vm.OwnerID)
+		currentResources, err = db.GetVMResourcesByUserID(vm.OwnerID)
 		if err != nil {
 			logger.Error("Failed to get current VM resources from database for user", "userID", vm.OwnerID, "error", err)
 
@@ -827,9 +884,9 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 		}
 	}
 
-	var maxCores, maxRAM, maxDisk uint
+	var maxResources db.ResourcesWithNets
 	if group != nil {
-		maxCores, maxRAM, maxDisk, _, err = db.GetGroupResourceLimits(group.ID)
+		maxResources, err = db.GetGroupResourceLimits(group.ID)
 		if err != nil {
 			logger.Error("Failed to get group resource limits from database", "groupID", group.ID, "error", err)
 
@@ -843,12 +900,16 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 			return err
 		}
 
-		maxCores, maxRAM, maxDisk = user.MaxCores, user.MaxRAM, user.MaxDisk
+		maxResources = db.ResourcesWithNets{
+			Cores: user.MaxCores,
+			RAM:   user.MaxRAM,
+			Disk:  user.MaxDisk,
+		}
 	}
 
-	if currentCores-vm.Cores+cores > maxCores ||
-		currentRAM-vm.RAM+ram > maxRAM ||
-		currentDisk-vm.Disk+disk > maxDisk {
+	if currentResources.Cores-vm.Cores+cores > maxResources.Cores ||
+		currentResources.RAM-vm.RAM+ram > maxResources.RAM ||
+		currentResources.Disk-vm.Disk+disk > maxResources.Disk {
 		return ErrInsufficientResources
 	}
 

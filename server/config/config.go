@@ -105,7 +105,7 @@ type VPN struct {
 	MaxProfilesPerUser uint `toml:"max_profiles_per_user"`
 }
 
-var config Config = Config{}
+var config Config
 
 func Get() *Config {
 	return &config

@@ -53,7 +53,7 @@ func mustGetUserIDFromContext(r *http.Request) uint {
 // AdminAuthenticator is an authentication middleware to enforce access from the
 // Verifier middleware request context values. The Authenticator sends a 401 Unauthorized
 // response for any unverified tokens and passes the good ones through.
-func AdminAuthenticator(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
+func AdminAuthenticator() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			token, claims, err := jwtauth.FromContext(r.Context())

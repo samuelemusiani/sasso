@@ -18,10 +18,10 @@ import (
 )
 
 var (
-	c      *config.Wireguard = nil
-	logger *slog.Logger      = nil
+	c      *config.Wireguard
+	logger *slog.Logger
 
-	fileTemplate string = `[Interface]
+	fileTemplate = `[Interface]
 Address = %s
 PrivateKey = %s
 
@@ -31,7 +31,7 @@ Endpoint = %s
 AllowedIps = %s, %s`
 )
 
-func Init(l *slog.Logger, config *config.Wireguard) error {
+func Init(l *slog.Logger, conf *config.Wireguard) error {
 	// As executeCommand requires logger, set it first
 	logger = l
 
@@ -41,39 +41,39 @@ func Init(l *slog.Logger, config *config.Wireguard) error {
 		return fmt.Errorf("wg command not found or not executable: %w, stderr: %s", err, stderr)
 	}
 
-	err = checkConfig(config)
+	err = checkConfig(conf)
 	if err != nil {
 		return err
 	}
 
-	c = config
+	c = conf
 
 	return nil
 }
 
-func checkConfig(config *config.Wireguard) error {
-	if config.PublicKey == "" {
+func checkConfig(c *config.Wireguard) error {
+	if c.PublicKey == "" {
 		return errors.New("wireguard public key is empty")
 	}
 
-	if config.Endpoint == "" {
+	if c.Endpoint == "" {
 		return errors.New("wireguard endpoint is empty")
 	}
 
-	if config.VPNSubnet == "" {
+	if c.VPNSubnet == "" {
 		return errors.New("wireguard vpn subnet is empty")
 	}
 
-	if config.VMsSubnet == "" {
+	if c.VMsSubnet == "" {
 		return errors.New("wireguard vms subnet is empty")
 	}
 
-	if config.Interface == "" {
+	if c.Interface == "" {
 		return errors.New("wireguard interface name is empty")
 	}
 
 	// Public key is base64 encoded, check it
-	_, err := base64.StdEncoding.DecodeString(config.PublicKey)
+	_, err := base64.StdEncoding.DecodeString(c.PublicKey)
 	if err != nil {
 		return fmt.Errorf("wireguard public key is not valid base64: %w", err)
 	}
@@ -82,21 +82,21 @@ func checkConfig(config *config.Wireguard) error {
 	rDomain := regexp.MustCompile(`^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$`) // regex for domain name
 
 	// As endpoint could be in format domain:port, split by ':' and check only the domain part
-	colonIndex := strings.LastIndex(config.Endpoint, ":")
+	colonIndex := strings.LastIndex(c.Endpoint, ":")
 	if colonIndex == -1 {
-		return fmt.Errorf("wireguard endpoint (%s) must include port", config.Endpoint)
+		return fmt.Errorf("wireguard endpoint (%s) must include port", c.Endpoint)
 	}
 
-	domainPart := config.Endpoint[:colonIndex]
-	portPart := config.Endpoint[colonIndex+1:]
+	domainPart := c.Endpoint[:colonIndex]
+	portPart := c.Endpoint[colonIndex+1:]
 	// Check port is valid
 	_, err = strconv.ParseUint(portPart, 10, 16)
 	if err != nil {
-		return fmt.Errorf("wireguard endpoint (%s) has invalid port: %w", config.Endpoint, err)
+		return fmt.Errorf("wireguard endpoint (%s) has invalid port: %w", c.Endpoint, err)
 	}
 
 	if domainPart == "" {
-		return fmt.Errorf("wireguard endpoint (%s) has empty domain or IP part", config.Endpoint)
+		return fmt.Errorf("wireguard endpoint (%s) has empty domain or IP part", c.Endpoint)
 	}
 
 	if !rDomain.MatchString(domainPart) {
@@ -122,16 +122,16 @@ func checkConfig(config *config.Wireguard) error {
 	// Is a domain name, ok
 
 	// Check VPNSubnet and VMsSubnet are valid CIDRs
-	for _, cidr := range []string{config.VPNSubnet, config.VMsSubnet} {
+	for _, cidr := range []string{c.VPNSubnet, c.VMsSubnet} {
 		if _, _, err := net.ParseCIDR(cidr); err != nil {
 			return fmt.Errorf("wireguard subnet %s is not a valid CIDR: %w", cidr, err)
 		}
 	}
 
 	// Check interface exists
-	_, stderr, err := executeWGCommand("show", config.Interface)
+	_, stderr, err := executeWGCommand("show", c.Interface)
 	if err != nil {
-		return fmt.Errorf("wireguard interface %s does not exist: %w, stderr: %s", config.Interface, err, stderr)
+		return fmt.Errorf("wireguard interface %s does not exist: %w, stderr: %s", c.Interface, err, stderr)
 	}
 
 	return nil
@@ -160,37 +160,37 @@ func (wg *WGPeer) String() string {
 	return fmt.Sprintf(fileTemplate, wg.Address, wg.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
 }
 
-func executeWGCommand(args ...string) (string, string, error) {
+func executeWGCommand(args ...string) (stdout string, stderr string, err error) {
 	logger.Debug("Executing wg command", "args", args)
 
 	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
+		stdoutBuff bytes.Buffer
+		stderrBuff bytes.Buffer
 	)
 
 	cmd := exec.Command("wg", args...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	cmd.Stdout = &stdoutBuff
+	cmd.Stderr = &stderrBuff
+	err = cmd.Run()
 
-	return stdout.String(), stderr.String(), err
+	return stdoutBuff.String(), stderrBuff.String(), err
 }
 
-func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (string, string, error) {
+func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (stdout string, stderr string, err error) {
 	logger.Debug("Executing command with stdin", "command", command, "args", args)
 
 	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
+		stdoutBuff bytes.Buffer
+		stderrBuff bytes.Buffer
 	)
 
 	cmd := exec.Command(command, args...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout = &stdoutBuff
+	cmd.Stderr = &stderrBuff
 	cmd.Stdin = stdin
-	err := cmd.Run()
+	err = cmd.Run()
 
-	return stdout.String(), stderr.String(), err
+	return stdoutBuff.String(), stderrBuff.String(), err
 }
 
 func CreatePeer(i *WGPeer) error {
@@ -233,7 +233,7 @@ func UpdatePeer(i *WGPeer) error {
 	return nil
 }
 
-func genKeys() (string, string, error) {
+func genKeys() (private string, public string, err error) {
 	privateKey, stderr, err := executeWGCommand("genkey")
 	if err != nil {
 		logger.Error("Error generating private key", "err", err, "stderr", stderr)

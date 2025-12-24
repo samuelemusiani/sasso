@@ -19,14 +19,14 @@ import (
 )
 
 var (
-	publicRouter  *chi.Mux     = nil
-	privateRouter *chi.Mux     = nil
-	logger        *slog.Logger = nil
+	publicRouter  *chi.Mux
+	privateRouter *chi.Mux
+	logger        *slog.Logger
 
-	tokenAuth *jwtauth.JWTAuth = nil
+	tokenAuth *jwtauth.JWTAuth
 
-	privateServer *http.Server = nil
-	publicServer  *http.Server = nil
+	privateServer *http.Server
+	publicServer  *http.Server
 	portForwards  config.PortForwards
 	vpnConfigs    config.VPN
 )
@@ -154,7 +154,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Post("/vpn", addVPNConfig)
 		r.Delete("/vpn/{id}", deleteVPNConfig)
 
-		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, _ *http.Request) {
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
 				slog.Error("marshaling public IP", "err", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -216,7 +216,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	// Admin Auth routes
 	apiRouter.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(tokenAuth))
-		r.Use(AdminAuthenticator(tokenAuth))
+		r.Use(AdminAuthenticator())
 
 		r.Get("/admin/users", internalListUsers)
 		r.Get("/admin/users/{id}", getUser)
@@ -334,7 +334,7 @@ func Shutdown() error {
 	return errors.Join(<-c, <-c)
 }
 
-func routeRoot(w http.ResponseWriter, r *http.Request) {
+func routeRoot(w http.ResponseWriter, _ *http.Request) {
 	_, err := w.Write([]byte("Welcome to the Sasso API!"))
 	if err != nil {
 		slog.Error("writing response", "err", err)

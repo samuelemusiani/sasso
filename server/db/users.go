@@ -59,7 +59,7 @@ func (r UserRole) IsValid() bool {
 	}
 }
 
-func (u *User) BeforeSave(tx *gorm.DB) error {
+func (u *User) BeforeSave(_ *gorm.DB) error {
 	if !u.Role.IsValid() {
 		return ErrInvalidUserRole
 	}
@@ -128,11 +128,11 @@ func GetUserByUsernameAndRealmID(username string, realmID uint) (User, error) {
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return User{}, ErrNotFound
-		} else {
-			logger.Error("Failed to retrieve user by username", "error", result.Error)
-
-			return User{}, result.Error
 		}
+
+		logger.Error("Failed to retrieve user by username", "error", result.Error)
+
+		return User{}, result.Error
 	}
 
 	return user, nil
@@ -145,11 +145,11 @@ func GetUserByID(id uint) (User, error) {
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return User{}, ErrNotFound
-		} else {
-			logger.Error("Failed to retrieve user by ID", "error", result.Error)
-
-			return User{}, result.Error
 		}
+
+		logger.Error("Failed to retrieve user by ID", "error", result.Error)
+
+		return User{}, result.Error
 	}
 
 	return user, nil
@@ -177,11 +177,7 @@ func CreateUser(user *User) error {
 			return result.Error
 		}
 
-		if err := createDefaultSettingsForUserTransaction(tx, user.ID); err != nil {
-			return err
-		}
-
-		return nil
+		return createDefaultSettingsForUserTransaction(tx, user.ID)
 	})
 
 	return err

@@ -16,11 +16,11 @@ func (a *localAuthenticator) Login(username, password string) (*db.User, error) 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			return nil, ErrUserNotFound
-		} else {
-			logger.Error("failed to get user by username", "error", err)
-
-			return nil, err
 		}
+
+		logger.Error("failed to get user by username", "error", err)
+
+		return nil, err
 	}
 
 	if user.RealmID != 1 {
@@ -33,11 +33,11 @@ func (a *localAuthenticator) Login(username, password string) (*db.User, error) 
 			logger.Info("password mismatch", "username", username)
 
 			return nil, ErrPasswordMismatch
-		} else {
-			logger.Error("failed to compare password", "error", err)
-
-			return nil, err
 		}
+
+		logger.Error("failed to compare password", "error", err)
+
+		return nil, err
 	}
 
 	return &user, nil

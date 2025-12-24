@@ -31,6 +31,12 @@ type VM struct {
 	ExpirationNotifications []VMExpirationNotification `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
 }
 
+type Resources struct {
+	Cores uint `gorm:"not null"`
+	RAM   uint `gorm:"not null"`
+	Disk  uint `gorm:"not null"`
+}
+
 func initVMs() error {
 	err := db.AutoMigrate(&VM{})
 	if err != nil {
@@ -85,35 +91,49 @@ func existsVMWithOwnerIDAndName(ownerID uint, ownerType, name string) (bool, err
 	return count > 0, nil
 }
 
-func NewVMForUser(id uint64, userID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(id, userID, "User", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
+type NewVMRequest struct {
+	ID                   uint64
+	Status               string
+	Name                 string
+	Notes                string
+	Cores                uint
+	RAM                  uint
+	Disk                 uint
+	LifeTime             time.Time
+	IncludeGlobalSSHKeys bool
 }
 
-func NewVMForGroup(id uint64, groupID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(id, groupID, "Group", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
-}
-
-func newvm(id uint64, ownerID uint, ownerType string, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	vm := &VM{
-		ID:                   id,
-		Status:               status,
-		Name:                 name,
-		Notes:                notes,
-		Cores:                cores,
-		RAM:                  ram,
-		Disk:                 disk,
-		LifeTime:             lifeTime,
-		IncludeGlobalSSHKeys: includeGlobalSSHKeys,
+func vmFromNewVMRequest(req NewVMRequest, ownerID uint, ownerType string) VM {
+	return VM{
+		ID:                   req.ID,
+		Status:               req.Status,
+		Name:                 req.Name,
+		Notes:                req.Notes,
+		Cores:                req.Cores,
+		RAM:                  req.RAM,
+		Disk:                 req.Disk,
+		LifeTime:             req.LifeTime,
+		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
 		OwnerID:              ownerID,
 		OwnerType:            ownerType,
 	}
+}
 
-	result := db.Create(vm)
+func NewVMForUser(req NewVMRequest, ownerID uint) (*VM, error) {
+	return newvm(vmFromNewVMRequest(req, ownerID, "User"))
+}
+
+func NewVMForGroup(req NewVMRequest, ownerID uint) (*VM, error) {
+	return newvm(vmFromNewVMRequest(req, ownerID, "Group"))
+}
+
+func newvm(vm VM) (*VM, error) {
+	result := db.Create(&vm)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	return vm, nil
+	return &vm, nil
 }
 
 func GetVMByID(vmID uint64) (*VM, error) {
@@ -243,54 +263,46 @@ func GetAllActiveVMsWithUnknown() ([]VM, error) {
 	return GetVMsWithStates([]string{"running", "stopped", "paused", "unknown"})
 }
 
-func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
+func GetVMResourcesByUserID(userID uint) (Resources, error) {
 	return getVMResourcesByOwner(userID, "User")
 }
 
-func GetVMResourcesByGroupID(groupID uint) (uint, uint, uint, error) {
+func GetVMResourcesByGroupID(groupID uint) (Resources, error) {
 	return getVMResourcesByOwner(groupID, "Group")
 }
 
-func getVMResourcesByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
-	var result struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-	}
+func getVMResourcesByOwner(ownerID uint, ownerType string) (Resources, error) {
+	var result Resources
 
 	err := db.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: ownerID, OwnerType: ownerType}).Scan(&result).Error
 	if err != nil {
-		return 0, 0, 0, err
+		return Resources{}, err
 	}
 
-	return result.Cores, result.RAM, result.Disk, nil
+	return result, nil
 }
 
-func GetResourcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
+func GetResourcesActiveVMsByUserID(userID uint) (Resources, error) {
 	return getResourcesActiveVMsByOwner(userID, "User")
 }
 
-func GetResourcesActiveVMsByGroupID(groupID uint) (uint, uint, uint, error) {
+func GetResourcesActiveVMsByGroupID(groupID uint) (Resources, error) {
 	return getResourcesActiveVMsByOwner(groupID, "Group")
 }
 
-func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
-	var result struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-	}
+func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (Resources, error) {
+	var result Resources
 
 	err := db.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: ownerID, OwnerType: ownerType, Status: "running"}).Scan(&result).Error
 	if err != nil {
-		return 0, 0, 0, err
+		return Resources{}, err
 	}
 
-	return result.Cores, result.RAM, result.Disk, nil
+	return result, nil
 }
 
 func CountVMs() (int64, error) {

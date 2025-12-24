@@ -389,7 +389,7 @@ func getLinkByMAC(mac string) (*netlink.Link, error) {
 	return nil, errors.New("Interface not found on router")
 }
 
-func (pg *ProxmoxGateway) VerifyInterface(dbIface *Interface) (bool, error) {
+func (*ProxmoxGateway) VerifyInterface(_ *Interface) (bool, error) {
 	// TODO: Implement this
 	return true, nil
 }

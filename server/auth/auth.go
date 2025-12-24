@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	logger *slog.Logger = nil
+	logger *slog.Logger
 
 	ErrUserNotFound     = errors.New("user not found")
 	ErrPasswordMismatch = errors.New("password mismatch")

@@ -63,7 +63,7 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	var groupID *uint = nil
+	var groupID *uint
 
 	if vm.OwnerType == "Group" {
 		role := mustGetUserRoleInGroupFromContext(r)
@@ -132,7 +132,7 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var groupID *uint = nil
+	var groupID *uint
 
 	if vm.OwnerType == "Group" {
 		tmp := mustGetGroupIDFromContext(r)
@@ -212,7 +212,7 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var groupID *uint = nil
+	var groupID *uint
 
 	if vm.OwnerType == "Group" {
 		role := mustGetUserRoleInGroupFromContext(r)
@@ -278,7 +278,7 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 
 	l := logger.With("userID", userID)
 
-	var groupID *uint = nil
+	var groupID *uint
 
 	if mustGetVMFromContext(r).OwnerType == "Group" {
 		tmp := mustGetGroupIDFromContext(r)

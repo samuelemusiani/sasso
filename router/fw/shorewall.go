@@ -58,7 +58,7 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 	}, nil
 }
 
-func (s *ShorewallFirewall) ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule {
+func (*ShorewallFirewall) ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule {
 	return Rule{
 		OutPort:  outPort,
 		DestPort: destPort,

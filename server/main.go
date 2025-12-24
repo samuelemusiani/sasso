@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/base64"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -67,7 +68,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	realKey, err := base64.StdEncoding.DecodeString(getSecretKey(c))
+	secretKey, err := getSecretKey(c)
+	if err != nil {
+		slog.Error("Failed to get secrets key", "error", err)
+		os.Exit(1)
+	}
+
+	realKey, err := base64.StdEncoding.DecodeString(secretKey)
 	if err != nil {
 		slog.Error("Failed to decode secrets key", "error", err)
 		os.Exit(1)
@@ -200,37 +207,40 @@ func main() {
 	os.Exit(0)
 }
 
-func getSecretKey(c *config.Config) string {
+func getSecretKey(c *config.Config) (string, error) {
 	if c.Secrets.Key != "" {
 		slog.Info("Using secrets key provided in config file")
 
-		return c.Secrets.Key
+		return c.Secrets.Key, nil
 	} else if c.Secrets.Path != "" {
 		slog.Debug("Loading secrets key from file", "path", c.Secrets.Path)
 
 		base64key, err := os.ReadFile(c.Secrets.Path)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				slog.Error("Failed to read secrets key file", "error", err)
-				os.Exit(1)
+				return "", fmt.Errorf("failed to read secrets key file: %w", err)
 			}
 
 			slog.Info("Secrets key file does not exist, generating new key", "path", c.Secrets.Path)
 
-			return generateSecretKey(c.Secrets.Path)
+			key, err := generateSecretKey(c.Secrets.Path)
+			if err != nil {
+				return "", fmt.Errorf("failed to generate new secrets key: %w", err)
+			}
+
+			return key, nil
 		}
 
 		c.Secrets.Key = string(base64key)
 	}
 
-	return c.Secrets.Key
+	return c.Secrets.Key, nil
 }
 
-func generateSecretKey(path string) string {
+func generateSecretKey(path string) (string, error) {
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		slog.Error("Failed to generate new secrets key", "error", err)
-		os.Exit(1)
+		return "", fmt.Errorf("failed to generate new secrets key: %w", err)
 	}
 
 	base64key := []byte(base64.StdEncoding.EncodeToString(key))
@@ -239,9 +249,8 @@ func generateSecretKey(path string) string {
 
 	err = os.WriteFile(path, base64key, 0600)
 	if err != nil {
-		slog.Error("Failed to write secrets key to file", "error", err)
-		os.Exit(1)
+		return "", fmt.Errorf("failed to write secrets key to file: %w", err)
 	}
 
-	return string(base64key)
+	return string(base64key), nil
 }

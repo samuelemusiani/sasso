@@ -30,6 +30,16 @@ const (
 	maxProtectedBackupsPerUser = 4
 )
 
+// volidAction represents the action to be performed on a volid
+type volidAction int
+
+const (
+	// volidActionSearch simply searches for the volid
+	volidActionSearch volidAction = iota
+	// volidActionDelete searches the volid and ensures it can be deleted
+	volidActionDelete
+)
+
 var (
 	BackupRequestStatusPending   = "pending"
 	BackupRequestStatusCompleted = "completed"
@@ -70,7 +80,7 @@ func ListBackups(vmID uint64, since time.Time) ([]Backup, error) {
 		return nil, ErrInvalidVMState
 	}
 
-	_, mcontent, err := listBackups(vmID, since)
+	_, mcontent, err := fetchBackups(vmID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +150,7 @@ func CreateBackup(userID uint, groupID *uint, vmID uint64, name, notes string) (
 		return 0, ErrInvalidVMState
 	}
 
-	_, mcontent, err := listBackups(vmID, time.Time{})
+	_, mcontent, err := fetchBackups(vmID, time.Time{})
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 
@@ -211,7 +221,7 @@ func DeleteBackup(userID uint, groupID *uint, vmID uint64, backupid string, sinc
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, true, nil)
+	volid, err := findVolid(vmID, backupid, since, volidActionDelete, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -257,7 +267,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(vmID, backupid, since, false, nil)
+	volid, err := findVolid(vmID, backupid, since, volidActionSearch, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -280,7 +290,7 @@ func RestoreBackup(userID uint, groupID *uint, vmID uint64, backupid string, sin
 
 // Proxmox node is returned only for optimization purposes as often the caller
 // needs it right after calling this function.
-func listBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*proxmox.StorageContent, err error) {
+func fetchBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*proxmox.StorageContent, err error) {
 	cluster, err := getProxmoxCluster(client)
 	if err != nil {
 		return nil, nil, err
@@ -325,14 +335,16 @@ func listBackups(vmID uint64, since time.Time) (node *proxmox.Node, scontent []*
 	return node, nContent, nil
 }
 
-// deletion is true if we are looking for a backup to delete, false if we are looking for a backup to restore
-//
-// mcontent can be nil, in that case it will be fetched inside the function
-func findVolid(vmID uint64, backupid string, since time.Time, deletion bool, mcontent []*proxmox.StorageContent) (string, error) {
+// findVolid looks for the volid of a backup given its hashed ID. The backup
+// must be related to the given VM ID and must be created after the given time.
+// If action is volidActionDelete, it also checks if the backup can be deleted.
+// If mcontent is nil, it will be fetched inside the function. Mcontent can be
+// provided to optimize multiple calls to this function.
+func findVolid(vmID uint64, backupid string, since time.Time, action volidAction, mcontent []*proxmox.StorageContent) (string, error) {
 	if mcontent == nil {
 		var err error
 
-		_, mcontent, err = listBackups(vmID, since)
+		_, mcontent, err = fetchBackups(vmID, since)
 		if err != nil {
 			return "", err
 		}
@@ -344,15 +356,15 @@ func findVolid(vmID uint64, backupid string, since time.Time, deletion bool, mco
 
 		if hex.EncodeToString(h.Sum(nil)) == backupid {
 			bkn, err := parseBackupNotes(item.Notes)
-			if err != nil && deletion {
+			if err != nil && action == volidActionDelete {
 				continue
 			}
 
-			if !deletion || bkn.SassoVerifier == BackupSassoString {
+			if action != volidActionDelete || bkn.SassoVerifier == BackupSassoString {
 				return item.Volid, nil
-			} else {
-				return "", ErrCantDeleteBackup
 			}
+
+			return "", ErrCantDeleteBackup
 		}
 	}
 
@@ -403,6 +415,7 @@ func parseBackupNotes(notes string) (*BackupNotes, error) {
 	return &bn, nil
 }
 
+//nolint:revive // protected is fine here, we're not considering it as a control flag.
 func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protected bool) (bool, error) {
 	vm, err := db.GetVMByID(vmID)
 	if err != nil {
@@ -418,7 +431,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 	}
 
 	// We only need to check the upper limit if we are trying to protect a backup
-	node, mcontent, err := listBackups(vmID, since)
+	node, mcontent, err := fetchBackups(vmID, since)
 	if err != nil {
 		logger.Error("failed to list backups", "error", err)
 
@@ -439,7 +452,7 @@ func ProtectBackup(userID, vmID uint64, backupid string, since time.Time, protec
 		}
 	}
 
-	volid, err := findVolid(vmID, backupid, since, false, mcontent)
+	volid, err := findVolid(vmID, backupid, since, volidActionSearch, mcontent)
 	if err != nil {
 		return false, err
 	}

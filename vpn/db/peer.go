@@ -21,11 +21,8 @@ func NewPeer(privateKey, publicKey, address string, userID uint) error {
 		Address:    address,
 		UserID:     userID,
 	}
-	if err := db.Create(iface).Error; err != nil {
-		return err
-	}
 
-	return nil
+	return db.Create(iface).Error
 }
 
 func GetPeerByID(id uint) (*Peer, error) {
@@ -74,9 +71,5 @@ func GetAllPeers() ([]Peer, error) {
 }
 
 func DeletePeerByID(id uint) error {
-	if err := db.Delete(&Peer{}, id).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return db.Delete(&Peer{}, id).Error
 }

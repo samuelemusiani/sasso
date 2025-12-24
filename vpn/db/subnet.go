@@ -72,11 +72,7 @@ func NewSubnet(subnet string, peerID uint) error {
 }
 
 func RemoveSubnet(subnet string) error {
-	if err := db.Where("subnet = ?", subnet).Delete(&Subnet{}).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return db.Where("subnet = ?", subnet).Delete(&Subnet{}).Error
 }
 
 func GetSubnetsByPeerID(peerID uint) ([]Subnet, error) {

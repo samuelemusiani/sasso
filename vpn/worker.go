@@ -231,9 +231,9 @@ func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig
 					logger.Error("Failed to delete firewall rule for deleted peer", "error", err, "peer_id", p.ID, "subnet", n.Subnet)
 
 					continue
-				} else {
-					logger.Info("Successfully deleted firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
 				}
+
+				logger.Info("Successfully deleted firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
 			}
 
 			if err = shorewall.Reload(); err != nil {

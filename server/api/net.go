@@ -318,12 +318,12 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Group not found or user not in group", http.StatusBadRequest)
 
 				return
-			} else {
-				slog.Error("Failed to get user role in group", "userID", userID, "groupID", vnet.OwnerID, "err", err)
-				http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
-
-				return
 			}
+
+			slog.Error("Failed to get user role in group", "userID", userID, "groupID", vnet.OwnerID, "err", err)
+			http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
+
+			return
 		}
 	}
 
@@ -343,7 +343,7 @@ func checkIfIPInUse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func internalListNets(w http.ResponseWriter, r *http.Request) {
+func internalListNets(w http.ResponseWriter, _ *http.Request) {
 	nets, err := db.GetVNetsWithStatus(string(proxmox.VNetStatusReady))
 	if err != nil {
 		slog.Error("Failed to get all nets", "err", err)

@@ -17,34 +17,47 @@ import (
 )
 
 var (
-	client *proxmox.Client = nil
-	logger *slog.Logger    = nil
+	client *proxmox.Client
+	logger *slog.Logger
 
-	cTemplate *config.ProxmoxTemplate = nil
-	cClone    *config.ProxmoxClone    = nil
-	cNetwork  *config.ProxmoxNetwork  = nil
-	cBackup   *config.ProxmoxBackup   = nil
+	cTemplate *config.ProxmoxTemplate
+	cClone    *config.ProxmoxClone
+	cNetwork  *config.ProxmoxNetwork
+	cBackup   *config.ProxmoxBackup
 
 	// nonce is used to generate backup names
-	nonce []byte = nil
+	nonce []byte
 
-	ErrInvalidCloneIDTemplate = errors.New("invalid_clone_id_template")
-	ErrInvalidSDNZone         = errors.New("invalid_sdn_zone")
-	ErrInvalidVXLANRange      = errors.New("invalid_vxlan_range")
-	ErrInsufficientResources  = errors.New("insufficient_resources")
-	ErrTaskFailed             = errors.New("task_failed")
-	ErrInvalidStorage         = errors.New("invalid_storage")
-	ErrCantGenerateNonce      = errors.New("cant_generate_nonce")
-	ErrPermissionDenied       = errors.New("permission_denied")
+	ErrInvalidCloneIDTemplate = errors.New("invalid clone id template")
+	ErrInvalidSDNZone         = errors.New("invalid sdn zone")
+	ErrInvalidVXLANRange      = errors.New("invalid vxlan range")
+	ErrInsufficientResources  = errors.New("insufficient resources")
+	ErrTaskFailed             = errors.New("task failed")
+	ErrInvalidStorage         = errors.New("invalid storage")
+	ErrCantGenerateNonce      = errors.New("cannot generate nonce")
+	ErrPermissionDenied       = errors.New("permission denied")
 	ErrNotFound               = errors.New("a resouces can't be found")
+	ErrUnsupportedOwnerType   = errors.New("unsupported owner type")
 
 	isProxmoxReachable = true
 )
 
-func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
+// OwnerType represents the type of owner for a resource.
+type OwnerType int
+
+const (
+	// OwnerTypeUser indicates that the owner is a user and the OwnerID refers
+	// to a user ID.
+	OwnerTypeUser OwnerType = iota
+	// OwnerTypeGroup indicates that the owner is a group and the OwnerID refers
+	// to a group ID.
+	OwnerTypeGroup
+)
+
+func Init(proxmoxLogger *slog.Logger, c config.Proxmox) error {
 	logger = proxmoxLogger
 
-	if err := checkConfig(&config); err != nil {
+	if err := checkConfig(&c); err != nil {
 		return err
 	}
 
@@ -58,31 +71,31 @@ func Init(proxmoxLogger *slog.Logger, config config.Proxmox) error {
 		return ErrCantGenerateNonce
 	}
 
-	url := config.URL
-	if !strings.Contains(config.URL, "api2/json") {
-		if !strings.HasSuffix(config.URL, "/") {
-			url += "/"
+	proxmoxURL := c.URL
+	if !strings.Contains(c.URL, "api2/json") {
+		if !strings.HasSuffix(c.URL, "/") {
+			proxmoxURL += "/"
 		}
 
-		url += "api2/json"
+		proxmoxURL += "api2/json"
 	}
 
 	httpClient := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: config.InsecureSkipVerify,
+				InsecureSkipVerify: c.InsecureSkipVerify,
 			},
 		},
 	}
 
-	client = proxmox.NewClient(url,
+	client = proxmox.NewClient(proxmoxURL,
 		proxmox.WithHTTPClient(&httpClient),
-		proxmox.WithAPIToken(config.TokenID, config.Secret))
+		proxmox.WithAPIToken(c.TokenID, c.Secret))
 
-	cTemplate = &config.Template
-	cClone = &config.Clone
-	cNetwork = &config.Network
-	cBackup = &config.Backup
+	cTemplate = &c.Template
+	cClone = &c.Clone
+	cNetwork = &c.Network
+	cBackup = &c.Backup
 
 	return nil
 }

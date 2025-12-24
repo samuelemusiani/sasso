@@ -89,9 +89,7 @@ func newBackupRequestWithVolid(backupType, status string, volid *string, vmID, o
 func UpdateBackupRequestStatus(id uint, status string) error {
 	result := db.Model(&BackupRequest{ID: id}).Update("status", status)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return ErrNotFound
-		} else if result.RowsAffected == 0 {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) || result.RowsAffected == 0 {
 			return ErrNotFound
 		}
 

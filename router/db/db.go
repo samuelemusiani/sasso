@@ -10,13 +10,13 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	gorm_logger "gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 	"samuelemusiani/sasso/router/config"
 )
 
 var (
-	db     *gorm.DB     = nil
-	logger *slog.Logger = nil
+	db     *gorm.DB
+	logger *slog.Logger
 
 	ErrNotFound = errors.New("record not found")
 )
@@ -34,11 +34,11 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 	logger.Debug("Connecting to database", "url", url)
 
 	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
-		Logger: gorm_logger.New(
+		Logger: gormlogger.New(
 			log.New(os.Stdout, "\r\n", log.LstdFlags),
-			gorm_logger.Config{
+			gormlogger.Config{
 				SlowThreshold:             time.Second,
-				LogLevel:                  gorm_logger.Error,
+				LogLevel:                  gormlogger.Error,
 				IgnoreRecordNotFoundError: true,
 				Colorful:                  true,
 			},

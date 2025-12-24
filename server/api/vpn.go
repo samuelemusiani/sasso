@@ -37,7 +37,7 @@ func internalUpdateVPNConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func internalGetVPNConfigs(w http.ResponseWriter, r *http.Request) {
+func internalGetVPNConfigs(w http.ResponseWriter, _ *http.Request) {
 	vpnConfigs, err := db.GetAllVPNConfigs()
 	if err != nil {
 		logger.Error("Failed to get VPN configs from DB", "error", err)

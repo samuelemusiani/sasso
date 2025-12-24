@@ -27,18 +27,18 @@ type stringTime struct {
 }
 
 var (
-	vmStatusTimeMap        map[uint64]stringTime = make(map[uint64]stringTime)
-	vmLastTimePrelaunchMap map[uint64]time.Time  = make(map[uint64]time.Time)
+	vmStatusTimeMap        = make(map[uint64]stringTime)
+	vmLastTimePrelaunchMap = make(map[uint64]time.Time)
 
 	// Last time a VM failed to change status. This is used in the
 	// enforceVMLifetimes function
-	vmFailedChangeStatus map[uint64]time.Time = make(map[uint64]time.Time)
+	vmFailedChangeStatus = make(map[uint64]time.Time)
 
-	lastConfigureSSHKeysTime time.Time = time.Time{}
+	lastConfigureSSHKeysTime time.Time
 
-	workerContext    context.Context    = nil
-	workerCancelFunc context.CancelFunc = nil
-	workerReturnChan chan error         = make(chan error, 1)
+	workerContext    context.Context
+	workerCancelFunc context.CancelFunc
+	workerReturnChan = make(chan error, 1)
 )
 
 func StartWorker() {
@@ -56,16 +56,16 @@ func ShutdownWorker() error {
 		workerCancelFunc()
 	}
 
-	var err error = nil
+	var err error
 	if workerReturnChan != nil {
 		err = <-workerReturnChan
 	}
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func worker(ctx context.Context) error {
@@ -250,14 +250,14 @@ func createVNets(cluster *gprox.Cluster) {
 		}
 
 		return
-	} else {
-		logger.Debug("SDN changes applied successfully")
+	}
 
-		for _, v := range vnets {
-			err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
-			if err != nil {
-				logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusReady, "err", err)
-			}
+	logger.Debug("SDN changes applied successfully")
+
+	for _, v := range vnets {
+		err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+		if err != nil {
+			logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusReady, "err", err)
 		}
 	}
 }
@@ -1490,7 +1490,7 @@ func deleteBackups(mapVMContent map[uint64]string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t, err := storage.DeleteContent(ctx, *r.Volid)
 
-		defer cancel()
+		cancel()
 
 		if err != nil {
 			logger.Error("failed to delete content", "error", err)
@@ -1569,7 +1569,7 @@ func restoreBackups(mapVMContent map[uint64]string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t, err := node.NewVirtualMachine(ctx, int(r.VMID), o1, o2)
 
-		defer cancel()
+		cancel()
 
 		if err != nil {
 			logger.Error("failed to create new vm", "error", err)

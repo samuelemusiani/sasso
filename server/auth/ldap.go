@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -33,8 +34,8 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	}
 
 	defer func() {
-		if e := l.Close(); e != nil {
-			err = errors.Join(err, e)
+		if closeErr := l.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close LDAP connection: %w", closeErr)
 		}
 	}()
 
@@ -140,9 +141,7 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 		}
 	}
 
-	user = &u
-
-	return
+	return &u, nil
 }
 
 func (a *ldapAuthenticator) LoadConfigFromDB(realmID uint) error {
