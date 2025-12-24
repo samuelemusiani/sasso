@@ -24,7 +24,7 @@ var (
 
 	objectCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "sasso_object_count",
+			Name: "sasso_object",
 			Help: "Number of objects in the system.",
 		}, []string{"object"})
 )

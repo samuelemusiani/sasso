@@ -88,7 +88,7 @@ linters:
     - perfsprint
     - prealloc
     - predeclared
-    # - promlinter
+    - promlinter
     - protogetter
     - reassign
     - recvcheck
