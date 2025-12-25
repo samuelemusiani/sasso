@@ -49,6 +49,8 @@ func Worker(ctx context.Context) {
 	for {
 		if !isProxmoxReachable {
 			timeToWait = 20 * time.Second
+		} else {
+			timeToWait = 10 * time.Second
 		}
 
 		// Handle graceful shutdown at the start of each cycle
