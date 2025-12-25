@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,10 +10,10 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchPortForwards(endpoint, secret string) (portForwards []PortForward, err error) {
+func FetchPortForwards(parentCtx context.Context, endpoint, secret string) (portForwards []PortForward, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/port-forwards", nil)
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/port-forwards", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to fetch port forwards: %w", err)
 	}

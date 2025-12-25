@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,10 +11,10 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchVPNConfigs(endpoint, secret string) (vpns []VPNProfile, err error) {
+func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns []VPNProfile, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/vpn", nil)
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to fetch vpn status: %w", err)
 	}
@@ -43,7 +44,7 @@ func FetchVPNConfigs(endpoint, secret string) (vpns []VPNProfile, err error) {
 	return vpns, nil
 }
 
-func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) (err error) {
+func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPNProfile) (err error) {
 	body, err := json.Marshal(vpn)
 	if err != nil {
 		return fmt.Errorf("failed to marshal vpn data: %w", err)
@@ -51,7 +52,7 @@ func UpdateVPNConfig(endpoint, secret string, vpn VPNProfile) (err error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/vpn", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodPut, endpoint+"/internal/vpn", bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request to update vpn config: %w", err)
 	}

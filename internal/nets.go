@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,10 +12,10 @@ import (
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchNets(endpoint, secret string) (nets []Net, err error) {
+func FetchNets(parentCtx context.Context, endpoint, secret string) (nets []Net, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodGet, endpoint+"/internal/net", nil)
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/net", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to fetch nets: %w", err)
 	}
@@ -45,7 +46,7 @@ func FetchNets(endpoint, secret string) (nets []Net, err error) {
 	return nets, nil
 }
 
-func UpdateNet(endpoint, secret string, net Net) (err error) {
+func UpdateNet(parentCtx context.Context, endpoint, secret string, net Net) (err error) {
 	body, err := json.Marshal(net)
 	if err != nil {
 		return fmt.Errorf("failed to marshal net data: %w", err)
@@ -53,7 +54,7 @@ func UpdateNet(endpoint, secret string, net Net) (err error) {
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequest(http.MethodPut, endpoint+"/internal/net/"+strconv.FormatUint(uint64(net.ID), 10), bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodPut, endpoint+"/internal/net/"+strconv.FormatUint(uint64(net.ID), 10), bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request to update net: %w", err)
 	}

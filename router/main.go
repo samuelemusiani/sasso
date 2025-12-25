@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"sync"
 
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
@@ -66,11 +69,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	gtw := gateway.Get()
+	if gtw == nil {
+		slog.Error("Gateway is not initialized")
+		os.Exit(1)
+	}
+
 	fwLogger := slog.With("module", "firewall")
 
 	err = fw.Init(fwLogger, c.Firewall)
 	if err != nil {
 		slog.Error("Failed to initialize firewall", "error", err)
+		os.Exit(1)
+	}
+
+	firewall := fw.Get()
+	if firewall == nil {
+		slog.Error("Firewall is not initialized")
 		os.Exit(1)
 	}
 
@@ -90,6 +105,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	workerLogger := slog.With("module", "worker")
-	worker(workerLogger, c.Server)
+
+	var wg sync.WaitGroup
+	wg.Go(func() { worker(ctx, workerLogger, c.Server, gtw, firewall) })
+
+	<-ctx.Done()
+	slog.Info("Shutting down...")
+
+	wg.Wait()
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -78,14 +79,31 @@ func checkFirewallStatus(fwConfig config.Firewall) error {
 	return nil
 }
 
-func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) {
+func worker(parentCtx context.Context, logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) {
 	logger.Info("Worker started")
 
+	var (
+		timeToSleep time.Duration
+		err         error
+	)
 	for {
-		err := checkPeers(logger)
+		if err != nil {
+			timeToSleep = 20 * time.Second
+		} else {
+			timeToSleep = 5 * time.Second
+		}
+
+		select {
+		case <-time.After(timeToSleep):
+		case <-parentCtx.Done():
+			logger.Info("Worker shutting down")
+
+			return
+		}
+
+		err = checkPeers(logger)
 		if err != nil {
 			logger.Error("Failed to check peers", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
@@ -93,23 +111,20 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 		err = checkFirewall(logger, fwConfig)
 		if err != nil {
 			logger.With("error", err).Error("Failed to check firewall")
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
 
-		nets, err := internal.FetchNets(serverConfig.Endpoint, serverConfig.Secret)
+		nets, err := internal.FetchNets(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
 			logger.Error("Failed to fetch nets status from main server", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
 
-		vpnConfigs, err := internal.FetchVPNConfigs(serverConfig.Endpoint, serverConfig.Secret)
+		vpnConfigs, err := internal.FetchVPNConfigs(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
 			logger.Error("Failed to fetch VPN configs from main server", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
@@ -131,12 +146,10 @@ func worker(logger *slog.Logger, serverConfig config.Server, fwConfig config.Fir
 			logger.Error("Failed to delete VNets", "error", err)
 		}
 
-		err = updateNetsOnServer(logger, vpnConfigs, serverConfig.Endpoint, serverConfig.Secret)
+		err = updateNetsOnServer(parentCtx, logger, vpnConfigs, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
 			logger.Error("Failed to update nets on main server", "error", err)
 		}
-
-		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -415,7 +428,7 @@ func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewa
 	}
 }
 
-func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoint, secret string) error {
+func updateNetsOnServer(parentCtx context.Context, logger *slog.Logger, vpns []internal.VPNProfile, endpoint, secret string) error {
 	// Updates existing VPN configs on the main server if they differ from the
 	// local ones
 	peers, err := db.GetAllPeers()
@@ -447,7 +460,7 @@ func updateNetsOnServer(logger *slog.Logger, vpns []internal.VPNProfile, endpoin
 
 		logger.Info("Updating VPN config on main server", "id", v.ID)
 
-		err = internal.UpdateVPNConfig(endpoint, secret, internal.VPNProfile{
+		err = internal.UpdateVPNConfig(parentCtx, endpoint, secret, internal.VPNProfile{
 			ID:        v.ID,
 			VPNConfig: base64Conf,
 			VPNIP:     wgIface.Address,

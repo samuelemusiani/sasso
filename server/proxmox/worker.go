@@ -44,14 +44,23 @@ func Worker(ctx context.Context) {
 
 	logger.Info("Proxmox worker started")
 
-	timeToWait := 10 * time.Second
+	var (
+		timeToWait time.Duration
+		elapsed    time.Duration
+	)
 
 	for {
 		if !isProxmoxReachable {
 			timeToWait = 20 * time.Second
 		} else {
-			timeToWait = 10 * time.Second
+			if elapsed < 10*time.Second {
+				timeToWait = 10*time.Second - elapsed
+			} else {
+				timeToWait = 0
+			}
 		}
+
+		now := time.Now()
 
 		// Handle graceful shutdown at the start of each cycle
 		select {
@@ -61,8 +70,6 @@ func Worker(ctx context.Context) {
 
 			return
 		}
-
-		now := time.Now()
 
 		objectCountHelper()
 
@@ -102,14 +109,8 @@ func Worker(ctx context.Context) {
 		workerCycleDurationObserve("restore_backups", func() { restoreBackups(ctx, vmNodes) })
 		workerCycleDurationObserve("create_backups", func() { createBackups(ctx, vmNodes) })
 
-		elapsed := time.Since(now)
+		elapsed = time.Since(now)
 		workerCycleDuration.Observe(elapsed.Seconds())
-
-		if elapsed < 10*time.Second {
-			timeToWait = 10*time.Second - elapsed
-		} else {
-			timeToWait = 0
-		}
 	}
 }
 

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"slices"
@@ -32,23 +34,29 @@ func checkConfig(c config.Server) error {
 	return nil
 }
 
-func worker(logger *slog.Logger, conf config.Server) {
-	time.Sleep(5 * time.Second)
-
+func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, gtw gateway.Gateway, firewall fw.Firewall) {
 	logger.Info("Worker started")
 
-	gtw := gateway.Get()
-	if gtw == nil {
-		panic("Gateway not initialized")
-	}
-
-	firewall := fw.Get()
-	if firewall == nil {
-		panic("Firewall not initialized")
-	}
-
+	var (
+		timeToSleep time.Duration
+		err         error
+	)
 	for {
-		err := verifyNets(logger, gtw)
+		if err != nil {
+			timeToSleep = 10 * time.Second
+		} else {
+			timeToSleep = 5 * time.Second
+		}
+
+		select {
+		case <-time.After(timeToSleep):
+		case <-parentCtx.Done():
+			logger.Info("Worker stopped")
+
+			return
+		}
+
+		err = verifyNets(logger, gtw)
 		if err != nil {
 			logger.Error("failed to verify VNets", "error", err)
 		}
@@ -58,10 +66,9 @@ func worker(logger *slog.Logger, conf config.Server) {
 			logger.Error("failed to verify port forwards", "error", err)
 		}
 
-		nets, err := getNetsStatus(logger, conf)
+		nets, err := getNetsStatus(parentCtx, conf)
 		if err != nil {
 			logger.Error("failed to get VNets with status", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
@@ -76,15 +83,14 @@ func worker(logger *slog.Logger, conf config.Server) {
 			logger.Error("failed to create VNets", "error", err)
 		}
 
-		err = updateNets(logger, conf, nets)
+		err = updateNets(parentCtx, logger, conf, nets)
 		if err != nil {
 			logger.Error("failed to update VNets", "error", err)
 		}
 
-		portForwards, err := getPortForwardsStatus(logger, conf)
+		portForwards, err := getPortForwardsStatus(parentCtx, conf)
 		if err != nil {
 			logger.Error("failed to get port forwards status", "error", err)
-			time.Sleep(10 * time.Second)
 
 			continue
 		}
@@ -98,18 +104,14 @@ func worker(logger *slog.Logger, conf config.Server) {
 		if err != nil {
 			logger.Error("failed to create port forwards", "error", err)
 		}
-
-		time.Sleep(5 * time.Second)
 	}
 }
 
 // Fetch the main sasso server for the status of the nets
-func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, error) {
-	nets, err := internal.FetchNets(conf.Endpoint, conf.Secret)
+func getNetsStatus(parentCtx context.Context, conf config.Server) ([]internal.Net, error) {
+	nets, err := internal.FetchNets(parentCtx, conf.Endpoint, conf.Secret)
 	if err != nil {
-		logger.Error("failed to fetch nets status from main server", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch nets status from main server: %w", err)
 	}
 
 	return nets, nil
@@ -256,7 +258,7 @@ func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 
 // This function takes care of updating the nets on the main server that are
 // present on the local DB with the correct subnet, gateway and broadcast
-func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) error {
+func updateNets(parentCtx context.Context, logger *slog.Logger, conf config.Server, nets []internal.Net) error {
 	for _, n := range nets {
 		dbNet, err := db.GetInterfaceByVNet(n.Name)
 		if err != nil {
@@ -273,7 +275,7 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 		n.Gateway = dbNet.RouterIP
 		n.Broadcast = dbNet.Broadcast
 
-		err = internal.UpdateNet(conf.Endpoint, conf.Secret, n)
+		err = internal.UpdateNet(parentCtx, conf.Endpoint, conf.Secret, n)
 		if err != nil {
 			logger.Error("failed to update net on main server", "error", err, "vnet", n.Name)
 
@@ -286,12 +288,10 @@ func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) er
 	return nil
 }
 
-func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.PortForward, error) {
-	pfs, err := internal.FetchPortForwards(conf.Endpoint, conf.Secret)
+func getPortForwardsStatus(parentCtx context.Context, conf config.Server) ([]internal.PortForward, error) {
+	pfs, err := internal.FetchPortForwards(parentCtx, conf.Endpoint, conf.Secret)
 	if err != nil {
-		logger.Error("failed to fetch port forwards status from main server", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch port forwards status from main server: %w", err)
 	}
 
 	return pfs, nil

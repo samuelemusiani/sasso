@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"sync"
 
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
@@ -80,6 +83,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	workerLogger := slog.With("module", "worker")
-	worker(workerLogger, c.Server, c.Firewall, c.Wireguard.VPNSubnet)
+
+	var waitGroup sync.WaitGroup
+	waitGroup.Go(func() {
+		worker(ctx, workerLogger, c.Server, c.Firewall, c.Wireguard.VPNSubnet)
+	})
+
+	<-ctx.Done()
+	slog.Info("Shutting down...")
+
+	waitGroup.Wait()
 }
