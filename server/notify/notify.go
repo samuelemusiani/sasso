@@ -101,6 +101,8 @@ func Worker(ctx context.Context) {
 			logger.Debug("Checking for new notifications to send")
 		}
 
+		notificationsCounter()
+
 		now := time.Now()
 
 		sendNotifications()

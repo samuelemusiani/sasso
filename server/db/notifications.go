@@ -191,3 +191,13 @@ func ChangeTelegramBotEnabled(id uint, userID uint, enabled bool) error {
 
 	return nil
 }
+
+func CountNotifications(status string, email, telegram bool) (int64, error) {
+	var count int64
+
+	err := db.Model(&Notification{}).
+		Where("status = ? AND email = ? AND telegram = ?", status, email, telegram).
+		Count(&count).Error
+
+	return count, err
+}
