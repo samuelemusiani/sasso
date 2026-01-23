@@ -23,7 +23,7 @@ func EncodeBase62(num uint32) string {
 
 	for num > 0 {
 		remainder := num % 62
-		sb.WriteByte(base62Alphabet[remainder])
+		_ = sb.WriteByte(base62Alphabet[remainder])
 
 		num /= 62
 	}

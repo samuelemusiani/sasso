@@ -88,7 +88,13 @@ func ListBackups(parentCtx context.Context, vmID uint64, since time.Time) ([]Bac
 	backups := make([]Backup, 0, len(mcontent))
 	for _, item := range mcontent {
 		h := hmac.New(sha256.New, nonce)
-		h.Write([]byte(item.Volid))
+
+		_, err = h.Write([]byte(item.Volid))
+		if err != nil {
+			logger.Error("failed to hash backup volid", "volid", item.Volid, "error", err)
+
+			continue
+		}
 
 		var (
 			name, notes string
@@ -352,7 +358,13 @@ func findVolid(parentCtx context.Context, vmID uint64, backupid string, since ti
 
 	for _, item := range mcontent {
 		h := hmac.New(sha256.New, nonce)
-		h.Write([]byte(item.Volid))
+
+		_, err := h.Write([]byte(item.Volid))
+		if err != nil {
+			logger.Error("failed to hash backup volid", "volid", item.Volid, "error", err)
+
+			continue
+		}
 
 		if hex.EncodeToString(h.Sum(nil)) == backupid {
 			bkn, err := parseBackupNotes(item.Notes)

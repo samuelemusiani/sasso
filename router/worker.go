@@ -349,7 +349,6 @@ func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []interna
 		return err
 	}
 
-	//nolint:prealloc // Deletions are rare; preallocation would waste memory
 	var toBeDeleted []db.PortForward
 
 	for _, pfDB := range pdfDB {

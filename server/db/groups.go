@@ -36,7 +36,7 @@ type UserGroup struct {
 	Role      string // e.g., "member", "admin", "owner"
 }
 
-var lastUserGroupTableUpdate time.Time = time.Time{}
+var lastUserGroupTableUpdate = time.Time{}
 
 func (*UserGroup) AfterUpdate(_ *gorm.DB) (err error) {
 	lastUserGroupTableUpdate = time.Now()

@@ -17,7 +17,7 @@ type SSHKey struct {
 	Global bool   `gorm:"default:false"`
 }
 
-var lastSSHKeyTableUpdate time.Time = time.Time{}
+var lastSSHKeyTableUpdate = time.Time{}
 
 func (*SSHKey) AfterUpdate(_ *gorm.DB) (err error) {
 	lastSSHKeyTableUpdate = time.Now()

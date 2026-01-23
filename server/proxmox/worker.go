@@ -1764,8 +1764,7 @@ func configureSSHKeys(parentCtx context.Context, vmNodes map[uint64]string) {
 
 		var keys strings.Builder
 		for i := range sshKeys {
-			keys.WriteString(sshKeys[i].Key)
-			keys.WriteString("\n")
+			_, _ = keys.WriteString(sshKeys[i].Key + "\n")
 		}
 
 		cloudInitKeys := strings.ReplaceAll(url.QueryEscape(keys.String()), "+", "%20")

@@ -116,9 +116,12 @@ Admin user created successfully. Password: %s
 ===============================================================
 `
 
-	fmt.Printf(s, passwd)
+	_, err = fmt.Printf(s, passwd)
+	if err != nil {
+		logger.Error("Failed to print admin password", "error", err)
+	}
 
-	return nil
+	return err
 }
 
 func GetUserByUsernameAndRealmID(username string, realmID uint) (User, error) {

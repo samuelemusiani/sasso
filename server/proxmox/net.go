@@ -25,10 +25,10 @@ var (
 	VNetStatusCreating VMStatus = "creating"
 	VNetStatusDeleting VMStatus = "deleting"
 
-	ErrVNetNotFound            error = errors.New("VNet not found")
-	ErrVNetHasActiveInterfaces error = errors.New("VNet has active interfaces")
-	ErrVNetNameExists          error = errors.New("VNet name already exists")
-	ErrVNetHasTaggedInterfaces error = errors.New("VNet has tagged interfaces")
+	ErrVNetNotFound            = errors.New("VNet not found")
+	ErrVNetHasActiveInterfaces = errors.New("VNet has active interfaces")
+	ErrVNetNameExists          = errors.New("VNet name already exists")
+	ErrVNetHasTaggedInterfaces = errors.New("VNet has tagged interfaces")
 )
 
 func TestEndpointNetZone(parentCtx context.Context) {

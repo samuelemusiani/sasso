@@ -156,7 +156,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, _ *http.Request) {
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
-				slog.Error("marshaling public IP", "err", err)
+				logger.Error("marshaling public IP", "err", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 				return
@@ -282,7 +282,7 @@ func ListenAndServe() chan error {
 
 		err := publicServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("public server error", "err", err)
+			logger.Error("public server error", "err", err)
 
 			c <- err
 		}
@@ -293,7 +293,7 @@ func ListenAndServe() chan error {
 
 		err := privateServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("private server error", "err", err)
+			logger.Error("private server error", "err", err)
 
 			c <- err
 		}
@@ -310,7 +310,7 @@ func Shutdown(publicServerCtx, privateServerCtx context.Context) error {
 
 		err := publicServer.Shutdown(publicServerCtx)
 		if err != nil {
-			slog.Error("public server shutdown failed", "err", err)
+			logger.Error("public server shutdown failed", "err", err)
 		} else {
 			logger.Info("public server shut down")
 		}
@@ -323,7 +323,7 @@ func Shutdown(publicServerCtx, privateServerCtx context.Context) error {
 
 		err := privateServer.Shutdown(privateServerCtx)
 		if err != nil {
-			slog.Error("private server shutdown failed", "err", err)
+			logger.Error("private server shutdown failed", "err", err)
 		} else {
 			logger.Info("private server shut down")
 		}
@@ -337,7 +337,7 @@ func Shutdown(publicServerCtx, privateServerCtx context.Context) error {
 func routeRoot(w http.ResponseWriter, _ *http.Request) {
 	_, err := w.Write([]byte("Welcome to the Sasso API!"))
 	if err != nil {
-		slog.Error("writing response", "err", err)
+		logger.Error("writing response", "err", err)
 		http.Error(w, "internal Server Error", http.StatusInternalServerError)
 	}
 }
@@ -359,7 +359,7 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 					if errors.Is(err, fs.ErrNotExist) {
 						http.Error(w, "", http.StatusNotFound)
 					} else {
-						slog.Error("reading index.html", "err", err)
+						logger.Error("reading index.html", "err", err)
 						http.Error(w, "", http.StatusInternalServerError)
 					}
 
@@ -370,14 +370,14 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 
 				_, err = w.Write(f)
 				if err != nil {
-					slog.Error("writing response", "err", err)
+					logger.Error("writing response", "err", err)
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				}
 
 				return
 			}
 
-			slog.Error("reading file", "path", p, "err", err)
+			logger.Error("reading file", "path", p, "err", err)
 			http.Error(w, "", http.StatusInternalServerError)
 
 			return
@@ -387,7 +387,7 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 
 		_, err = w.Write(f)
 		if err != nil {
-			slog.Error("writing response", "err", err)
+			logger.Error("writing response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 			return

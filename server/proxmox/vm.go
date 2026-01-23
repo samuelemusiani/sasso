@@ -37,9 +37,9 @@ var (
 
 	VMCloneDiskSizeGB uint = 4 // Minimum disk size in GB for a VM clone
 
-	ErrVMNotFound     error = errors.New("VM not found")
-	ErrInvalidVMState error = errors.New("invalid VM state for this action")
-	ErrInvalidVMParam error = errors.New("invalid VM parameter")
+	ErrVMNotFound     = errors.New("VM not found")
+	ErrInvalidVMState = errors.New("invalid VM state for this action")
+	ErrInvalidVMParam = errors.New("invalid VM parameter")
 
 	vmNameRegex = regexp.MustCompile(`^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+|-[a-zA-Z0-9]+)*$`)
 

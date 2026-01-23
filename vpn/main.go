@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -57,7 +56,7 @@ func main() {
 
 	err = wg.Init(wireguardLogger, &c.Wireguard)
 	if err != nil {
-		fmt.Printf("Error initializing Wireguard: %v\n", err)
+		slog.Error("Error initializing Wireguard", "error", err)
 		os.Exit(1)
 	}
 
@@ -65,7 +64,7 @@ func main() {
 
 	dbLogger := slog.With("module", "db")
 	if err = db.Init(dbLogger, &c.Database); err != nil {
-		fmt.Printf("Error initializing database: %v\n", err)
+		slog.Error("Error initializing database", "error", err)
 		os.Exit(1)
 	}
 
