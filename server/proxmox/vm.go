@@ -42,7 +42,8 @@ var (
 	ErrInvalidVMState error = errors.New("invalid VM state for this action")
 	ErrInvalidVMParam error = errors.New("invalid VM parameter")
 
-	vmNameRegex = regexp.MustCompile(`^\w+(\w|-)*\w+$`)
+	vmNameRegex = regexp.MustCompile(`^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+|-[a-zA-Z0-9]+)*$`)
+
 	vmLifeTimes = []uint{1, 3, 6, 12}
 
 	vmMinCores uint = 1
