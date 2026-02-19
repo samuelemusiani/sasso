@@ -10,13 +10,13 @@ copy-front:
   cp -r ./frontend/dist ./server/_front
 
 build-server:
-  go build -o server-bin ./server
+  go build -ldflags "-X main.version=$(git describe --tags --always --dirty --abbrev=100) -X main.branch=$(git rev-parse --abbrev-ref HEAD)" -o server-bin ./server
 
 build-router:
-  go build -o router-bin ./router
+  go build -ldflags "-X main.version=$(git describe --tags --always --dirty --abbrev=100) -X main.branch=$(git rev-parse --abbrev-ref HEAD)" -o router-bin ./router
 
 build-vpn:
-  go build -o vpn-bin ./vpn
+  go build -ldflags "-X main.version=$(git describe --tags --always --dirty --abbrev=100) -X main.branch=$(git rev-parse --abbrev-ref HEAD)" -o vpn-bin ./vpn
 
 check-format:
   test -z $(gofmt -l .)

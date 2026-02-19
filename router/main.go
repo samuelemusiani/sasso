@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,7 +16,22 @@ import (
 	"samuelemusiani/sasso/router/utils"
 )
 
+var (
+	// These variables are set at build time using -ldflags "-X main.**=..."
+	version = "dev"
+	branch  = "develop"
+)
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--version" || os.Args[1] == "-v" {
+		_, err := fmt.Printf("Sasso Router\nVersion: \t%s\nBranch: \t%s\n", version, branch)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		os.Exit(0)
+	}
+
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	lLevel, ok := os.LookupEnv("LOG_LEVEL")
