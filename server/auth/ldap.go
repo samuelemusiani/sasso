@@ -130,9 +130,9 @@ func (a *ldapAuthenticator) Login(username, password string) (user *db.User, err
 	}
 
 	// Update email if it has changed
-	if user.Email != email || user.Role != role {
-		user.Email = email
-		user.Role = role
+	if u.Email != email || u.Role != role {
+		u.Email = email
+		u.Role = role
 
 		err = db.UpdateUser(&u)
 		if err != nil {
