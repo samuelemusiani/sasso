@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -78,6 +79,12 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := db.CreateSSHKey(req.Name, req.Key, userID)
 	if err != nil {
+		if errors.Is(err, db.ErrAlreadyExists) {
+			http.Error(w, "SSH key already exists", http.StatusConflict)
+
+			return
+		}
+
 		logger.Error("Failed to add new SSH key", "userID", userID, "error", err)
 		http.Error(w, "Failed to add new SSH key", http.StatusInternalServerError)
 
@@ -163,6 +170,12 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := db.CreateGlobalSSHKey(req.Name, req.Key)
 	if err != nil {
+		if errors.Is(err, db.ErrAlreadyExists) {
+			http.Error(w, "Global SSH key already exists", http.StatusConflict)
+
+			return
+		}
+
 		logger.Error("Failed to add new global SSH key", "error", err)
 		http.Error(w, "Failed to add new global SSH key", http.StatusInternalServerError)
 
