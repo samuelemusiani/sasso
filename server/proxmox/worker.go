@@ -60,8 +60,6 @@ func Worker(ctx context.Context) {
 			}
 		}
 
-		now := time.Now()
-
 		// Handle graceful shutdown at the start of each cycle
 		select {
 		case <-time.After(timeToWait):
@@ -70,6 +68,8 @@ func Worker(ctx context.Context) {
 
 			return
 		}
+
+		now := time.Now()
 
 		objectCountHelper()
 
