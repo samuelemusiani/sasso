@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/ssh"
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
 )
 
 func getSSHKeys(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +65,9 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Key = strings.TrimSpace(req.Key)
 
 	if req.Name == "" || req.Key == "" {
 		http.Error(w, "Name and Key are required", http.StatusBadRequest)
@@ -164,6 +169,22 @@ func addGlobalSSHKey(w http.ResponseWriter, r *http.Request) {
 	var req newSSHKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Key = strings.TrimSpace(req.Key)
+
+	if req.Name == "" || req.Key == "" {
+		http.Error(w, "Name and Key are required", http.StatusBadRequest)
+
+		return
+	}
+
+	_, _, _, _, err := ssh.ParseAuthorizedKey([]byte(req.Key))
+	if err != nil {
+		http.Error(w, "Invalid SSH key format", http.StatusBadRequest)
 
 		return
 	}
