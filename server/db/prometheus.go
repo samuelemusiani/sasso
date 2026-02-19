@@ -79,14 +79,14 @@ func (*ErrorMetricsPlugin) after(db *gorm.DB) {
 
 		errStr := db.Error.Error()
 		switch {
-		case strings.Contains(errStr, PromErrorTypeConnectionRefused):
-			errorType = "connection_refused"
-		case strings.Contains(errStr, PromErrorTypeConnectionError):
-			errorType = "connection_error"
-		case strings.Contains(errStr, PromErrorTypeTimeout):
-			errorType = "timeout"
-		case strings.Contains(errStr, PromErrorTypeDuplicateKey):
-			errorType = "duplicate_key"
+		case strings.Contains(errStr, "connection refused"):
+			errorType = PromErrorTypeConnectionRefused
+		case strings.Contains(errStr, "dial error"):
+			errorType = PromErrorTypeConnectionError
+		case strings.Contains(errStr, "timeout"):
+			errorType = PromErrorTypeTimeout
+		case strings.Contains(errStr, "duplicate key"):
+			errorType = PromErrorTypeDuplicateKey
 		default:
 			errorType = PromErrorTypeOther
 		}
