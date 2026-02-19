@@ -55,6 +55,14 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
+	err = db.Use(&ErrorMetricsPlugin{})
+	if err != nil {
+		logger.Error("Failed to initialize ErrorMetric plugin for database", "error",
+			err)
+
+		return err
+	}
+
 	err = initGlobals()
 	if err != nil {
 		logger.Error("Failed to set globals in database", "error", err)

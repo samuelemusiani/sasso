@@ -1,0 +1,74 @@
+package db
+
+import (
+	"errors"
+	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"gorm.io/gorm"
+)
+
+var (
+	gormErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gorm_errors_total",
+			Help: "Total number of GORM errors",
+		},
+		[]string{"error_type"},
+	)
+)
+
+// ErrorMetricsPlugin is a GORM plugin that collects metrics on database errors
+// and classifies them into categories for Prometheus.
+type ErrorMetricsPlugin struct{}
+
+func (*ErrorMetricsPlugin) Name() string {
+	return "gorm:error_metrics"
+}
+
+func (p *ErrorMetricsPlugin) Initialize(db *gorm.DB) error {
+	err := db.Callback().Create().After("gorm:create").Register("metrics:after_create", p.after)
+	if err != nil {
+		return err
+	}
+
+	err = db.Callback().Query().After("gorm:query").Register("metrics:after_query", p.after)
+	if err != nil {
+		return err
+	}
+
+	err = db.Callback().Update().After("gorm:update").Register("metrics:after_update", p.after)
+	if err != nil {
+		return err
+	}
+
+	err = db.Callback().Delete().After("gorm:delete").Register("metrics:after_delete", p.after)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (*ErrorMetricsPlugin) after(db *gorm.DB) {
+	if db.Error != nil && !errors.Is(db.Error, gorm.ErrRecordNotFound) {
+		var errorType string
+
+		errStr := db.Error.Error()
+		switch {
+		case strings.Contains(errStr, "connection refused"):
+			errorType = "connection_refused"
+		case strings.Contains(errStr, "dial error"):
+			errorType = "connection_error"
+		case strings.Contains(errStr, "timeout"):
+			errorType = "timeout"
+		case strings.Contains(errStr, "duplicate key"):
+			errorType = "duplicate_key"
+		default:
+			errorType = "other"
+		}
+
+		gormErrors.WithLabelValues(errorType).Inc()
+	}
+}
