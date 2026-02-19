@@ -1,6 +1,8 @@
 package db
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -81,12 +83,26 @@ func CreateSSHKey(name string, key string, userID uint) (*SSHKey, error) {
 		UserID: userID,
 	}
 
-	result := db.Create(sshKey)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// We allow to add the same key for personal and global, but not to add
+		// the same key twice for the same user in the same scope (personal or global)
+		err := tx.Where(&SSHKey{Key: key, UserID: userID, Global: false}).
+			First(&SSHKey{}).Error
+		if err == nil {
+			return ErrAlreadyExists
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to check for existing SSH key: %w", err)
+		}
 
-	return sshKey, nil
+		result := tx.Create(sshKey)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return sshKey, err
 }
 
 func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
@@ -102,12 +118,26 @@ func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
 		UserID: admin.ID,
 	}
 
-	result := db.Create(sshKey)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// We allow to add the same key for personal and global, but not to add
+		// the same key twice for the same user in the same scope (personal or global)
+		err := tx.Where(&SSHKey{Key: key, UserID: admin.ID, Global: true}).
+			First(&SSHKey{}).Error
+		if err == nil {
+			return ErrAlreadyExists
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to check for existing SSH key: %w", err)
+		}
 
-	return sshKey, nil
+		result := tx.Create(sshKey)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return sshKey, err
 }
 
 func DeleteSSHKey(id uint, userID uint) error {
