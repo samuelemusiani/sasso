@@ -7,11 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"samuelemusiani/sasso/server/db"
-	"samuelemusiani/sasso/server/notify"
-
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/ssh"
+	"samuelemusiani/sasso/server/db"
+	"samuelemusiani/sasso/server/notify"
 )
 
 func getSSHKeys(w http.ResponseWriter, r *http.Request) {
