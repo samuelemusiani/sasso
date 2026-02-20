@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { login as _login } from '@/lib/api'
 import type { Realm } from '@/types'
 import type { AxiosError } from 'axios'
+import { useLoadingStore } from '@/stores/loading'
 
 const router = useRouter()
 
@@ -15,6 +16,9 @@ const realm = ref('Local')
 const realms = ref<Realm[]>([])
 
 const errorMessage = ref('')
+
+const loading = useLoadingStore()
+const isLoading = () => loading.is('login')
 
 function fetchRealms() {
   api
@@ -32,6 +36,7 @@ function fetchRealms() {
 }
 
 async function login() {
+  loading.start('login')
   try {
     if (!username.value || !password.value) {
       console.error('Username and password are required')
@@ -56,6 +61,8 @@ async function login() {
     } else {
       errorMessage.value = 'An error occurred during login'
     }
+  } finally {
+    loading.stop('login')
   }
 }
 
@@ -127,7 +134,12 @@ onMounted(() => {
             </option>
           </select>
         </fieldset>
-        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">Login</button>
+        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">
+          <div v-if="isLoading()" class="grid h-70">
+            <span class="loading loading-spinner place-self-center"></span>
+          </div>
+          <div v-else>Login</div>
+        </button>
       </div>
     </div>
     <p class="text-base-content/50 absolute inset-x-0 bottom-8 text-center">
