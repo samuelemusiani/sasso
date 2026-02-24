@@ -8,13 +8,12 @@ import (
 )
 
 type Interface struct {
-	ID        uint `gorm:"primaryKey;autoIncrement"`
 	LocalID   uint `gorm:"not null;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	VNet   string `gorm:"not null;unique"` // Name of the VNet
-	VNetID uint32 `gorm:"not null;unique"` // ID of the VNet (VXLAN ID)
+	VNet   string `gorm:"not null;unique"`     // Name of the VNet
+	VNetID uint32 `gorm:"not null;primaryKey"` // ID of the VNet (VXLAN ID)
 
 	Subnet    string `gorm:"not null;unique"` // Subnet of the VNet
 	RouterIP  string `gorm:"not null;unique"` // Router IP of the VNet
@@ -64,7 +63,7 @@ func GetInterfaceByVNet(vnet string) (*Interface, error) {
 	return &iface, nil
 }
 
-func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
+func GetInterfaceByVNetID(vnetID uint32) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net_id = ?", vnetID).First(&iface).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,8 +78,8 @@ func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
 	return &iface, nil
 }
 
-func DeleteInterface(id uint) error {
-	return db.Delete(&Interface{}, id).Error
+func DeleteInterfaceByVNetID(vnetID uint32) error {
+	return db.Delete(&Interface{VNetID: vnetID}).Error
 }
 
 func UpdateInterface(iface Interface) error {

@@ -140,9 +140,9 @@ func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
 				logger.Error("failed to remove interface from gateway", "error", err, "local_id", dbIface.LocalID)
 			}
 
-			err = db.DeleteInterface(dbIface.ID)
+			err = db.DeleteInterfaceByVNetID(dbIface.VNetID)
 			if err != nil {
-				logger.Error("failed to delete interface from database", "error", err, "interface_id", dbIface.ID)
+				logger.Error("failed to delete interface from database", "error", err, "interface_id", dbIface.VNetID)
 			}
 		}
 	}
@@ -189,9 +189,9 @@ func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) e
 			logger.Error("failed to remove interface from gateway", "error", err, "local_id", iface.LocalID)
 		}
 
-		err = db.DeleteInterface(iface.ID)
+		err = db.DeleteInterfaceByVNetID(iface.VNetID)
 		if err != nil {
-			logger.Error("failed to delete interface from database", "error", err, "interface_id", iface.ID)
+			logger.Error("failed to delete interface from database", "error", err, "interface_id", iface.VNetID)
 		}
 	}
 

@@ -51,6 +51,13 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 }
 
 func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
+	ipAddr, err := netlink.ParseAddr(routerIP)
+	if err != nil {
+		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
+
+		return nil, err
+	}
+
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  int(lg.MTU),
@@ -60,16 +67,9 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 		Port:    int(lg.Port),
 	}
 
-	err := netlink.LinkAdd(link)
+	err = netlink.LinkAdd(link)
 	if err != nil {
 		logger.Error("Failed to create VxLAN interface", "error", err)
-
-		return nil, err
-	}
-
-	ipAddr, err := netlink.ParseAddr(routerIP)
-	if err != nil {
-		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
 
 		return nil, err
 	}
@@ -116,10 +116,10 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	}, nil
 }
 
-func (*LinuxGateway) RemoveInterface(id uint) error {
-	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(id)}})
+func (*LinuxGateway) RemoveInterface(localID uint) error {
+	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(localID)}})
 	if err != nil && !errors.Is(err, unix.ENODEV) {
-		logger.Error("Failed to remove VxLAN interface", "error", err, "id", id)
+		logger.Error("Failed to remove VxLAN interface", "error", err, "id", localID)
 
 		return err
 	}
@@ -127,7 +127,8 @@ func (*LinuxGateway) RemoveInterface(id uint) error {
 	return nil
 }
 
-// VerifyInterface returns True if interface is verified, false otherwise
+// VerifyInterface returns True if interface is verified, false otherwise.
+// "Verified" means that the interfaces exists and has all the correct attributes.
 func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 

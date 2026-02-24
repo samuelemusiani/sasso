@@ -21,17 +21,8 @@ type Network struct {
 }
 
 type Gateway struct {
-	Type    string               `toml:"type"`
-	Proxmox ProxmoxGatewayConfig `toml:"proxmox"`
-	Linux   LinuxGatewayConfig   `toml:"linux"`
-}
-
-type ProxmoxGatewayConfig struct {
-	URL                string `toml:"url"`
-	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
-	TokenID            string `toml:"token_id"`
-	Secret             string `toml:"secret"`
-	VMID               uint   `toml:"vmid"`
+	Type  string             `toml:"type"`
+	Linux LinuxGatewayConfig `toml:"linux"`
 }
 
 type LinuxGatewayConfig struct {

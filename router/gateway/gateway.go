@@ -1,6 +1,6 @@
 // This package provides an interface to handle the creation and management of
-// the networks interfaces on the gateway. Multiple implementation can be possible
-// the default one is based on the gateway being a Proxmox VM itself.
+// the networks interfaces on the Router. Multiple implementation can be
+// possible.
 package gateway
 
 import (
@@ -19,9 +19,7 @@ var (
 )
 
 type Interface struct {
-	// Global unique ID for this interface
-	ID uint
-	// Local ID on the gateway (e.g., if the gateway is Proxmox this is the ID of the interface on Proxmox net0, net1, etc)
+	// Local ID on the Router (usually it's the interface number as linux sees it)
 	LocalID uint
 	VNet    string
 	VNetID  uint32
@@ -38,17 +36,6 @@ func Init(l *slog.Logger, c config.Gateway) error {
 	logger = l
 
 	switch c.Type {
-	case "proxmox":
-		pg := NewProxmoxGateway()
-
-		err := pg.Init(c)
-		if err != nil {
-			logger.Error("Failed to initialize Proxmox gateway", "error", err)
-
-			return err
-		}
-
-		globalGateway = pg
 	case "linux":
 		lg := NewLinuxGateway()
 
@@ -83,12 +70,12 @@ type Gateway interface {
 func (i *Interface) SaveToDB() error {
 	var err error
 
-	inter, err := db.GetInterfaceByVNet(i.VNet)
+	inter, err := db.GetInterfaceByVNetID(i.VNetID)
 	switch {
 	case err != nil && !errors.Is(err, db.ErrNotFound):
 		logger.Error("Failed to get interface from database", "error", err, "vnet", i.VNet)
 	case inter != nil:
-		logger.Debug("Interface already exists in database", "vnet", i.VNet)
+		logger.Debug("Interface already exists in database", "vnet", i.VNet, "vnetID", i.VNetID)
 
 		inter.LocalID = i.LocalID
 		inter.VNetID = i.VNetID
@@ -121,7 +108,6 @@ func InterfaceFromDB(dbIface *db.Interface) *Interface {
 	}
 
 	return &Interface{
-		ID:                    dbIface.ID,
 		LocalID:               dbIface.LocalID,
 		VNet:                  dbIface.VNet,
 		VNetID:                dbIface.VNetID,
