@@ -41,6 +41,36 @@ func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, 
 		timeToSleep time.Duration
 		err         error
 	)
+
+	// The first time this worker runs we restore the status from the DB
+
+	interfaces, err := db.GetAllInterfaces()
+	tmpNets := make([]internal.Net, len(interfaces))
+
+	if err != nil {
+		logger.Error("failed to get all interfaces from database", "error", err)
+
+		goto start_loop
+	}
+
+	for i, iface := range interfaces {
+		tmpNets[i] = internal.Net{
+			Name:      iface.VNet,
+			Tag:       iface.VNetID,
+			Subnet:    iface.Subnet,
+			Gateway:   iface.RouterIP,
+			Broadcast: iface.Broadcast,
+		}
+	}
+
+	err = applyNetsToGateway(logger, gtw, tmpNets)
+	if err != nil {
+		logger.Error("failed to apply nets to gateway", "error", err)
+
+		goto start_loop
+	}
+
+start_loop:
 	for {
 		if err != nil {
 			timeToSleep = 10 * time.Second
