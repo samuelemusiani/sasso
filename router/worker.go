@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
 	"time"
 
 	"samuelemusiani/sasso/internal"
@@ -87,6 +88,9 @@ func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, 
 			continue
 		}
 
+		oldNets := make([]internal.Net, len(nets))
+		copy(oldNets, nets)
+
 		nets, err = fillNetsEmptyFields(logger, nets)
 		if err != nil {
 			logger.Error("failed to fill nets empty fields", "error", err)
@@ -104,7 +108,7 @@ func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, 
 			logger.Error("failed to apply nets to gateway", "error", err)
 		}
 
-		err = pushNetsToMainServer(parentCtx, logger, conf, nets)
+		err = pushNetsToMainServer(parentCtx, logger, conf, oldNets, nets)
 		if err != nil {
 			logger.Error("failed to update VNets", "error", err)
 		}
@@ -142,28 +146,23 @@ func fetchNetsFromMainServer(parentCtx context.Context, conf config.Server) ([]i
 
 // pushNetsToMainServer takes care of updating the nets on the main server with
 // the correct subnet, gateway and broadcast fields that we have assigned locally.
-func pushNetsToMainServer(parentCtx context.Context, logger *slog.Logger, conf config.Server, nets []internal.Net) error {
-	for _, n := range nets {
-		dbNet, err := db.GetInterfaceByVNet(n.Name)
-		if err != nil {
-			logger.Error("failed to get interface from database", "error", err, "vnet", n.Name)
+func pushNetsToMainServer(parentCtx context.Context, logger *slog.Logger, conf config.Server, oldNets, currentNets []internal.Net) error {
+	for _, n := range currentNets {
+		oldNetIndex := slices.IndexFunc(oldNets, func(on internal.Net) bool {
+			return on.Tag == n.Tag
+		})
 
-			return err
+		if oldNetIndex == -1 {
+			return fmt.Errorf("failed to find old net with tag %d", n.Tag)
 		}
 
-		if dbNet.Subnet == n.Subnet && dbNet.RouterIP == n.Gateway && dbNet.Broadcast == n.Broadcast {
+		if oldNets[oldNetIndex].Subnet == n.Subnet && oldNets[oldNetIndex].Gateway == n.Gateway && oldNets[oldNetIndex].Broadcast == n.Broadcast {
 			continue
 		}
 
-		n.Subnet = dbNet.Subnet
-		n.Gateway = dbNet.RouterIP
-		n.Broadcast = dbNet.Broadcast
-
-		err = internal.UpdateNet(parentCtx, conf.Endpoint, conf.Secret, n)
+		err := internal.UpdateNet(parentCtx, conf.Endpoint, conf.Secret, n)
 		if err != nil {
-			logger.Error("failed to update net on main server", "error", err, "vnet", n.Name)
-
-			continue
+			return fmt.Errorf("failed to update net on main server: %w", err)
 		}
 
 		logger.Info("Updated net on main server", "vnet", n.Name)
