@@ -55,14 +55,14 @@ func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet
 }
 
 func checkFirewallStatus(fwConfig config.Firewall) error {
-	v, err := shorewall.GetVersion()
+	v, err := shorewall.Version()
 	if err != nil {
 		return fmt.Errorf("failed to get shorewall version: %w", err)
 	}
 
 	slog.Info("Shorewall version", "version", v)
 
-	zones, err := shorewall.GetZones()
+	zones, err := shorewall.Zones()
 	if err != nil {
 		return fmt.Errorf("failed to get shorewall zones: %w", err)
 	}
@@ -486,7 +486,7 @@ func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
 		return err
 	}
 
-	fwRules, err := shorewall.GetRules()
+	fwRules, err := shorewall.Rules()
 	if err != nil {
 		logger.With("error", err).Error("Failed to get firewall rules")
 

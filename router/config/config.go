@@ -48,6 +48,8 @@ type ShorewallFirewallConfig struct {
 	ExternalZone string `toml:"external_zone"`
 	VMZone       string `toml:"vm_zone"`
 	PublicIP     string `toml:"public_ip"`
+	BasePath     string `toml:"base_path"`
+	ID           string `toml:"id"`
 }
 
 var config Config

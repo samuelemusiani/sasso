@@ -12,9 +12,10 @@ import (
 )
 
 type LinuxGateway struct {
-	Port  uint16
-	Peers []net.IP
-	MTU   uint16
+	Port          uint16
+	Peers         []net.IP
+	MTU           uint16
+	LinkAliasCode string
 }
 
 func NewLinuxGateway() *LinuxGateway {
@@ -47,6 +48,11 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 
 	lg.MTU = c.Linux.MTU
 
+	// This is used to identify the links created by sasso in the system.
+	// The 'random' string is created with
+	//  echo -n "managed iface" | base64
+	lg.LinkAliasCode = "sasso-bWFuYWdlZCBpZmFjZQ"
+
 	return nil
 }
 
@@ -60,8 +66,9 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
-			MTU:  int(lg.MTU),
-			Name: vnet,
+			MTU:   int(lg.MTU),
+			Name:  vnet,
+			Alias: lg.LinkAliasCode,
 		},
 		VxlanId: int(vnetID),
 		Port:    int(lg.Port),
@@ -164,4 +171,62 @@ func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 
 	// else is consistent
 	return true, nil
+}
+
+func (lg *LinuxGateway) GetAllInterfaces() ([]*Interface, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		logger.Error("Failed to list links", "error", err)
+
+		return nil, err
+	}
+
+	var ifaces []*Interface
+
+	for _, link := range links {
+		if link.Attrs().Alias == lg.LinkAliasCode {
+			vxlanLink, ok := link.(*netlink.Vxlan)
+			if !ok {
+				logger.Error("Failed to cast link to vxlan", "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+			if err != nil {
+				logger.Error("Failed to get addresses for link", "error", err, "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			if len(addrs) == 0 {
+				logger.Error("No addresses found for link", "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			var subnet string
+
+			for _, addr := range addrs {
+				if addr.IP.Equal(vxlanLink.SrcAddr) {
+					subnet = addr.IPNet.String()
+
+					break
+				}
+			}
+
+			iface := &Interface{
+				LocalID:               uint(link.Attrs().Index),
+				VNet:                  link.Attrs().Name,
+				VNetID:                uint32(vxlanLink.VxlanId),
+				Subnet:                subnet,
+				RouterIP:              vxlanLink.SrcAddr.String(),
+				Broadcast:             vxlanLink.Group.String(),
+				FirewallInterfaceName: link.Attrs().Name,
+			}
+			ifaces = append(ifaces, iface)
+		}
+	}
+
+	return ifaces, nil
 }

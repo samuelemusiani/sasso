@@ -46,3 +46,19 @@ func AddPortForward(pf PortForward) error {
 func RemovePortForward(pfID uint) error {
 	return db.Delete(&PortForward{}, pfID).Error
 }
+
+func UpdateAllPortForwards(pfs []PortForward) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		tx.Delete(&PortForward{})
+
+		if err := tx.Create(pfs).Error; err != nil {
+			logger.Error("Failed to create port forwards in database", "error", err)
+
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}

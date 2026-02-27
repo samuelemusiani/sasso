@@ -82,6 +82,18 @@ func DeleteInterfaceByVNetID(vnetID uint32) error {
 	return db.Delete(&Interface{VNetID: vnetID}).Error
 }
 
-func UpdateInterface(iface Interface) error {
-	return db.Save(&iface).Error
+func UpdateAllInterfaces(ifaces []Interface) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		tx.Delete(&Interface{})
+
+		if err := tx.Create(ifaces).Error; err != nil {
+			logger.Error("Failed to create interfaces in database", "error", err)
+
+			return err
+		}
+
+		return nil
+	})
+
+	return err
 }

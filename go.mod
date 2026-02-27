@@ -9,7 +9,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/luthermonson/go-proxmox v0.4.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/samuelemusiani/go-shorewall v0.0.6
+	github.com/samuelemusiani/go-shorewall v0.0.7
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/wneessen/go-mail v0.7.2
@@ -29,6 +29,7 @@ require (
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
