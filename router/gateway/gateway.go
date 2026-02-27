@@ -5,6 +5,7 @@ package gateway
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"samuelemusiani/sasso/router/config"
@@ -40,16 +41,12 @@ func Init(l *slog.Logger, c config.Gateway) error {
 
 		err := lg.Init(c)
 		if err != nil {
-			logger.Error("Failed to initialize Linux gateway", "error", err)
-
-			return err
+			return fmt.Errorf("failed to initialize linux gateway: %w", err)
 		}
 
 		globalGateway = lg
 	default:
-		logger.Error("Unsupported gateway type", "type", c.Type)
-
-		return ErrUnsupportedGatewayType
+		return fmt.Errorf("%w: %s", ErrUnsupportedGatewayType, c.Type)
 	}
 
 	return nil

@@ -282,9 +282,7 @@ func searchSortedRules(r goshorewall.Rule, sortedRules []goshorewall.Rule) int {
 func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	srules, err := s.app.Rules()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get firewall rules")
-
-		return false, err
+		return false, fmt.Errorf("failed to get firewall rules: %w", err)
 	}
 
 	sr1 := s.shorewallRulefromRule(r)
@@ -307,9 +305,7 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 func (s *ShorewallFirewall) VerifyPortForwardRules(rules []Rule) ([]Rule, error) {
 	srules, err := s.app.Rules()
 	if err != nil {
-		logger.With("error", err).Error("Failed to get firewall rules")
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get firewall rules: %w", err)
 	}
 
 	srules = sortRules(srules)

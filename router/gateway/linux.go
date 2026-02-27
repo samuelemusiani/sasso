@@ -3,7 +3,6 @@ package gateway
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 
 	"github.com/vishvananda/netlink"
@@ -59,9 +58,7 @@ func (lg *LinuxGateway) Init(c config.Gateway) error {
 func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
 	ipAddr, err := netlink.ParseAddr(routerIP)
 	if err != nil {
-		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to parse router IP address %s: %w", routerIP, err)
 	}
 
 	link := &netlink.Vxlan{
@@ -76,31 +73,23 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 
 	err = netlink.LinkAdd(link)
 	if err != nil {
-		logger.Error("Failed to create VxLAN interface", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to create VxLAN interface: %w", err)
 	}
 
 	// We need to set the alias after creating the link
 	err = netlink.LinkSetAlias(link, lg.LinkAliasCode)
 	if err != nil {
-		logger.Error("Failed to set link alias", "error", err, "linkName", link.Name)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to set link alias to link %s: %w", link.Name, err)
 	}
 
 	err = netlink.AddrAdd(link, ipAddr)
 	if err != nil {
-		logger.Error("Failed to add IP address to network interface on router", "error", err, "ipAddress", ipAddr, "iface", link.Name)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to add IP address %s to network interface %s on router: %w", ipAddr, link.Name, err)
 	}
 
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		slog.Error("Failed to set interface up", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to set link up: %w", err)
 	}
 
 	for _, p := range lg.Peers {
@@ -113,9 +102,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 			Family:       unix.AF_BRIDGE,
 		})
 		if err != nil {
-			slog.Error("Failed to add neighbor", "error", err, "p", p.String(), "LinkIndex", link.Index)
-
-			return nil, err
+			return nil, fmt.Errorf("failed to add neighbor for peer %s on link %s: %w", p.String(), link.Name, err)
 		}
 	}
 
@@ -135,9 +122,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 func (*LinuxGateway) RemoveInterface(localID uint) error {
 	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(localID)}})
 	if err != nil && !errors.Is(err, unix.ENODEV) {
-		logger.Error("Failed to remove VxLAN interface", "error", err, "id", localID)
-
-		return err
+		return fmt.Errorf("failed to delete VxLAN interface with index %d: %w", localID, err)
 	}
 
 	return nil
@@ -155,9 +140,7 @@ func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	}
 
 	if err != nil {
-		logger.Error("Failed to get Link", "error", err, "id", iface.LocalID)
-
-		return false, err
+		return false, fmt.Errorf("failed to get link by index %d: %w", iface.LocalID, err)
 	}
 
 	// not a vxlan, inconsistent
@@ -185,9 +168,7 @@ func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 func (lg *LinuxGateway) GetAllInterfaces() ([]*Interface, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
-		logger.Error("Failed to list links", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
 	}
 
 	var ifaces []*Interface

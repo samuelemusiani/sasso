@@ -56,9 +56,7 @@ func GetInterfaceByVNet(vnet string) (*Interface, error) {
 			return nil, ErrNotFound
 		}
 
-		logger.Error("Failed to retrieve interface by VNet", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve interface by VNet: %w", err)
 	}
 
 	return &iface, nil
@@ -71,9 +69,7 @@ func GetInterfaceByVNetID(vnetID uint32) (*Interface, error) {
 			return nil, ErrNotFound
 		}
 
-		logger.Error("Failed to retrieve interface by VNet ID", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve interface by VNetID: %w", err)
 	}
 
 	return &iface, nil
