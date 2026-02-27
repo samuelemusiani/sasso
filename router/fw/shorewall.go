@@ -288,9 +288,16 @@ func (s *ShorewallFirewall) VerifyPortForwardRule(r Rule) (bool, error) {
 	}
 
 	sr1 := s.shorewallRulefromRule(r)
-
 	sr2 := s.shorewallRulefromRuleNatReflection(r)
-	if slices.Contains(srules, sr1) && slices.Contains(srules, sr2) {
+
+	compareFunc := func(sr goshorewall.Rule) func(r goshorewall.Rule) bool {
+		return func(r goshorewall.Rule) bool {
+			return r.Compare(sr) == 0
+		}
+	}
+
+	if slices.ContainsFunc(srules, compareFunc(sr1)) &&
+		slices.ContainsFunc(srules, compareFunc(sr2)) {
 		return true, nil
 	}
 
