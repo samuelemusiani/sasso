@@ -90,7 +90,7 @@ start_loop:
 		// 1. Nets (interfaces)
 		// 2. Port forwards
 		//
-		// We have 3 states for this resources:
+		// We have 3 states for these resources:
 		// 1. Server main state (what we want)
 		// 2. Router state (what we have)
 		// 3. Router DB (what we rember we had)
@@ -111,7 +111,9 @@ start_loop:
 		// 3. Update router State (with Server state or last DB state)
 		// 4. Repeat
 
-		nets, err := fetchNetsFromMainServer(parentCtx, conf)
+		var nets []internal.Net
+
+		nets, err = internal.FetchNets(parentCtx, conf.Endpoint, conf.Secret)
 		if err != nil {
 			logger.Error("failed to get VNets with status", "error", err)
 
@@ -121,14 +123,14 @@ start_loop:
 		oldNets := make([]internal.Net, len(nets))
 		copy(oldNets, nets)
 
-		nets, err = fillNetsEmptyFields(logger, nets)
+		nets, err = fillNetsEmptyFields(nets)
 		if err != nil {
 			logger.Error("failed to fill nets empty fields", "error", err)
 
 			continue
 		}
 
-		err = updateDBWithServerNets(logger, nets)
+		err = updateDBWithServerNets(nets)
 		if err != nil {
 			logger.Error("failed to update DB with server nets", "error", err)
 		}
@@ -145,14 +147,16 @@ start_loop:
 
 		// ----- port forwards -----
 
-		portForwards, err := fetchPortForwardsFromMainServer(parentCtx, conf)
+		var portForwards []internal.PortForward
+
+		portForwards, err = internal.FetchPortForwards(parentCtx, conf.Endpoint, conf.Secret)
 		if err != nil {
 			logger.Error("failed to get port forwards status", "error", err)
 
 			continue
 		}
 
-		err = updateDBWithServerPortForwards(logger, portForwards)
+		err = updateDBWithServerPortForwards(portForwards)
 		if err != nil {
 			logger.Error("failed to update DB with server port forwards", "error", err)
 		}
@@ -162,16 +166,6 @@ start_loop:
 			logger.Error("failed to apply port forwards to firewall", "error", err)
 		}
 	}
-}
-
-// Fetch the main sasso server for the status of the nets
-func fetchNetsFromMainServer(parentCtx context.Context, conf config.Server) ([]internal.Net, error) {
-	nets, err := internal.FetchNets(parentCtx, conf.Endpoint, conf.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch nets status from main server: %w", err)
-	}
-
-	return nets, nil
 }
 
 // pushNetsToMainServer takes care of updating the nets on the main server with
@@ -201,16 +195,7 @@ func pushNetsToMainServer(parentCtx context.Context, logger *slog.Logger, conf c
 	return nil
 }
 
-func fetchPortForwardsFromMainServer(parentCtx context.Context, conf config.Server) ([]internal.PortForward, error) {
-	pfs, err := internal.FetchPortForwards(parentCtx, conf.Endpoint, conf.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch port forwards status from main server: %w", err)
-	}
-
-	return pfs, nil
-}
-
-func updateDBWithServerPortForwards(logger *slog.Logger, pfs []internal.PortForward) error {
+func updateDBWithServerPortForwards(pfs []internal.PortForward) error {
 	dbPfs := make([]db.PortForward, 0, len(pfs))
 
 	for _, pf := range pfs {
@@ -224,16 +209,14 @@ func updateDBWithServerPortForwards(logger *slog.Logger, pfs []internal.PortForw
 
 	err := db.UpdateAllPortForwards(dbPfs)
 	if err != nil {
-		logger.Error("failed to update all port forwards in database", "error", err)
-
-		return err
+		return fmt.Errorf("failed to update all port forwards in database: %w", err)
 	}
 
 	return nil
 }
 
 // This function updates the DB with the nets status from the main server.
-func updateDBWithServerNets(logger *slog.Logger, nets []internal.Net) error {
+func updateDBWithServerNets(nets []internal.Net) error {
 	dbInterfaces := make([]db.Interface, 0, len(nets))
 
 	for _, n := range nets {
@@ -248,9 +231,7 @@ func updateDBWithServerNets(logger *slog.Logger, nets []internal.Net) error {
 
 	err := db.UpdateAllInterfaces(dbInterfaces)
 	if err != nil {
-		logger.Error("failed to update all interfaces in database", "error", err)
-
-		return err
+		return fmt.Errorf("failed to update all interfaces in database: %w", err)
 	}
 
 	return nil
@@ -258,7 +239,7 @@ func updateDBWithServerNets(logger *slog.Logger, nets []internal.Net) error {
 
 // fillNetsEmptyFields fills the subnet, gateway and broadcast fields of the
 // nets if they are empty.
-func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.Net, error) {
+func fillNetsEmptyFields(nets []internal.Net) ([]internal.Net, error) {
 	var err error
 
 	subnets := make([]string, 0)
@@ -267,9 +248,7 @@ func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.N
 		if nets[i].Subnet == "" {
 			nets[i].Subnet, err = utils.NextAvailableSubnetWithNewSubnets(subnets)
 			if err != nil {
-				logger.Error("failed to get next available subnet", "error", err)
-
-				return nil, err
+				return nil, fmt.Errorf("failed to get next available subnet: %w", err)
 			}
 
 			subnets = append(subnets, nets[i].Subnet)
@@ -278,18 +257,14 @@ func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.N
 		if nets[i].Gateway == "" {
 			nets[i].Gateway, err = utils.GatewayAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
-				logger.Error("failed to get gateway address from subnet", "error", err)
-
-				return nil, err
+				return nil, fmt.Errorf("failed to get gateway address from subnet: %w", err)
 			}
 		}
 
 		if nets[i].Broadcast == "" {
 			nets[i].Broadcast, err = utils.GetBroadcastAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
-				logger.Error("failed to get broadcast address from subnet", "error", err)
-
-				return nil, err
+				return nil, fmt.Errorf("failed to get broadcast address from subnet: %w", err)
 			}
 		}
 	}
@@ -303,9 +278,7 @@ func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.N
 func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
 	gtwInterfaces, err := gtw.GetAllInterfaces()
 	if err != nil {
-		logger.Error("failed to get all interfaces from gateway", "error", err)
-
-		return err
+		return fmt.Errorf("failed to get all interfaces from gateway: %w", err)
 	}
 
 	netsMap := make(map[uint32]internal.Net)
@@ -392,9 +365,7 @@ func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []interna
 func applyPortForwardsToFirewall(logger *slog.Logger, firewall fw.Firewall, wantedRules []internal.PortForward) error {
 	currentRules, err := firewall.PortForwardRules()
 	if err != nil {
-		logger.Error("failed to get all port forward rules from firewall", "error", err)
-
-		return err
+		return fmt.Errorf("failed to get port forward rules from firewall: %w", err)
 	}
 
 	formatRule := func(r fw.Rule) string {
