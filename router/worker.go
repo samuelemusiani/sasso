@@ -232,9 +232,9 @@ func updateDBWithServerNets(logger *slog.Logger, nets []internal.Net) error {
 func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.Net, error) {
 	var err error
 
-	for _, n := range nets {
-		if n.Subnet == "" {
-			n.Subnet, err = utils.NextAvailableSubnet()
+	for i := range nets {
+		if nets[i].Subnet == "" {
+			nets[i].Subnet, err = utils.NextAvailableSubnet()
 			if err != nil {
 				logger.Error("failed to get next available subnet", "error", err)
 
@@ -242,8 +242,8 @@ func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.N
 			}
 		}
 
-		if n.Gateway == "" {
-			n.Gateway, err = utils.GatewayAddressFromSubnet(n.Subnet)
+		if nets[i].Gateway == "" {
+			nets[i].Gateway, err = utils.GatewayAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
 				logger.Error("failed to get gateway address from subnet", "error", err)
 
@@ -251,8 +251,8 @@ func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.N
 			}
 		}
 
-		if n.Broadcast == "" {
-			n.Broadcast, err = utils.GetBroadcastAddressFromSubnet(n.Subnet)
+		if nets[i].Broadcast == "" {
+			nets[i].Broadcast, err = utils.GetBroadcastAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
 				logger.Error("failed to get broadcast address from subnet", "error", err)
 
