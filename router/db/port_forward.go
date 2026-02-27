@@ -55,6 +55,10 @@ func UpdateAllPortForwards(pfs []PortForward) error {
 			return fmt.Errorf("failed to delete existing port forwards: %w", err)
 		}
 
+		if len(pfs) == 0 {
+			return nil
+		}
+
 		if err := tx.Create(pfs).Error; err != nil {
 			return fmt.Errorf("failed to create port forwards in database: %w", err)
 		}

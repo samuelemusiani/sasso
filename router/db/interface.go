@@ -90,6 +90,10 @@ func UpdateAllInterfaces(ifaces []Interface) error {
 			return fmt.Errorf("failed to delete existing interfaces: %w", err)
 		}
 
+		if len(ifaces) == 0 {
+			return nil
+		}
+
 		if err := tx.Create(ifaces).Error; err != nil {
 			return fmt.Errorf("failed to create interfaces in database: %w", err)
 		}
