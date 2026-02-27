@@ -22,10 +22,15 @@ type Rule struct {
 
 type Firewall interface {
 	ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule
+
+	PortForwardRules() ([]Rule, error)
+
 	AddPortForwardRule(r Rule) error
 	AddPortForwardRules(rules []Rule) error
+
 	RemovePortForwardRule(r Rule) error
 	RemovePortForwardRules(rules []Rule) error
+
 	VerifyPortForwardRule(r Rule) (bool, error)
 	VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 }

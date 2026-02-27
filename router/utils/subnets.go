@@ -45,9 +45,19 @@ func Init(l *slog.Logger, c config.Network) error {
 	return nil
 }
 
+// NextAvailableSubnet finds the next available subnet that is not in the
+// database. Equals to NextAvailableSubnetWithNewSubnets(nil).
 func NextAvailableSubnet() (string, error) {
+	return NextAvailableSubnetWithNewSubnets(nil)
+}
+
+// NextAvailableSubnetWithNewSubnets finds the next available subnets that are
+// not in the database and in the subnets slice passed as argument.
+func NextAvailableSubnetWithNewSubnets(subnets []string) (string, error) {
 	usedSubnets, err := db.GetAllUsedSubnets()
 	logger.Debug("used subnets from database", "used_subnets", usedSubnets)
+
+	usedSubnets = append(usedSubnets, subnets...)
 
 	if err != nil {
 		logger.Error("failed to get all used subnets from database", "error", err)
