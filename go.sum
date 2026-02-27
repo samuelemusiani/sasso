@@ -130,6 +130,8 @@ github.com/samuelemusiani/go-shorewall v0.0.6 h1:xHoL/rzpNVMhpA51/bLXuGuf5hiehXk
 github.com/samuelemusiani/go-shorewall v0.0.6/go.mod h1:hIqLEU5FNTcdQBssL58nJFCmERec+nJdRl7swPei8T4=
 github.com/samuelemusiani/go-shorewall v0.0.7 h1:caGlESW+S7pmZmo8R8loP74EDWIMHsWo1ZzslyadoYo=
 github.com/samuelemusiani/go-shorewall v0.0.7/go.mod h1:O5dcRfHikJ7jQmQBTpPUibKiZkl2xQB/Pm+koGwcabk=
+github.com/samuelemusiani/go-shorewall v0.0.8 h1:x8Rmrsbmm2d+cLKuJRTyMIVatgCdAto1y70CSPodNAI=
+github.com/samuelemusiani/go-shorewall v0.0.8/go.mod h1:O5dcRfHikJ7jQmQBTpPUibKiZkl2xQB/Pm+koGwcabk=
 github.com/seancfoley/bintree v1.3.1 h1:cqmmQK7Jm4aw8gna0bP+huu5leVOgHGSJBEpUx3EXGI=
 github.com/seancfoley/bintree v1.3.1/go.mod h1:hIUabL8OFYyFVTQ6azeajbopogQc2l5C/hiXMcemWNU=
 github.com/seancfoley/ipaddress-go v1.7.1 h1:fDWryS+L8iaaH5RxIKbY0xB5Z+Zxk8xoXLN4S4eAPdQ=
