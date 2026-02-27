@@ -60,19 +60,11 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 
 	logger.Info("Shorewall version", "version", v)
 
-	zones, err := app.Zones()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get shorewall zones: %w", err)
-	}
-
-	fwZones := []string{c.ExternalZone, c.VMZone}
-	for _, z := range fwZones {
-		if !slices.ContainsFunc(zones, func(sz goshorewall.Zone) bool {
-			return sz.Name == z
-		}) {
-			return nil, fmt.Errorf("shorewall zone %s not found", z)
-		}
-	}
+	// TODO: We could check for ExternalZone and VMZone existence. But we cannot
+	// do it with app.Zones() because it returns only the zones used by the app,
+	// while those zones are global. If we use shorewall.Zones() instead we
+	// could specify a custom base path. Wait for new go-shorewall version
+	// https://github.com/samuelemusiani/go-shorewall/issues/4
 
 	return &ShorewallFirewall{
 		externalZone: c.ExternalZone,
