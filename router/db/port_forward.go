@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -49,16 +50,20 @@ func RemovePortForward(pfID uint) error {
 
 func UpdateAllPortForwards(pfs []PortForward) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		tx.Delete(&PortForward{})
+		err := tx.Exec("DELETE FROM port_forwards").Error
+		if err != nil {
+			return fmt.Errorf("failed to delete existing port forwards: %w", err)
+		}
 
 		if err := tx.Create(pfs).Error; err != nil {
-			logger.Error("Failed to create port forwards in database", "error", err)
-
-			return err
+			return fmt.Errorf("failed to create port forwards in database: %w", err)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("failed to update port forwards: %w", err)
+	}
 
-	return err
+	return nil
 }

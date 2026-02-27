@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -84,16 +85,20 @@ func DeleteInterfaceByVNetID(vnetID uint32) error {
 
 func UpdateAllInterfaces(ifaces []Interface) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		tx.Delete(&Interface{})
+		err := tx.Exec("DELETE FROM interfaces").Error // Delete all existing records
+		if err != nil {
+			return fmt.Errorf("failed to delete existing interfaces: %w", err)
+		}
 
 		if err := tx.Create(ifaces).Error; err != nil {
-			logger.Error("Failed to create interfaces in database", "error", err)
-
-			return err
+			return fmt.Errorf("failed to create interfaces in database: %w", err)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("failed to update interfaces: %w", err)
+	}
 
-	return err
+	return nil
 }
