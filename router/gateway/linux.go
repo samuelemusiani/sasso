@@ -66,9 +66,9 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
-			MTU:   int(lg.MTU),
-			Name:  vnet,
-			Alias: lg.LinkAliasCode,
+			MTU:  int(lg.MTU),
+			Name: vnet,
+			// Alias: lg.LinkAliasCode, // Setting Alias does not work here https://github.com/vishvananda/netlink/issues/902
 		},
 		VxlanId: int(vnetID),
 		Port:    int(lg.Port),
@@ -77,6 +77,14 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	err = netlink.LinkAdd(link)
 	if err != nil {
 		logger.Error("Failed to create VxLAN interface", "error", err)
+
+		return nil, err
+	}
+
+	// We need to set the alias after creating the link
+	err = netlink.LinkSetAlias(link, lg.LinkAliasCode)
+	if err != nil {
+		logger.Error("Failed to set link alias", "error", err, "linkName", link.Name)
 
 		return nil, err
 	}
@@ -91,7 +99,8 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	err = netlink.LinkSetUp(link)
 	if err != nil {
 		slog.Error("Failed to set interface up", "error", err)
-		panic(err)
+
+		return nil, err
 	}
 
 	for _, p := range lg.Peers {
