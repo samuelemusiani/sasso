@@ -298,6 +298,8 @@ func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []interna
 		if err != nil {
 			return fmt.Errorf("failed to remove interface from gateway: %w", err)
 		}
+
+		logger.Info("Removed interface from gateway", "name", iface.FirewallInterfaceName)
 	}
 
 	// create interfaces present in nets slice but not in gateway
@@ -316,6 +318,8 @@ func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []interna
 		if err != nil {
 			return fmt.Errorf("failed to create new interface on gateway: %w", err)
 		}
+
+		logger.Info("Created new interface on gateway", "name", n.Name)
 	}
 
 	// verify interfaces that are present in both slices
@@ -340,6 +344,8 @@ func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []interna
 		if err != nil {
 			return fmt.Errorf("failed to remove interface from gateway: %w", err)
 		}
+
+		logger.Info("Removed inconsistent interface from gateway", "name", iface.FirewallInterfaceName)
 
 		_, err = gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
 		if err != nil {
