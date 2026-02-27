@@ -67,6 +67,8 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 	// https://github.com/samuelemusiani/go-shorewall/issues/4
 
 	return &ShorewallFirewall{
+		app: app,
+
 		externalZone: c.ExternalZone,
 		vmZone:       c.VMZone,
 		publicIP:     c.PublicIP,
