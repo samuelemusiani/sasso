@@ -231,14 +231,18 @@ func updateDBWithServerNets(logger *slog.Logger, nets []internal.Net) error {
 func fillNetsEmptyFields(logger *slog.Logger, nets []internal.Net) ([]internal.Net, error) {
 	var err error
 
+	subnets := make([]string, 0)
+
 	for i := range nets {
 		if nets[i].Subnet == "" {
-			nets[i].Subnet, err = utils.NextAvailableSubnet()
+			nets[i].Subnet, err = utils.NextAvailableSubnetWithNewSubnets(subnets)
 			if err != nil {
 				logger.Error("failed to get next available subnet", "error", err)
 
 				return nil, err
 			}
+
+			subnets = append(subnets, nets[i].Subnet)
 		}
 
 		if nets[i].Gateway == "" {
