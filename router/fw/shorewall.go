@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"samuelemusiani/sasso/router/config"
-
 	goshorewall "github.com/samuelemusiani/go-shorewall"
+	"samuelemusiani/sasso/router/config"
 )
 
 type ShorewallFirewall struct {
@@ -35,7 +34,7 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 	}
 
 	if c.ID == "" {
-		return nil, errors.New("Shorewall ID cannot be empty")
+		return nil, errors.New("shorewall ID cannot be empty")
 	}
 
 	var app *goshorewall.App
@@ -44,9 +43,14 @@ func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall,
 
 	if c.BasePath == "" {
 		logger.Warn("Shorewall base path not set, using default provided by library")
+
 		app, err = goshorewall.AppFromID(c.ID)
 	} else {
 		app, err = goshorewall.AppFromIDAndBasePath(c.ID, c.BasePath)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize shorewall app: %w", err)
 	}
 
 	v, err := app.Version()
