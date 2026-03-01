@@ -14,13 +14,13 @@ jobs:
         with:
           node-version: 22
 
+      - name: Checkout the repo
+        uses: actions/checkout@v6
+
       - name: Setup go
         uses: actions/setup-go@v6
         with:
-          go-version-file: "./go.mod"
-
-      - name: Checkout the repo
-        uses: actions/checkout@v6
+          go-version-file: "go.mod"
 
       - name: Install run-all
         run: npm i npm-run-all --save-dev
