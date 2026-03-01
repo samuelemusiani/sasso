@@ -1,7 +1,6 @@
 name: Build and tests
 
-on:
-  push
+on: push
 
 permissions:
   contents: read
@@ -18,7 +17,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version-file: "./go.mod"
 
       - name: Checkout the repo
         uses: actions/checkout@v6
@@ -40,4 +39,3 @@ jobs:
 
       - name: Test
         run: just test
-
