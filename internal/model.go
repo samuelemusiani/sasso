@@ -14,11 +14,15 @@ type Net struct {
 	UserIDs []uint `json:"user_ids"` // IDs of users who have access to this network
 }
 
-type VPNProfile struct {
-	ID        uint   `json:"id"`
-	VPNConfig string `json:"vpn_config"`
-	VPNIP     string `json:"vpn_ip"`
-	UserID    uint   `json:"user_id"`
+type VPNConfig struct {
+	ID     uint `json:"id"`
+	UserID uint `json:"user_id"`
+
+	IP              string   `json:"ip"`
+	PeerPrivateKey  string   `json:"peer_private_key"`
+	ServerPublicKey string   `json:"server_public_key"`
+	Endpoint        string   `json:"endpoint"`
+	AllowedIPs      []string `json:"allowed_ips"`
 }
 
 type PortForward struct {

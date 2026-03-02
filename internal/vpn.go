@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns []VPNProfile, err error) {
+func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns []VPNConfig, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
 	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn", nil)
@@ -44,7 +45,7 @@ func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns [
 	return vpns, nil
 }
 
-func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPNProfile) (err error) {
+func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPNConfig) (err error) {
 	body, err := json.Marshal(vpn)
 	if err != nil {
 		return fmt.Errorf("failed to marshal vpn data: %w", err)
@@ -75,4 +76,17 @@ func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPN
 	}
 
 	return nil
+}
+
+func (p VPNConfig) String() string {
+	fileTemplate := `[Interface]
+Address = %s
+PrivateKey = %s
+
+[Peer]
+PublicKey = %s
+Endpoint = %s
+AllowedIps = %s`
+
+	return fmt.Sprintf(fileTemplate, p.IP, p.PeerPrivateKey, p.ServerPublicKey, p.Endpoint, strings.Join(p.AllowedIPs, ","))
 }

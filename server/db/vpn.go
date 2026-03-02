@@ -12,10 +12,22 @@ type VPNConfig struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	VPNConfig string `gorm:"type:text;not null"`
-	VPNIP     string `gorm:"type:varchar(45);not null"`
+	IP              string         `gorm:"not null;uniqueIndex"`
+	PeerPrivateKey  string         `gorm:"not null"`
+	ServerPublicKey string         `gorm:"not null"`
+	Endpoint        string         `gorm:"not null"`
+	AllowedIPs      []VPNAllowedIP `gorm:"foreignKey:VPNConfigID;constraint:OnDelete:CASCADE"`
 
 	UserID uint `gorm:"not null;index"`
+}
+
+type VPNAllowedIP struct {
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	VPNConfigID uint   `gorm:"not null;index"`
+	IP          string `gorm:"not null"`
 }
 
 func initVPNConfig() error {
@@ -25,7 +37,7 @@ func initVPNConfig() error {
 func GetVPNConfigByID(id uint) (*VPNConfig, error) {
 	var vpnConfig VPNConfig
 
-	result := db.First(&vpnConfig, id)
+	result := db.Preload("AllowedIPs").First(&vpnConfig, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -42,7 +54,7 @@ func GetVPNConfigByID(id uint) (*VPNConfig, error) {
 func GetVPNConfigsByUserID(userID uint) ([]VPNConfig, error) {
 	var vpnConfigs []VPNConfig
 
-	result := db.Where("user_id = ?", userID).Find(&vpnConfigs)
+	result := db.Where(&VPNConfig{UserID: userID}).Preload("VPNConfig").Find(&vpnConfigs)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve VPN configs by user ID", "error", result.Error)
 
@@ -52,10 +64,10 @@ func GetVPNConfigsByUserID(userID uint) ([]VPNConfig, error) {
 	return vpnConfigs, nil
 }
 
-func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
+func GetVPNConfigByIP(ip string) (*VPNConfig, error) {
 	var vpnConfig VPNConfig
 
-	result := db.First(&vpnConfig, "vpn_ip = ?", vpnIP)
+	result := db.Preload("VPNConfig").First(&vpnConfig, &VPNConfig{IP: ip})
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -69,14 +81,8 @@ func GetVPNConfigByIP(vpnIP string) (*VPNConfig, error) {
 	return &vpnConfig, nil
 }
 
-func CreateVPNConfig(vpnConfig string, vpnIP string, userID uint) error {
-	vpn := &VPNConfig{
-		VPNConfig: vpnConfig,
-		VPNIP:     vpnIP,
-		UserID:    userID,
-	}
-
-	result := db.Create(vpn)
+func CreateVPNConfig(config VPNConfig) error {
+	result := db.Create(config)
 	if result.Error != nil {
 		logger.Error("Failed to create VPN config", "error", result.Error)
 
@@ -86,21 +92,28 @@ func CreateVPNConfig(vpnConfig string, vpnIP string, userID uint) error {
 	return nil
 }
 
-func UpdateVPNConfigByID(id uint, newConfig string, newIP string) error {
-	result := db.Model(&VPNConfig{}).Where("id = ?", id).Updates(VPNConfig{VPNConfig: newConfig, VPNIP: newIP})
-	if result.Error != nil {
-		logger.Error("Failed to update VPN config by ID", "error", result.Error)
+func UpdateVPNConfig(config VPNConfig) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Updates(&config).Error; err != nil {
+			logger.Error("Failed to update VPN config by ID", "error", err)
 
-		return result.Error
-	}
+			return err
+		}
 
-	return nil
+		if err := tx.Model(&config).Association("AllowedIPs").Replace(config.AllowedIPs); err != nil {
+			logger.Error("Failed to update VPN allowed IPs", "error", err)
+
+			return err
+		}
+
+		return nil
+	})
 }
 
 func GetAllVPNConfigs() ([]VPNConfig, error) {
 	var vpnConfigs []VPNConfig
 
-	result := db.Find(&vpnConfigs)
+	result := db.Preload("AllowedIPs").Find(&vpnConfigs)
 	if result.Error != nil {
 		logger.Error("Failed to retrieve all VPN configs", "error", result.Error)
 
