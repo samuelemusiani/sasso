@@ -774,22 +774,22 @@ func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
 			continue
 		}
 
-		st, err := parseStorageFromString(scsi0)
+		size, err := getSizeFromStorageString(scsi0)
 		if err != nil {
-			logger.Error("failed to parse storage on SCSI0", "vmid", v.ID, "scsi0", scsi0)
+			logger.Error("Failed to parse storage on SCSI0", "vmid", v.ID, "scsi0", scsi0, "error", err)
 
 			continue
 		}
 
-		if st.Size < v.Disk {
+		if size < v.Disk {
 			ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-			diff := v.Disk - st.Size
+			diff := v.Disk - size
 			t, err := vm.ResizeDisk(ctx, "scsi0", fmt.Sprintf("+%dG", diff))
 
 			cancel()
 
 			if err != nil {
-				logger.Error("failed to set resize disk on VM", "vmid", v.ID, "err", err)
+				logger.Error("failed to set resize disk on VM", "vmid", v.ID, "error", err)
 
 				continue
 			}

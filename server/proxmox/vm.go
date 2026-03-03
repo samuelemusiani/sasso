@@ -727,11 +727,11 @@ func TestEndpointClone(parentCtx context.Context) {
 
 			s, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
 			if ok {
-				sto, err := parseStorageFromString(s)
+				size, err := getSizeFromStorageString(s)
 				if err != nil {
-					logger.Error("Failed to parse storage from VM config", "vmid", cTemplate.VMID, "error", err)
+					logger.Error("Failed to parse storage from VM config", "vmid", cTemplate.VMID, "storage", s, "error", err)
 				} else {
-					VMCloneDiskSizeGB = sto.Size
+					VMCloneDiskSizeGB = size
 				}
 			}
 		case wasError:
