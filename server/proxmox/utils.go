@@ -65,14 +65,14 @@ func getSizeFromStorageString(s string) (uint, error) {
 			continue
 		}
 
-		switch kv[0] {
-		case "size":
+		if kv[0] == "size" {
 			sizeStr := strings.TrimSuffix(kv[1], "G")
 
 			val, err := strconv.ParseUint(sizeStr, 10, 32)
 			if err != nil {
 				return 0, fmt.Errorf("invalid size value: %w", err)
 			}
+
 			return uint(val), nil
 		}
 	}

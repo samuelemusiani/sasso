@@ -20,7 +20,7 @@ type ShorewallFirewall struct {
 	publicIP     string
 }
 
-func NewShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall, error) {
+func newShorewallFirewall(c config.ShorewallFirewallConfig) (*ShorewallFirewall, error) {
 	if c.ExternalZone == "" {
 		return nil, errors.New("external zone cannot be empty")
 	}
