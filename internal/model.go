@@ -14,7 +14,7 @@ type Net struct {
 	UserIDs []uint `json:"user_ids"` // IDs of users who have access to this network
 }
 
-type VPNConfig struct {
+type WireguardPeer struct {
 	ID     uint `json:"id"`
 	UserID uint `json:"user_id"`
 

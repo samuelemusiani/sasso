@@ -41,8 +41,8 @@ type User struct {
 	BackupRequests []BackupRequest `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	// Notifications  []Notification  `gorm:"foreignKey:UserID"`
 	// We can't have notifications here because we set UserID to 0 for global notifications
-	TelegramBots []TelegramBot `gorm:"foreignKey:UserID"`
-	VPNConfigs   []VPNConfig   `gorm:"foreignKey:UserID"`
+	TelegramBots   []TelegramBot   `gorm:"foreignKey:UserID"`
+	WireguardPeers []WireguardPeer `gorm:"foreignKey:UserID"`
 
 	Groups        []Group         `gorm:"many2many:user_groups;"`
 	GroupResource []GroupResource `gorm:"foreignKey:UserID"`

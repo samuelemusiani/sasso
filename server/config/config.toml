@@ -104,5 +104,5 @@ min_port = 20000
 max_port = 40000
 
 [vpn]
-# Maximum number of VPN profiles per user
-max_profiles_per_user = 2
+# Maximum number of wireguard VPN profiles per user
+max_wireguard_profiles_per_user = 2

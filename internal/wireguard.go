@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
 	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns []VPNConfig, err error) {
+func FetchWireguardPeers(parentCtx context.Context, endpoint, secret string) (vpns []WireguardPeer, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
 	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn", nil)
@@ -45,8 +46,8 @@ func FetchVPNConfigs(parentCtx context.Context, endpoint, secret string) (vpns [
 	return vpns, nil
 }
 
-func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPNConfig) (err error) {
-	body, err := json.Marshal(vpn)
+func UpdateWireguardPeer(parentCtx context.Context, endpoint, secret string, wgPeer WireguardPeer) (err error) {
+	body, err := json.Marshal(wgPeer)
 	if err != nil {
 		return fmt.Errorf("failed to marshal vpn data: %w", err)
 	}
@@ -78,7 +79,7 @@ func UpdateVPNConfig(parentCtx context.Context, endpoint, secret string, vpn VPN
 	return nil
 }
 
-func (p VPNConfig) String() string {
+func (p WireguardPeer) String() string {
 	fileTemplate := `[Interface]
 Address = %s
 PrivateKey = %s
@@ -89,4 +90,33 @@ Endpoint = %s
 AllowedIps = %s`
 
 	return fmt.Sprintf(fileTemplate, p.IP, p.PeerPrivateKey, p.ServerPublicKey, p.Endpoint, strings.Join(p.AllowedIPs, ","))
+}
+
+// Equals checks if two WireguardPeer are equal by comparing their fields.
+// The UserID and ID fields are not considered in this comparison, use
+// FullEquals if you want to compare those fields as well.
+func (p WireguardPeer) Equals(other WireguardPeer) bool {
+	if p.IP != other.IP ||
+		p.PeerPrivateKey != other.PeerPrivateKey ||
+		p.ServerPublicKey != other.ServerPublicKey ||
+		p.Endpoint != other.Endpoint {
+		return false
+	}
+
+	if len(p.AllowedIPs) != len(other.AllowedIPs) {
+		return false
+	}
+
+	for i := range p.AllowedIPs {
+		if !slices.Contains(other.AllowedIPs, p.AllowedIPs[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// FullEquals is the same as Equals but also checks the UserID and ID
+func (p WireguardPeer) FullEquals(other WireguardPeer) bool {
+	return p.Equals(other) && p.UserID == other.UserID && p.ID == other.ID
 }

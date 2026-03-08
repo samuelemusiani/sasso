@@ -1,21 +1,25 @@
 package util
 
 import (
-	"log/slog"
-
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 	"samuelemusiani/sasso/vpn/db"
 )
 
 func NextAvailableAddress(subnet string) (string, error) {
+	return NextAvailableAddressWithAddresses(subnet, nil)
+}
+
+func NextAvailableAddressWithAddresses(subnet string, addresses []string) (string, error) {
 	usedAddresses, err := db.GetAllAddresses()
-	slog.Debug("Used addresses from database", "used_addresses", usedAddresses)
+	logger.Debug("Used addresses from database", "used_addresses", usedAddresses)
 
 	if err != nil {
-		slog.Error("Failed to get all used addresses from database", "error", err)
+		logger.Error("Failed to get all used addresses from database", "error", err)
 
 		return "", err
 	}
+
+	usedAddresses = append(usedAddresses, addresses...)
 
 	dbTrie := ipaddr.NewTrie[*ipaddr.IPAddress]()
 

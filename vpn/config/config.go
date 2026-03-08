@@ -33,8 +33,15 @@ type Wireguard struct {
 }
 
 type Firewall struct {
+	Type      string                  `toml:"type"`
+	Shorewall ShorewallFirewallConfig `toml:"shorewall"`
+}
+
+type ShorewallFirewallConfig struct {
 	VPNZone   string `toml:"vpn"`
 	SassoZone string `toml:"sasso"`
+	BasePath  string `toml:"base_path"`
+	ID        string `toml:"id"`
 }
 
 var config Config
