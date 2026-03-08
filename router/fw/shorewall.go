@@ -266,8 +266,8 @@ func (s *ShorewallFirewall) RemovePortForwardRules(rules []Rule) error {
 }
 
 func sortRules(rules []goshorewall.Rule) []goshorewall.Rule {
-	sort.Slice(rules, func(i, j int) bool {
-		return rules[i].Compare(rules[j]) < 0
+	slices.SortFunc(rules, func(i, j goshorewall.Rule) int {
+		return i.Compare(j)
 	})
 
 	return rules

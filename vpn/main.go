@@ -12,7 +12,6 @@ import (
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/fw"
-	"samuelemusiani/sasso/vpn/util"
 	"samuelemusiani/sasso/vpn/wg"
 )
 
@@ -96,9 +95,6 @@ func main() {
 	}
 
 	slog.Debug("Initializing utilities")
-
-	utilLogger := slog.With("module", "utils")
-	util.Init(utilLogger)
 
 	if err = checkConfig(c.Server); err != nil {
 		slog.Error("Configuration error", "error", err)

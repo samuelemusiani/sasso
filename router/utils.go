@@ -1,10 +1,9 @@
-package utils
+package main
 
 import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 	"samuelemusiani/sasso/router/config"
@@ -19,36 +18,9 @@ var (
 	ErrNoAvailable    = errors.New("no available subnet found")
 )
 
-func Init(l *slog.Logger, c config.Network) error {
-	logger = l
-	cNetwork = c
-
-	_, n, err := net.ParseCIDR(c.UsableSubnet)
-	if err != nil {
-		return fmt.Errorf("invalid usable subnet in config: %w", err)
-	}
-
-	if c.NewSubnetPrefix > 30 {
-		return fmt.Errorf("%d prefix too large, must be <= 30: %w", c.NewSubnetPrefix, ErrPrefixTooLarge)
-	}
-
-	ones, _ := n.Mask.Size()
-	if c.NewSubnetPrefix < ones {
-		return fmt.Errorf("%d new subnet prefix too small, must be >= usable subnet prefix %s: %w", c.NewSubnetPrefix, c.UsableSubnet, ErrPrefixTooLarge)
-	}
-
-	return nil
-}
-
-// NextAvailableSubnet finds the next available subnet that is not in the
-// database. Equals to NextAvailableSubnetWithNewSubnets(nil).
-func NextAvailableSubnet() (string, error) {
-	return NextAvailableSubnetWithNewSubnets(nil)
-}
-
-// NextAvailableSubnetWithNewSubnets finds the next available subnets that are
+// nextAvailableSubnet finds the next available subnets that are
 // not in the database and in the subnets slice passed as argument.
-func NextAvailableSubnetWithNewSubnets(subnets []string) (string, error) {
+func nextAvailableSubnet(subnets []string) (string, error) {
 	usedSubnets, err := db.GetAllUsedSubnets()
 	logger.Debug("used subnets from database", "used_subnets", usedSubnets)
 
@@ -80,7 +52,7 @@ func NextAvailableSubnetWithNewSubnets(subnets []string) (string, error) {
 	return "", ErrNoAvailable
 }
 
-func GatewayAddressFromSubnet(subnet string) (string, error) {
+func gatewayAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
 		return "", fmt.Errorf("invalid subnet: %s", subnet)
@@ -89,7 +61,7 @@ func GatewayAddressFromSubnet(subnet string) (string, error) {
 	return s.GetUpper().Increment(-1).String(), nil
 }
 
-func GetBroadcastAddressFromSubnet(subnet string) (string, error) {
+func getBroadcastAddressFromSubnet(subnet string) (string, error) {
 	s := ipaddr.NewIPAddressString(subnet).GetAddress()
 	if s == nil {
 		return "", fmt.Errorf("invalid subnet: %s", subnet)

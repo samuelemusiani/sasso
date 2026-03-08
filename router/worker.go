@@ -14,7 +14,6 @@ import (
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
-	"samuelemusiani/sasso/router/utils"
 )
 
 func checkConfig(c config.Server) error {
@@ -246,7 +245,7 @@ func fillNetsEmptyFields(nets []internal.Net) ([]internal.Net, error) {
 
 	for i := range nets {
 		if nets[i].Subnet == "" {
-			nets[i].Subnet, err = utils.NextAvailableSubnetWithNewSubnets(subnets)
+			nets[i].Subnet, err = nextAvailableSubnet(subnets)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get next available subnet: %w", err)
 			}
@@ -255,14 +254,14 @@ func fillNetsEmptyFields(nets []internal.Net) ([]internal.Net, error) {
 		}
 
 		if nets[i].Gateway == "" {
-			nets[i].Gateway, err = utils.GatewayAddressFromSubnet(nets[i].Subnet)
+			nets[i].Gateway, err = gatewayAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get gateway address from subnet: %w", err)
 			}
 		}
 
 		if nets[i].Broadcast == "" {
-			nets[i].Broadcast, err = utils.GetBroadcastAddressFromSubnet(nets[i].Subnet)
+			nets[i].Broadcast, err = getBroadcastAddressFromSubnet(nets[i].Subnet)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get broadcast address from subnet: %w", err)
 			}

@@ -13,7 +13,6 @@ import (
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/fw"
-	"samuelemusiani/sasso/vpn/util"
 	"samuelemusiani/sasso/vpn/wg"
 )
 
@@ -228,7 +227,7 @@ func fillEmptyWireguardPeers(logger *slog.Logger, vpnConfigs []internal.Wireguar
 
 		logger.Info("Creating new peer", "ID", v.ID, "user_id", v.UserID)
 
-		newAddr, err := util.NextAvailableAddressWithAddresses(vpnSubnet, usedAddresses)
+		newAddr, err := nextAvailableAddress(vpnSubnet, usedAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate new address: %w", err)
 		}
