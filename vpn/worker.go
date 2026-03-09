@@ -293,14 +293,14 @@ func applyWireguardPeers(logger *slog.Logger, wireguardPeers []internal.Wireguar
 	}
 
 	// delete peers that are not present in wireguardPeers slice
-	for publicKey, peer := range currentPeers {
+	for publicKey, _ := range currentPeers {
 		if _, ok := vpnConfigsMap[publicKey]; ok {
 			continue
 		}
 
 		logger.Info("peer not found in server config, deleting it", "public_key", publicKey)
 
-		err = wg.DeletePeer(&peer)
+		err = wg.DeletePeerByPublicKey(publicKey)
 		if err != nil {
 			return fmt.Errorf("failed to delete peer: %w", err)
 		}
@@ -327,7 +327,9 @@ func applyWireguardPeers(logger *slog.Logger, wireguardPeers []internal.Wireguar
 			}
 
 			logger.Info("successfully created peer", "public_key", c.ServerPublicKey)
-		} else if !peer.Equal(wgPeer) {
+		} else if equal, err := wg.CompareParsedPeerWithInternalPeer(peer, c); err != nil {
+			return fmt.Errorf("failed to compare peers: %w", err)
+		} else if !equal {
 			logger.Info("peer found in current WireGuard config but differs from server config, updating it", "public_key", c.ServerPublicKey)
 
 			err = wg.UpdatePeer(&wgPeer)
