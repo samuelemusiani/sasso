@@ -33,7 +33,7 @@ func checkConfig(c config.Server) error {
 	return nil
 }
 
-func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, gtw gateway.Gateway, firewall fw.Firewall) {
+func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, networkConf config.Network, gtw gateway.Gateway, firewall fw.Firewall) {
 	logger.Info("Worker started")
 
 	var (
@@ -122,7 +122,7 @@ start_loop:
 		oldNets := make([]internal.Net, len(nets))
 		copy(oldNets, nets)
 
-		nets, err = fillNetsEmptyFields(nets)
+		nets, err = fillNetsEmptyFields(networkConf, nets)
 		if err != nil {
 			logger.Error("failed to fill nets empty fields", "error", err)
 
@@ -238,14 +238,14 @@ func updateDBWithServerNets(nets []internal.Net) error {
 
 // fillNetsEmptyFields fills the subnet, gateway and broadcast fields of the
 // nets if they are empty.
-func fillNetsEmptyFields(nets []internal.Net) ([]internal.Net, error) {
+func fillNetsEmptyFields(netConf config.Network, nets []internal.Net) ([]internal.Net, error) {
 	var err error
 
 	subnets := make([]string, 0)
 
 	for i := range nets {
 		if nets[i].Subnet == "" {
-			nets[i].Subnet, err = nextAvailableSubnet(subnets)
+			nets[i].Subnet, err = nextAvailableSubnet(netConf.UsableSubnet, netConf.NewSubnetPrefix, subnets)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get next available subnet: %w", err)
 			}

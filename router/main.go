@@ -119,7 +119,7 @@ func main() {
 	workerLogger := slog.With("module", "worker")
 
 	var wg sync.WaitGroup
-	wg.Go(func() { worker(ctx, workerLogger, c.Server, gtw, firewall) })
+	wg.Go(func() { worker(ctx, workerLogger, c.Server, c.Network, gtw, firewall) })
 
 	<-ctx.Done()
 	slog.Info("Shutting down...")

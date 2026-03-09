@@ -5,20 +5,17 @@ import (
 	"fmt"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
-	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 )
 
 var (
-	cNetwork config.Network
-
 	ErrPrefixTooLarge = errors.New("new subnet prefix too large, must be <= 30")
 	ErrNoAvailable    = errors.New("no available subnet found")
 )
 
 // nextAvailableSubnet finds the next available subnets that are
 // not in the database and in the subnets slice passed as argument.
-func nextAvailableSubnet(subnets []string) (string, error) {
+func nextAvailableSubnet(usableSubnet string, newSubnetPrefix int, subnets []string) (string, error) {
 	usedSubnets, err := db.GetAllUsedSubnets()
 	usedSubnets = append(usedSubnets, subnets...)
 
@@ -33,9 +30,9 @@ func nextAvailableSubnet(subnets []string) (string, error) {
 		dbTrie.Add(addr)
 	}
 
-	subnet := ipaddr.NewIPAddressString(cNetwork.UsableSubnet).GetAddress()
+	subnet := ipaddr.NewIPAddressString(usableSubnet).GetAddress()
 
-	iterator := subnet.SetPrefixLen(cNetwork.NewSubnetPrefix).PrefixIterator()
+	iterator := subnet.SetPrefixLen(newSubnetPrefix).PrefixIterator()
 	for iterator.HasNext() {
 		n := iterator.Next()
 		if !dbTrie.ElementContains(n) {
