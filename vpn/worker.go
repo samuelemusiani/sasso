@@ -9,13 +9,12 @@ import (
 	"slices"
 	"time"
 
+	"github.com/seancfoley/ipaddress-go/ipaddr"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/fw"
 	"samuelemusiani/sasso/vpn/wg"
-
-	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
 func checkConfig(serverConfig config.Server) error {
@@ -228,7 +227,6 @@ func computeWireguardPeers(logger *slog.Logger, vpnConfigs []internal.WireguardP
 		if v.IP != "" {
 			// Here we only need to check that the values generated from the config
 			// are compliant with the current config.
-
 			ok := true
 
 			// 1. The IP address should be in the VPN subnet
