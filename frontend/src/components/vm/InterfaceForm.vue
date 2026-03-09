@@ -339,12 +339,27 @@ onMounted(() => {
       </div>
 
       <div class="grid w-70 grid-cols-2">
-        <div>Subnet</div>
-        <div>{{ currentNet?.subnet }}</div>
-        <div>Gateway</div>
-        <div>{{ currentNet?.gateway }}</div>
-        <div>Broadcast</div>
-        <div>{{ currentNet?.broadcast }}</div>
+        <div>Subnet:</div>
+        <div>
+          <template v-if="currentNet && currentNet.subnet">{{ currentNet.subnet }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
+        <div>Gateway:</div>
+        <div>
+          <template v-if="currentNet && currentNet.gateway">{{ currentNet.gateway }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
+        <div>Broadcast:</div>
+        <div>
+          <template v-if="currentNet && currentNet.broadcast">{{ currentNet.broadcast }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
       </div>
       <div v-if="currentNet?.vlanaware">
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>

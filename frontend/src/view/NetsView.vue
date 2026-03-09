@@ -226,8 +226,18 @@ const nonMemberGroups = computed(() => {
             {{ net.status }}
           </td>
           <td class="">{{ net.vlanaware }}</td>
-          <td class="">{{ net.subnet }}</td>
-          <td class="">{{ net.gateway }}</td>
+          <td class="">
+            <template v-if="net.subnet">{{ net.subnet }}</template>
+            <div v-else class="flex items-center">
+              <span class="loading loading-dots loading-sm"></span>
+            </div>
+          </td>
+          <td class="">
+            <template v-if="net.gateway">{{ net.gateway }}</template>
+            <div v-else class="flex items-center">
+              <span class="loading loading-dots loading-sm"></span>
+            </div>
+          </td>
           <td class="flex gap-8">
             <button
               v-if="net.status === 'ready'"
