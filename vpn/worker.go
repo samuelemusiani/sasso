@@ -196,9 +196,9 @@ start_loop:
 
 		// ------- Nets -------
 
-		nets, err := internal.FetchNets(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
+		nets, err := fetchNetsFromServerAndFilter(parentCtx, serverConfig)
 		if err != nil {
-			logger.Error("Failed to fetch nets status from main server", "error", err)
+			logger.Error("Failed to fetch nets", "error", err)
 
 			continue
 		}
@@ -414,6 +414,24 @@ func pushWireguardPeersToServer(parentCtx context.Context, logger *slog.Logger, 
 	}
 
 	return nil
+}
+
+func fetchNetsFromServerAndFilter(parentCtx context.Context, serverConfig config.Server) ([]internal.Net, error) {
+	nets, err := internal.FetchNets(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch nets from main server: %w", err)
+	}
+
+	newNets := make([]internal.Net, 0, len(nets))
+	for _, n := range nets {
+		if n.Subnet == "" || n.Gateway == "" || n.Broadcast == "" {
+			continue
+		}
+
+		newNets = append(newNets, n)
+	}
+
+	return newNets, nil
 }
 
 func updateDBWithNets(nets []internal.Net) error {
