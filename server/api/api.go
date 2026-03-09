@@ -250,7 +250,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Put("/net/{id}", internalUpdateNet)
 
 		r.Get("/vpn/wireguard", internalWireguardPeers)
-		r.Put("/vpn/wireguard ", internalUpdateWireguardPeer)
+		r.Put("/vpn/wireguard", internalUpdateWireguardPeer)
 
 		r.Get("/user", internalListUsers)
 
