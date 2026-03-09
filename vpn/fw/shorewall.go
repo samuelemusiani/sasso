@@ -122,5 +122,10 @@ func (s *ShorewallFirewall) ApplyRules(rules []Rule) error {
 		}
 	}
 
+	err = s.app.Reload()
+	if err != nil {
+		return fmt.Errorf("failed to reload shorewall: %w", err)
+	}
+
 	return nil
 }
