@@ -87,12 +87,24 @@ func CreateWireguardPeer(userID uint) error {
 }
 
 func UpdateWireguardPeer(wgPeer *WireguardPeer) error {
-	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Updates(wgPeer)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update wireguard peer: %w", result.Error)
-	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Delete(&WireguardAllowedIP{}, "wireguard_peer_id = ?", wgPeer.ID).Error
+		if err != nil {
+			return fmt.Errorf("failed to delete old allowed IPs: %w", err)
+		}
 
-	return nil
+		err = tx.Save(wgPeer).Error
+		if err != nil {
+			return fmt.Errorf("failed to update wireguard peer: %w", err)
+		}
+
+		err = tx.Save(&wgPeer.AllowedIPs).Error
+		if err != nil {
+			return fmt.Errorf("failed to update allowed IPs: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func GetAllWireguardPeers() ([]WireguardPeer, error) {

@@ -108,7 +108,7 @@ func main() {
 
 	var waitGroup sync.WaitGroup
 	waitGroup.Go(func() {
-		worker(ctx, workerLogger, firewall, c.Server, c.Wireguard.VPNSubnet)
+		worker(ctx, workerLogger, firewall, c.Server)
 	})
 
 	<-ctx.Done()

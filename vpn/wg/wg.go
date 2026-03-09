@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/vpn/config"
 )
 
@@ -174,9 +173,9 @@ func NewPeer(address string) (*Peer, error) {
 	return &Peer{
 		IP:              address,
 		PeerPrivateKey:  privateKey,
-		ServerPublicKey: publicKey,
+		ServerPublicKey: c.PublicKey,
 		Endpoint:        c.Endpoint,
-		AllowedIPs:      []string{c.VMsSubnet, c.VPNSubnet},
+		AllowedIPs:      AllowedIPs(),
 	}, nil
 }
 
@@ -214,7 +213,12 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 }
 
 func CreatePeer(i *Peer) error {
-	stdout, stderr, err := executeCommand("set", c.Interface, "peer", i.ServerPublicKey, "allowed-ips", i.IP)
+	publicWireguard, err := ComputePublicKey(i.PeerPrivateKey)
+	if err != nil {
+		return fmt.Errorf("error computing public key for peer: %w", err)
+	}
+
+	stdout, stderr, err := executeCommand("set", c.Interface, "peer", publicWireguard, "allowed-ips", i.IP)
 	if err != nil {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 
@@ -240,7 +244,7 @@ func DeletePeerByPublicKey(publicKey string) error {
 }
 
 func DeletePeerByPrivateKey(privateKey string) error {
-	publicKey, err := computePublicKey(privateKey)
+	publicKey, err := ComputePublicKey(privateKey)
 	if err != nil {
 		return fmt.Errorf("error computing public key for private key: %w", err)
 	}
@@ -280,7 +284,7 @@ func genKeys() (private string, public string, err error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
-func computePublicKey(privateKey string) (string, error) {
+func ComputePublicKey(privateKey string) (string, error) {
 	publicKey, stderr, err := executeCommandWithStdin(strings.NewReader(privateKey), "wg", "pubkey")
 	if err != nil {
 		return "", fmt.Errorf("error computing public key: %w, stderr: %s", err, stderr)
@@ -342,12 +346,12 @@ func ParsePeers() (map[string]ParsedPeer, error) {
 	return peers, nil
 }
 
-func CompareParsedPeerWithInternalPeer(p ParsedPeer, i internal.WireguardPeer) (bool, error) {
+func CompareParsedPeerWithPeer(p ParsedPeer, i Peer) (bool, error) {
 	if i.IP != p.AllowedIPs[0] {
 		return false, nil
 	}
 
-	peerPublicKey, err := computePublicKey(i.PeerPrivateKey)
+	peerPublicKey, err := ComputePublicKey(i.PeerPrivateKey)
 	if err != nil {
 		return false, fmt.Errorf("error computing public key for internal peer: %w", err)
 	}
@@ -364,7 +368,7 @@ func CompareParsedPeerWithInternalPeer(p ParsedPeer, i internal.WireguardPeer) (
 		return false, nil
 	}
 
-	allowedIPs := []string{c.VMsSubnet, c.VPNSubnet}
+	allowedIPs := AllowedIPs()
 
 	if len(allowedIPs) != len(i.AllowedIPs) {
 		return false, nil
@@ -377,4 +381,20 @@ func CompareParsedPeerWithInternalPeer(p ParsedPeer, i internal.WireguardPeer) (
 	}
 
 	return true, nil
+}
+
+func ServerPublicKey() string {
+	return c.PublicKey
+}
+
+func Endpoint() string {
+	return c.Endpoint
+}
+
+func VPNSubnet() string {
+	return c.VPNSubnet
+}
+
+func AllowedIPs() []string {
+	return []string{c.VMsSubnet, c.VPNSubnet}
 }

@@ -14,6 +14,8 @@ import (
 	"samuelemusiani/sasso/vpn/db"
 	"samuelemusiani/sasso/vpn/fw"
 	"samuelemusiani/sasso/vpn/wg"
+
+	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
 func checkConfig(serverConfig config.Server) error {
@@ -79,7 +81,7 @@ func dbNetsToInternal(dbNets []db.Net) []internal.Net {
 	return internalNets
 }
 
-func worker(parentCtx context.Context, logger *slog.Logger, firewall fw.Firewall, serverConfig config.Server, vpnSubnet string) {
+func worker(parentCtx context.Context, logger *slog.Logger, firewall fw.Firewall, serverConfig config.Server) {
 	logger.Info("worker started")
 
 	var (
@@ -165,7 +167,7 @@ start_loop:
 		oldWireguardPeers := make([]internal.WireguardPeer, len(wireguardPeers))
 		copy(oldWireguardPeers, wireguardPeers)
 
-		wireguardPeers, err = fillEmptyWireguardPeers(logger, wireguardPeers, vpnSubnet)
+		wireguardPeers, err = computeWireguardPeers(logger, wireguardPeers)
 		if err != nil {
 			logger.Error("failed to fill empty wireguard peers", "error", err)
 
@@ -217,17 +219,53 @@ start_loop:
 // To generate a new Wireguard peer, the server sends use an empty one with only
 // ID and UserID fields filled. This function fills the other fields with new
 // generated values.
-func fillEmptyWireguardPeers(logger *slog.Logger, vpnConfigs []internal.WireguardPeer, vpnSubnet string) ([]internal.WireguardPeer, error) {
+// This function also takes care of regenerating peers that do not match the
+// current WireGuard config (server public key mismatch, endpoint mismatch, allowed IPs mismatch).
+func computeWireguardPeers(logger *slog.Logger, vpnConfigs []internal.WireguardPeer) ([]internal.WireguardPeer, error) {
 	var usedAddresses []string
 
 	for i, v := range vpnConfigs {
 		if v.IP != "" {
-			continue
+			// Here we only need to check that the values generated from the config
+			// are compliant with the current config.
+
+			ok := true
+
+			// 1. The IP address should be in the VPN subnet
+			ipAddr := ipaddr.NewIPAddressString(v.IP)
+			if !ipaddr.NewIPAddressString(wg.VPNSubnet()).Contains(ipAddr) {
+				logger.Warn("peer IP address is not in the VPN subnet, regenerating peer", "peer_id", v.ID, "ip", v.IP)
+
+				ok = false
+			}
+
+			// 2. The Public Server Key should match
+			if v.ServerPublicKey != wg.ServerPublicKey() {
+				logger.Warn("peer server public key mismatch, regenerating peer", "peer_id", v.ID, "peer_server_public_key", v.ServerPublicKey, "config_server_public_key", wg.ServerPublicKey())
+
+				ok = false
+			}
+
+			if v.Endpoint != wg.Endpoint() {
+				logger.Warn("peer endpoint mismatch, regenerating peer", "peer_id", v.ID, "peer_endpoint", v.Endpoint, "config_endpoint", wg.Endpoint())
+
+				ok = false
+			}
+
+			if !slices.Equal(v.AllowedIPs, wg.AllowedIPs()) {
+				logger.Warn("peer allowed IPs mismatch, regenerating peer", "peer_id", v.ID, "peer_allowed_ips", v.AllowedIPs, "config_allowed_ips", wg.AllowedIPs())
+
+				ok = false
+			}
+
+			if ok {
+				continue
+			}
 		}
 
 		logger.Info("Creating new peer", "ID", v.ID, "user_id", v.UserID)
 
-		newAddr, err := nextAvailableAddress(vpnSubnet, usedAddresses)
+		newAddr, err := nextAvailableAddress(wg.VPNSubnet(), usedAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate new address: %w", err)
 		}
@@ -288,12 +326,18 @@ func applyWireguardPeers(logger *slog.Logger, wireguardPeers []internal.Wireguar
 	}
 
 	vpnConfigsMap := make(map[string]internal.WireguardPeer)
+
 	for _, c := range wireguardPeers {
-		vpnConfigsMap[c.ServerPublicKey] = c
+		pubKey, err := wg.ComputePublicKey(c.PeerPrivateKey)
+		if err != nil {
+			return fmt.Errorf("failed to compute public key for peer: %w", err)
+		}
+
+		vpnConfigsMap[pubKey] = c
 	}
 
 	// delete peers that are not present in wireguardPeers slice
-	for publicKey, _ := range currentPeers {
+	for publicKey := range currentPeers {
 		if _, ok := vpnConfigsMap[publicKey]; ok {
 			continue
 		}
@@ -318,16 +362,21 @@ func applyWireguardPeers(logger *slog.Logger, wireguardPeers []internal.Wireguar
 			AllowedIPs:      c.AllowedIPs,
 		}
 
-		if peer, ok := currentPeers[c.ServerPublicKey]; !ok {
-			logger.Info("peer not found in current WireGuard config, creating it", "public_key", c.ServerPublicKey)
+		peerPublicKey, err := wg.ComputePublicKey(c.PeerPrivateKey)
+		if err != nil {
+			return fmt.Errorf("failed to compute public key for peer: %w", err)
+		}
+
+		if peer, ok := currentPeers[peerPublicKey]; !ok {
+			logger.Info("peer not found in current WireGuard config, creating it", "public_key", peerPublicKey)
 
 			err = wg.CreatePeer(&wgPeer)
 			if err != nil {
 				return fmt.Errorf("failed to create peer: %w", err)
 			}
 
-			logger.Info("successfully created peer", "public_key", c.ServerPublicKey)
-		} else if equal, err := wg.CompareParsedPeerWithInternalPeer(peer, c); err != nil {
+			logger.Info("successfully created peer", "public_key", peerPublicKey)
+		} else if equal, err := wg.CompareParsedPeerWithPeer(peer, wgPeer); err != nil {
 			return fmt.Errorf("failed to compare peers: %w", err)
 		} else if !equal {
 			logger.Info("peer found in current WireGuard config but differs from server config, updating it", "public_key", c.ServerPublicKey)
