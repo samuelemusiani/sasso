@@ -1,0 +1,122 @@
+package internal
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"slices"
+	"strings"
+	"time"
+
+	"samuelemusiani/sasso/internal/auth"
+)
+
+func FetchWireguardPeers(parentCtx context.Context, endpoint, secret string) (vpns []WireguardPeer, err error) {
+	client := http.Client{Timeout: 10 * time.Second}
+
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn/wireguard", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request to fetch vpn status: %w", err)
+	}
+
+	req = auth.AddAuthToRequest(req, secret)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform request to fetch vpn status: %w", err)
+	}
+
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing request body: %w", closeErr)
+		}
+	}()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch vpn status: non-200 status code. %s", res.Status)
+	}
+
+	err = json.NewDecoder(res.Body).Decode(&vpns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode vpn status: %w", err)
+	}
+
+	return vpns, nil
+}
+
+func UpdateWireguardPeer(parentCtx context.Context, endpoint, secret string, wgPeer WireguardPeer) (err error) {
+	body, err := json.Marshal(wgPeer)
+	if err != nil {
+		return fmt.Errorf("failed to marshal vpn data: %w", err)
+	}
+
+	client := http.Client{Timeout: 10 * time.Second}
+
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodPut, endpoint+"/internal/vpn/wireguard", bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request to update vpn config: %w", err)
+	}
+
+	req = auth.AddAuthToRequest(req, secret)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to perform request to update vpn config: %w", err)
+	}
+
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing request body: %w", closeErr)
+		}
+	}()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update vpn config: non-200 status code. %s", res.Status)
+	}
+
+	return nil
+}
+
+func (p WireguardPeer) String() string {
+	fileTemplate := `[Interface]
+Address = %s
+PrivateKey = %s
+
+[Peer]
+PublicKey = %s
+Endpoint = %s
+AllowedIps = %s`
+
+	return fmt.Sprintf(fileTemplate, p.IP, p.PeerPrivateKey, p.ServerPublicKey, p.Endpoint, strings.Join(p.AllowedIPs, ","))
+}
+
+// Equals checks if two WireguardPeer are equal by comparing their fields.
+// The UserID and ID fields are not considered in this comparison, use
+// FullEquals if you want to compare those fields as well.
+func (p WireguardPeer) Equals(other WireguardPeer) bool {
+	if p.IP != other.IP ||
+		p.PeerPrivateKey != other.PeerPrivateKey ||
+		p.ServerPublicKey != other.ServerPublicKey ||
+		p.Endpoint != other.Endpoint {
+		return false
+	}
+
+	if len(p.AllowedIPs) != len(other.AllowedIPs) {
+		return false
+	}
+
+	for i := range p.AllowedIPs {
+		if !slices.Contains(other.AllowedIPs, p.AllowedIPs[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// FullEquals is the same as Equals but also checks the UserID and ID
+func (p WireguardPeer) FullEquals(other WireguardPeer) bool {
+	return p.Equals(other) && p.UserID == other.UserID && p.ID == other.ID
+}

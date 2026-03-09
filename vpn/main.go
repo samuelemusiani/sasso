@@ -11,7 +11,7 @@ import (
 
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
-	"samuelemusiani/sasso/vpn/util"
+	"samuelemusiani/sasso/vpn/fw"
 	"samuelemusiani/sasso/vpn/wg"
 )
 
@@ -76,6 +76,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	slog.Debug("Initializing firewall")
+
+	firewallLogger := slog.With("module", "firewall")
+
+	firewall, err := fw.Init(firewallLogger, c.Firewall)
+	if err != nil {
+		slog.Error("Error initializing firewall", "error", err)
+		os.Exit(1)
+	}
+
 	slog.Debug("Initializing database")
 
 	dbLogger := slog.With("module", "db")
@@ -86,16 +96,8 @@ func main() {
 
 	slog.Debug("Initializing utilities")
 
-	utilLogger := slog.With("module", "utils")
-	util.Init(utilLogger)
-
-	if err = checkConfig(c.Server, c.Firewall, c.Wireguard.VPNSubnet); err != nil {
+	if err = checkConfig(c.Server); err != nil {
 		slog.Error("Configuration error", "error", err)
-		os.Exit(1)
-	}
-
-	if err = checkFirewallStatus(c.Firewall); err != nil {
-		slog.Error("Firewall configuration error", "error", err)
 		os.Exit(1)
 	}
 
@@ -106,7 +108,7 @@ func main() {
 
 	var waitGroup sync.WaitGroup
 	waitGroup.Go(func() {
-		worker(ctx, workerLogger, c.Server, c.Firewall, c.Wireguard.VPNSubnet)
+		worker(ctx, workerLogger, firewall, c.Server)
 	})
 
 	<-ctx.Done()

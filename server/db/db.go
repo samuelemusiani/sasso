@@ -98,9 +98,9 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
-	err = initVPNConfig()
+	err = initWireguardPeers()
 	if err != nil {
-		logger.Error("Failed to initialize VPN config in database", "error", err)
+		logger.Error("Failed to initialize wireguard config in database", "error", err)
 
 		return err
 	}

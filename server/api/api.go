@@ -150,9 +150,9 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Post("/ssh-keys", addSSHKey)
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
-		r.Get("/vpn", getUserVPNConfigs)
-		r.Post("/vpn", addVPNConfig)
-		r.Delete("/vpn/{id}", deleteVPNConfig)
+		r.Get("/vpn/wireguard", getUserWireguardPeers)
+		r.Post("/vpn/wireguard", addWireguardPeer)
+		r.Delete("/vpn/wireguard/{id}", deleteWireguardPeer)
 
 		r.Get("/port-forwards/public-ip", func(w http.ResponseWriter, _ *http.Request) {
 			if err := json.NewEncoder(w).Encode(map[string]string{"public_ip": portForwards.PublicIP}); err != nil {
@@ -249,8 +249,8 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Get("/net", internalListNets)
 		r.Put("/net/{id}", internalUpdateNet)
 
-		r.Get("/vpn", internalGetVPNConfigs)
-		r.Put("/vpn", internalUpdateVPNConfig)
+		r.Get("/vpn/wireguard", internalWireguardPeers)
+		r.Put("/vpn/wireguard", internalUpdateWireguardPeer)
 
 		r.Get("/user", internalListUsers)
 
@@ -428,7 +428,7 @@ func checkConfig(key []byte, secret string, publicServerConf config.Server, priv
 		return errors.New("port forwards range must be at least 10 ports")
 	}
 
-	if vpn.MaxProfilesPerUser == 0 {
+	if vpn.MaxWireguardProfilesPerUser == 0 {
 		return errors.New("vpn max profiles per user cannot be zero")
 	}
 

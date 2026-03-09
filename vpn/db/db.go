@@ -48,14 +48,14 @@ func Init(l *slog.Logger, c *config.Database) error {
 		return err
 	}
 
-	if err := initSubnets(); err != nil {
-		logger.Error("Failed to initialize subnets in database", "error", err)
+	if err := initNets(); err != nil {
+		logger.Error("Failed to initialize networks in database", "error", err)
 
 		return err
 	}
 
-	if err := initPeers(); err != nil {
-		logger.Error("Failed to initialize peers in database", "error", err)
+	if err := initWireguardPeers(); err != nil {
+		logger.Error("Failed to initialize wireguard peers in database", "error", err)
 
 		return err
 	}

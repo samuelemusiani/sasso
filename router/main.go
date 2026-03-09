@@ -13,7 +13,6 @@ import (
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
-	"samuelemusiani/sasso/router/utils"
 )
 
 var (
@@ -69,14 +68,6 @@ func main() {
 	slog.Debug("Config file parsed successfully", "config", c)
 
 	slog.Debug("Initializing utilities")
-
-	utilsLogger := slog.With("module", "utils")
-
-	err = utils.Init(utilsLogger, c.Network)
-	if err != nil {
-		slog.Error("Failed to initialize utilities", "error", err)
-		os.Exit(1)
-	}
 
 	gatewayLogger := slog.With("module", "gateway")
 

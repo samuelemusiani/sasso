@@ -105,7 +105,7 @@ type PortForwards struct {
 }
 
 type VPN struct {
-	MaxProfilesPerUser uint `toml:"max_profiles_per_user"`
+	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
 }
 
 var config Config

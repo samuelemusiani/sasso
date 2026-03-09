@@ -10,25 +10,16 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"samuelemusiani/sasso/vpn/config"
-	"samuelemusiani/sasso/vpn/db"
 )
 
 var (
 	c      *config.Wireguard
 	logger *slog.Logger
-
-	fileTemplate = `[Interface]
-Address = %s
-PrivateKey = %s
-
-[Peer]
-PublicKey = %s
-Endpoint = %s
-AllowedIps = %s, %s`
 )
 
 func Init(l *slog.Logger, conf *config.Wireguard) error {
@@ -36,7 +27,7 @@ func Init(l *slog.Logger, conf *config.Wireguard) error {
 	logger = l
 
 	// Check permission for wg command and its existence
-	_, stderr, err := executeWGCommand("--version")
+	_, stderr, err := executeCommand("--version")
 	if err != nil {
 		return fmt.Errorf("wg command not found or not executable: %w, stderr: %s", err, stderr)
 	}
@@ -129,7 +120,7 @@ func checkConfig(c *config.Wireguard) error {
 	}
 
 	// Check interface exists
-	_, stderr, err := executeWGCommand("show", c.Interface)
+	_, stderr, err := executeCommand("show", c.Interface)
 	if err != nil {
 		return fmt.Errorf("wireguard interface %s does not exist: %w, stderr: %s", c.Interface, err, stderr)
 	}
@@ -137,13 +128,39 @@ func checkConfig(c *config.Wireguard) error {
 	return nil
 }
 
-type WGPeer struct {
-	Address    string
-	PrivateKey string
-	PublicKey  string
+type Peer struct {
+	IP              string
+	PeerPrivateKey  string
+	ServerPublicKey string
+	Endpoint        string
+	AllowedIPs      []string
 }
 
-func NewWGConfig(address string) (*WGPeer, error) {
+func (p Peer) Equal(other Peer) bool {
+	if p.IP != other.IP ||
+		p.PeerPrivateKey != other.PeerPrivateKey ||
+		p.ServerPublicKey != other.ServerPublicKey ||
+		p.Endpoint != other.Endpoint {
+		return false
+	}
+
+	if len(p.AllowedIPs) != len(other.AllowedIPs) {
+		return false
+	}
+
+	for i := range p.AllowedIPs {
+		if !slices.Contains(other.AllowedIPs, p.AllowedIPs[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// NewPeer creates a new Wireguard peer with a new key pair and the given IP
+// address. This function does not add the peer to the Wireguard interface, it
+// only creates the struct with the necessary information
+func NewPeer(address string) (*Peer, error) {
 	privateKey, publicKey, err := genKeys()
 	if err != nil {
 		logger.Error("Error generating keys", "err", err)
@@ -153,14 +170,16 @@ func NewWGConfig(address string) (*WGPeer, error) {
 
 	logger.Info("Generated keys", "privateKey", privateKey, "publicKey", publicKey)
 
-	return &WGPeer{address, privateKey, publicKey}, nil
+	return &Peer{
+		IP:              address,
+		PeerPrivateKey:  privateKey,
+		ServerPublicKey: c.PublicKey,
+		Endpoint:        c.Endpoint,
+		AllowedIPs:      AllowedIPs(),
+	}, nil
 }
 
-func (wg *WGPeer) String() string {
-	return fmt.Sprintf(fileTemplate, wg.Address, wg.PrivateKey, c.PublicKey, c.Endpoint, c.VPNSubnet, c.VMsSubnet)
-}
-
-func executeWGCommand(args ...string) (stdout string, stderr string, err error) {
+func executeCommand(args ...string) (stdout string, stderr string, err error) {
 	logger.Debug("Executing wg command", "args", args)
 
 	var (
@@ -193,8 +212,13 @@ func executeCommandWithStdin(stdin io.Reader, command string, args ...string) (s
 	return stdoutBuff.String(), stderrBuff.String(), err
 }
 
-func CreatePeer(i *WGPeer) error {
-	stdout, stderr, err := executeWGCommand("set", c.Interface, "peer", i.PublicKey, "allowed-ips", i.Address)
+func CreatePeer(i *Peer) error {
+	publicWireguard, err := ComputePublicKey(i.PeerPrivateKey)
+	if err != nil {
+		return fmt.Errorf("error computing public key for peer: %w", err)
+	}
+
+	stdout, stderr, err := executeCommand("set", c.Interface, "peer", publicWireguard, "allowed-ips", i.IP)
 	if err != nil {
 		logger.Error("Error creating WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 
@@ -206,8 +230,8 @@ func CreatePeer(i *WGPeer) error {
 	return nil
 }
 
-func DeletePeer(i *WGPeer) error {
-	stdout, stderr, err := executeWGCommand("set", c.Interface, "peer", i.PublicKey, "remove")
+func DeletePeerByPublicKey(publicKey string) error {
+	stdout, stderr, err := executeCommand("set", c.Interface, "peer", publicKey, "remove")
 	if err != nil {
 		logger.Error("Error deleting WireGuard peer", "err", err, "stdout", stdout, "stderr", stderr)
 
@@ -219,8 +243,17 @@ func DeletePeer(i *WGPeer) error {
 	return nil
 }
 
-func UpdatePeer(i *WGPeer) error {
-	err := DeletePeer(i)
+func DeletePeerByPrivateKey(privateKey string) error {
+	publicKey, err := ComputePublicKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("error computing public key for private key: %w", err)
+	}
+
+	return DeletePeerByPublicKey(publicKey)
+}
+
+func UpdatePeer(i *Peer) error {
+	err := DeletePeerByPrivateKey(i.PeerPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -234,7 +267,7 @@ func UpdatePeer(i *WGPeer) error {
 }
 
 func genKeys() (private string, public string, err error) {
-	privateKey, stderr, err := executeWGCommand("genkey")
+	privateKey, stderr, err := executeCommand("genkey")
 	if err != nil {
 		logger.Error("Error generating private key", "err", err, "stderr", stderr)
 
@@ -251,15 +284,31 @@ func genKeys() (private string, public string, err error) {
 	return strings.TrimSuffix(privateKey, "\n"), strings.TrimSuffix(publicKey, "\n"), nil
 }
 
-func ParsePeers() (map[string]WGPeer, error) {
-	stdout, stderr, err := executeWGCommand("show", c.Interface, "dump")
+func ComputePublicKey(privateKey string) (string, error) {
+	publicKey, stderr, err := executeCommandWithStdin(strings.NewReader(privateKey), "wg", "pubkey")
+	if err != nil {
+		return "", fmt.Errorf("error computing public key: %w, stderr: %s", err, stderr)
+	}
+
+	return strings.TrimSuffix(publicKey, "\n"), nil
+}
+
+type ParsedPeer struct {
+	PublicKey    string
+	PreSharedKey string
+	Endpoint     string
+	AllowedIPs   []string
+}
+
+func ParsePeers() (map[string]ParsedPeer, error) {
+	stdout, stderr, err := executeCommand("show", c.Interface, "dump")
 	if err != nil {
 		logger.Error("Error dumping peers", "err", err, "stderr", stderr)
 
 		return nil, err
 	}
 
-	peers := make(map[string]WGPeer)
+	peers := make(map[string]ParsedPeer)
 
 	lines := strings.Split(stdout, "\n")
 	for i, l := range lines {
@@ -280,24 +329,72 @@ func ParsePeers() (map[string]WGPeer, error) {
 		}
 
 		publicKey := fields[0]
-		privateKey := fields[1]
+		preSharedKey := fields[1]
 		allowedIps := fields[3]
 
-		peer := WGPeer{
-			Address:    allowedIps,
-			PrivateKey: privateKey,
-			PublicKey:  publicKey,
+		allowedIPs := strings.Split(allowedIps, ",")
+		slices.Sort(allowedIPs)
+
+		peers[publicKey] = ParsedPeer{
+			PublicKey:    publicKey,
+			PreSharedKey: preSharedKey,
+			Endpoint:     fields[2],
+			AllowedIPs:   allowedIPs,
 		}
-		peers[publicKey] = peer
 	}
 
 	return peers, nil
 }
 
-func PeerFromDB(iface *db.Peer) WGPeer {
-	return WGPeer{
-		Address:    iface.Address,
-		PrivateKey: iface.PrivateKey,
-		PublicKey:  iface.PublicKey,
+func CompareParsedPeerWithPeer(p ParsedPeer, i Peer) (bool, error) {
+	if i.IP != p.AllowedIPs[0] {
+		return false, nil
 	}
+
+	peerPublicKey, err := ComputePublicKey(i.PeerPrivateKey)
+	if err != nil {
+		return false, fmt.Errorf("error computing public key for internal peer: %w", err)
+	}
+
+	if peerPublicKey != p.PublicKey {
+		return false, nil
+	}
+
+	if c.PublicKey != i.ServerPublicKey {
+		return false, nil
+	}
+
+	if c.Endpoint != i.Endpoint {
+		return false, nil
+	}
+
+	allowedIPs := AllowedIPs()
+
+	if len(allowedIPs) != len(i.AllowedIPs) {
+		return false, nil
+	}
+
+	for _, allowedIP := range i.AllowedIPs {
+		if !slices.Contains(allowedIPs, allowedIP) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func ServerPublicKey() string {
+	return c.PublicKey
+}
+
+func Endpoint() string {
+	return c.Endpoint
+}
+
+func VPNSubnet() string {
+	return c.VPNSubnet
+}
+
+func AllowedIPs() []string {
+	return []string{c.VMsSubnet, c.VPNSubnet}
 }

@@ -2,25 +2,23 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/url"
 	"slices"
-	"sort"
 	"time"
 
-	shorewall "github.com/samuelemusiani/go-shorewall"
 	"samuelemusiani/sasso/internal"
 	"samuelemusiani/sasso/vpn/config"
 	"samuelemusiani/sasso/vpn/db"
-	"samuelemusiani/sasso/vpn/util"
+	"samuelemusiani/sasso/vpn/fw"
 	"samuelemusiani/sasso/vpn/wg"
+
+	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
-func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) error {
+func checkConfig(serverConfig config.Server) error {
 	if serverConfig.Endpoint == "" {
 		return errors.New("server endpoint is empty")
 	}
@@ -35,60 +33,101 @@ func checkConfig(serverConfig config.Server, fwConfig config.Firewall, vpnSubnet
 		return errors.New("server endpoint is not a valid URL")
 	}
 
-	if fwConfig.VPNZone == "" {
-		return errors.New("firewall VPN zone is empty")
-	}
-
-	if fwConfig.SassoZone == "" {
-		return errors.New("firewall Sasso zone is empty")
-	}
-
-	if vpnSubnet == "" {
-		return errors.New("VPN subnet is empty")
-	}
-
-	if _, _, err := net.ParseCIDR(vpnSubnet); err != nil {
-		return fmt.Errorf("VPN subnet %s is not a valid CIDR: %w", vpnSubnet, err)
-	}
-
 	return nil
 }
 
-func checkFirewallStatus(fwConfig config.Firewall) error {
-	v, err := shorewall.Version()
-	if err != nil {
-		return fmt.Errorf("failed to get shorewall version: %w", err)
-	}
+func dbWireguardPeersToInternal(wgPeers []db.WireguardPeer) []internal.WireguardPeer {
+	internalPeers := make([]internal.WireguardPeer, len(wgPeers))
+	for i, p := range wgPeers {
+		allowedIPs := make([]string, len(p.AllowedIPs))
+		for j, ip := range p.AllowedIPs {
+			allowedIPs[j] = ip.IP
+		}
 
-	slog.Info("Shorewall version", "version", v)
-
-	zones, err := shorewall.Zones()
-	if err != nil {
-		return fmt.Errorf("failed to get shorewall zones: %w", err)
-	}
-
-	fwZones := []string{fwConfig.VPNZone, fwConfig.SassoZone}
-	for _, z := range fwZones {
-		if !slices.ContainsFunc(zones, func(sz shorewall.Zone) bool {
-			return sz.Name == z
-		}) {
-			return fmt.Errorf("shorewall zone %s not found", z)
+		internalPeers[i] = internal.WireguardPeer{
+			ID:              p.ID,
+			IP:              p.IP,
+			PeerPrivateKey:  p.PeerPrivateKey,
+			ServerPublicKey: p.ServerPublicKey,
+			Endpoint:        p.Endpoint,
+			AllowedIPs:      allowedIPs,
+			UserID:          p.UserID,
 		}
 	}
 
-	return nil
+	return internalPeers
 }
 
-func worker(parentCtx context.Context, logger *slog.Logger, serverConfig config.Server, fwConfig config.Firewall, vpnSubnet string) {
-	logger.Info("Worker started")
+func dbNetsToInternal(dbNets []db.Net) []internal.Net {
+	internalNets := make([]internal.Net, len(dbNets))
+	for i, n := range dbNets {
+		userIDs := make([]uint, len(n.UserIDs))
+		for j, userID := range n.UserIDs {
+			userIDs[j] = userID.UserID
+		}
+
+		internalNets[i] = internal.Net{
+			ID:        n.ID,
+			Zone:      n.Zone,
+			Name:      n.Name,
+			Tag:       n.Tag,
+			Subnet:    n.Subnet,
+			Gateway:   n.Gateway,
+			Broadcast: n.Broadcast,
+			UserIDs:   userIDs,
+		}
+	}
+
+	return internalNets
+}
+
+func worker(parentCtx context.Context, logger *slog.Logger, firewall fw.Firewall, serverConfig config.Server) {
+	logger.Info("worker started")
 
 	var (
 		timeToSleep time.Duration
 		err         error
 	)
+
+	var (
+		wireguardPeers []db.WireguardPeer
+		nets           []db.Net
+
+		internalWireguardPeers []internal.WireguardPeer
+	)
+
+	wireguardPeers, err = db.GetAllWireguardPeers()
+	if err != nil {
+		logger.Error("Failed to fetch WireGuard peers from DB", "error", err)
+
+		goto start_loop
+	}
+
+	internalWireguardPeers = dbWireguardPeersToInternal(wireguardPeers)
+
+	err = applyWireguardPeers(logger, internalWireguardPeers)
+	if err != nil {
+		logger.Error("Failed to apply WireGuard peers from DB", "error", err)
+	}
+
+	nets, err = db.GetAllNets()
+	if err != nil {
+		logger.Error("Failed to fetch nets from DB", "error", err)
+
+		goto start_loop
+	}
+
+	err = applyNetsToFirewall(firewall, internalWireguardPeers, dbNetsToInternal(nets))
+	if err != nil {
+		logger.Error("Failed to apply nets from DB", "error", err)
+
+		goto start_loop
+	}
+
+start_loop:
 	for {
 		if err != nil {
-			timeToSleep = 20 * time.Second
+			timeToSleep = 10 * time.Second
 		} else {
 			timeToSleep = 5 * time.Second
 		}
@@ -96,24 +135,67 @@ func worker(parentCtx context.Context, logger *slog.Logger, serverConfig config.
 		select {
 		case <-time.After(timeToSleep):
 		case <-parentCtx.Done():
-			logger.Info("Worker shutting down")
+			logger.Info("worker shutting down")
 
 			return
 		}
 
-		err = checkPeers(logger)
+		// This worker takes care of two things:
+		// 1. Wireguard peers
+		// 2. Firewall rules for the Wireguard peers
+		//
+		// We have 3 states for these resources:
+		// 1. Server main state (what we want)
+		// 2. Wireguard peers state (what we have)
+		// 3. Wireguard peers DB (what we rember we had)
+		//
+		// Flow:
+		// 1. Pull from Main server (if fail pass over)
+		// 2. Update DB (if no update from main server use last stored state)
+		// 3. Update Wireguard peers State (with Server state or last DB state)
+		// 4. Repeat
+
+		var wireguardPeers []internal.WireguardPeer
+
+		wireguardPeers, err = internal.FetchWireguardPeers(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
-			logger.Error("Failed to check peers", "error", err)
+			logger.Error("failed to fetch wireguard peers from main server", "error", err)
 
 			continue
 		}
 
-		err = checkFirewall(logger, fwConfig)
+		oldWireguardPeers := make([]internal.WireguardPeer, len(wireguardPeers))
+		copy(oldWireguardPeers, wireguardPeers)
+
+		wireguardPeers, err = computeWireguardPeers(logger, wireguardPeers)
 		if err != nil {
-			logger.With("error", err).Error("Failed to check firewall")
+			logger.Error("failed to fill empty wireguard peers", "error", err)
 
 			continue
 		}
+
+		err = updateDBWithServerWireguardPeers(wireguardPeers)
+		if err != nil {
+			logger.Error("failed to update DB with server wireguard peers", "error", err)
+
+			continue
+		}
+
+		err = applyWireguardPeers(logger, wireguardPeers)
+		if err != nil {
+			logger.Error("failed to apply wireguard peers", "error", err)
+
+			continue
+		}
+
+		err = pushWireguardPeersToServer(parentCtx, logger, serverConfig, oldWireguardPeers, wireguardPeers)
+		if err != nil {
+			logger.Error("Failed to push wireguard peers to main server", "error", err)
+
+			continue
+		}
+
+		// ------- Nets -------
 
 		nets, err := internal.FetchNets(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
 		if err != nil {
@@ -122,445 +204,259 @@ func worker(parentCtx context.Context, logger *slog.Logger, serverConfig config.
 			continue
 		}
 
-		vpnConfigs, err := internal.FetchVPNConfigs(parentCtx, serverConfig.Endpoint, serverConfig.Secret)
+		err = updateDBWithNets(nets)
 		if err != nil {
-			logger.Error("Failed to fetch VPN configs from main server", "error", err)
-
-			continue
+			logger.Error("Failed to update DB with nets from main server", "error", err)
 		}
 
-		err = deletePeers(logger, vpnConfigs, fwConfig)
+		err = applyNetsToFirewall(firewall, wireguardPeers, nets)
 		if err != nil {
-			logger.Error("Failed to delete peers", "error", err)
-		}
-
-		err = createPeers(logger, vpnConfigs, vpnSubnet)
-		if err != nil {
-			logger.Error("Failed to create VNets", "error", err)
-		}
-
-		enableNets(logger, nets, fwConfig)
-
-		err = disableNets(logger, nets, fwConfig)
-		if err != nil {
-			logger.Error("Failed to delete VNets", "error", err)
-		}
-
-		err = updateNetsOnServer(parentCtx, logger, vpnConfigs, serverConfig.Endpoint, serverConfig.Secret)
-		if err != nil {
-			logger.Error("Failed to update nets on main server", "error", err)
+			logger.Error("Failed to apply nets", "error", err)
 		}
 	}
 }
 
-func disableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) error {
-	localNets, err := db.GetAllSubnets()
-	if err != nil {
-		logger.Error("Failed to get all subnets from DB", "error", err)
+// To generate a new Wireguard peer, the server sends use an empty one with only
+// ID and UserID fields filled. This function fills the other fields with new
+// generated values.
+// This function also takes care of regenerating peers that do not match the
+// current WireGuard config (server public key mismatch, endpoint mismatch, allowed IPs mismatch).
+func computeWireguardPeers(logger *slog.Logger, vpnConfigs []internal.WireguardPeer) ([]internal.WireguardPeer, error) {
+	var usedAddresses []string
 
-		return err
-	}
+	for i, v := range vpnConfigs {
+		if v.IP != "" {
+			// Here we only need to check that the values generated from the config
+			// are compliant with the current config.
 
-	// Remove firewall rules and DB entries for nets that are no longer present
-	for _, ln := range localNets {
-		f := func(n internal.Net) bool { return n.Subnet == ln.Subnet }
-		if slices.IndexFunc(nets, f) != -1 {
-			continue
-		}
+			ok := true
 
-		logger.Info("Deleting net", "subnet", ln.Subnet)
+			// 1. The IP address should be in the VPN subnet
+			ipAddr := ipaddr.NewIPAddressString(v.IP)
+			if !ipaddr.NewIPAddressString(wg.VPNSubnet()).Contains(ipAddr) {
+				logger.Warn("peer IP address is not in the VPN subnet, regenerating peer", "peer_id", v.ID, "ip", v.IP)
 
-		for _, sp := range ln.Peers {
-			peer, err := db.GetPeerByID(sp.ID)
-			if err != nil {
-				logger.Error("Failed to get peer from DB while disabling nets", "error", err, "peer_id", sp.ID)
+				ok = false
+			}
 
+			// 2. The Public Server Key should match
+			if v.ServerPublicKey != wg.ServerPublicKey() {
+				logger.Warn("peer server public key mismatch, regenerating peer", "peer_id", v.ID, "peer_server_public_key", v.ServerPublicKey, "config_server_public_key", wg.ServerPublicKey())
+
+				ok = false
+			}
+
+			if v.Endpoint != wg.Endpoint() {
+				logger.Warn("peer endpoint mismatch, regenerating peer", "peer_id", v.ID, "peer_endpoint", v.Endpoint, "config_endpoint", wg.Endpoint())
+
+				ok = false
+			}
+
+			if !slices.Equal(v.AllowedIPs, wg.AllowedIPs()) {
+				logger.Warn("peer allowed IPs mismatch, regenerating peer", "peer_id", v.ID, "peer_allowed_ips", v.AllowedIPs, "config_allowed_ips", wg.AllowedIPs())
+
+				ok = false
+			}
+
+			if ok {
 				continue
 			}
-
-			err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", peer.Address, ln.Subnet))
-			if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
-				logger.Error("Failed to delete firewall rule", "error", err)
-
-				continue
-			}
 		}
 
-		if err = shorewall.Reload(); err != nil {
-			logger.Error("Failed to reload firewall", "error", err)
-
-			continue
-		}
-
-		err = db.RemoveSubnet(ln.Subnet)
-		if err != nil {
-			logger.Error("Failed to remove subnet from DB", "error", err)
-
-			continue
-		}
-
-		logger.Info("Successfully removed subnet", "subnet", ln.Subnet)
-	}
-
-	return nil
-}
-
-func deletePeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, fwConfig config.Firewall) error {
-	// We could optimize this by looking at which users have reduced their number
-	// of VPN configs, but for now we only iterate over all peers and check if they
-	// are still needed.
-	peers, err := db.GetAllPeers()
-	if err != nil {
-		logger.Error("Failed to get all peers from DB", "error", err)
-
-		return err
-	}
-
-	for _, p := range peers {
-		if !slices.ContainsFunc(vpnConfigs, func(v internal.VPNProfile) bool {
-			return v.VPNIP == p.Address
-		}) {
-			wgPeer := wg.PeerFromDB(&p)
-
-			err = wg.DeletePeer(&wgPeer)
-			if err != nil {
-				logger.Error("Failed to delete peer from WireGuard", "error", err, "peer_id", p.ID)
-
-				continue
-			}
-
-			nets, err := db.GetSubnetsByPeerID(p.ID)
-			if err != nil {
-				logger.Error("Failed to get subnets for deleted peer", "error", err, "peer_id", p.ID)
-
-				continue
-			}
-
-			for _, n := range nets {
-				logger.Warn("Deleting firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
-
-				err = shorewall.RemoveRule(util.CreateRule(fwConfig, "ACCEPT", p.Address, n.Subnet))
-				if err != nil && !errors.Is(err, shorewall.ErrRuleNotFound) {
-					logger.Error("Failed to delete firewall rule for deleted peer", "error", err, "peer_id", p.ID, "subnet", n.Subnet)
-
-					continue
-				}
-
-				logger.Info("Successfully deleted firewall rule for deleted peer", "peer_id", p.ID, "subnet", n.Subnet)
-			}
-
-			if err = shorewall.Reload(); err != nil {
-				logger.Error("Failed to reload firewall after deleting peer", "error", err, "peer_id", p.ID)
-
-				continue
-			}
-
-			err = db.DeletePeerByID(p.ID)
-			if err != nil {
-				logger.Error("Failed to delete peer from DB", "error", err, "peer_id", p.ID)
-
-				continue
-			}
-
-			logger.Info("Successfully deleted peer", "peer_id", p.ID, "address", p.Address)
-		}
-	}
-
-	return nil
-}
-
-func createPeers(logger *slog.Logger, vpnConfigs []internal.VPNProfile, vpnSubnet string) error {
-	peers, err := db.GetAllPeers()
-	if err != nil {
-		logger.Error("Failed to get all peers from DB", "error", err)
-
-		return err
-	}
-
-	for _, v := range vpnConfigs {
-		if slices.ContainsFunc(peers, func(p db.Peer) bool {
-			return p.ID == v.ID
-		}) {
-			// Peer already exists
-			continue
-		}
-
-		// Create new peer
 		logger.Info("Creating new peer", "ID", v.ID, "user_id", v.UserID)
 
-		newAddr, err := util.NextAvailableAddress(vpnSubnet)
+		newAddr, err := nextAvailableAddress(wg.VPNSubnet(), usedAddresses)
 		if err != nil {
-			logger.Error("Failed to generate new address", "error", err)
-
-			continue
+			return nil, fmt.Errorf("failed to generate new address: %w", err)
 		}
 
-		wgPeer, err := wg.NewWGConfig(newAddr)
+		wgPeer, err := wg.NewPeer(newAddr)
 		if err != nil {
-			logger.Error("Failed to generate WireGuard config", "error", err)
-
-			continue
+			return nil, fmt.Errorf("failed to generate WireGuard config: %w", err)
 		}
 
-		err = db.NewPeer(wgPeer.PrivateKey, wgPeer.PublicKey, newAddr, v.UserID)
-		if err != nil {
-			logger.Error("Failed to save peer to database", "error", err)
+		vpnConfigs[i].IP = newAddr
+		vpnConfigs[i].ServerPublicKey = wgPeer.ServerPublicKey
+		vpnConfigs[i].PeerPrivateKey = wgPeer.PeerPrivateKey
+		vpnConfigs[i].Endpoint = wgPeer.Endpoint
+		vpnConfigs[i].AllowedIPs = wgPeer.AllowedIPs
 
-			continue
+		logger.Debug("Generated new Wireguard peer", "peer", vpnConfigs[i])
+
+		usedAddresses = append(usedAddresses, newAddr)
+	}
+
+	return vpnConfigs, nil
+}
+
+func updateDBWithServerWireguardPeers(vpnConfigs []internal.WireguardPeer) error {
+	dbWireguardPeers := make([]db.WireguardPeer, 0, len(vpnConfigs))
+	for _, c := range vpnConfigs {
+		allowedIPs := make([]db.WireguardAllowedIP, len(c.AllowedIPs))
+		for i, ip := range c.AllowedIPs {
+			allowedIPs[i] = db.WireguardAllowedIP{
+				IP: ip,
+			}
 		}
 
-		logger.Info("Successfully created new peer", "user_id", v.UserID, "address", newAddr)
+		dbWireguardPeers = append(dbWireguardPeers, db.WireguardPeer{
+			IP:              c.IP,
+			PeerPrivateKey:  c.PeerPrivateKey,
+			ServerPublicKey: c.ServerPublicKey,
+			Endpoint:        c.Endpoint,
+			AllowedIPs:      allowedIPs,
+			UserID:          c.UserID,
+		})
+	}
+
+	err := db.UpdateAllWireguardPeers(dbWireguardPeers)
+	if err != nil {
+		return fmt.Errorf("failed to update DB with server WireGuard peers: %w", err)
 	}
 
 	return nil
 }
 
-// checkPeers compares the peers in the database with the peers in the WireGuard
-// and makes sure they are in sync. The DB state is considered the source of
-// truth.
-func checkPeers(logger *slog.Logger) error {
-	dbPeers, err := db.GetAllPeers()
+// applyWireguardPeers applies the given WireGuard peers to the local WireGuard
+// interface.
+func applyWireguardPeers(logger *slog.Logger, wireguardPeers []internal.WireguardPeer) error {
+	currentPeers, err := wg.ParsePeers()
 	if err != nil {
-		logger.Error("Failed to get peers from database", "error", err)
-
-		return err
+		return fmt.Errorf("failed to parse current WireGuard peers: %w", err)
 	}
 
-	wgPeers, err := wg.ParsePeers()
-	if err != nil {
-		logger.Error("Failed to parse WireGuard peers", "error", err)
+	vpnConfigsMap := make(map[string]internal.WireguardPeer)
 
-		return err
-	}
-
-	for _, peer := range dbPeers {
-		dbp := wg.PeerFromDB(&peer)
-
-		wgp, ok := wgPeers[dbp.PublicKey]
-		if !ok {
-			// not present, recreate it
-			logger.Info("Peer not found in WireGuard config", "public_key", dbp.PublicKey)
-
-			err = wg.CreatePeer(&dbp)
-			if err != nil {
-				logger.Error("Failed to create peer", "error", err)
-
-				return err
-			}
-		} else {
-			// is present, check if it's up to date
-			if wgp.Address != dbp.Address {
-				logger.Info("Peer address mismatch", "db_address", dbp.Address, "wg_address", wgp.Address)
-				// recreate it with the correct fields
-				err := wg.UpdatePeer(&dbp)
-				if err != nil {
-					logger.Error("Failed to update peer", "error", err)
-
-					return err
-				}
-			}
-
-			// delete present peers from the map, so that only peers not present in the database are left
-			delete(wgPeers, dbp.PublicKey)
-		}
-	}
-
-	// delete peers in wireguard that are not present in the database
-	for _, peer := range wgPeers {
-		err := wg.DeletePeer(&peer)
+	for _, c := range wireguardPeers {
+		pubKey, err := wg.ComputePublicKey(c.PeerPrivateKey)
 		if err != nil {
-			logger.Error("Failed to delete peer", "error", err)
+			return fmt.Errorf("failed to compute public key for peer: %w", err)
+		}
 
-			return err
+		vpnConfigsMap[pubKey] = c
+	}
+
+	// delete peers that are not present in wireguardPeers slice
+	for publicKey := range currentPeers {
+		if _, ok := vpnConfigsMap[publicKey]; ok {
+			continue
+		}
+
+		logger.Info("peer not found in server config, deleting it", "public_key", publicKey)
+
+		err = wg.DeletePeerByPublicKey(publicKey)
+		if err != nil {
+			return fmt.Errorf("failed to delete peer: %w", err)
+		}
+
+		logger.Info("successfully deleted peer", "public_key", publicKey)
+	}
+
+	// create new peers and update existing ones
+	for _, c := range wireguardPeers {
+		wgPeer := wg.Peer{
+			IP:              c.IP,
+			PeerPrivateKey:  c.PeerPrivateKey,
+			ServerPublicKey: c.ServerPublicKey,
+			Endpoint:        c.Endpoint,
+			AllowedIPs:      c.AllowedIPs,
+		}
+
+		peerPublicKey, err := wg.ComputePublicKey(c.PeerPrivateKey)
+		if err != nil {
+			return fmt.Errorf("failed to compute public key for peer: %w", err)
+		}
+
+		if peer, ok := currentPeers[peerPublicKey]; !ok {
+			logger.Info("peer not found in current WireGuard config, creating it", "public_key", peerPublicKey)
+
+			err = wg.CreatePeer(&wgPeer)
+			if err != nil {
+				return fmt.Errorf("failed to create peer: %w", err)
+			}
+
+			logger.Info("successfully created peer", "public_key", peerPublicKey)
+		} else if equal, err := wg.CompareParsedPeerWithPeer(peer, wgPeer); err != nil {
+			return fmt.Errorf("failed to compare peers: %w", err)
+		} else if !equal {
+			logger.Info("peer found in current WireGuard config but differs from server config, updating it", "public_key", c.ServerPublicKey)
+
+			err = wg.UpdatePeer(&wgPeer)
+			if err != nil {
+				return fmt.Errorf("failed to update peer: %w", err)
+			}
+
+			logger.Info("successfully updated peer", "public_key", c.ServerPublicKey)
 		}
 	}
 
 	return nil
 }
 
-func enableNets(logger *slog.Logger, nets []internal.Net, fwConfig config.Firewall) {
-	for _, n := range nets {
-		if n.Subnet == "" {
-			// When just created, the net has no subnet assigned yet
-			continue
-		}
-
-		logger.Debug("Enabling net", "net", n.Subnet)
-
-		reloadShorewall := false
-
-		for _, userID := range n.UserIDs {
-			peers, err := db.GetPeersByUserID(userID)
-			if err != nil {
-				logger.Error("Failed to get peer from DB for enabling nets", "error", err, "user_id", userID)
-
-				continue
-			}
-
-			for _, p := range peers {
-				err = shorewall.AddRule(util.CreateRule(fwConfig, "ACCEPT", p.Address, n.Subnet))
-				if err != nil && !errors.Is(err, shorewall.ErrRuleAlreadyExists) {
-					logger.Error("Failed to add firewall rule", "error", err)
-
-					continue
-				} else if err == nil {
-					reloadShorewall = true
-				}
-
-				err = db.NewSubnet(n.Subnet, p.ID)
-				if err != nil && !errors.Is(err, db.ErrAlreadyExists) {
-					logger.Error("Failed to save subnet to database", "error", err)
-
-					continue
-				}
-			}
-		}
-
-		if reloadShorewall {
-			if err := shorewall.Reload(); err != nil {
-				logger.Error("Failed to reload firewall", "error", err)
-
-				continue
-			}
-
-			logger.Info("Successfully enabled net", "net", n)
-		}
-	}
-}
-
-func updateNetsOnServer(parentCtx context.Context, logger *slog.Logger, vpns []internal.VPNProfile, endpoint, secret string) error {
-	// Updates existing VPN configs on the main server if they differ from the
-	// local ones
-	peers, err := db.GetAllPeers()
-	if err != nil {
-		logger.Error("Failed to get all peers from DB", "error", err)
-
-		return err
-	}
-
-	for _, v := range vpns {
-		idx := slices.IndexFunc(peers, func(p db.Peer) bool {
-			return p.ID == v.ID
+func pushWireguardPeersToServer(parentCtx context.Context, logger *slog.Logger, serverConfig config.Server, oldPeers, newPeers []internal.WireguardPeer) error {
+	for _, newPeer := range newPeers {
+		oldPeerIndex := slices.IndexFunc(oldPeers, func(p internal.WireguardPeer) bool {
+			return p.ID == newPeer.ID
 		})
 
-		if idx == -1 {
-			logger.Warn("Peer not found in DB, skipping update. This should not happen.", "id", v.ID)
+		if oldPeerIndex == -1 {
+			return fmt.Errorf("old peer not found for new peer with ID %d", newPeer.ID)
+		}
 
+		if oldPeers[oldPeerIndex].Equals(newPeer) {
 			continue
 		}
 
-		peer := &peers[idx]
-
-		wgIface := wg.PeerFromDB(peer)
-
-		base64Conf := base64.StdEncoding.EncodeToString([]byte(wgIface.String()))
-		if base64Conf == v.VPNConfig && wgIface.Address == v.VPNIP {
-			continue
-		}
-
-		logger.Info("Updating VPN config on main server", "id", v.ID)
-
-		err = internal.UpdateVPNConfig(parentCtx, endpoint, secret, internal.VPNProfile{
-			ID:        v.ID,
-			VPNConfig: base64Conf,
-			VPNIP:     wgIface.Address,
-		})
+		err := internal.UpdateWireguardPeer(parentCtx, serverConfig.Endpoint, serverConfig.Secret, newPeer)
 		if err != nil {
-			logger.Error("Failed to update VPN config on main server", "error", err, "id", v.ID)
-
-			continue
+			return fmt.Errorf("failed to update WireGuard peer on main server: %w", err)
 		}
+
+		logger.Info("updated WireGuard peer on main server", "peer_id", newPeer.ID)
 	}
 
 	return nil
 }
 
-// checkFirewall checks that all firewall rules for the peers in the database
-// are actually present in shorewall, and adds them if they are missing.
-func checkFirewall(logger *slog.Logger, fwConfig config.Firewall) error {
-	// for all subnets in the db, check if there is a rule in shorewall
-	subnets, err := db.GetAllSubnets()
-	if err != nil {
-		logger.With("error", err).Error("Failed to get all subnets from DB")
-
-		return err
-	}
-
-	fwRules, err := shorewall.Rules()
-	if err != nil {
-		logger.With("error", err).Error("Failed to get firewall rules")
-
-		return err
-	}
-
-	// sort rules by Source
-	sort.Slice(fwRules, func(i, j int) bool {
-		if fwRules[i].Action != fwRules[j].Action {
-			return fwRules[i].Action < fwRules[j].Action
-		}
-
-		if fwRules[i].Source != fwRules[j].Source {
-			return fwRules[i].Source < fwRules[j].Source
-		}
-
-		return fwRules[i].Destination < fwRules[j].Destination
-	})
-
-	reloadFirewall := false
-
-	for _, s := range subnets {
-		for _, sp := range s.Peers {
-			peer, err := db.GetPeerByID(sp.ID)
-			if err != nil {
-				logger.With("error", err).Error("Failed to get peer from DB")
-
-				continue
-			}
-
-			rule := util.CreateRule(fwConfig, "ACCEPT", peer.Address, s.Subnet)
-
-			// check if the rule exists in fwRules
-			// using binary search since fwRules is sorted by Source
-			index := sort.Search(len(fwRules), func(i int) bool {
-				if fwRules[i].Action != rule.Action {
-					return fwRules[i].Action > rule.Action
-				}
-
-				if fwRules[i].Source != rule.Source {
-					return fwRules[i].Source > rule.Source
-				}
-
-				return fwRules[i].Destination >= rule.Destination
-			})
-
-			exists := index < len(fwRules) &&
-				fwRules[index].Action == rule.Action &&
-				fwRules[index].Source == rule.Source &&
-				fwRules[index].Destination == rule.Destination
-			if !exists {
-				logger.Info("Firewall rule missing, adding it", "rule", rule)
-
-				err = shorewall.AddRule(rule)
-				if err != nil {
-					logger.With("error", err).Error("Failed to add firewall rule")
-
-					continue
-				}
-
-				reloadFirewall = true
+func updateDBWithNets(nets []internal.Net) error {
+	dbNets := make([]db.Net, len(nets))
+	for i, n := range nets {
+		dbUserIDs := make([]db.NetUserID, len(n.UserIDs))
+		for j, userID := range n.UserIDs {
+			dbUserIDs[j] = db.NetUserID{
+				UserID: userID,
 			}
 		}
+
+		dbNets[i] = db.Net{
+			Zone:      n.Zone,
+			Name:      n.Name,
+			Tag:       n.Tag,
+			Subnet:    n.Subnet,
+			Gateway:   n.Gateway,
+			Broadcast: n.Broadcast,
+			UserIDs:   dbUserIDs,
+		}
 	}
 
-	// reload shorewall to apply changes
-	if reloadFirewall {
-		err = shorewall.Reload()
-		if err != nil {
-			logger.With("error", err).Error("Failed to reload firewall")
-
-			return err
-		}
+	err := db.UpdateAllNets(dbNets)
+	if err != nil {
+		return fmt.Errorf("failed to update DB with nets from main server: %w", err)
 	}
 
 	return nil
+}
+
+func applyNetsToFirewall(firewall fw.Firewall, wireguardPeers []internal.WireguardPeer, nets []internal.Net) error {
+	var rules []fw.Rule
+
+	for _, peer := range wireguardPeers {
+		for _, net := range nets {
+			if slices.Contains(net.UserIDs, peer.UserID) {
+				rules = append(rules, firewall.CreateAllowRule(peer.IP, net.Subnet))
+			}
+		}
+	}
+
+	return firewall.ApplyRules(rules)
 }
