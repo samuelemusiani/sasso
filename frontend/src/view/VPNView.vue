@@ -13,7 +13,7 @@ const message = ref('')
 
 function fetchVPNConfig() {
   api
-    .get('/vpn')
+    .get('/vpn/wireguard')
     .then((res) => {
       const tmp = res.data as VPNConfig[]
       tmp.map((config) => {
@@ -32,7 +32,7 @@ function fetchVPNConfig() {
 
 function newVPNConfig() {
   api
-    .post('/vpn')
+    .post('/vpn/wireguard')
     .then(() => {
       message.value =
         'New VPN configuration will be available shortly. Refresh the page after waiting a moment.'
@@ -45,7 +45,7 @@ function newVPNConfig() {
 
 function deleteVPN(id: number) {
   api
-    .delete(`/vpn/${id}`)
+    .delete(`/vpn/wireguard/${id}`)
     .then(() => {
       fetchVPNConfig()
       toastSuccess('VPN configuration deleted successfully.')
