@@ -16,7 +16,7 @@ import (
 func FetchWireguardPeers(parentCtx context.Context, endpoint, secret string) (vpns []WireguardPeer, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn", nil)
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/vpn/wireguard", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to fetch vpn status: %w", err)
 	}
@@ -54,7 +54,7 @@ func UpdateWireguardPeer(parentCtx context.Context, endpoint, secret string, wgP
 
 	client := http.Client{Timeout: 10 * time.Second}
 
-	req, err := http.NewRequestWithContext(parentCtx, http.MethodPut, endpoint+"/internal/vpn", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodPut, endpoint+"/internal/vpn/wireguard", bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request to update vpn config: %w", err)
 	}
