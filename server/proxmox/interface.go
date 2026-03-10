@@ -26,6 +26,17 @@ var (
 	ErrMaxNumberOfInterfaces  = errors.New("maximum number of interfaces reached for this VM")
 
 	InterfaceNumberMutex = sync.Mutex{}
+
+	AllInterfaceStates = []InterfaceStatus{
+		InterfaceStatusUnknown,
+		InterfaceStatusPreCreating,
+		InterfaceStatusCreating,
+		InterfaceStatusPreDeleting,
+		InterfaceStatusDeleting,
+		InterfaceStatusReady,
+		InterfaceStatusPreConfiguring,
+		InterfaceStatusConfiguring,
+	}
 )
 
 type Interface struct {

@@ -311,13 +311,16 @@ func GetVNetBySubnet(subnet string) (*Net, error) {
 	return &net, nil
 }
 
-func CountVNets() (int64, error) {
-	var count int64
-	if err := db.Model(&Net{}).Count(&count).Error; err != nil {
-		logger.Error("Failed to count VNets", "error", err)
+func CountNetsWithStates() ([]StatusCount, error) {
+	var counts []StatusCount
 
-		return 0, err
+	result := db.Model(&Net{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Scan(&counts)
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
-	return count, nil
+	return counts, nil
 }

@@ -192,13 +192,17 @@ func DeletePortForward(pfID uint) error {
 	return nil
 }
 
-func CountPortForwards() (int64, error) {
-	var count int64
-	if err := db.Model(&PortForward{}).Count(&count).Error; err != nil {
-		logger.Error("Failed to count port forwards", "error", err)
+func CountPortForwardsWithStates() ([]StatusCount, error) {
+	var counts []StatusCount
 
-		return 0, err
+	result := db.Model(&PortForward{}).
+		Select("approved as status, COUNT(*) as count").
+		Group("approved").
+		Scan(&counts)
+
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
-	return count, nil
+	return counts, nil
 }

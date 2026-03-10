@@ -26,7 +26,7 @@ var (
 		prometheus.GaugeOpts{
 			Name: "sasso_object",
 			Help: "Number of objects in the system.",
-		}, []string{"object"})
+		}, []string{"object", "status"})
 )
 
 func workerCycleDurationObserve(function string, f func()) {
@@ -39,6 +39,6 @@ func workerCycleDurationObserve(function string, f func()) {
 	f()
 }
 
-func objectCountSet(object string, count int64) {
-	objectCount.WithLabelValues(object).Set(float64(count))
+func objectCountSet(object, status string, count int64) {
+	objectCount.WithLabelValues(object, status).Set(float64(count))
 }

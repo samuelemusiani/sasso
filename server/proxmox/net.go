@@ -29,6 +29,17 @@ var (
 	ErrVNetHasActiveInterfaces = errors.New("VNet has active interfaces")
 	ErrVNetNameExists          = errors.New("VNet name already exists")
 	ErrVNetHasTaggedInterfaces = errors.New("VNet has tagged interfaces")
+
+	AllNetStates = []VMStatus{
+		VNetStatusUnknown,
+		VNetStatusPending,
+		VNetStatusReady,
+		VNetStatusReconfiguring,
+		VNetStatusPreCreating,
+		VNetStatusPreDeleting,
+		VNetStatusCreating,
+		VNetStatusDeleting,
+	}
 )
 
 func TestEndpointNetZone(parentCtx context.Context) {

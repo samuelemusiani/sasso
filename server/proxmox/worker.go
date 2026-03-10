@@ -115,32 +115,72 @@ func Worker(ctx context.Context) {
 }
 
 func objectCountHelper() {
-	vmsCount, err := db.CountVMs()
+	vmsCount, err := db.CountVMsWithStates()
 	if err != nil {
 		logger.Error("failed to count VMs in DB", "error", err)
 	} else {
-		objectCountSet("vms", vmsCount)
+		for _, vc := range vmsCount {
+			objectCountSet("vms", vc.Status, vc.Count)
+		}
+
+		// As the DB do not report states with 0 count, we need to set them manually
+		for _, status := range AllVMStates {
+			s := string(status)
+			if !slices.ContainsFunc(vmsCount, func(vc db.StatusCount) bool { return vc.Status == s }) {
+				objectCountSet("vms", s, 0)
+			}
+		}
 	}
 
-	interfacesCount, err := db.CountInterfaces()
+	interfacesCount, err := db.CountInterfacesWithStates()
 	if err != nil {
 		logger.Error("failed to count interfaces in DB", "error", err)
 	} else {
-		objectCountSet("interfaces", interfacesCount)
+		for _, ic := range interfacesCount {
+			objectCountSet("interfaces", ic.Status, ic.Count)
+		}
+
+		for _, status := range AllInterfaceStates {
+			s := string(status)
+			if !slices.ContainsFunc(interfacesCount, func(ic db.StatusCount) bool { return ic.Status == s }) {
+				objectCountSet("interfaces", s, 0)
+			}
+		}
 	}
 
-	netsCount, err := db.CountVNets()
+	netsCount, err := db.CountNetsWithStates()
 	if err != nil {
 		logger.Error("failed to count VNets in DB", "error", err)
 	} else {
-		objectCountSet("vnets", netsCount)
+		for _, nc := range netsCount {
+			objectCountSet("vnets", nc.Status, nc.Count)
+		}
+
+		for _, status := range AllNetStates {
+			s := string(status)
+			if !slices.ContainsFunc(netsCount, func(nc db.StatusCount) bool { return nc.Status == s }) {
+				objectCountSet("vnets", s, 0)
+			}
+		}
 	}
 
-	countPortFowards, err := db.CountPortForwards()
+	countPortFowards, err := db.CountPortForwardsWithStates()
 	if err != nil {
 		logger.Error("failed to count port forwards in DB", "error", err)
 	} else {
-		objectCountSet("port_forwards", countPortFowards)
+		approvedCount, notApprovedCount := int64(0), int64(0)
+
+		for _, pfc := range countPortFowards {
+			switch pfc.Status {
+			case "false":
+				notApprovedCount = pfc.Count
+			case "true":
+				approvedCount = pfc.Count
+			}
+		}
+
+		objectCountSet("port_forwards", "approved", approvedCount)
+		objectCountSet("port_forwards", "not_approved", notApprovedCount)
 	}
 }
 

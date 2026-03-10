@@ -47,6 +47,19 @@ var (
 
 	vmMinCores uint = 1
 	vmMinRAM   uint = 512 // in MB
+
+	AllVMStates = []VMStatus{
+		VMStatusRunning,
+		VMStatusStopped,
+		VMStatusPaused,
+		VMStatusUnknown,
+		VMStatusPreCreating,
+		VMStatusPreDeleting,
+		VMStatusCreating,
+		VMStatusDeleting,
+		VMStatusPreConfiguring,
+		VMStatusConfiguring,
+	}
 )
 
 type VM struct {

@@ -305,15 +305,23 @@ func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (Resources, er
 	return result, nil
 }
 
-func CountVMs() (int64, error) {
-	var count int64
+type StatusCount struct {
+	Status string
+	Count  int64
+}
 
-	result := db.Model(&VM{}).Count(&count)
+func CountVMsWithStates() ([]StatusCount, error) {
+	var counts []StatusCount
+
+	result := db.Model(&VM{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Scan(&counts)
 	if result.Error != nil {
-		return 0, result.Error
+		return nil, result.Error
 	}
 
-	return count, nil
+	return counts, nil
 }
 
 func GetVMsWithLifetimesLessThan(t time.Time) ([]VM, error) {
