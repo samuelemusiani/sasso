@@ -44,6 +44,8 @@ func Worker(ctx context.Context) {
 
 	logger.Info("Proxmox worker started")
 
+	go objectCounterWorker(ctx)
+
 	var (
 		timeToWait time.Duration
 		elapsed    time.Duration
@@ -70,8 +72,6 @@ func Worker(ctx context.Context) {
 		}
 
 		now := time.Now()
-
-		objectCountHelper()
 
 		cluster, err := getProxmoxCluster(ctx, client)
 		if err != nil {
@@ -111,6 +111,25 @@ func Worker(ctx context.Context) {
 
 		elapsed = time.Since(now)
 		workerCycleDuration.Observe(elapsed.Seconds())
+	}
+}
+
+// objectCounterWorker is a worker that periodically counts the number of VMs,
+// interfaces, VNets and port forwards in the database and updates the
+// corresponding prometheus metrics.
+func objectCounterWorker(ctx context.Context) {
+	logger.Info("Proxmox object counter worker started")
+
+	for {
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			logger.Info("Proxmox object counter worker shutting down")
+
+			return
+		}
+
+		objectCountHelper()
 	}
 }
 
