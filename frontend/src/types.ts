@@ -204,3 +204,9 @@ export interface Settings {
   telegram_user_invitation_notification: boolean
   telegram_user_removal_from_group_notification: boolean
 }
+
+export interface Template {
+  name: string
+  ready: boolean
+  disk: number
+}

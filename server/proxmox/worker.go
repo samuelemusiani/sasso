@@ -58,7 +58,7 @@ func Worker(ctx context.Context) {
 			if elapsed < 10*time.Second {
 				timeToWait = 10*time.Second - elapsed
 			} else {
-				timeToWait = 0
+				timeToWait = 1
 			}
 		}
 
@@ -71,11 +71,15 @@ func Worker(ctx context.Context) {
 			return
 		}
 
+		if !isProxmoxReachable {
+			continue
+		}
+
 		now := time.Now()
 
 		cluster, err := getProxmoxCluster(ctx, client)
 		if err != nil {
-			logger.Error("failed to get Proxmox cluster", "error", err)
+			logger.Error("failed to get Proxmox cluster in main worker", "error", err)
 
 			continue
 		}
@@ -385,16 +389,6 @@ func createVMs(parentCtx context.Context) {
 		return
 	}
 
-	node, err := getProxmoxNode(parentCtx, client, cTemplate.Node)
-	if err != nil {
-		return
-	}
-
-	templateVM, err := getProxmoxVM(parentCtx, node, cTemplate.VMID)
-	if err != nil {
-		return
-	}
-
 	// https://github.com/luthermonson/go-proxmox/issues/102
 	var optionFull uint8
 	if cClone.Full {
@@ -405,6 +399,19 @@ func createVMs(parentCtx context.Context) {
 
 	for _, v := range vms {
 		if v.Status != string(VMStatusPreCreating) {
+			continue
+		}
+
+		template, ok := VMTemplates[v.Template]
+		if !ok {
+			logger.Error("template not found for VM", "vmid", v.ID, "template", v.Template)
+
+			continue
+		}
+
+		if !template.Ready {
+			logger.Error("template is not ready to be cloned", "vmid", v.ID, "template", v.Template)
+
 			continue
 		}
 
@@ -436,7 +443,7 @@ func createVMs(parentCtx context.Context) {
 		// Creation implies cloning a template
 		cloningOptions.NewID = int(v.ID)
 		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-		_, task, err := templateVM.Clone(ctx, &cloningOptions)
+		_, task, err := template.VM.Clone(ctx, &cloningOptions)
 
 		cancel()
 

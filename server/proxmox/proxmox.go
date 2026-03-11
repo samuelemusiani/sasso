@@ -16,14 +16,21 @@ import (
 	"samuelemusiani/sasso/server/config"
 )
 
+type VMTemplate struct {
+	VMID     uint64
+	Ready    bool
+	DiskSize uint
+	VM       *proxmox.VirtualMachine
+}
+
 var (
 	client *proxmox.Client
 	logger *slog.Logger
 
-	cTemplate *config.ProxmoxTemplate
-	cClone    *config.ProxmoxClone
-	cNetwork  *config.ProxmoxNetwork
-	cBackup   *config.ProxmoxBackup
+	VMTemplates map[string]*VMTemplate
+	cClone      *config.ProxmoxClone
+	cNetwork    *config.ProxmoxNetwork
+	cBackup     *config.ProxmoxBackup
 
 	// nonce is used to generate backup names
 	nonce []byte
@@ -92,7 +99,14 @@ func Init(proxmoxLogger *slog.Logger, c config.Proxmox) error {
 		proxmox.WithHTTPClient(&httpClient),
 		proxmox.WithAPIToken(c.TokenID, c.Secret))
 
-	cTemplate = &c.Template
+	VMTemplates = make(map[string]*VMTemplate)
+	for name, vmid := range c.Templates {
+		VMTemplates[name] = &VMTemplate{
+			VMID:  vmid,
+			Ready: false,
+		}
+	}
+
 	cClone = &c.Clone
 	cNetwork = &c.Network
 	cBackup = &c.Backup
@@ -142,14 +156,12 @@ func checkConfig(c *config.Proxmox) error {
 		return errors.New("invalid_proxmox_clone_mtu")
 	}
 
-	if c.Template.Node == "" {
-		return errors.New("proxmox template node is required")
-	}
-
-	if c.Template.VMID == 0 {
-		return errors.New("proxmox template VMID is required")
-	} else if c.Template.VMID < 100 {
-		return errors.New("proxmox template VMID must be greater than or equal to 100")
+	for name, vmid := range c.Templates {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("invalid name for VM template. name: %s", name)
+		} else if vmid < 100 {
+			return fmt.Errorf("VM template vmid must be greater than 100. name: %d", vmid)
+		}
 	}
 
 	if c.Network.SDNZone == "" {

@@ -106,6 +106,10 @@ func substituteVlanTag(iface string, vlanTag uint16) string {
 }
 
 func mapVMIDToProxmoxNodes(parentCtx context.Context, cluster *proxmox.Cluster) (map[uint64]string, error) {
+	if parentCtx.Err() != nil {
+		return nil, parentCtx.Err()
+	}
+
 	resources, err := getProxmoxResources(parentCtx, cluster, "vm")
 	if err != nil {
 		return nil, err
@@ -132,9 +136,7 @@ func waitForProxmoxTaskCompletion(parentCtx context.Context, t *proxmox.Task) (b
 	cancel()
 
 	if err != nil {
-		logger.Error("Failed to wait for Proxmox task completion", "error", err)
-
-		return false, err
+		return false, fmt.Errorf("error while waiting for Proxmox task completion: %w", err)
 	}
 
 	if !completed {
@@ -142,9 +144,7 @@ func waitForProxmoxTaskCompletion(parentCtx context.Context, t *proxmox.Task) (b
 	}
 
 	if !isSuccessful {
-		logger.Error("Proxmox task failed")
-
-		return false, errors.New("task_failed")
+		return false, errors.New("task failed")
 	}
 
 	return true, nil
@@ -157,7 +157,7 @@ func getProxmoxCluster(parentCtx context.Context, client *proxmox.Client) (*prox
 	cancel()
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Proxmox cluster: %w", err)
+		return nil, err
 	}
 
 	return cluster, nil

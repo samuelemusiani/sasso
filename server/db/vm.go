@@ -14,11 +14,12 @@ type VM struct {
 
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','paused','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
-	Name  string `gorm:"type:varchar(20);not null"`
-	Notes string `gorm:"type:text;not null;default:''"`
-	Cores uint   `gorm:"not null;default:1"`
-	RAM   uint   `gorm:"not null;default:1024"`
-	Disk  uint   `gorm:"not null;default:4"`
+	Name     string `gorm:"type:varchar(20);not null"`
+	Notes    string `gorm:"type:text;not null;default:''"`
+	Cores    uint   `gorm:"not null;default:1"`
+	RAM      uint   `gorm:"not null;default:1024"`
+	Disk     uint   `gorm:"not null;default:4"`
+	Template string `gorm:"not null"`
 
 	LifeTime time.Time `gorm:"not null"`
 
@@ -101,6 +102,7 @@ type NewVMRequest struct {
 	Disk                 uint
 	LifeTime             time.Time
 	IncludeGlobalSSHKeys bool
+	Template             string
 }
 
 func vmFromNewVMRequest(req NewVMRequest, ownerID uint, ownerType string) VM {
@@ -112,6 +114,7 @@ func vmFromNewVMRequest(req NewVMRequest, ownerID uint, ownerType string) VM {
 		Cores:                req.Cores,
 		RAM:                  req.RAM,
 		Disk:                 req.Disk,
+		Template:             req.Template,
 		LifeTime:             req.LifeTime,
 		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
 		OwnerID:              ownerID,

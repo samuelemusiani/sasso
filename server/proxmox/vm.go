@@ -35,8 +35,6 @@ var (
 	VMStatusPreConfiguring VMStatus = "pre-configuring"
 	VMStatusConfiguring    VMStatus = "configuring"
 
-	VMCloneDiskSizeGB uint = 4 // Minimum disk size in GB for a VM clone
-
 	ErrVMNotFound     = errors.New("VM not found")
 	ErrInvalidVMState = errors.New("invalid VM state for this action")
 	ErrInvalidVMParam = errors.New("invalid VM parameter")
@@ -71,6 +69,7 @@ type VM struct {
 	Cores                uint      `json:"cores"`
 	RAM                  uint      `json:"ram"`
 	Disk                 uint      `json:"disk"`
+	Template             string    `json:"template"`
 	LifeTime             time.Time `json:"lifetime"`
 	IncludeGlobalSSHKeys bool      `json:"include_global_ssh_keys"`
 	OwnerID              uint      `json:"-"`
@@ -91,6 +90,7 @@ type NewVMRequest struct {
 	Disk                 uint
 	LifeTime             uint
 	IncludeGlobalSSHKeys bool
+	Template             string
 }
 
 // convertDBVMToVM converts a db.VM to a VM.
@@ -106,6 +106,7 @@ func convertDBVMToVM(dbVM *db.VM) *VM {
 		Cores:                dbVM.Cores,
 		RAM:                  dbVM.RAM,
 		Disk:                 dbVM.Disk,
+		Template:             dbVM.Template,
 		LifeTime:             dbVM.LifeTime,
 		IncludeGlobalSSHKeys: dbVM.IncludeGlobalSSHKeys,
 		OwnerID:              dbVM.OwnerID,
@@ -257,8 +258,17 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("ram must be at least 512 MB"))
 	}
 
-	if req.Disk < VMCloneDiskSizeGB {
-		return nil, errors.Join(ErrInvalidVMParam, errors.New("disk must be at least 4 GB"))
+	template, ok := VMTemplates[req.Template]
+	if !ok {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("template name not valid"))
+	}
+
+	if !template.Ready {
+		return nil, errors.Join(ErrInvalidVMParam, errors.New("template not ready for cloning"))
+	}
+
+	if req.Disk < template.DiskSize {
+		return nil, errors.Join(ErrInvalidVMParam, fmt.Errorf("disk must be at least %d GB for this template", template.DiskSize))
 	}
 
 	if !slices.Contains(vmLifeTimes, req.LifeTime) {
@@ -374,6 +384,7 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		Disk:                 req.Disk,
 		LifeTime:             lifeTime,
 		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
+		Template:             req.Template,
 	}
 
 	var dbVM *db.VM
@@ -699,66 +710,114 @@ func ChangeVMStatus(parentCtx context.Context, ownerType OwnerType, ownerID uint
 	return changeVMStatusBypass(parentCtx, vmID, action)
 }
 
-func TestEndpointClone(parentCtx context.Context) {
+func TestEndpointClone(ctx context.Context) {
 	select {
 	case <-time.After(5 * time.Second):
-	case <-parentCtx.Done():
+	case <-ctx.Done():
 		return
 	}
 
-	first := true
-	wasError := false
-
 	for {
+		timeToWait := 5
+
 		if !isProxmoxReachable {
-			select {
-			case <-time.After(20 * time.Second):
-				continue
-			case <-parentCtx.Done():
-				return
-			}
+			timeToWait = 20
 		}
 
-		node, err := getProxmoxNode(parentCtx, client, cTemplate.Node)
+		select {
+		case <-time.After(time.Duration(timeToWait) * time.Second):
+		case <-ctx.Done():
+			return
+		}
+
+		if !isProxmoxReachable {
+			continue
+		}
+
+		cluster, err := getProxmoxCluster(ctx, client)
 		if err != nil {
-			logger.Error("Failed to get Proxmox node", "node", cTemplate.Node, "error", err)
-			time.Sleep(10 * time.Second)
+			logger.Error("failed to get Proxmox cluster in endpoint clone", "error", err)
 
 			continue
 		}
 
-		vm, err := getProxmoxVM(parentCtx, node, cTemplate.VMID)
-		switch {
-		case err != nil:
-			logger.Error("Failed to get Proxmox VM", "vmid", cTemplate.VMID, "error", err)
+		vmMap, err := mapVMIDToProxmoxNodes(ctx, cluster)
+		if err != nil {
+			logger.Error("failed to map VMIDs to proxmox nodes")
 
-			wasError = true
-		case first:
-			logger.Info("Proxmox VM is ready for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
-
-			first = false
-
-			s, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
-			if ok {
-				size, err := getSizeFromStorageString(s)
-				if err != nil {
-					logger.Error("Failed to parse storage from VM config", "vmid", cTemplate.VMID, "storage", s, "error", err)
-				} else {
-					VMCloneDiskSizeGB = size
-				}
-			}
-		case wasError:
-			logger.Info("Proxmox VM is back online for cloning", "vmid", cTemplate.VMID, "status", vm.Status)
-
-			wasError = false
+			continue
 		}
 
-		select {
-		case <-time.After(10 * time.Second):
-		case <-parentCtx.Done():
-			return
+		nodeCache := make(map[string]*goprox.Node)
+
+		var pnode *goprox.Node
+
+		for name, template := range VMTemplates {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			nodeName, ok := vmMap[template.VMID]
+			if !ok {
+				logger.Error("template not found in proxmox cluster. disabling it", "name", name, "vmid", template.VMID)
+
+				template.Ready = false
+			}
+
+			pnode, ok = nodeCache[nodeName]
+			if !ok {
+				pnode, err = getProxmoxNode(ctx, client, nodeName)
+				if err != nil {
+					logger.Error("failed to get proxmox node. disabling template", "node", nodeName, "name", name, "vmid", template.VMID, "error", err)
+
+					template.Ready = false
+
+					continue
+				}
+
+				nodeCache[nodeName] = pnode
+			}
+
+			err = verifyVMTemplate(ctx, name, pnode)
+			if err != nil {
+				logger.Error("error verifying vm template. disabling it", "name", name, "vmid", template.VMID, "error", err)
+
+				template.Ready = false
+
+				continue
+			}
+
+			template.Ready = true
 		}
 	}
+}
+
+func verifyVMTemplate(ctx context.Context, templateName string, node *goprox.Node) error {
+	template, ok := VMTemplates[templateName]
+	if !ok {
+		return fmt.Errorf("template not found for given name. %s", templateName)
+	}
+
+	vm, err := getProxmoxVM(ctx, node, int(template.VMID))
+	if err != nil {
+		return fmt.Errorf("failed to get Proxmox VM with vmid %d: %w", template.VMID, err)
+	}
+
+	s, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
+	if ok {
+		size, err := getSizeFromStorageString(s)
+		if err != nil {
+			return fmt.Errorf("failed to parse storage from VM config. vmid = %d. storage = %s. %w", template.VMID, s, err)
+		}
+
+		template.DiskSize = size
+	}
+
+	template.VM = vm
+
+	return nil
 }
 
 func UpdateVMLifetime(vmid uint64, extendBy uint) error {

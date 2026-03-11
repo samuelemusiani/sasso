@@ -39,19 +39,14 @@ type Secrets struct {
 }
 
 type Proxmox struct {
-	URL                string          `toml:"url"`
-	TokenID            string          `toml:"token_id"`
-	Secret             string          `toml:"secret"`
-	InsecureSkipVerify bool            `toml:"insecure_skip_verify"`
-	Template           ProxmoxTemplate `toml:"template"`
-	Clone              ProxmoxClone    `toml:"clone"`
-	Network            ProxmoxNetwork  `toml:"network"`
-	Backup             ProxmoxBackup   `toml:"backup"`
-}
-
-type ProxmoxTemplate struct {
-	Node string `toml:"node"`
-	VMID int    `toml:"vmid"`
+	URL                string            `toml:"url"`
+	TokenID            string            `toml:"token_id"`
+	Secret             string            `toml:"secret"`
+	InsecureSkipVerify bool              `toml:"insecure_skip_verify"`
+	Templates          map[string]uint64 `toml:"templates"`
+	Clone              ProxmoxClone      `toml:"clone"`
+	Network            ProxmoxNetwork    `toml:"network"`
+	Backup             ProxmoxBackup     `toml:"backup"`
 }
 
 type ProxmoxClone struct {

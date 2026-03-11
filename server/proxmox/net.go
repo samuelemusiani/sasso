@@ -64,18 +64,18 @@ func TestEndpointNetZone(parentCtx context.Context) {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-		cluster, err := client.Cluster(ctx)
+		if !isProxmoxReachable {
+			continue
+		}
 
-		cancel()
-
+		cluster, err := getProxmoxCluster(parentCtx, client)
 		if err != nil {
 			logger.Error("Failed to get Proxmox cluster", "error", err)
 
 			continue
 		}
 
-		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 		zone, err := cluster.SDNZone(ctx, cNetwork.SDNZone)
 
 		cancel()

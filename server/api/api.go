@@ -101,6 +101,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Get("/whoami", whoami)
 
 		r.Get("/vm", vms)
+		r.Get("/vm/templates", getVMTemplates)
 		r.Post("/vm", newVM)
 
 		// Group VM-specific endpoints with additional middleware

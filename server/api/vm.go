@@ -38,8 +38,9 @@ type newVMRequest struct {
 	RAM   uint   `json:"ram"`
 	Disk  uint   `json:"disk"`
 	// Number of months the VM should live
-	LifeTime             uint `json:"lifetime"`
-	IncludeGlobalSSHKeys bool `json:"include_global_ssh_keys"`
+	LifeTime             uint   `json:"lifetime"`
+	IncludeGlobalSSHKeys bool   `json:"include_global_ssh_keys"`
+	Template             string `json:"template"`
 
 	GroupID *uint `json:"group_id,omitempty"`
 }
@@ -67,6 +68,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 		Disk:                 req.Disk,
 		LifeTime:             req.LifeTime,
 		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
+		Template:             req.Template,
 	}
 
 	ownerID := userID
@@ -343,4 +345,29 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type VMTemplate struct {
+	Name  string `json:"name"`
+	Ready bool   `json:"ready"`
+	Disk  uint   `json:"disk"`
+}
+
+func getVMTemplates(w http.ResponseWriter, _ *http.Request) {
+	templates := make([]VMTemplate, 0, len(proxmox.VMTemplates))
+
+	for name, template := range proxmox.VMTemplates {
+		templates = append(templates, VMTemplate{
+			Name:  name,
+			Ready: template.Ready,
+			Disk:  template.DiskSize,
+		})
+	}
+
+	if err := json.NewEncoder(w).Encode(templates); err != nil {
+		logger.Error("Failed to encode templates to JSON", "templates", templates, "error", err)
+		http.Error(w, "Failed to encode templates to JSON", http.StatusInternalServerError)
+
+		return
+	}
 }

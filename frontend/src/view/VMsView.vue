@@ -2,17 +2,19 @@
 import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
 import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
-import type { VM, Group } from '@/types'
+import type { VM, Group, Template } from '@/types'
 import { api } from '@/lib/api'
 import { formatDate, isVMExpired } from '@/lib/utils'
 import { getStatusClass } from '@/const'
 import BubbleAlert from '@/components/BubbleAlert.vue'
 
 const vms = ref<VM[]>([])
+const templates = ref<Template[]>([])
 const name = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const template = ref('')
 const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
@@ -38,11 +40,26 @@ function fetchVMs() {
     })
 }
 
+function fetchTemplates() {
+  api
+    .get('/vm/templates')
+    .then((res) => {
+      templates.value = res.data as Template[]
+      if (templates.value.length > 0) {
+        template.value = templates.value[0].name
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to fetch templates:', err)
+    })
+}
+
 interface VMCreationBody {
   name: string
   cores: number
   ram: number
   disk: number
+  template: string
   lifetime: number
   include_global_ssh_keys: boolean
   notes: string
@@ -55,6 +72,7 @@ function createVM() {
     cores: cores.value,
     ram: ram.value,
     disk: disk.value,
+    template: template.value,
     lifetime: lifetime.value,
     include_global_ssh_keys: include_global_ssh_keys.value,
     notes: notes.value,
@@ -70,6 +88,13 @@ function createVM() {
       cores.value = 1
       ram.value = 1024
       disk.value = 4
+
+      if (templates.value.length > 0) {
+        template.value = templates.value[0].name
+      } else {
+        template.value = ''
+      }
+
       lifetime.value = 1
       notes.value = ''
       include_global_ssh_keys.value = true
@@ -132,9 +157,11 @@ let intervalId: number | null = null
 
 onMounted(() => {
   fetchVMs()
+  fetchTemplates()
   fetchGroups()
   intervalId = setInterval(() => {
     fetchVMs()
+    fetchTemplates()
   }, 5000)
 })
 
@@ -192,6 +219,12 @@ const nonMemberGroups = computed(() => {
           <option value="3">3 Months</option>
           <option value="6">6 Months</option>
           <option value="12">12 Months</option>
+        </select>
+      </div>
+      <div>
+        <label for="template">OS</label>
+        <select class="select w-full rounded-lg border" v-model="template">
+          <option v-for="t in templates" :key="t.name" :value="t.name">{{ t.name }}</option>
         </select>
       </div>
       <div class="flex w-full items-center justify-between">
