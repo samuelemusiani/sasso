@@ -76,6 +76,7 @@ function restoreBackup(backupID: string) {
       })
       .catch((err) => {
         console.error('Failed to restore backup:', err)
+        toastError(`Failed to send restore request for backup. ${err.response.data}`)
       })
   }
 }
