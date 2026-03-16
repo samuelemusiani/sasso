@@ -29,8 +29,8 @@
   "devDependencies": {
     "@iconify/vue": "^5.0.0",
     "@tsconfig/node22": "^22.0.5",
-    "@types/node": "^25.3.5",
-    "@vitejs/plugin-vue": "^6.0.4",
+    "@types/node": "^25.5.0",
+    "@vitejs/plugin-vue": "^6.0.5",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
     "@vue/tsconfig": "^0.9.0",
@@ -43,8 +43,8 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-vue-devtools": "^8.0.6",
-    "vitest": "^4.0.18",
+    "vite-plugin-vue-devtools": "^8.1.0",
+    "vitest": "^4.1.0",
     "vue-tsc": "^3.2.4"
   }
 }
