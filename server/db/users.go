@@ -67,6 +67,17 @@ func (u *User) BeforeSave(_ *gorm.DB) error {
 	return nil
 }
 
+func getLocalRealmIDTransaction(tx *gorm.DB) (uint, error) {
+	var realmID uint
+
+	err := tx.Select("id").Where("name = ?", "Local").First(&Realm{}).Scan(&realmID).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to get local realm ID: %w", err)
+	}
+
+	return realmID, nil
+}
+
 func initUsers() error {
 	err := db.AutoMigrate(&User{})
 	if err != nil {
@@ -89,10 +100,15 @@ func initUsers() error {
 		return result.Error
 	}
 
+	localRealmID, err := getLocalRealmIDTransaction(db)
+	if err != nil {
+		return fmt.Errorf("failed to get local realm ID: %w", err)
+	}
+
 	adminUser = User{
 		Username: "admin",
 		Email:    "admin@local",
-		RealmID:  1, // local realm: should have ID 1 as it's the first realm created
+		RealmID:  localRealmID,
 		Role:     RoleAdmin,
 	}
 
