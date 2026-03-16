@@ -17,9 +17,9 @@ linters:
     - copyloopvar
     # - cyclop - Checks function and package cyclomatic complexity.
     - decorder
-    - depguard 
-    # - dogsled - Checks assignments with too many blank identifiers 
-    # - dupl - Detects duplicate fragments of code. 
+    - depguard
+    # - dogsled - Checks assignments with too many blank identifiers
+    # - dupl - Detects duplicate fragments of code.
     - dupword
     - durationcheck
     - embeddedstructfieldcheck
@@ -208,7 +208,7 @@ linters:
           - gocyclo
 
     paths:
-      - "./frontend/"
+      - frontend
       - vendor
 
 formatters:
