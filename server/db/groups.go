@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -290,11 +291,14 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			if err == gorm.ErrRecordNotFound {
 				return ErrNotFound
 			}
-			logger.Error("Failed to find invitation", "error", err)
-			return err
+			return fmt.Errorf("failed to find invitation: %w", err)
 		}
 
 		err = tx.Model(&invitation).Update("state", "accepted").Error
+		if err != nil {
+			return fmt.Errorf("failed to update invitation state: %w", err)
+		}
+
 		userGroup := UserGroup{
 			UserID:  userID,
 			GroupID: invitation.GroupID,
@@ -302,8 +306,7 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 		}
 		err = tx.Create(&userGroup).Error
 		if err != nil {
-			logger.Error("Failed to update invitation state", "error", err)
-			return err
+			return fmt.Errorf("failed to add user to group: %w", err)
 		}
 
 		// If the members are now more than 1 and there is no
@@ -313,26 +316,28 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			Where("group_id = ?", invitation.GroupID).
 			Count(&count).Error
 		if err != nil {
-			logger.Error("Failed to count group members", "error", err)
-			return err
+			return fmt.Errorf("failed to count group members: %w", err)
+		}
+
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
 		if count > 1 {
 			var adminResource GroupResource
-			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: 1}).
+			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: adminID}).
 				First(&adminResource).Error
 			if err != nil && err != gorm.ErrRecordNotFound {
-				logger.Error("Failed to check admin group resource", "error", err)
-				return err
+				return fmt.Errorf("failed to check admin group resource: %w", err)
 			} else if err == gorm.ErrRecordNotFound {
 				res := GroupResource{
 					GroupID: invitation.GroupID,
-					UserID:  1,
+					UserID:  adminID,
 					Nets:    1, // Allocate 1 net from admin to the group by default
 				}
 				if err := tx.Create(&res).Error; err != nil {
-					logger.Error("Failed to allocate default resources to group", "error", err)
-					return err
+					return fmt.Errorf("failed to allocate default resources to group: %w", err)
 				}
 			}
 			// Admin resource exists, nothing to do
@@ -437,9 +442,14 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 			return err
 		}
 
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("failed to get admin user ID: %w", err)
+		}
+
 		if count == 1 {
 			var adminResource GroupResource
-			err = tx.Where(&GroupResource{GroupID: groupID, UserID: 1}).
+			err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
 				First(&adminResource).Error
 			if err != nil && err != gorm.ErrRecordNotFound {
 				logger.Error("Failed to check admin group resource", "error", err)
@@ -609,33 +619,40 @@ func AddGroupResources(groupID, userID uint, cores, ram, disk, nets uint) error 
 }
 
 func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
-	var groupResource GroupResource
+	return db.Transaction(func(tx *gorm.DB) error {
+		var groupResource GroupResource
 
-	err := db.Where(&GroupResource{GroupID: groupID, UserID: 1}).
-		First(&groupResource).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			groupResource = GroupResource{
-				GroupID: groupID,
-				UserID:  1, // Admin user
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("failed to get admin user ID: %w", err)
+		}
+
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
+			First(&groupResource).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				groupResource = GroupResource{
+					GroupID: groupID,
+					UserID:  adminID,
+				}
+			} else {
+				logger.Error("Failed to check existing group resource by admin", "error", err)
+				return err
 			}
-		} else {
-			logger.Error("Failed to check existing group resource by admin", "error", err)
+		}
+
+		groupResource.Cores = cores
+		groupResource.RAM = ram
+		groupResource.Disk = disk
+		groupResource.Nets = nets
+
+		err = tx.Save(&groupResource).Error
+		if err != nil {
+			logger.Error("Failed to create group resource by admin", "error", err)
 			return err
 		}
-	}
-
-	groupResource.Cores = cores
-	groupResource.RAM = ram
-	groupResource.Disk = disk
-	groupResource.Nets = nets
-
-	err = db.Save(&groupResource).Error
-	if err != nil {
-		logger.Error("Failed to create group resource by admin", "error", err)
-		return err
-	}
-	return nil
+		return nil
+	})
 }
 
 func RevokeGroupResources(groupID, userID uint) error {
