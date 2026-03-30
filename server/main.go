@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"syscall"
 
+	"samuelemusiani/sasso/pkg/cli"
 	"samuelemusiani/sasso/server/api"
 	"samuelemusiani/sasso/server/auth"
 	"samuelemusiani/sasso/server/config"
@@ -32,14 +34,42 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		_, err := fmt.Printf("Sasso Server\nVersion: \t%s\nBranch: \t%s\n", version, branch)
-		if err != nil {
-			os.Exit(1)
-		}
+	clip := cli.NewCli("sasso-server", true, "Path to configuration file (ex. /etc/sasso.yaml)")
+	clip.AddCommand("--version", "-v", false, "Print version of binary")
+	clip.AddCommand("--change-admin-password", "", true, "Change admin password")
 
+	err := clip.Parse(os.Args)
+	if err != nil {
+		fmt.Printf("ERROR: %s\n\n%s\n", err.Error(), clip.Help())
+		os.Exit(1)
+	}
+
+	versionCmd := clip.MustGetCommand("--version")
+	if versionCmd.Parsed() {
+		fmt.Printf("sasso-server\nVersion: \t%s\nBranch: \t%s\n", version, branch)
 		os.Exit(0)
 	}
+
+	var (
+		haveToChangeAdminPassword bool
+		newAdminPassword          string
+	)
+
+	adminPasswdCmd := clip.MustGetCommand("--change-admin-password")
+	if adminPasswdCmd.Parsed() {
+		haveToChangeAdminPassword = true
+		newAdminPassword = adminPasswdCmd.Argument()
+	}
+
+	var configPath string
+
+	// We parsed the config path
+	if !clip.ArgWasParsed() {
+		fmt.Printf("ERROR: config path not found\n\n%s", clip.Help())
+		os.Exit(1)
+	}
+
+	configPath = clip.Argument()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
@@ -59,16 +89,9 @@ func main() {
 		}
 	}
 
-	// Config file can be passed as the first argument
-	if len(os.Args) <= 1 {
-		slog.Error("No config file provided")
-		slog.Error("Please provide a config file as the first argument")
-		os.Exit(1)
-	}
+	slog.Debug("Parsing config file", "path", configPath)
 
-	slog.Debug("Parsing config file", "path", os.Args[1])
-
-	err := config.Parse(os.Args[1])
+	err = config.Parse(configPath)
 	if err != nil {
 		slog.Error("Failed to parse config file", "error", err)
 		os.Exit(1)
@@ -108,8 +131,16 @@ func main() {
 
 	err = db.Init(dbLogger, c.Database)
 	if err != nil {
-		slog.With("error", err).Error("Failed to initialize database")
+		slog.Error("Failed to initialize database", "error", err)
 		os.Exit(1)
+	}
+
+	if haveToChangeAdminPassword {
+		err = changeAdminPassword(newAdminPassword)
+		if err != nil {
+			slog.Error("Failed to change admin password", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	// Auth
@@ -251,4 +282,17 @@ func generateSecretKey(path string) (string, error) {
 	}
 
 	return string(base64key), nil
+}
+
+func changeAdminPassword(password string) error {
+	if len(password) < 8 {
+		return errors.New("password for admin have to be longer than 8 characters")
+	}
+
+	err := db.UpdateAdminPassword(password)
+	if err != nil {
+		return fmt.Errorf("updating admin password on db: %w", err)
+	}
+
+	return nil
 }
