@@ -32,6 +32,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	helpCmd := clip.MustGetCommand("--help")
+	if helpCmd.Parsed() {
+		fmt.Println(clip.Help())
+		os.Exit(0)
+	}
+
 	versionCmd := clip.MustGetCommand("--version")
 	if versionCmd.Parsed() {
 		fmt.Printf("sasso-router\nVersion: \t%s\nBranch: \t%s\n", version, branch)

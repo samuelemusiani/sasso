@@ -56,7 +56,10 @@ type Cli struct {
 }
 
 func NewCli(name string, arg bool, help string) Cli {
-	return Cli{name: name, arg: arg, helps: help}
+	c := Cli{name: name, arg: arg, helps: help}
+	c.AddCommand("--help", "-h", false, "Print this help message")
+
+	return c
 }
 
 func (c *Cli) AddCommand(full string, short string, arg bool, help string) {
