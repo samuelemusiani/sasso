@@ -159,7 +159,7 @@ func UpdateAdminPassword(password string) error {
 			return fmt.Errorf("failed to hash password: %w", err)
 		}
 
-		err = tx.Save(admin).Error
+		err = tx.Save(&admin).Error
 		if err != nil {
 			return err
 		}
