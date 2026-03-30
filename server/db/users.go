@@ -140,6 +140,34 @@ Admin user created successfully. Password: %s
 	return err
 }
 
+func UpdateAdminPassword(password string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		adminID, err := getAdminIDTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("failed to get adminID: %w", err)
+		}
+
+		var admin User
+
+		err = tx.First(&admin, adminID).Error
+		if err != nil {
+			return fmt.Errorf("failed to get admin user: %w", err)
+		}
+
+		admin.Password, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+
+		err = tx.Save(&admin).Error
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func GetUserByUsernameAndRealmID(username string, realmID uint) (User, error) {
 	var user User
 

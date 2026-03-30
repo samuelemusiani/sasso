@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"samuelemusiani/sasso/pkg/cli"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
@@ -22,12 +23,24 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		_, err := fmt.Printf("Sasso Router\nVersion: \t%s\nBranch: \t%s\n", version, branch)
-		if err != nil {
-			os.Exit(1)
-		}
+	clip := cli.NewCli("sasso-router", true, "Path to configuration file (ex. /etc/sasso.yaml)")
+	clip.AddCommand("--version", "-v", false, "Print version of binary")
 
+	err := clip.Parse(os.Args)
+	if err != nil {
+		fmt.Printf("ERROR: %s\n\n%s\n", err.Error(), clip.Help())
+		os.Exit(1)
+	}
+
+	helpCmd := clip.MustGetCommand("--help")
+	if helpCmd.Parsed() {
+		fmt.Println(clip.Help())
+		os.Exit(0)
+	}
+
+	versionCmd := clip.MustGetCommand("--version")
+	if versionCmd.Parsed() {
+		fmt.Printf("sasso-router\nVersion: \t%s\nBranch: \t%s\n", version, branch)
 		os.Exit(0)
 	}
 
@@ -49,16 +62,19 @@ func main() {
 		}
 	}
 
-	// Config file must be passed as the first argument
-	if len(os.Args) <= 1 {
-		slog.Error("No config file provided")
-		slog.Error("Please provide a config file as the first argument")
+	var configPath string
+
+	// We parsed the config path
+	if !clip.ArgWasParsed() {
+		fmt.Printf("ERROR: config path not found\n\n%s", clip.Help())
 		os.Exit(1)
 	}
 
-	slog.Debug("Parsing config file", "path", os.Args[1])
+	configPath = clip.Argument()
 
-	err := config.Parse(os.Args[1])
+	slog.Debug("Parsing config file", "path", configPath)
+
+	err = config.Parse(configPath)
 	if err != nil {
 		slog.Error("Failed to parse config file", "error", err)
 		os.Exit(1)
