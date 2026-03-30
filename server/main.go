@@ -33,7 +33,7 @@ var (
 	branch  = "develop"
 )
 
-func main() {
+func main() { //nolint:maintidx
 	clip := cli.NewCli("sasso-server", true, "Path to configuration file (ex. /etc/sasso.yaml)")
 	clip.AddCommand("--version", "-v", false, "Print version of binary")
 	clip.AddCommand("--change-admin-password", "", true, "Change admin password")
