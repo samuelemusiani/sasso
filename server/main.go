@@ -141,6 +141,9 @@ func main() {
 			slog.Error("Failed to change admin password", "error", err)
 			os.Exit(1)
 		}
+
+		slog.Info("Admin password changed successfully. Exiting...")
+		os.Exit(0)
 	}
 
 	// Auth
