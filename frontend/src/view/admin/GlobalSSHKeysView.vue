@@ -84,37 +84,35 @@ onMounted(getKeys)
           </div>
         </form>
       </div>
-      <div class="inline-block min-w-full py-2 align-middle">
-        <div class="border-primary border-opacity-10 rounded-lg border px-2">
-          <table class="table min-w-full divide-y">
-            <thead class="">
-              <tr>
-                <th scope="col">ID</th>
-                <th scope="col">Name</th>
-                <th scope="col">Key</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr v-if="keys.length === 0">
-                <td colspan="3" class="text-center">No keys found.</td>
-              </tr>
-              <tr v-for="key in keys" :key="key.id">
-                <td>
-                  {{ key.id }}
-                </td>
-                <td>
-                  {{ key.name }}
-                </td>
-                <td class="whitespace-nowrap">
-                  {{ key.key }}
-                </td>
-                <td>
-                  <button @click="deleteKey(key.id)" class="btn btn-error">Delete</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="border-primary border-opacity-10 my-2 overflow-x-auto rounded-lg border p-2">
+        <table class="table min-w-full divide-y">
+          <thead class="">
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Key</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <tr v-if="keys.length === 0">
+              <td colspan="3" class="text-center">No keys found.</td>
+            </tr>
+            <tr v-for="key in keys" :key="key.id">
+              <td>
+                {{ key.id }}
+              </td>
+              <td>
+                {{ key.name }}
+              </td>
+              <td class="whitespace-nowrap">
+                {{ key.key }}
+              </td>
+              <td>
+                <button @click="deleteKey(key.id)" class="btn btn-error">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
