@@ -80,7 +80,7 @@ onMounted(() => {
         </div>
         <div class="w-full">
           <legend class="label mb-1">Username</legend>
-          <label class="input validator rounded-lg">
+          <label class="input validator w-full rounded-lg">
             <IconVue icon="material-symbols:person" class="h-[1em] text-lg opacity-50" />
             <input
               type="text"
@@ -98,7 +98,7 @@ onMounted(() => {
 
         <div class="w-full">
           <legend class="label mb-1">Password</legend>
-          <label class="input rounded-lg">
+          <label class="input w-full rounded-lg">
             <IconVue icon="material-symbols:lock" class="h-[1em] text-lg opacity-50" />
             <input
               required
