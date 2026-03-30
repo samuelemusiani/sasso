@@ -23,10 +23,7 @@ var (
 
 func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		_, err := fmt.Printf("Sasso VPN\nVersion: \t%s\nBranch: \t%s\n", version, branch)
-		if err != nil {
-			os.Exit(1)
-		}
+		fmt.Printf("Sasso VPN\nVersion: \t%s\nBranch: \t%s\n", version, branch)
 
 		os.Exit(0)
 	}
