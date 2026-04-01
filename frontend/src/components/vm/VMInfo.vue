@@ -6,6 +6,8 @@ import { formatDate, isVMExpired, vmWillExpire } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useLoadingStore } from '@/stores/loading'
 import { useRouter } from 'vue-router'
+import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
+import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
 
 const $props = defineProps<{
   vm: VM
@@ -34,6 +36,12 @@ watch(
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
+const { showModal, modalMissing, preStartVM, confirmStart, cancelStart } = useVmStartWithChecks({
+  api,
+  loading,
+  onStarted: () => $emit('status-change', 'running'),
+})
+
 function updateLifetime(vmid: number, extend_by: number) {
   api
     .patch(`/vm/${$props.vm.id}/lifetime`, { extend_by })
@@ -43,17 +51,6 @@ function updateLifetime(vmid: number, extend_by: number) {
     .catch((err) => {
       console.error('Failed to update VM lifetime:', err)
     })
-}
-
-function startVM(vmid: number) {
-  loading.start('vm', vmid, 'start')
-  api
-    .post(`/vm/${vmid}/start`)
-    .then(() => {
-      $emit('status-change', 'running')
-    })
-    .catch((err) => console.error('Failed to start VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'start'))
 }
 
 function stopVM(vmid: number) {
@@ -116,7 +113,7 @@ const disableDelete = computed(() => {
       <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
         <button
           v-if="vm.status === 'stopped'"
-          @click="startVM(vm.id)"
+          @click="preStartVM(vm.id)"
           :disabled="
             isLoading(vm.id, 'start') || isVMExpired(vm.lifetime) || vm.group_role == 'member'
           "
@@ -194,5 +191,13 @@ const disableDelete = computed(() => {
       <IconVue icon="material-symbols:delete" class="text-lg" />
       <span class="hidden lg:inline">Delete</span>
     </button>
+
+    <VMStartChecksModal
+      :model-value="showModal"
+      :missing="modalMissing"
+      :interfaces-href="`${vm.id}/interfaces`"
+      @confirm="confirmStart"
+      @cancel="cancelStart"
+    />
   </div>
 </template>

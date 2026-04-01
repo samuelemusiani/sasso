@@ -7,6 +7,8 @@ import { api } from '@/lib/api'
 import { formatDate, isVMExpired } from '@/lib/utils'
 import { getStatusClass } from '@/const'
 import BubbleAlert from '@/components/BubbleAlert.vue'
+import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
+import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
 
 const vms = ref<VM[]>([])
 const templates = ref<Template[]>([])
@@ -27,6 +29,24 @@ const groups = ref<Group[]>([])
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
+
+const { showModal, modalMissing, preStartVM, confirmStart, cancelStart } = useVmStartWithChecks({
+  api,
+  loading,
+  onStarted: () => {
+    if (startingVMId.value) {
+      const vm = vms.value.find((v) => v.id === startingVMId.value)
+      if (vm) vm.status = 'running'
+    }
+    fetchVMs()
+  },
+})
+
+const startingVMId = ref<number | null>(null)
+function preStartVMWrapper(vmid: number) {
+  startingVMId.value = vmid
+  preStartVM(vmid)
+}
 
 function fetchVMs() {
   api
@@ -118,15 +138,6 @@ function deleteVM(vmid: number) {
         console.error('Failed to delete VM:', err)
       })
   }
-}
-
-function startVM(vmid: number) {
-  loading.start('vm', vmid, 'start')
-  api
-    .post(`/vm/${vmid}/start`)
-    .then(() => fetchVMs())
-    .catch((err) => console.error('Failed to start VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'start'))
 }
 
 function stopVM(vmid: number) {
@@ -300,7 +311,7 @@ const nonMemberGroups = computed(() => {
               <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
                 <button
                   v-if="vm.status === 'stopped'"
-                  @click="startVM(vm.id)"
+                  @click="preStartVMWrapper(vm.id)"
                   :disabled="
                     isLoading(vm.id, 'start') ||
                     isVMExpired(vm.lifetime) ||
@@ -369,5 +380,13 @@ const nonMemberGroups = computed(() => {
         </tr>
       </tbody>
     </table>
+
+    <VMStartChecksModal
+      :model-value="showModal"
+      :missing="modalMissing"
+      :interfaces-href="`/vm/${startingVMId}/interfaces`"
+      @confirm="confirmStart"
+      @cancel="cancelStart"
+    />
   </div>
 </template>
