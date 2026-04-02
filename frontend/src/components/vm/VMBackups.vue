@@ -20,6 +20,10 @@ const backups = ref<Backup[]>([])
 const name = ref('')
 const notes = ref('')
 
+const modalRef = ref<HTMLDialogElement | null>(null)
+const modalTitle = ref('')
+const modalBody = ref('')
+
 const route = useRoute()
 const vmid = Number(route.params.vmid)
 const error = ref('')
@@ -60,6 +64,21 @@ function fetchBackups() {
     })
     .finally(() => {
       loading.stop('vm', vmid, 'fetch_backups')
+    })
+}
+
+function fetchBackupsWithoutLoading() {
+  api
+    .get(`/vm/${vmid}/backup`)
+    .then((res) => {
+      // Handle the response data
+      const tmp = res.data.sort((a: Backup, b: Backup) => {
+        return new Date(b.ctime).getTime() - new Date(a.ctime).getTime()
+      })
+      backups.value = tmp as Backup[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch backups:', err)
     })
 }
 
@@ -111,8 +130,8 @@ function protectBackup(backupID: string, protect: boolean) {
       backups.value = backups.value.map((bk) =>
         bk.id === backupID ? { ...bk, protected: protect } : bk,
       )
-      fetchBackups() // Refresh the list after deletion
-      toastSuccess(`Backup ${backupID} is now ${protect ? 'protected' : 'unprotected'}.`)
+      fetchBackupsWithoutLoading() // Refresh the list after deletion
+      toastSuccess(`Backup is now ${protect ? 'protected' : 'unprotected'}.`)
     })
     .catch((err) => {
       console.error('Failed to toggle backup protection:', err)
@@ -142,7 +161,33 @@ function makeBackup() {
     })
     .finally(() => {
       loading.stop('vm', vmid, 'create_backup')
+      name.value = ''
+      notes.value = ''
     })
+}
+
+const truncateLength = 50
+
+function truncateNotes(notes: string) {
+  if (notes.length > truncateLength) {
+    return notes.substring(0, truncateLength - 3) + '...'
+  }
+  return notes
+}
+
+function openNotesModal(title: string, body: string) {
+  modalTitle.value = title
+  modalBody.value = body
+
+  const el = modalRef.value
+  if (!el) return
+  if (!el.open) el.showModal()
+}
+
+function closeNotesModal() {
+  const el = modalRef.value
+  if (!el) return
+  if (el.open) el.close()
 }
 
 const backupMessage = computed(() => {
@@ -205,6 +250,7 @@ onBeforeUnmount(() => {
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
       <span class="loading loading-spinner place-self-center"></span>
     </div>
+
     <div v-else class="overflow-x-auto">
       <table class="table min-w-full divide-y">
         <thead>
@@ -220,8 +266,11 @@ onBeforeUnmount(() => {
           <tr v-for="bk in backups" :key="bk.name">
             <td>{{ bk.name }}</td>
             <td>{{ formatDate(bk.ctime) }}</td>
-            <!-- TODO: fix with some fancy notes -->
-            <td>{{ bk.notes }}</td>
+            <td class="max-w-96">
+              <p class="hover:link" @click="openNotesModal(bk.name, bk.notes)">
+                {{ truncateNotes(bk.notes) }}
+              </p>
+            </td>
             <td class="font-semibold capitalize" :class="getStatusClass(bk.protected.toString())">
               {{ bk.protected }}
             </td>
@@ -261,5 +310,22 @@ onBeforeUnmount(() => {
         </tbody>
       </table>
     </div>
+
+    <!-- Notes modal -->
+    <dialog ref="modalRef" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box">
+        <h3 class="mb-4 text-xl font-bold">Notes for "{{ modalTitle }}"</h3>
+        <p class="text-balance">{{ modalBody }}</p>
+
+        <div class="modal-action">
+          <button class="btn" type="button" @click="closeNotesModal()">Close</button>
+        </div>
+      </div>
+
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label="Close"></button>
+      </form>
+    </dialog>
+    <!-- End Notes modal -->
   </div>
 </template>
