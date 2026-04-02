@@ -76,7 +76,13 @@ onMounted(() => {
 <template>
   <div class="h-full overflow-auto p-2">
     <div class="mb-6">
-      <h1 class="my-3 flex items-center gap-3 text-3xl font-bold">Hi {{ whoami?.username }}!</h1>
+      <div class="flex justify-between">
+        <h1 class="flex items-center gap-3 text-3xl font-bold">
+          <IconVue class="text-primary" icon="material-symbols:home-rounded"></IconVue>
+          Hi {{ whoami?.username }}!
+        </h1>
+        <HelpButton />
+      </div>
       <h2 class="text-base-content/80 my-2 text-xl font-semibold">Usage of your resources</h2>
     </div>
 

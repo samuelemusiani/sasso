@@ -101,7 +101,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div>
+  <div class="relative p-2">
+    <HelpButton class="absolute right-2" />
     <div class="tabs tabs-lift">
       <template v-for="tab in tabs" :key="tab.id">
         <label class="tab" :class="{ 'tab-disabled': shouldDisableTab(tab.id) }">
@@ -118,7 +119,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </label>
-        <div class="tab-content border-t border-t-black p-4">
+        <div class="tab-content border-t-base-300 border-t pt-4">
           <div v-if="isLoading(vmid, 'fetch_vm')" class="grid h-70">
             <span class="loading loading-spinner place-self-center"></span>
           </div>

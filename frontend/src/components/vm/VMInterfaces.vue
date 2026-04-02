@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 p-2">
+  <div class="flex flex-col gap-2">
     <InterfaceForm
       v-if="!editingInterface && $props.vm.group_role !== 'member'"
       :vm="$props.vm"

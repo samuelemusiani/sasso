@@ -69,6 +69,12 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" icon="material-symbols:router"></IconVue>Port Forwards
+      </h1>
+      <HelpButton />
+    </div>
     <div>
       <p class="">
         The public IP is: <strong>{{ publicIP }}</strong>

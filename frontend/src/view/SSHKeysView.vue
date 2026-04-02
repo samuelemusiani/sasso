@@ -60,10 +60,13 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="text-base-content flex items-center gap-2 text-3xl font-bold">
-      <IconVue icon="material-symbols:key" class="text-primary" />
-      SSH Keys
-    </h1>
+    <div class="flex justify-between">
+      <h1 class="text-base-content flex items-center gap-2 text-3xl font-bold">
+        <IconVue icon="material-symbols:key" class="text-primary" />
+        SSH Keys
+      </h1>
+      <HelpButton />
+    </div>
     <CreateNew title="SSH Key" :create="addSSHKey" :error="error">
       <div class="flex flex-col gap-2">
         <label for="name">Name</label>

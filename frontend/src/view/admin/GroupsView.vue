@@ -25,7 +25,10 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <table class="mt-2 table w-full p-2">
       <thead>
         <tr class="">

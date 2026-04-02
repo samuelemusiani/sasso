@@ -38,7 +38,10 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <AdminBreadcrumbs />
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <div class="overflow-x-auto">
       <table class="table min-w-full divide-y">
         <thead class="">

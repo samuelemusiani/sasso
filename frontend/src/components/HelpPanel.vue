@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { ref } from 'vue'
 import HelpHome from '@/components/help/HelpHome.vue'
 import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
-const collapsed = ref(false)
 const route = useRoute()
 import type { Component } from 'vue'
+
+import { useUiStore } from '@/stores/ui'
+const ui = useUiStore()
 
 type selector = {
   regex: string
@@ -29,21 +30,11 @@ function componentFromRoute(path: string) {
 </script>
 
 <template>
-  <div class="flex max-h-screen overflow-hidden">
-    <div v-if="collapsed" class="fixed top-10 right-10">
-      <button @click="collapsed = false" class="btn btn-info btn-outline">
-        HELP
-        <IconVue icon="material-symbols:help-outline" class="text-lg" />
-      </button>
-    </div>
+  <div v-if="ui.helpOpen" class="flex max-h-screen overflow-hidden">
     <div
-      v-if="!collapsed"
       class="from-base-200 to-base-200/40 my-4 flex w-80 flex-col items-center rounded-xl bg-linear-to-r shadow-lg backdrop-blur-md transition-all duration-300"
     >
-      <div
-        :class="{ invisible: collapsed }"
-        class="flex h-full w-full flex-col justify-between p-4"
-      >
+      <div class="flex h-full w-full flex-col justify-between p-4">
         <!-- Toggle -->
         <div class="flex w-full flex-col gap-4">
           <div class="flex w-full items-center justify-center gap-2">
@@ -58,13 +49,7 @@ function componentFromRoute(path: string) {
           </div>
         </div>
 
-        <button
-          class="btn btn-outline btn-info"
-          @click="collapsed = !collapsed"
-          :title="collapsed ? 'Expand' : 'Collapse'"
-        >
-          Close
-        </button>
+        <button class="btn btn-outline btn-info rounded-lg" @click="ui.closeHelp()">Close</button>
       </div>
     </div>
   </div>

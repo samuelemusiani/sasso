@@ -62,11 +62,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
-      <IconVue icon="material-symbols:settings" class="text-primary" />
-      WireGuard's Configuration File
-    </h2>
+  <div class="flex flex-col gap-2 p-2">
+    <div class="flex justify-between">
+      <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
+        <IconVue icon="cib:wireguard" class="text-primary" />
+        WireGuard VPN
+      </h2>
+      <HelpButton />
+    </div>
 
     <div v-for="config in vpnConfig" :key="config.id" class="my-4">
       <VPNConfigComponent :vpnConfig="config" @delete="deleteVPN(config.id)" />
