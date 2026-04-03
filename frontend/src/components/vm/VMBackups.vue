@@ -370,7 +370,7 @@ onBeforeUnmount(() => {
               </div>
               <div
                 :class="{ 'tooltip tooltip-left': !bk.can_delete }"
-                data-tip="Cannot delete automatic backups"
+                data-tip="Cannot delete automatic or protected backups"
               >
                 <button
                   @click="preDeleteBackup(bk.id)"

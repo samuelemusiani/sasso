@@ -109,7 +109,7 @@ func ListBackups(parentCtx context.Context, vmID uint64, since time.Time) ([]Bac
 		} else {
 			name = bkn.Name
 			notes = bkn.Notes
-			canDelete = bkn.SassoVerifier == BackupSassoString
+			canDelete = bkn.SassoVerifier == BackupSassoString && !bool(item.Protected)
 		}
 
 		backups = append(backups, Backup{
@@ -372,11 +372,11 @@ func findVolid(parentCtx context.Context, vmID uint64, backupid string, since ti
 				continue
 			}
 
-			if action != volidActionDelete || bkn.SassoVerifier == BackupSassoString {
-				return item.Volid, nil
+			if action == volidActionDelete && (bkn.SassoVerifier != BackupSassoString || bool(item.Protected)) {
+				return "", ErrCantDeleteBackup
 			}
 
-			return "", ErrCantDeleteBackup
+			return item.Volid, nil
 		}
 	}
 

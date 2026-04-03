@@ -38,8 +38,8 @@
         Backups are also managed by an external pruning system, which will automatically delete old
         backups to free up space. Please not that this deletion is based on a complex set of rules
         and could delete any backup, not just the oldest. If you want to protect a backup from being
-        deleted, you can mark it as protected. Protected backups won't be deleted by the pruning
-        system, but they can still be deleted manually by you.
+        deleted, you can mark it as protected. Protected cannot also be manually deleted. If you
+        want to delete a protected backup, you need to unprotect it first.
       </p>
     </div>
 
@@ -55,6 +55,9 @@
     <div class="flex flex-col gap-2">
       <h2 class="text-info font-bold">Deletion</h2>
       <p>You can delete a manual backup at any time, but you cannot delete an automatic backup.</p>
+      <p>
+        You cannot delete a protected backup, even if it is manual. You need to unprotect it first.
+      </p>
     </div>
   </div>
 </template>
