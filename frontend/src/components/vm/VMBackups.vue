@@ -46,6 +46,14 @@ const creatingPendingBackupRequests = computed(() =>
   pendingBackupRequests.value.filter((req) => req.type === 'create'),
 )
 
+const deletingBackupIDs = computed(() =>
+  pendingBackupRequests.value.filter((req) => req.type === 'delete').map((req) => req.backup_id),
+)
+
+const restoringBackupIDs = computed(() =>
+  pendingBackupRequests.value.filter((req) => req.type === 'restore').map((req) => req.backup_id),
+)
+
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
@@ -109,7 +117,7 @@ function restoreBackup(backupID: string) {
       toastError(`Failed to send restore request for backup. ${err.response.data}`)
     })
     .finally(() => {
-      loading.stop('backup', backupID, 'restore')
+      // loading.stop('backup', backupID, 'restore')
     })
 }
 
@@ -154,7 +162,7 @@ function deleteBackup(backupID: string) {
       toastError(`Failed to send delete request for backup.`)
     })
     .finally(() => {
-      loading.stop('backup', backupID, 'delete')
+      // loading.stop('backup', backupID, 'delete')
     })
 }
 
@@ -231,24 +239,30 @@ function closeNotesModal() {
   if (el.open) el.close()
 }
 
-const backupMessage = computed(() => {
-  if (pendingBackupRequests.value.length > 0) {
-    const req = pendingBackupRequests.value[0]
-    if (!req) return ''
-
-    if (req.type === 'restore') {
-      return 'A backup is being restored. The page will refresh automatically when it is done. Please wait...'
-    } else if (req.type === 'delete') {
-      return 'A backup is being deleted. The page will refresh automatically when it is done. Please wait...'
-    }
-  }
-  return ''
-})
-
 watch(pendingBackupRequests, (newVal, oldVal) => {
   if (oldVal.length > 0 && newVal.length === 0) {
     // All pending requests are done
     fetchBackupsWithoutLoading()
+  }
+
+  // Cancel loading states for completed requests
+  const newIds = newVal.map((req) => req.id)
+  for (const req of oldVal) {
+    if (newIds.includes(req.id)) {
+      continue
+    }
+
+    // This request is completed
+    if (req.type === 'create') {
+      // We don't need this
+      // loading.stop('vm', vmid, 'create_backup')
+    } else if (req.type === 'delete') {
+      loading.stop('backup', req.backup_id, 'delete')
+      // Small optimization
+      backups.value = backups.value.filter((bk) => bk.id !== req.backup_id)
+    } else if (req.type === 'restore') {
+      loading.stop('backup', req.backup_id, 'restore')
+    }
   }
 })
 
@@ -291,9 +305,6 @@ onBeforeUnmount(() => {
       <label class="label">Backup Notes</label>
       <textarea placeholder="Notes" v-model="notes" class="input h-32 w-full rounded-lg"></textarea>
     </CreateNew>
-    <div>
-      {{ backupMessage }}
-    </div>
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
       <span class="loading loading-spinner place-self-center"></span>
     </div>
@@ -321,10 +332,10 @@ onBeforeUnmount(() => {
               <td class="max-w-96">
                 {{ truncateNotes(br.notes ?? '', 20) }}
               </td>
-              <td colspan="1" class="">
-                <div class="">Backup is being created...</div>
+              <td class="">
+                <div class="">Backup creation...</div>
               </td>
-              <td colspan="1" class="text-center">
+              <td class="text-center">
                 <span class="loading loading-spinner loading-md"></span>
               </td>
             </tr>
@@ -350,7 +361,9 @@ onBeforeUnmount(() => {
                   :class="bk.protected ? 'btn btn-accent' : 'btn btn-primary'"
                   :disabled="
                     (!bk.protected && haveFinishedProtectedBackups()) ||
-                    loading.is('backup', bk.id, 'protect')
+                    loading.is('backup', bk.id, 'protect') ||
+                    deletingBackupIDs.includes(bk.id) ||
+                    restoringBackupIDs.includes(bk.id)
                   "
                   class="btn btn-sm md:btn-md btn-outline w-32 rounded-lg"
                 >
@@ -379,17 +392,23 @@ onBeforeUnmount(() => {
                 data-tip="Canot restore if VM is not stopped"
               >
                 <button
-                  :disabled="$props.vm.status != 'stopped'"
+                  :disabled="
+                    $props.vm.status != 'stopped' ||
+                    deletingBackupIDs.includes(bk.id) ||
+                    restoringBackupIDs.includes(bk.id)
+                  "
                   @click="preRestoreBackup(bk.id)"
                   class="btn btn-warning btn-outline w-32 rounded-lg"
                 >
                   <span
-                    v-if="loading.is('backup', bk.id, 'restore')"
+                    v-if="
+                      loading.is('backup', bk.id, 'restore') || restoringBackupIDs.includes(bk.id)
+                    "
                     class="loading loading-spinner loading-xs"
                   ></span>
                   <IconVue v-else icon="material-symbols:settings-backup-restore" class="text-lg" />
 
-                  Restore
+                  {{ restoringBackupIDs.includes(bk.id) ? 'Restoring' : 'Restore' }}
                 </button>
               </div>
               <div
@@ -399,15 +418,21 @@ onBeforeUnmount(() => {
                 <button
                   @click="preDeleteBackup(bk.id)"
                   class="btn btn-error btn-outline w-32 rounded-lg"
-                  :disabled="!bk.can_delete || loading.is('backup', bk.id, 'delete')"
+                  :disabled="
+                    !bk.can_delete ||
+                    deletingBackupIDs.includes(bk.id) ||
+                    restoringBackupIDs.includes(bk.id)
+                  "
                 >
                   <span
-                    v-if="loading.is('backup', bk.id, 'delete')"
+                    v-if="
+                      loading.is('backup', bk.id, 'delete') || deletingBackupIDs.includes(bk.id)
+                    "
                     class="loading loading-spinner loading-xs"
                   ></span>
 
                   <IconVue v-else icon="material-symbols:delete" class="text-lg" />
-                  Delete
+                  {{ deletingBackupIDs.includes(bk.id) ? 'Deleting' : 'Delete' }}
                 </button>
               </div>
             </td>
