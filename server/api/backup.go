@@ -287,10 +287,12 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 		err error
 	)
 
+	status := r.URL.Query().Get("status")
+
 	if groupID != nil {
-		bkr, err = proxmox.GetBackupRequestsByGroupID(*groupID)
+		bkr, err = proxmox.GetBackupRequestsByGroupID(*groupID, status)
 	} else {
-		bkr, err = proxmox.GetBackupRequestsByUserID(userID)
+		bkr, err = proxmox.GetBackupRequestsByUserID(userID, status)
 	}
 
 	if err != nil {

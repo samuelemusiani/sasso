@@ -258,15 +258,22 @@ func DeleteBackup(parentCtx context.Context, userID uint, groupID *uint, vmID ui
 	return bkr.ID, nil
 }
 
-func GetBackupRequestsByUserID(userID uint) ([]ReturnBackupRequest, error) {
-	return getBackupRequestsByOwnerIDAndType(userID, "user")
+// GetBackupRequestsByUserID returns all backup requests of a user with the
+// given status. If status is empty, it returns all backup requests regardless
+// of their status.
+func GetBackupRequestsByUserID(userID uint, status string) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(userID, "user", status)
 }
 
-func GetBackupRequestsByGroupID(groupID uint) ([]ReturnBackupRequest, error) {
-	return getBackupRequestsByOwnerIDAndType(groupID, "group")
+// GetBackupRequestsByGroupID returns all backup requests of a group with the
+// given status. If status is empty, it returns all backup requests regardless
+// of their status.
+func GetBackupRequestsByGroupID(groupID uint, status string) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(groupID, "group", status)
 }
 
-func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType string) ([]ReturnBackupRequest, error) {
+// if status is empty, it returns all backup requests regardless of their status.
+func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType, status string) ([]ReturnBackupRequest, error) {
 	var (
 		backupRequests []db.BackupRequest
 		err            error
@@ -274,9 +281,9 @@ func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType string) ([]Return
 
 	switch ownerType {
 	case "user":
-		backupRequests, err = db.GetBackupRequestsByUserID(ownerID)
+		backupRequests, err = db.GetBackupRequestsByUserID(ownerID, status)
 	case "group":
-		backupRequests, err = db.GetBackupRequestsByGroupID(ownerID)
+		backupRequests, err = db.GetBackupRequestsByGroupID(ownerID, status)
 	default:
 		panic("invalid owner type")
 	}
