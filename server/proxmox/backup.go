@@ -288,12 +288,11 @@ func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType string) ([]Return
 	returnBackupRequests := make([]ReturnBackupRequest, 0, len(backupRequests))
 
 	for _, item := range backupRequests {
-		if item.Volid == nil {
-			// Creation request
-			continue
-		}
+		var sv string
 
-		sv := mustCalculateSecretVolid(*item.Volid)
+		if item.Volid != nil {
+			sv = mustCalculateSecretVolid(*item.Volid)
+		}
 
 		rq := ReturnBackupRequest{
 			ID:        item.ID,
