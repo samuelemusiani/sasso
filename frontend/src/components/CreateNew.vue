@@ -52,26 +52,28 @@ function openClose() {
 </script>
 
 <template>
-  <div>
-    <button class="btn btn-primary rounded-xl" :disabled="props.disabled" @click="openClose">
-      <IconVue v-if="!openCreate" icon="mi:add" class="text-xl transition"></IconVue>
-      <IconVue v-else icon="material-symbols:close-rounded" class="text-xl transition"></IconVue>
-      {{ openCreate ? 'Close' : (props.hideCreate ? '' : 'Create ') + `${props.title}` }}
-    </button>
-  </div>
-  <div v-if="openCreate">
-    <form
-      class="border-primary bg-base-200 flex h-full w-full flex-col gap-4 rounded-xl border p-4"
-      @submit.prevent="submit"
-    >
-      <slot></slot>
-      <p v-if="props.error" class="text-error">{{ props.error }}</p>
-      <button class="btn btn-success rounded-lg p-2" type="submit" :disabled="loading">
-        <div v-if="loading" class="grid h-70">
-          <span class="loading loading-spinner place-self-center"></span>
-        </div>
-        {{ (props.hideCreate ? '' : 'Create ') + props.title }}
+  <div class="flex w-full flex-col gap-2">
+    <div>
+      <button class="btn btn-primary rounded-xl" :disabled="props.disabled" @click="openClose">
+        <IconVue v-if="!openCreate" icon="mi:add" class="text-xl transition"></IconVue>
+        <IconVue v-else icon="material-symbols:close-rounded" class="text-xl transition"></IconVue>
+        {{ openCreate ? 'Close' : (props.hideCreate ? '' : 'Create ') + `${props.title}` }}
       </button>
-    </form>
+    </div>
+    <div v-if="openCreate" class="w-full">
+      <form
+        class="border-primary bg-base-200 flex h-full w-full flex-col gap-4 rounded-xl border p-4"
+        @submit.prevent="submit"
+      >
+        <slot></slot>
+        <p v-if="props.error" class="text-error">{{ props.error }}</p>
+        <button class="btn btn-success rounded-lg p-2" type="submit" :disabled="loading">
+          <div v-if="loading" class="grid h-70">
+            <span class="loading loading-spinner place-self-center"></span>
+          </div>
+          {{ (props.hideCreate ? '' : 'Create ') + props.title }}
+        </button>
+      </form>
+    </div>
   </div>
 </template>
