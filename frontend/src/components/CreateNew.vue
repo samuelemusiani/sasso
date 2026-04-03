@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps<{
-  title: string
-  create: (event: SubmitEvent) => void
-  error?: string
-  hideCreate?: boolean
-  open?: boolean
-  disabled?: boolean
-  loading?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    // Returns true if the creation was successful, false otherwise. Can be async.
+    create: (event: SubmitEvent) => Promise<boolean> | boolean | void
+    error?: string
+    hideCreate?: boolean
+    open?: boolean
+    disabled?: boolean
+    loading?: boolean
+    closeOnCreate?: boolean
+  }>(),
+  {
+    closeOnCreate: false,
+  },
+)
 
 const $emit = defineEmits<{
   (e: 'close'): void
@@ -23,6 +30,18 @@ watch(
     openCreate.value = newVal ?? false
   },
 )
+
+async function submit(event: SubmitEvent) {
+  const r = await props.create(event)
+  if (r === undefined) {
+    return
+  }
+
+  if (props.closeOnCreate && r) {
+    openCreate.value = false
+    $emit('close')
+  }
+}
 
 function openClose() {
   openCreate.value = !openCreate.value
@@ -43,7 +62,7 @@ function openClose() {
   <div v-if="openCreate">
     <form
       class="border-primary bg-base-200 flex h-full w-full flex-col gap-4 rounded-xl border p-4"
-      @submit.prevent="props.create"
+      @submit.prevent="submit"
     >
       <slot></slot>
       <p v-if="props.error" class="text-error">{{ props.error }}</p>

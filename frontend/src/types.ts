@@ -113,9 +113,13 @@ export interface BackupRequest {
   id: number
   created_at: string
 
+  backup_id: string
   type: string
   status: string
   vmid: number
+
+  name?: string
+  notes?: string
 }
 
 export interface Stat {

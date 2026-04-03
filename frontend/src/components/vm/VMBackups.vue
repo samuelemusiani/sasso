@@ -41,20 +41,20 @@ function haveFinishedProtectedBackups() {
   return protectedBackups >= maxProtectedBackupsForUser
 }
 
-const backupRequests = ref<BackupRequest[]>([])
-const pendingBackupRequests = computed(() =>
-  backupRequests.value.filter((req) => req.status === 'pending'),
+const pendingBackupRequests = ref<BackupRequest[]>([])
+const creatingPendingBackupRequests = computed(() =>
+  pendingBackupRequests.value.filter((req) => req.type === 'create'),
 )
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
-function fetchBackupsRequests() {
+function fetchPendingBackupsRequests() {
   return api
-    .get(`/vm/${vmid}/backup/request`)
+    .get(`/vm/${vmid}/backup/request?status=pending`)
     .then((res) => {
       // Handle the response data
-      backupRequests.value = res.data as BackupRequest[]
+      pendingBackupRequests.value = res.data as BackupRequest[]
     })
     .catch((err) => {
       console.error('Failed to fetch backup requests:', err)
@@ -102,7 +102,7 @@ function restoreBackup(backupID: string) {
   api
     .post(`/vm/${vmid}/backup/${backupID}/restore`)
     .then(() => {
-      fetchBackupsRequests()
+      fetchPendingBackupsRequests()
     })
     .catch((err) => {
       console.error('Failed to restore backup:', err)
@@ -147,7 +147,7 @@ function deleteBackup(backupID: string) {
     .delete(`/vm/${vmid}/backup/${backupID}`)
     .then(() => {
       toastSuccess(`Backup deletion request submitted.`)
-      fetchBackupsRequests()
+      fetchPendingBackupsRequests()
     })
     .catch((err) => {
       console.error('Failed to delete backup:', err)
@@ -181,22 +181,24 @@ function protectBackup(backupID: string, protect: boolean) {
     })
 }
 
-function makeBackup() {
+function makeBackup(): Promise<boolean> {
   loading.start('vm', vmid, 'create_backup')
-  api
+  return api
     .post(`/vm/${vmid}/backup`, {
       name: name.value.trim(),
       notes: notes.value.trim(),
     })
     .then(() => {
       console.log('Backup created')
-      fetchBackupsRequests()
+      fetchPendingBackupsRequests()
       toastSuccess('Backup creation request submitted.')
+      return true
     })
     .catch((err) => {
       error.value = 'Failed to create backup: ' + err.response.data
       console.error('Failed to create backup:', err)
       toastError('Failed to send backup creation request.')
+      return false
     })
     .finally(() => {
       loading.stop('vm', vmid, 'create_backup')
@@ -207,9 +209,9 @@ function makeBackup() {
 
 const truncateLength = 50
 
-function truncateNotes(notes: string) {
-  if (notes.length > truncateLength) {
-    return notes.substring(0, truncateLength - 3) + '...'
+function truncateNotes(notes: string, length: number = truncateLength) {
+  if (notes.length > length) {
+    return notes.substring(0, length - 3) + '...'
   }
   return notes
 }
@@ -234,9 +236,7 @@ const backupMessage = computed(() => {
     const req = pendingBackupRequests.value[0]
     if (!req) return ''
 
-    if (req.type === 'create') {
-      return 'A backup is being created. The page will refresh automatically when it is done. Please wait...'
-    } else if (req.type === 'restore') {
+    if (req.type === 'restore') {
       return 'A backup is being restored. The page will refresh automatically when it is done. Please wait...'
     } else if (req.type === 'delete') {
       return 'A backup is being deleted. The page will refresh automatically when it is done. Please wait...'
@@ -256,10 +256,10 @@ let intervalId: number | null = null
 
 onMounted(() => {
   fetchBackups()
-  fetchBackupsRequests()
+  fetchPendingBackupsRequests()
   intervalId = setInterval(() => {
-    fetchBackupsRequests()
-  }, 5000)
+    fetchPendingBackupsRequests()
+  }, 2000)
 })
 
 onBeforeUnmount(() => {
@@ -277,9 +277,17 @@ onBeforeUnmount(() => {
       title="New Backup"
       :error="error"
       :loading="isLoading(vm.id, 'create_backup')"
+      :disabled="pendingBackupRequests.length > 0"
+      :closeOnCreate="true"
     >
       <label class="label">Backup Name</label>
-      <input type="text" placeholder="Name" v-model="name" class="input w-full rounded-lg" />
+      <input
+        required
+        type="text"
+        placeholder="Name"
+        v-model="name"
+        class="input w-full rounded-lg"
+      />
       <label class="label">Backup Notes</label>
       <textarea placeholder="Notes" v-model="notes" class="input h-32 w-full rounded-lg"></textarea>
     </CreateNew>
@@ -306,6 +314,22 @@ onBeforeUnmount(() => {
           </tr>
         </thead>
         <tbody class="divide-y">
+          <template v-for="br in creatingPendingBackupRequests" :key="br.id">
+            <tr class="">
+              <td>{{ br.name }}</td>
+              <td></td>
+              <td class="max-w-96">
+                {{ truncateNotes(br.notes ?? '', 20) }}
+              </td>
+              <td colspan="1" class="">
+                <div class="">Backup is being created...</div>
+              </td>
+              <td colspan="1" class="text-center">
+                <span class="loading loading-spinner loading-md"></span>
+              </td>
+            </tr>
+          </template>
+
           <tr v-for="bk in backups" :key="bk.name">
             <td>{{ bk.name }}</td>
             <td>{{ formatDate(bk.ctime) }}</td>
