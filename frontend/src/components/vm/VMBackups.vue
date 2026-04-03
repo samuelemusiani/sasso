@@ -185,8 +185,8 @@ function makeBackup() {
   loading.start('vm', vmid, 'create_backup')
   api
     .post(`/vm/${vmid}/backup`, {
-      name: name.value,
-      notes: notes.value,
+      name: name.value.trim(),
+      notes: notes.value.trim(),
     })
     .then(() => {
       console.log('Backup created')
@@ -248,7 +248,7 @@ const backupMessage = computed(() => {
 watch(pendingBackupRequests, (newVal, oldVal) => {
   if (oldVal.length > 0 && newVal.length === 0) {
     // All pending requests are done
-    fetchBackups()
+    fetchBackupsWithoutLoading()
   }
 })
 
