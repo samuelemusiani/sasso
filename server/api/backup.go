@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"samuelemusiani/sasso/server/db"
 	"samuelemusiani/sasso/server/proxmox"
 )
 
@@ -270,15 +269,6 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type BackupRequest struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-
-	Type   string `json:"type"`
-	Status string `json:"status"`
-	VMID   uint   `json:"vm_id"`
-}
-
 func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
@@ -293,14 +283,14 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		bkr []db.BackupRequest
+		bkr []proxmox.ReturnBackupRequest
 		err error
 	)
 
 	if groupID != nil {
-		bkr, err = db.GetBackupRequestsByGroupID(*groupID)
+		bkr, err = proxmox.GetBackupRequestsByGroupID(*groupID)
 	} else {
-		bkr, err = db.GetBackupRequestsByUserID(userID)
+		bkr, err = proxmox.GetBackupRequestsByUserID(userID)
 	}
 
 	if err != nil {
@@ -310,18 +300,7 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make([]BackupRequest, 0, len(bkr))
-	for _, b := range bkr {
-		resp = append(resp, BackupRequest{
-			ID:        b.ID,
-			CreatedAt: b.CreatedAt,
-			Type:      b.Type,
-			Status:    b.Status,
-			VMID:      b.VMID,
-		})
-	}
-
-	err = json.NewEncoder(w).Encode(resp)
+	err = json.NewEncoder(w).Encode(bkr)
 	if err != nil {
 		l.Error("Failed to encode backup requests to JSON", "error", err)
 		http.Error(w, "Failed to encode backup requests to JSON", http.StatusInternalServerError)
@@ -341,9 +320,9 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bkr, err := db.GetBackupRequestByID(uint(bkrID))
+	bkr, err := proxmox.GetBackupRequestByID(uint(bkrID))
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
+		if errors.Is(err, proxmox.ErrNotFound) {
 			http.Error(w, "Backup request not found", http.StatusNotFound)
 
 			return
@@ -369,15 +348,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp := BackupRequest{
-		ID:        bkr.ID,
-		CreatedAt: bkr.CreatedAt,
-		Type:      bkr.Type,
-		Status:    bkr.Status,
-		VMID:      bkr.VMID,
-	}
-
-	err = json.NewEncoder(w).Encode(resp)
+	err = json.NewEncoder(w).Encode(bkr)
 	if err != nil {
 		logger.Error("Failed to encode backup request to JSON", "userID", userID, "bkrID", bkrID, "error", err)
 		http.Error(w, "Failed to encode backup request to JSON", http.StatusInternalServerError)
@@ -386,7 +357,7 @@ func getBackupRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type ProtectBackupRequest struct {
+type protectBackupRequest struct {
 	Protected bool `json:"protected"`
 }
 
@@ -405,7 +376,7 @@ func protectBackup(w http.ResponseWriter, r *http.Request) {
 
 	backupid := chi.URLParam(r, "backupid")
 
-	var reqBody ProtectBackupRequest
+	var reqBody protectBackupRequest
 
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
