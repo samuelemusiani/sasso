@@ -790,7 +790,7 @@ func adminGetGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, groupIDKey, group)
+	ctx = context.WithValue(ctx, groupKey, group)
 	r = r.WithContext(ctx)
 	getGroup(w, r)
 }

@@ -179,7 +179,7 @@ func mustGetVMFromContext(r *http.Request) *proxmox.VM {
 }
 
 func mustGetUserRoleInGroupFromContext(r *http.Request) string {
-	role, ok := r.Context().Value(vmIDKey).(string)
+	role, ok := r.Context().Value(groupUserRoleKey).(string)
 	if !ok {
 		panic(fmt.Sprintf("mustGetUserRoleInGroupFromContext: %s not found in context", groupUserRoleKey))
 	}
@@ -324,7 +324,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, groupKey, group)
-			ctx = context.WithValue(ctx, groupIDKey, userRole)
+			ctx = context.WithValue(ctx, groupUserRoleKey, userRole)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -333,7 +333,7 @@ func validateGroupOwnership() func(http.Handler) http.Handler {
 	}
 }
 
-// IMPORTANT: This only works under /group/ paths
+// IMPORTANT: This only works under /groups/{id} paths
 func mustGetGroupFromContext(r *http.Request) *db.Group {
 	group, ok := r.Context().Value(groupKey).(*db.Group)
 	if !ok {
