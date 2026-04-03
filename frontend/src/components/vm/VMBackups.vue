@@ -117,6 +117,7 @@ function restoreBackup(backupID: string) {
       toastError(`Failed to send restore request for backup. ${err.response.data}`)
     })
     .finally(() => {
+      showRestoreModal.value = false
       // loading.stop('backup', backupID, 'restore')
     })
 }
@@ -162,6 +163,7 @@ function deleteBackup(backupID: string) {
       toastError(`Failed to send delete request for backup.`)
     })
     .finally(() => {
+      showDeleteModal.value = false
       // loading.stop('backup', backupID, 'delete')
     })
 }
