@@ -43,7 +43,7 @@ type ReturnBackupRequest struct {
 }
 
 const (
-	maxBackupsPerUser          = 2
+	maxBackupsPerUser          = 4
 	maxProtectedBackupsPerUser = 4
 )
 
