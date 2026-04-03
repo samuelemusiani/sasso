@@ -157,6 +157,12 @@ func createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if reqBody.Name == "" {
+		http.Error(w, "Backup name is required", http.StatusBadRequest)
+
+		return
+	}
+
 	m := getVMMutex(uint(vm.ID))
 
 	m.Lock()
