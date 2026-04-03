@@ -260,20 +260,21 @@ func DeleteBackup(parentCtx context.Context, userID uint, groupID *uint, vmID ui
 
 // GetBackupRequestsByUserID returns all backup requests of a user with the
 // given status. If status is empty, it returns all backup requests regardless
-// of their status.
-func GetBackupRequestsByUserID(userID uint, status string) ([]ReturnBackupRequest, error) {
-	return getBackupRequestsByOwnerIDAndType(userID, "user", status)
+// of their status. If vmid is not 0, it returns only backup requests related to the given VM ID.
+func GetBackupRequestsByUserID(userID uint, status string, vmid uint) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(userID, "user", status, vmid)
 }
 
 // GetBackupRequestsByGroupID returns all backup requests of a group with the
 // given status. If status is empty, it returns all backup requests regardless
-// of their status.
-func GetBackupRequestsByGroupID(groupID uint, status string) ([]ReturnBackupRequest, error) {
-	return getBackupRequestsByOwnerIDAndType(groupID, "group", status)
+// of their status. If vmid is not 0, it returns only backup requests related to the given VM ID.
+func GetBackupRequestsByGroupID(groupID uint, status string, vmid uint) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(groupID, "group", status, vmid)
 }
 
 // if status is empty, it returns all backup requests regardless of their status.
-func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType, status string) ([]ReturnBackupRequest, error) {
+// if vmid is not 0, it returns only backup requests related to the given VM ID.
+func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType, status string, vmid uint) ([]ReturnBackupRequest, error) {
 	var (
 		backupRequests []db.BackupRequest
 		err            error
@@ -281,9 +282,9 @@ func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType, status string) (
 
 	switch ownerType {
 	case "user":
-		backupRequests, err = db.GetBackupRequestsByUserID(ownerID, status)
+		backupRequests, err = db.GetBackupRequestsByUserID(ownerID, status, vmid)
 	case "group":
-		backupRequests, err = db.GetBackupRequestsByGroupID(ownerID, status)
+		backupRequests, err = db.GetBackupRequestsByGroupID(ownerID, status, vmid)
 	default:
 		panic("invalid owner type")
 	}

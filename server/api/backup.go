@@ -288,11 +288,19 @@ func listBackupRequests(w http.ResponseWriter, r *http.Request) {
 	)
 
 	status := r.URL.Query().Get("status")
+	svmid := chi.URLParam(r, "vmid")
+
+	vmid, err := strconv.ParseUint(svmid, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid VM ID", http.StatusBadRequest)
+
+		return
+	}
 
 	if groupID != nil {
-		bkr, err = proxmox.GetBackupRequestsByGroupID(*groupID, status)
+		bkr, err = proxmox.GetBackupRequestsByGroupID(*groupID, status, uint(vmid))
 	} else {
-		bkr, err = proxmox.GetBackupRequestsByUserID(userID, status)
+		bkr, err = proxmox.GetBackupRequestsByUserID(userID, status, uint(vmid))
 	}
 
 	if err != nil {
