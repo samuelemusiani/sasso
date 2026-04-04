@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 import { api } from '@/lib/api'
 import { useRoute } from 'vue-router'
 import type { Realm, LDAPRealm } from '@/types'
+import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 
 const $route = useRoute()
 const $emit = defineEmits(['realmAdded'])
@@ -43,7 +44,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="p-2">
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <LDAPForm
       class=""
       v-if="(realm && realm.type == 'ldap') || $props.type == 'ldap'"

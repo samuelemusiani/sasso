@@ -11,7 +11,7 @@ const props = defineProps<{
 <template>
   <RouterLink
     class="btn btn-ghost hover:bg-primary/20 hover:text-base-content w-full justify-start gap-2 rounded-full transition-colors"
-    :class="{ 'w-min !justify-center !rounded-2xl px-0': props.collapsed }"
+    :class="{ 'w-min justify-center! rounded-2xl! px-0': props.collapsed }"
     exact-active-class="backdrop-blur-sm bg-white/70 font-semibold text-base-100"
     :to="props.to"
   >

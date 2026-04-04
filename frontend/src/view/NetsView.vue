@@ -162,9 +162,12 @@ const nonMemberGroups = computed(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="flex items-center gap-2 text-3xl font-bold">
-      <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
-    </h1>
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
+      </h1>
+      <HelpButton />
+    </div>
 
     <CreateNew
       :title="modifying ? 'Modify Network' : 'Network'"

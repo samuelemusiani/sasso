@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -25,8 +26,24 @@ type Backup struct {
 	Protected bool      `json:"protected"`
 }
 
+type ReturnBackupRequest struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	BackupID string `json:"backup_id"`
+	Type     string `json:"type"`
+	Status   string `json:"status"`
+	VMID     uint   `json:"vm_id"`
+
+	Name  string `json:"name,omitempty"`
+	Notes string `json:"notes,omitempty"`
+
+	OwnerType string `json:"-"`
+	OwnerID   uint   `json:"-"`
+}
+
 const (
-	maxBackupsPerUser          = 2
+	maxBackupsPerUser          = 4
 	maxProtectedBackupsPerUser = 4
 )
 
@@ -87,14 +104,7 @@ func ListBackups(parentCtx context.Context, vmID uint64, since time.Time) ([]Bac
 
 	backups := make([]Backup, 0, len(mcontent))
 	for _, item := range mcontent {
-		h := hmac.New(sha256.New, nonce)
-
-		_, err = h.Write([]byte(item.Volid))
-		if err != nil {
-			logger.Error("failed to hash backup volid", "volid", item.Volid, "error", err)
-
-			continue
-		}
+		sv := mustCalculateSecretVolid(item.Volid)
 
 		var (
 			name, notes string
@@ -109,11 +119,11 @@ func ListBackups(parentCtx context.Context, vmID uint64, since time.Time) ([]Bac
 		} else {
 			name = bkn.Name
 			notes = bkn.Notes
-			canDelete = bkn.SassoVerifier == BackupSassoString
+			canDelete = bkn.SassoVerifier == BackupSassoString && !bool(item.Protected)
 		}
 
 		backups = append(backups, Backup{
-			ID:        hex.EncodeToString(h.Sum(nil)),
+			ID:        sv,
 			Ctime:     time.Unix(int64(item.Ctime), 0),
 			CanDelete: canDelete,
 			Name:      name,
@@ -248,6 +258,99 @@ func DeleteBackup(parentCtx context.Context, userID uint, groupID *uint, vmID ui
 	return bkr.ID, nil
 }
 
+// GetBackupRequestsByUserID returns all backup requests of a user with the
+// given status. If status is empty, it returns all backup requests regardless
+// of their status. If vmid is not 0, it returns only backup requests related to the given VM ID.
+func GetBackupRequestsByUserID(userID uint, status string, vmid uint) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(userID, "user", status, vmid)
+}
+
+// GetBackupRequestsByGroupID returns all backup requests of a group with the
+// given status. If status is empty, it returns all backup requests regardless
+// of their status. If vmid is not 0, it returns only backup requests related to the given VM ID.
+func GetBackupRequestsByGroupID(groupID uint, status string, vmid uint) ([]ReturnBackupRequest, error) {
+	return getBackupRequestsByOwnerIDAndType(groupID, "group", status, vmid)
+}
+
+// if status is empty, it returns all backup requests regardless of their status.
+// if vmid is not 0, it returns only backup requests related to the given VM ID.
+func getBackupRequestsByOwnerIDAndType(ownerID uint, ownerType, status string, vmid uint) ([]ReturnBackupRequest, error) {
+	var (
+		backupRequests []db.BackupRequest
+		err            error
+	)
+
+	switch ownerType {
+	case "user":
+		backupRequests, err = db.GetBackupRequestsByUserID(ownerID, status, vmid)
+	case "group":
+		backupRequests, err = db.GetBackupRequestsByGroupID(ownerID, status, vmid)
+	default:
+		panic("invalid owner type")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup requests by owner ID and type. ownerID: %d, ownerType: %s, error: %w", ownerID, ownerType, err)
+	}
+
+	returnBackupRequests := make([]ReturnBackupRequest, 0, len(backupRequests))
+
+	for _, item := range backupRequests {
+		var sv string
+
+		if item.Volid != nil {
+			sv = mustCalculateSecretVolid(*item.Volid)
+		}
+
+		rq := ReturnBackupRequest{
+			ID:        item.ID,
+			CreatedAt: item.CreatedAt,
+			BackupID:  sv,
+			Type:      item.Type,
+			Status:    item.Status,
+			VMID:      item.VMID,
+			Name:      item.Name,
+			Notes:     item.Notes,
+			OwnerType: item.OwnerType,
+			OwnerID:   item.OwnerID,
+		}
+
+		returnBackupRequests = append(returnBackupRequests, rq)
+	}
+
+	return returnBackupRequests, nil
+}
+
+func GetBackupRequestByID(id uint) (*ReturnBackupRequest, error) {
+	backupRequest, err := db.GetBackupRequestByID(id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("failed to get backup request by ID. id: %d, error: %w", id, err)
+	}
+
+	var backupID string
+
+	if backupRequest.Volid != nil {
+		backupID = mustCalculateSecretVolid(*backupRequest.Volid)
+	}
+
+	return &ReturnBackupRequest{
+		ID:        backupRequest.ID,
+		CreatedAt: backupRequest.CreatedAt,
+		BackupID:  backupID,
+		Type:      backupRequest.Type,
+		Status:    backupRequest.Status,
+		VMID:      backupRequest.VMID,
+		Name:      backupRequest.Name,
+		Notes:     backupRequest.Notes,
+		OwnerType: backupRequest.OwnerType,
+		OwnerID:   backupRequest.OwnerID,
+	}, nil
+}
+
 func RestoreBackup(parentCtx context.Context, userID uint, groupID *uint, vmID uint64, backupid string, since time.Time) (uint, error) {
 	isPending, err := db.IsAPendingBackupRequest(uint(vmID))
 	if err != nil {
@@ -357,26 +460,17 @@ func findVolid(parentCtx context.Context, vmID uint64, backupid string, since ti
 	}
 
 	for _, item := range mcontent {
-		h := hmac.New(sha256.New, nonce)
-
-		_, err := h.Write([]byte(item.Volid))
-		if err != nil {
-			logger.Error("failed to hash backup volid", "volid", item.Volid, "error", err)
-
-			continue
-		}
-
-		if hex.EncodeToString(h.Sum(nil)) == backupid {
+		if mustCalculateSecretVolid(item.Volid) == backupid {
 			bkn, err := parseBackupNotes(item.Notes)
 			if err != nil && action == volidActionDelete {
 				continue
 			}
 
-			if action != volidActionDelete || bkn.SassoVerifier == BackupSassoString {
-				return item.Volid, nil
+			if action == volidActionDelete && (bkn.SassoVerifier != BackupSassoString || bool(item.Protected)) {
+				return "", ErrCantDeleteBackup
 			}
 
-			return "", ErrCantDeleteBackup
+			return item.Volid, nil
 		}
 	}
 
@@ -503,4 +597,24 @@ func ProtectBackup(parentCtx context.Context, userID, vmID uint64, backupid stri
 	}
 
 	return true, nil
+}
+
+func calculateSecretVolid(volid string) (string, error) {
+	h := hmac.New(sha256.New, nonce)
+
+	_, err := h.Write([]byte(volid))
+	if err != nil {
+		return "", fmt.Errorf("failed to hash backup volid. volid: %s, error: %w", volid, err)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func mustCalculateSecretVolid(volid string) string {
+	secretVolid, err := calculateSecretVolid(volid)
+	if err != nil {
+		panic(fmt.Sprintf("failed to calculate secret volid: %v", err))
+	}
+
+	return secretVolid
 }

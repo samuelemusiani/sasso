@@ -41,8 +41,11 @@ onMounted(getKeys)
 </script>
 
 <template>
-  <div class="p-4 sm:p-6 lg:p-8">
-    <AdminBreadcrumbs />
+  <div class="p-2">
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <div class="sm:flex sm:items-center">
       <div class="sm:flex-auto">
         <h1 class="text-2xl leading-6 font-bold">Global SSH Keys</h1>

@@ -66,7 +66,10 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <h2 class="text-2xl font-bold">Group Details</h2>
 
     <div v-if="group" class="mt-4">

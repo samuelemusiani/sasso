@@ -13,7 +13,7 @@ const menu = {
   'Virtual Machine': { icon: 'mi:computer', to: '/vm' },
   Nets: { icon: 'ph:network', to: '/net' },
   Interfaces: { icon: 'ph:path', to: '/interfaces' },
-  'SSH Keys': { icon: 'icon-park-twotone:key', to: '/ssh-keys' },
+  'SSH Keys': { icon: 'material-symbols:key', to: '/ssh-keys' },
   VPN: { icon: 'cib:wireguard', to: '/vpn' },
   'Port Forward': { icon: 'material-symbols:router', to: '/port-forwards' },
   'Telegram Bots': { icon: 'mdi:telegram', to: '/telegram' },
@@ -98,7 +98,7 @@ onMounted(() => {
 
       <!-- Footer actions -->
       <!-- TODO: user avatar for user settings -->
-      <div class="border-base-300 w-full border-t p-2">
+      <div class="border-base-300 flex w-full flex-col gap-2 border-t p-2">
         <PanelLine
           to="/settings"
           icon="material-symbols:settings"
@@ -108,7 +108,7 @@ onMounted(() => {
         <button
           @click="logout()"
           class="btn hover:bg-error-content flex w-full items-center gap-2 rounded-full font-semibold"
-          :class="{ '!justify-center !rounded-2xl': collapsed }"
+          :class="{ 'justify-center! rounded-2xl!': collapsed }"
         >
           <IconVue icon="material-symbols:logout" class="text-xl" />
           <span v-if="!collapsed">Logout</span>

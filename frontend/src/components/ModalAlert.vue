@@ -15,6 +15,9 @@ const props = withDefaults(
 
     /** Optional: disable closing via ESC/backdrop */
     disableCancel?: boolean
+
+    /** Optional: custom color of positive button (e.g., 'btn-success') */
+    positiveBtnClass?: string
   }>(),
   {
     title: 'Confirm',
@@ -120,7 +123,12 @@ onBeforeUnmount(() => {
         </button>
 
         <!-- Positive -->
-        <button class="btn btn-primary" type="button" @click="choose('positive')">
+        <button
+          type="button"
+          class="btn"
+          :class="props.positiveBtnClass ?? 'btn-primary'"
+          @click="choose('positive')"
+        >
           {{ positiveText }}
         </button>
       </div>

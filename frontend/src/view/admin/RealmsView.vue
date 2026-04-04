@@ -48,7 +48,10 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
+    <div class="flex justify-between">
+      <AdminBreadcrumbs />
+      <HelpButton />
+    </div>
     <button class="btn btn-primary" @click="addingRealm = true" v-show="!addingRealm">
       Add LDAP Realm
     </button>

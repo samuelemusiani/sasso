@@ -110,19 +110,35 @@ func GetBackupRequestWithStatusAndType(status, t string) ([]BackupRequest, error
 	return backupRequests, nil
 }
 
-func GetBackupRequestsByUserID(userID uint) ([]BackupRequest, error) {
-	return getBackupRequestsByOwnerID(userID, "User")
+// GetBackupRequestsByUserID returns backup requests for a user.
+// If status is empty, it will return all backup requests for the user.
+// If vmid is not 0, it will return backup requests for the user and vmid.
+func GetBackupRequestsByUserID(userID uint, status string, vmid uint) ([]BackupRequest, error) {
+	return getBackupRequestsByOwnerID(userID, "User", status, vmid)
 }
 
-func GetBackupRequestsByGroupID(groupID uint) ([]BackupRequest, error) {
-	return getBackupRequestsByOwnerID(groupID, "Group")
+// GetBackupRequestsByGroupID returns backup requests for a group.
+// If status is empty, it will return all backup requests for the group.
+// If vmid is not 0, it will return backup requests for the group and vmid.
+func GetBackupRequestsByGroupID(groupID uint, status string, vmid uint) ([]BackupRequest, error) {
+	return getBackupRequestsByOwnerID(groupID, "Group", status, vmid)
 }
 
-func getBackupRequestsByOwnerID(ownerID uint, ownerType string) ([]BackupRequest, error) {
+// if status is empty, it will return all backup requests
+// if vmid is not 0, it will return backup requests for the owner and vmid
+func getBackupRequestsByOwnerID(ownerID uint, ownerType, status string, vmid uint) ([]BackupRequest, error) {
 	var backupRequests []BackupRequest
 
-	result := db.Where(&BackupRequest{OwnerID: ownerID, OwnerType: ownerType}).
-		Find(&backupRequests)
+	searchCriteria := &BackupRequest{OwnerID: ownerID, OwnerType: ownerType}
+	if status != "" {
+		searchCriteria.Status = status
+	}
+
+	if vmid != 0 {
+		searchCriteria.VMID = vmid
+	}
+
+	result := db.Where(&searchCriteria).Find(&backupRequests)
 	if result.Error != nil {
 		return nil, result.Error
 	}
