@@ -746,6 +746,9 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 		if err == db.ErrResourcesInUse {
 			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
 			return
+		} else if err == db.ErrInsufficientResources {
+			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
+			return
 		}
 		http.Error(w, "Failed to modify resources from group member", http.StatusInternalServerError)
 		return
