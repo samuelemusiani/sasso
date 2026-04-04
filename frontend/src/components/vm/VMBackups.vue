@@ -288,6 +288,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex flex-col gap-2">
     <CreateNew
+      class="w-96"
       v-if="$props.vm.group_role !== 'member'"
       :create="makeBackup"
       title="New Backup"
@@ -305,7 +306,11 @@ onBeforeUnmount(() => {
         class="input w-full rounded-lg"
       />
       <label class="label">Backup Notes</label>
-      <textarea placeholder="Notes" v-model="notes" class="input h-32 w-full rounded-lg"></textarea>
+      <textarea
+        placeholder="Notes"
+        v-model="notes"
+        class="input h-32 w-full rounded-lg p-2"
+      ></textarea>
     </CreateNew>
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
       <span class="loading loading-spinner place-self-center"></span>

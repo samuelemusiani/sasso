@@ -28,6 +28,8 @@ import VMInfo from '@/components/vm/VMInfo.vue'
 import VMResources from '@/components/vm/VMResources.vue'
 import VMInterfaces from '@/components/vm/VMInterfaces.vue'
 import VMBackups from '@/components/vm/VMBackups.vue'
+import VMBackupsRequests from '@/components/vm/VMBackupsRequests.vue'
+import VMBackupsBase from '@/components/vm/VMBackupsBase.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -46,7 +48,15 @@ const router = createRouter({
             { path: '', name: 'vm-info', component: VMInfo },
             { path: 'resources', name: 'vm-resources', component: VMResources },
             { path: 'interfaces', name: 'vm-interfaces', component: VMInterfaces },
-            { path: 'backups', name: 'vm-backups', component: VMBackups },
+            {
+              path: 'backups',
+              name: 'vm-backups',
+              component: VMBackupsBase,
+              children: [
+                { path: '', name: 'vm-backups-list', component: VMBackups },
+                { path: 'requests', name: 'vm-backup-requests', component: VMBackupsRequests },
+              ],
+            },
           ],
         },
         { path: '/net', component: NetsView },

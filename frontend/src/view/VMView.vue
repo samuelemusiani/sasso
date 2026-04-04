@@ -31,7 +31,8 @@ const activeTab = computed(() => {
       // Check if we're at the base path /vm/:vmid
       if (path === `/vm/${vmid.value}`) return tab.id
     } else {
-      if (path.endsWith(`/${tab.path}`)) return tab.id
+      // Special case for backups, which has a sub-route for requests
+      if (path.endsWith(`/${tab.path}`) || path.endsWith(`/${tab.path}/requests`)) return tab.id
     }
   }
   return 'info'

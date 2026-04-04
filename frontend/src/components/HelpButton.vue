@@ -5,7 +5,7 @@ const ui = useUiStore()
 
 <template>
   <button @click="ui.toggleHelp()" class="btn btn-info btn-outline rounded-lg">
-    HELP
     <IconVue icon="material-symbols:help-outline" class="text-lg" />
+    HELP
   </button>
 </template>
