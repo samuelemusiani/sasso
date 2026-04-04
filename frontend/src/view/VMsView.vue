@@ -210,7 +210,6 @@ const nonMemberGroups = computed(() => {
       <HelpButton />
     </div>
 
-    <!-- TODO: remove open -->
     <CreateNew title="New VM" :create="createVM" :error="error">
       <div>
         <label for="cores">Name</label>
@@ -383,8 +382,10 @@ const nonMemberGroups = computed(() => {
           <td>{{ formatDate(vm.lifetime) }}</td>
 
           <td>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
+            <div class="flex justify-between gap-2 xl:gap-4">
+              <div
+                class="*:btn-sm col-span-2 grid max-w-48 min-w-24 flex-1 grid-cols-1 items-center gap-2 2xl:col-span-1 2xl:min-w-48 2xl:grid-cols-2"
+              >
                 <button
                   v-if="vm.status === 'stopped'"
                   @click="preStartVMWrapper(vm.id)"
@@ -393,7 +394,7 @@ const nonMemberGroups = computed(() => {
                     isVMExpired(vm.lifetime) ||
                     vm.group_role == 'member'
                   "
-                  class="btn btn-success btn-outline col-span-2 rounded-lg"
+                  class="btn btn-success btn-outline col-span-2 min-w-24 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'start')"
@@ -407,7 +408,7 @@ const nonMemberGroups = computed(() => {
                   v-if="vm.status === 'running'"
                   @click="stopVM(vm.id)"
                   :disabled="isLoading(vm.id, 'stop') || vm.group_role == 'member'"
-                  class="btn btn-warning btn-outline rounded-lg"
+                  class="btn btn-warning btn-outline min-w-20 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'stop')"
@@ -421,7 +422,7 @@ const nonMemberGroups = computed(() => {
                   v-if="vm.status === 'running'"
                   @click="restartVM(vm.id)"
                   :disabled="isLoading(vm.id, 'restart') || vm.group_role == 'member'"
-                  class="btn btn-info btn-outline rounded-lg"
+                  class="btn btn-info btn-outline min-w-24 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'restart')"
@@ -435,7 +436,7 @@ const nonMemberGroups = computed(() => {
                   v-if="vm.status === 'unknown'"
                   @click="deleteVM(vm.id)"
                   :disabled="vm.group_role == 'member'"
-                  class="btn btn-error btn-outline col-span-2 rounded-lg"
+                  class="btn btn-error btn-outline col-span-2 min-w-24 rounded-lg"
                 >
                   <IconVue icon="material-symbols:delete" class="text-lg" />
                   <span class="hidden lg:inline">Delete</span>
@@ -445,7 +446,7 @@ const nonMemberGroups = computed(() => {
                 <RouterLink
                   v-if="vm.status !== 'pre-deleting' && vm.status !== 'deleting'"
                   :to="`/vm/${vm.id}`"
-                  class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+                  class="btn btn-primary btn-outline rounded-lg max-2xl:h-full"
                 >
                   <IconVue icon="material-symbols:edit" class="text-lg" />
                   <p class="hidden md:inline">Manage</p>
