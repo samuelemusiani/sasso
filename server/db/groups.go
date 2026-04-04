@@ -635,39 +635,68 @@ func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	return resources, nil
 }
 
+func availableResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (ResourcesWithNets, error) {
+	var used ResourcesWithNets
+
+	err := tx.Model(&VM{}).
+		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
+		Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
+	if err != nil {
+		return ResourcesWithNets{}, fmt.Errorf("failed to get user VM resources: %w", err)
+	}
+
+	var usedNets int64
+
+	err = tx.Model(&Net{}).
+		Where(&Net{OwnerID: userID, OwnerType: "User"}).
+		Count(&usedNets).Error
+	if err != nil {
+		return ResourcesWithNets{}, fmt.Errorf("failed to get user Net resources: %w", err)
+	}
+
+	used.Nets = uint(usedNets)
+
+	var u User
+
+	err = tx.First(&u, userID).Error
+	if err != nil {
+		return ResourcesWithNets{}, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	var availableResources ResourcesWithNets
+
+	if u.MaxCores > used.Cores {
+		availableResources.Cores = u.MaxCores - used.Cores
+	}
+
+	if u.MaxRAM > used.RAM {
+		availableResources.RAM = u.MaxRAM - used.RAM
+	}
+
+	if u.MaxDisk > used.Disk {
+		availableResources.Disk = u.MaxDisk - used.Disk
+	}
+
+	if u.MaxNets > uint(usedNets) {
+		availableResources.Nets = u.MaxNets - uint(usedNets)
+	}
+
+	return availableResources, nil
+}
+
 func AddGroupResources(groupID, userID uint, res ResourcesWithNets) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		var used ResourcesWithNets
-
-		err := tx.Model(&VM{}).
-			Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
-			Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
+		availableRes, err := availableResourcesForUserIDTransaction(tx, userID)
 		if err != nil {
-			return fmt.Errorf("failed to get user VM resources: %w", err)
+			logger.Error("Failed to get available resources for user", "error", err)
+
+			return err
 		}
 
-		var usedNets int64
-
-		err = tx.Model(&Net{}).
-			Where(&Net{OwnerID: userID, OwnerType: "User"}).
-			Count(&usedNets).Error
-		if err != nil {
-			return fmt.Errorf("failed to get user Net resources: %w", err)
-		}
-
-		used.Nets = uint(usedNets)
-
-		var u User
-
-		err = tx.First(&u, userID).Error
-		if err != nil {
-			return fmt.Errorf("failed to get user: %w", err)
-		}
-
-		if used.Cores+res.Cores > u.MaxCores ||
-			used.RAM+res.RAM > u.MaxRAM ||
-			used.Disk+res.Disk > u.MaxDisk ||
-			used.Nets+res.Nets > u.MaxNets {
+		if res.Cores > availableRes.Cores ||
+			res.RAM > availableRes.RAM ||
+			res.Disk > availableRes.Disk ||
+			res.Nets > availableRes.Nets {
 			return ErrInsufficientResources
 		}
 
@@ -743,7 +772,7 @@ func RevokeGroupResources(groupID, userID uint) error {
 	})
 }
 
-func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) error {
+func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithNets) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
@@ -756,40 +785,58 @@ func SetGroupResourcesByUserID(groupID, userID, cores, ram, disk, nets uint) err
 			return nil
 		}
 
-		var resource GroupResource
+		var currentResources GroupResource
 
-		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&currentResources).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("Failed to find group resource", "error", err)
 
 			return err
 		}
 
-		used, maxResourceAvailable, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+		usedInGroup, maxResourceAvailableInGroup, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
 		if err != nil {
 			logger.Error("Failed to get group resources", "error", err)
 
 			return err
 		}
 
-		diffCores := int(cores - resource.Cores)
-		diffRAM := int(ram - resource.RAM)
-		diffDisk := int(disk - resource.Disk)
-		diffNets := int(nets - resource.Nets)
+		diffCores := int(newResources.Cores - currentResources.Cores)
+		diffRAM := int(newResources.RAM - currentResources.RAM)
+		diffDisk := int(newResources.Disk - currentResources.Disk)
+		diffNets := int(newResources.Nets - currentResources.Nets)
 
-		if int(maxResourceAvailable.Cores)+diffCores < int(used.Cores) ||
-			int(maxResourceAvailable.RAM)+diffRAM < int(used.RAM) ||
-			int(maxResourceAvailable.Disk)+diffDisk < int(used.Disk) ||
-			int(maxResourceAvailable.Nets)+diffNets < int(used.Nets) {
+		// check if we can revoke the resources
+		if int(maxResourceAvailableInGroup.Cores)+diffCores < int(usedInGroup.Cores) ||
+			int(maxResourceAvailableInGroup.RAM)+diffRAM < int(usedInGroup.RAM) ||
+			int(maxResourceAvailableInGroup.Disk)+diffDisk < int(usedInGroup.Disk) ||
+			int(maxResourceAvailableInGroup.Nets)+diffNets < int(usedInGroup.Nets) {
 			return ErrResourcesInUse
 		}
 
-		resource.Cores = cores
-		resource.RAM = ram
-		resource.Disk = disk
-		resource.Nets = nets
+		// check if we have the resources to assign
+		availableResources, err := availableResourcesForUserIDTransaction(tx, userID)
+		if err != nil {
+			logger.Error("Failed to get available resources for user", "error", err)
 
-		err = tx.Save(&resource).Error
+			return err
+		}
+
+		if diffCores > int(availableResources.Cores) ||
+			diffRAM > int(availableResources.RAM) ||
+			diffDisk > int(availableResources.Disk) ||
+			diffNets > int(availableResources.Nets) {
+			return ErrInsufficientResources
+		}
+
+		// we have the resources, we can assign/revoke them. proceeding...
+
+		currentResources.Cores = newResources.Cores
+		currentResources.RAM = newResources.RAM
+		currentResources.Disk = newResources.Disk
+		currentResources.Nets = newResources.Nets
+
+		err = tx.Save(&currentResources).Error
 		if err != nil {
 			logger.Error("Failed to delete group resource", "error", err)
 

@@ -882,10 +882,19 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := db.SetGroupResourcesByUserID(group.ID, userID, req.Cores, req.RAM, req.Disk, req.Nets)
+	err := db.SetGroupResourcesByUserID(group.ID, userID, db.ResourcesWithNets{
+		Cores: req.Cores,
+		RAM:   req.RAM,
+		Disk:  req.Disk,
+		Nets:  req.Nets,
+	})
 	if err != nil {
 		if errors.Is(err, db.ErrResourcesInUse) {
 			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
+
+			return
+		} else if errors.Is(err, db.ErrInsufficientResources) {
+			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
 
 			return
 		}
