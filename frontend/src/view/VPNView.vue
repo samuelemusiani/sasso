@@ -10,6 +10,7 @@ const { error: toastError, success: toastSuccess } = useToastService()
 const vpnConfig = ref<VPNConfig[]>([])
 
 const message = ref('')
+const errorMessage = ref('')
 
 function fetchVPNConfig() {
   api
@@ -39,6 +40,9 @@ function newVPNConfig() {
     })
     .catch((err) => {
       console.error('Failed to create new VPN config:', err)
+      if (err.response && err.response.data) {
+        errorMessage.value = err.response.data
+      }
       toastError('Failed to create new VPN configuration.')
     })
 }
@@ -74,11 +78,12 @@ onMounted(() => {
     <div v-for="config in vpnConfig" :key="config.id" class="my-4">
       <VPNConfigComponent :vpnConfig="config" @delete="deleteVPN(config.id)" />
     </div>
-    <div class="flex justify-center">
+    <div class="flex flex-col items-center gap-4">
       <button @click="newVPNConfig" class="btn btn-primary rounded-lg">
         Create New VPN Configuration
       </button>
       <p v-if="message" class="mt-2 text-green-600">{{ message }}</p>
+      <p v-if="errorMessage" class="text-error mt-2">{{ errorMessage }}</p>
     </div>
   </div>
 </template>
