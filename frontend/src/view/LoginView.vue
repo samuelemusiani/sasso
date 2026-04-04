@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { api } from '@/lib/api'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { login as _login } from '@/lib/api'
 import type { Realm } from '@/types'
 import type { AxiosError } from 'axios'
 import { useLoadingStore } from '@/stores/loading'
 
 const router = useRouter()
+const route = useRoute()
+
+const nextUrl = computed(() => {
+  const raw = route.query.next
+  return typeof raw === 'string' ? raw : null
+})
 
 const username = ref('')
 const password = ref('')
@@ -51,7 +57,12 @@ async function login() {
     }
     localStorage.setItem('realm', realm.value)
     await _login(username.value, password.value, realmID)
-    router.push('/')
+
+    if (nextUrl.value && nextUrl.value.startsWith('/')) {
+      await router.replace(nextUrl.value)
+    } else {
+      await router.replace({ path: '/' })
+    }
   } catch (error) {
     const axiosError = error as AxiosError
     console.error('Login failed:', error)

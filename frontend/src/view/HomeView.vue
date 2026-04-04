@@ -52,6 +52,10 @@ async function fetchResourceStats() {
       ]
     })
     .catch((err) => {
+      if (err.response && err.response.status === 401) {
+        // Could be first load and user is not logged in, ignore the error
+        return
+      }
       console.error('Failed to fetch resource stats:', err)
     })
 }
@@ -63,6 +67,10 @@ function fetchWhoami() {
       whoami.value = res.data as User
     })
     .catch((err) => {
+      if (err.response && err.response.status === 401) {
+        // Could be first load and user is not logged in, ignore the error
+        return
+      }
       console.error('Failed to fetch whoami:', err)
     })
 }
