@@ -1,64 +1,57 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import UserStats from '@/components/UserStats.vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
+import { useUserResources } from '@/composables/userResources'
+
+const { fetchUserResources, userResourcesGB } = useUserResources(api)
 
 const whoami = ref<User | null>(null)
-const stats = ref()
+const stats = computed(() => {
+  if (!userResourcesGB.value) {
+    return []
+  }
 
-async function fetchResourceStats() {
-  api
-    .get('/resources')
-    .then((res) => {
-      const data = res.data
-      stats.value = [
-        {
-          item: 'CPU',
-          icon: 'heroicons-solid:chip',
-          active: data.active_vms_cores,
-          max: data.max_cores,
-          allocated: data.allocated_cores,
-          group_max: data.group_max_cores,
-          color: 'text-primary',
-        },
-        {
-          item: 'RAM',
-          icon: 'fluent:ram-20-regular',
-          active: data.active_vms_ram / 1024,
-          max: data.max_ram / 1024,
-          allocated: data.allocated_ram / 1024,
-          group_max: data.group_max_ram / 1024,
-          color: 'text-success',
-        },
-        {
-          item: 'Disk',
-          icon: 'mingcute:storage-line',
-          active: data.active_vms_disk,
-          max: data.max_disk,
-          allocated: data.allocated_disk,
-          group_max: data.group_max_disk,
-          color: 'text-accent',
-        },
-        {
-          item: 'Net',
-          icon: 'ph:network',
-          active: -1,
-          max: data.max_nets,
-          allocated: data.allocated_nets,
-          group_max: data.group_max_nets,
-          color: 'text-orange-400',
-        },
-      ]
-    })
-    .catch((err) => {
-      if (err.response && err.response.status === 401) {
-        // Could be first load and user is not logged in, ignore the error
-        return
-      }
-      console.error('Failed to fetch resource stats:', err)
-    })
-}
+  return [
+    {
+      item: 'CPU',
+      icon: 'heroicons-solid:chip',
+      active: userResourcesGB.value.active_vms_cores,
+      max: userResourcesGB.value.max_cores,
+      allocated: userResourcesGB.value.allocated_cores,
+      group_max: userResourcesGB.value.group_max_cores,
+      color: 'text-primary',
+    },
+    {
+      item: 'RAM',
+      icon: 'fluent:ram-20-regular',
+      active: userResourcesGB.value.active_vms_ram,
+      max: userResourcesGB.value.max_ram,
+      allocated: userResourcesGB.value.allocated_ram,
+      group_max: userResourcesGB.value.group_max_ram,
+      color: 'text-success',
+    },
+    {
+      item: 'Disk',
+      icon: 'mingcute:storage-line',
+      active: userResourcesGB.value.active_vms_disk,
+      max: userResourcesGB.value.max_disk,
+      allocated: userResourcesGB.value.allocated_disk,
+      group_max: userResourcesGB.value.group_max_disk,
+      color: 'text-accent',
+    },
+    {
+      item: 'Net',
+      icon: 'ph:network',
+      active: -1,
+      max: userResourcesGB.value.max_nets,
+      allocated: userResourcesGB.value.allocated_nets,
+      group_max: userResourcesGB.value.group_max_nets,
+      color: 'text-orange-400',
+    },
+  ]
+})
 
 function fetchWhoami() {
   api
@@ -77,7 +70,7 @@ function fetchWhoami() {
 
 onMounted(() => {
   fetchWhoami()
-  fetchResourceStats()
+  fetchUserResources()
 })
 </script>
 

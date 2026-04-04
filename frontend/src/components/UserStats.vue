@@ -3,7 +3,6 @@ const props = defineProps<{
   stats: Array<{
     item: string
     icon: string
-    total: number
     active: number
     max: number
     allocated: number

@@ -9,6 +9,9 @@ import { getStatusClass } from '@/const'
 import BubbleAlert from '@/components/BubbleAlert.vue'
 import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
 import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
+import { useUserResources } from '@/composables/userResources'
+
+const { fetchUserResources, userFreeResources } = useUserResources(api)
 
 const vms = ref<VM[]>([])
 const templates = ref<Template[]>([])
@@ -47,6 +50,11 @@ function preStartVMWrapper(vmid: number) {
   startingVMId.value = vmid
   preStartVM(vmid)
 }
+
+const minDiskForCurrentTemplate = computed(() => {
+  const selectedTemplate = templates.value.find((t) => t.name === template.value)
+  return selectedTemplate ? selectedTemplate.disk : 4
+})
 
 function fetchVMs() {
   api
@@ -173,9 +181,11 @@ onMounted(() => {
   fetchVMs()
   fetchTemplates()
   fetchGroups()
+  fetchUserResources()
   intervalId = setInterval(() => {
     fetchVMs()
     fetchTemplates()
+    fetchUserResources()
   }, 5000)
 })
 
@@ -200,6 +210,7 @@ const nonMemberGroups = computed(() => {
       <HelpButton />
     </div>
 
+    <!-- TODO: remove open -->
     <CreateNew title="New VM" :create="createVM" :error="error">
       <div>
         <label for="cores">Name</label>
@@ -212,37 +223,96 @@ const nonMemberGroups = computed(() => {
           placeholder="My VM Name"
         />
       </div>
-      <div>
-        <label for="cores">CPU Cores</label>
-        <input
-          type="number"
-          id="cores"
-          v-model="cores"
-          class="input w-full rounded-lg border p-2"
-        />
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label for="cores">CPU Cores</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="cores"
+                v-model="cores"
+                class="input join-item validator w-full rounded-l-lg border p-2"
+                min="1"
+                :max="userFreeResources?.free_cpu"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available CPU cores</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ userFreeResources?.free_cpu }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label for="ram">RAM (MB)</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="ram"
+                v-model="ram"
+                class="input joint-item validator w-full rounded-l-lg border p-2"
+                min="1024"
+                :max="userFreeResources?.free_ram"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available RAM</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ userFreeResources?.free_ram }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label for="disk">Disk (GB)</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="disk"
+                v-model="disk"
+                class="input join-item validator w-full rounded-l-lg border p-2"
+                :min="minDiskForCurrentTemplate"
+                :max="userFreeResources?.free_disk"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip tooltip-top flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available Disk</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ userFreeResources?.free_disk }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <label for="ram">RAM (MB)</label>
-        <input type="number" id="ram" v-model="ram" class="input w-full rounded-lg border p-2" />
-      </div>
-      <div>
-        <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-full rounded-lg border" />
-      </div>
-      <div>
-        <label for="lifetime">Lifetime</label>
-        <select class="select w-full rounded-lg border" v-model.number="lifetime">
-          <option value="1" selected>1 Month</option>
-          <option value="3">3 Months</option>
-          <option value="6">6 Months</option>
-          <option value="12">12 Months</option>
-        </select>
-      </div>
-      <div>
-        <label for="template">OS</label>
-        <select class="select w-full rounded-lg border" v-model="template">
-          <option v-for="t in templates" :key="t.name" :value="t.name">{{ t.name }}</option>
-        </select>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="lifetime">Lifetime</label>
+          <select class="select w-full rounded-lg border" v-model.number="lifetime">
+            <option value="1" selected>1 Month</option>
+            <option value="3">3 Months</option>
+            <option value="6">6 Months</option>
+            <option value="12">12 Months</option>
+          </select>
+        </div>
+        <div>
+          <label for="template">OS</label>
+          <select class="select w-full rounded-lg border" v-model="template">
+            <option v-for="t in templates" :key="t.name" :value="t.name">{{ t.name }}</option>
+          </select>
+        </div>
       </div>
       <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
