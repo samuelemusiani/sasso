@@ -65,8 +65,11 @@ function fetchTemplates() {
     .get('/vm/templates')
     .then((res) => {
       templates.value = res.data as Template[]
-      if (templates.value.length > 0) {
-        template.value = templates.value[0].name
+
+      const selectedStillExists = templates.value.some((t) => t.name === template.value)
+
+      if (!template.value || !selectedStillExists) {
+        template.value = templates.value[0]?.name ?? ''
       }
     })
     .catch((err) => {
