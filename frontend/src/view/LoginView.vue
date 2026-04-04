@@ -36,6 +36,7 @@ function fetchRealms() {
 }
 
 async function login() {
+  errorMessage.value = ''
   loading.start('login')
   try {
     if (!username.value || !password.value) {
@@ -83,6 +84,7 @@ onMounted(() => {
           <label class="input validator w-full rounded-lg">
             <IconVue icon="material-symbols:person" class="h-[1em] text-lg opacity-50" />
             <input
+              @keypress.enter="login()"
               type="text"
               v-model="username"
               required
@@ -91,7 +93,6 @@ onMounted(() => {
               minlength="3"
               maxlength="30"
               title="Only letters, numbers or dash"
-              @keyup.enter="login"
             />
           </label>
         </div>
@@ -101,12 +102,12 @@ onMounted(() => {
           <label class="input w-full rounded-lg">
             <IconVue icon="material-symbols:lock" class="h-[1em] text-lg opacity-50" />
             <input
+              @keypress.enter="login()"
               required
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
               class="grow"
-              @keyup.enter="login"
             />
             <button
               type="button"
@@ -134,7 +135,11 @@ onMounted(() => {
             </option>
           </select>
         </fieldset>
-        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">
+        <button
+          :disabled="isLoading()"
+          class="btn btn-primary w-full rounded-lg p-2"
+          @click="login()"
+        >
           <div v-if="isLoading()" class="grid h-70">
             <span class="loading loading-spinner place-self-center"></span>
           </div>
