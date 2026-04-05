@@ -60,9 +60,9 @@ api.interceptors.response.use(
           await router.push({ path: '/login', query: { next } })
         }
       }
-    } else if (status === 500) {
+    } else if (status >= 500 || status === 403) {
       await router.push(`/error/${status}`)
-    } else if (status !== 400) {
+    } else if (status !== 400 && status !== 409) {
       let message = error.message
       message += ': ' + error.response?.data || 'An error occurred'
       toast.error(message)
