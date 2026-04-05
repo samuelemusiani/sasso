@@ -506,7 +506,11 @@ onMounted(() => {
                 <td>{{ invite.role }}</td>
                 <td>{{ invite.state }}</td>
                 <td>
-                  <button @click="revokeUserInvite(invite.id)" class="btn btn-sm btn-error">
+                  <button
+                    :disabled="me?.role != 'owner'"
+                    @click="revokeUserInvite(invite.id)"
+                    class="btn btn-sm btn-error"
+                  >
                     Revoke
                   </button>
                 </td>
