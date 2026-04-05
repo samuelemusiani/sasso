@@ -99,6 +99,8 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "Group":
+		// TODO: check we could use role := mustGetUserRoleInGroupFromContext(r)?
+		// TODO: Check if this is in other parts of the code
 		role, err := db.GetUserRoleInGroup(userID, n.OwnerID)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {

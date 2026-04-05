@@ -127,7 +127,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if c > 0 {
-		http.Error(w, "Cannot delete group: group has active VMs", http.StatusForbidden)
+		http.Error(w, "Cannot delete group: group has active VMs", http.StatusConflict)
 
 		return
 	}
@@ -140,7 +140,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cn > 0 {
-		http.Error(w, "Cannot delete group: group has active networks", http.StatusForbidden)
+		http.Error(w, "Cannot delete group: group has active networks", http.StatusConflict)
 
 		return
 	}
@@ -501,7 +501,7 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 	userRole := mustGetUserRoleInGroupFromContext(r)
 
 	if userRole == "owner" {
-		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusForbidden)
+		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusConflict)
 
 		return
 	}
@@ -518,7 +518,7 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
-			http.Error(w, "Cannot leave group: resources are currently in use", http.StatusForbidden)
+			http.Error(w, "Cannot leave group: resources are currently in use", http.StatusConflict)
 
 			return
 		}
@@ -562,7 +562,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
-			http.Error(w, "Cannot remove user: resources are currently in use", http.StatusForbidden)
+			http.Error(w, "Cannot remove user: resources are currently in use", http.StatusConflict)
 
 			return
 		}
@@ -642,7 +642,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, db.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
+			http.Error(w, "Insufficient resources in group", http.StatusConflict)
 
 			return
 		}
@@ -670,7 +670,7 @@ func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case errors.Is(err, db.ErrResourcesInUse):
-			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusForbidden)
+			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusConflict)
 
 			return
 		}
@@ -890,11 +890,11 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, db.ErrResourcesInUse) {
-			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusForbidden)
+			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusConflict)
 
 			return
 		} else if errors.Is(err, db.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources in group", http.StatusForbidden)
+			http.Error(w, "Insufficient resources in group", http.StatusConflict)
 
 			return
 		}

@@ -83,7 +83,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, proxmox.ErrInsufficientResources):
-			http.Error(w, "Insufficient resources", http.StatusForbidden)
+			http.Error(w, "Insufficient resources", http.StatusConflict)
 		case errors.Is(err, proxmox.ErrInvalidVMParam):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
@@ -181,7 +181,7 @@ func changeVMState(action string) http.HandlerFunc {
 		vmID := vm.ID
 
 		if vm.LifeTime.Before(time.Now()) {
-			http.Error(w, "Cannot change state of expired VM", http.StatusForbidden)
+			http.Error(w, "Cannot change state of expired VM", http.StatusConflict)
 
 			return
 		}
@@ -299,7 +299,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	vm := mustGetVMFromContext(r)
 
 	if vm.LifeTime.Before(time.Now()) {
-		http.Error(w, "Cannot update resources of expired VM", http.StatusForbidden)
+		http.Error(w, "Cannot update resources of expired VM", http.StatusConflict)
 
 		return
 	}
@@ -329,7 +329,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	err := proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources", http.StatusForbidden)
+			http.Error(w, "Insufficient resources", http.StatusConflict)
 
 			return
 		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
