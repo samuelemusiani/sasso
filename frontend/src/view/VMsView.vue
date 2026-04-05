@@ -446,7 +446,7 @@ const nonMemberGroups = computed(() => {
                 <RouterLink
                   v-if="vm.status !== 'pre-deleting' && vm.status !== 'deleting'"
                   :to="`/vm/${vm.id}`"
-                  class="btn btn-primary btn-outline rounded-lg max-2xl:h-full"
+                  class="btn btn-primary btn-outline min-h-8 rounded-lg max-2xl:h-full"
                 >
                   <IconVue icon="material-symbols:edit" class="text-lg" />
                   <p class="hidden md:inline">Manage</p>
