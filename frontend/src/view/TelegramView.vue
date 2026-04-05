@@ -12,6 +12,7 @@ const name = ref('')
 const notes = ref('')
 const token = ref('')
 const chat_id = ref('')
+const error = ref('')
 
 function fetchTelegramBots() {
   api
@@ -26,7 +27,7 @@ function fetchTelegramBots() {
 }
 
 function requestTelegramBot() {
-  api
+  return api
     .post('/notify/telegram', {
       name: name.value,
       notes: notes.value,
@@ -39,9 +40,13 @@ function requestTelegramBot() {
       notes.value = ''
       token.value = ''
       chat_id.value = ''
+
+      return true
     })
     .catch((err) => {
       console.error('Failed to add Telegram Bot:', err)
+      error.value = 'Failed to add Telegram Bot: ' + err.response.data
+      return false
     })
 }
 
@@ -95,7 +100,12 @@ onMounted(() => {
       <HelpButton />
     </div>
 
-    <CreateNew title="Telegram Bot" :create="requestTelegramBot">
+    <CreateNew
+      title="Telegram Bot"
+      :create="requestTelegramBot"
+      :error="error"
+      :close-on-create="true"
+    >
       <div class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
           <label for="name">Name</label>

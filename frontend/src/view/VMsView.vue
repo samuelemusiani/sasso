@@ -108,10 +108,12 @@ function createVM() {
     include_global_ssh_keys: include_global_ssh_keys.value,
     notes: notes.value,
   }
+
   if (newVMGroupId.value) {
     body.group_id = newVMGroupId.value
   }
-  api
+
+  return api
     .post('/vm', body)
     .then(() => {
       fetchVMs()
@@ -131,10 +133,14 @@ function createVM() {
       include_global_ssh_keys.value = true
       error.value = ''
       newVMGroupId.value = undefined
+
+      return true
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
       error.value = 'Failed to create VM: ' + err.response.data
+
+      return false
     })
 }
 
@@ -210,7 +216,7 @@ const nonMemberGroups = computed(() => {
       <HelpButton />
     </div>
 
-    <CreateNew title="New VM" :create="createVM" :error="error">
+    <CreateNew title="New VM" :create="createVM" :error="error" :close-on-create="true">
       <div>
         <label for="cores">Name</label>
         <input

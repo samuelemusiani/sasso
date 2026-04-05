@@ -9,6 +9,7 @@ const port = ref(0)
 const ip = ref('')
 
 const publicIP = ref('')
+const error = ref('')
 
 function fetchPortForwards() {
   api
@@ -22,7 +23,7 @@ function fetchPortForwards() {
 }
 
 function requestPortForward() {
-  api
+  return api
     .post('/port-forwards', {
       dest_port: port.value,
       dest_ip: ip.value,
@@ -31,9 +32,12 @@ function requestPortForward() {
       fetchPortForwards()
       port.value = 0
       ip.value = ''
+      return true
     })
     .catch((err) => {
       console.error('Failed to add port forward:', err)
+      error.value = 'Failed to add port forward: ' + err.response.data
+      return false
     })
 }
 
@@ -80,7 +84,12 @@ onMounted(() => {
         The public IP is: <strong>{{ publicIP }}</strong>
       </p>
     </div>
-    <CreateNew title="Port Forward" :create="requestPortForward">
+    <CreateNew
+      title="Port Forward"
+      :create="requestPortForward"
+      :close-on-create="true"
+      :error="error"
+    >
       <div class="flex items-center gap-2">
         <label for="name">Destination Port</label>
         <input type="number" id="name" v-model="port" class="input w-48 rounded-lg border p-2" />

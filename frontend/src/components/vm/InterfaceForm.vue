@@ -240,14 +240,14 @@ function fetchNets() {
 
 function handleSubmit() {
   if (editing.value) {
-    updateInterface()
+    return updateInterface()
   } else {
-    addInterface()
+    return addInterface()
   }
 }
 
 function addInterface() {
-  api
+  return api
     .post(`/vm/${$props.vm.id}/interface`, form.value)
     .then(() => {
       form.value = {
@@ -257,16 +257,18 @@ function addInterface() {
         gateway: filteredNets.value[0]?.gateway || '',
       }
       $emit('interfaceAdded')
+      return true
     })
     .catch((err) => {
       console.error('Failed to add interface:', err)
       error.value = 'Failed to add interface: ' + err.response.data
+      return false
     })
 }
 
 function updateInterface() {
-  if (!$props.interface) return
-  api
+  if (!$props.interface) return false
+  return api
     .put(`/vm/${$props.vm.id}/interface/${$props.interface.id}`, form.value)
     .then(() => {
       $emit('interfaceUpdated')
@@ -278,10 +280,12 @@ function updateInterface() {
         ip_add: '',
         gateway: filteredNets.value[0]?.gateway || '',
       }
+      return true
     })
     .catch((err) => {
       console.error('Failed to update interface:', err)
       error.value = 'Failed to update interface: ' + err.response.data
+      return false
     })
 }
 
@@ -325,6 +329,7 @@ onMounted(() => {
     :error="error"
     :hideCreate="editing"
     :disabled="$props.disabled"
+    :close-on-create="true"
     @close="$emit('cancel')"
   >
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>

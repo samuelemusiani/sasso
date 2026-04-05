@@ -19,6 +19,8 @@ const groupId = Number(route.params.id)
 const username = ref('')
 const role = ref('member')
 
+const error = ref('')
+
 const cores = ref(0)
 const ram = ref(0)
 const disk = ref(0)
@@ -63,7 +65,7 @@ const addOrUpdateResources = computed(() => {
 
 function saveResources() {
   const method = addOrUpdateResources.value ? 'put' : 'post'
-  api[method](`/groups/${groupId}/resources`, {
+  return api[method](`/groups/${groupId}/resources`, {
     cores: cores.value,
     ram: ram.value,
     disk: disk.value,
@@ -73,10 +75,12 @@ function saveResources() {
       toastSuccess('Resources saved successfully.')
       fetchGroup() // This will re-fetch group and resources
       fetchResourceStats()
+      return true
     })
     .catch((err) => {
       console.error('Failed to save resources:', err)
-      toastError(`Failed to save resources. ${err.response?.data}`)
+      error.value = `Failed to save resources. ${err.response?.data}`
+      return false
     })
 }
 
@@ -94,10 +98,11 @@ function fetchGroup() {
 
 function inviteUser() {
   if (!username.value) {
-    toastError('Username is required to invite a user.')
-    return
+    error.value = 'Username is required to invite a user.'
+    return false
   }
-  api
+
+  return api
     .post(`/groups/${groupId}/invites`, {
       username: username.value,
       role: role.value,
@@ -106,10 +111,14 @@ function inviteUser() {
       username.value = ''
       fetchInvitations()
       toastSuccess('User invited successfully.')
+
+      return true
     })
     .catch((err) => {
       console.error('Failed to invite user:', err)
-      toastError(`Failed to invite user. ${err.response?.data}`)
+      error.value = `Failed to invite user: ${err.response?.data}`
+
+      return false
     })
 }
 
@@ -270,7 +279,7 @@ async function fetchResourceStats() {
 }
 
 function updateGroup() {
-  api
+  return api
     .put(`/groups/${groupId}`, {
       name: groupName.value,
       description: groupDescription.value,
@@ -278,10 +287,12 @@ function updateGroup() {
     .then(() => {
       toastSuccess('Group updated successfully.')
       fetchGroup()
+      return true
     })
     .catch((err) => {
       console.error('Failed to update Group:', err)
-      toastError(`Failed to update Group. ${err.response?.data}`)
+      error.value = `Failed to update Group. ${err.response?.data}`
+      return false
     })
 }
 
@@ -314,7 +325,7 @@ onMounted(() => {
 
     <div class="flex flex-col gap-2">
       <div v-show="me && me.role == 'owner'" class="flex flex-col gap-2">
-        <CreateNew title="Invitation" :create="inviteUser">
+        <CreateNew title="Invitation" :create="inviteUser" :error="error" :close-on-create="true">
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-2">
               <label for="username">Username</label>
@@ -332,7 +343,13 @@ onMounted(() => {
             </div>
           </div>
         </CreateNew>
-        <CreateNew :hideCreate="true" title="Update Group" :create="updateGroup">
+        <CreateNew
+          :hideCreate="true"
+          title="Update Group"
+          :create="updateGroup"
+          :error="error"
+          :close-on-create="true"
+        >
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-2">
               <label for="groupName">Name</label>
@@ -358,6 +375,8 @@ onMounted(() => {
         :hideCreate="addOrUpdateResources"
         :title="(addOrUpdateResources ? 'Update ' : '') + 'Resource'"
         :create="saveResources"
+        :error="error"
+        :close-on-create="true"
       >
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">

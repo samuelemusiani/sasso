@@ -7,6 +7,7 @@ import CreateNew from '@/components/CreateNew.vue'
 const groups = ref<Group[]>([])
 const name = ref('')
 const description = ref('')
+const error = ref('')
 
 const invitations = ref<GroupInvite[]>([])
 
@@ -35,7 +36,7 @@ function fetchInvitations() {
 }
 
 function createGroup() {
-  api
+  return api
     .post('/groups', {
       name: name.value,
       description: description.value,
@@ -44,9 +45,12 @@ function createGroup() {
       fetchGroups()
       name.value = ''
       description.value = ''
+      return true
     })
     .catch((err) => {
       console.error('Failed to add Group:', err)
+      error.value = 'Failed to add Group: ' + err.response.data
+      return false
     })
 }
 
@@ -89,7 +93,7 @@ onMounted(() => {
       </h1>
       <HelpButton />
     </div>
-    <CreateNew title="Group" :create="createGroup">
+    <CreateNew title="Group" :create="createGroup" :error="error" :close-on-create="true">
       <div class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
           <label for="name">Name</label>

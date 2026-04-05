@@ -22,7 +22,7 @@ const disk = ref($props.vm.disk)
 const $emit = defineEmits(['update-vm'])
 
 function updateResources() {
-  api
+  return api
     .patch(`/vm/${$props.vm.id}/resources`, {
       cores: cores.value,
       ram: ram.value,
@@ -30,10 +30,13 @@ function updateResources() {
     })
     .then(() => {
       $emit('update-vm')
+      console.log('Resources updated successfully')
+      return true
     })
     .catch((err) => {
       toastError('Failed to update resources: ' + err.response.data)
       console.error('Failed to update resources:', err)
+      return false
     })
 }
 
@@ -55,7 +58,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex flex-col gap-4">
-    <CreateNew title="Modify Resources" :hideCreate="true" :create="updateResources" :open="true">
+    <CreateNew
+      title="Modify Resources"
+      :hideCreate="true"
+      :create="updateResources"
+      :close-on-create="true"
+    >
       <div class="grid grid-cols-3 gap-4">
         <div>
           <label for="cores">CPU Cores</label>

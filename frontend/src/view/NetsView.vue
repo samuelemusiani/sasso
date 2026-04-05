@@ -62,43 +62,45 @@ interface NetCreationBody {
 
 function createOrModifyNet() {
   if (modifying.value) {
-    modifyNet()
-    return
+    return modifyNet()
   }
-  createNet()
+  return createNet()
 }
 
 function createNet() {
   if (!formNetName.value) {
     error.value = 'Please provide a valid network name'
-    return
+    return false
   }
 
   const body: NetCreationBody = {
     name: formNetName.value,
     vlanaware: formNetVlanAware.value,
   }
+
   if (formNetGroupId.value) {
     body.group_id = formNetGroupId.value
   }
 
-  api
+  return api
     .post('/net', body)
     .then(() => {
       formNetName.value = ''
       formNetVlanAware.value = false
       fetchNets()
+      return true
     })
     .catch((err) => {
-      error.value = 'Failed to create net: ' + err.response.data
       console.error('Failed to create net:', err)
+      error.value = 'Failed to create net: ' + err.response.data
+      return false
     })
 }
 
 function modifyNet() {
   if (!formNetName.value) {
     error.value = 'Please provide a valid network name'
-    return
+    return false
   }
 
   const body: NetCreationBody = {
@@ -106,15 +108,17 @@ function modifyNet() {
     vlanaware: formNetVlanAware.value,
   }
 
-  api
+  return api
     .put(`/net/${modifyingNetId.value}`, body)
     .then(() => {
       toggleModify(-1)
       fetchNets()
+      return true
     })
     .catch((err) => {
-      error.value = 'Failed to create net: ' + err.response.data
       console.error('Failed to create net:', err)
+      error.value = 'Failed to create net: ' + err.response.data
+      return false
     })
 }
 
@@ -175,6 +179,7 @@ const nonMemberGroups = computed(() => {
       :create="createOrModifyNet"
       :error="error"
       :open="modifying"
+      :close-on-create="true"
       @close="toggleModify(-1)"
     >
       <div class="flex flex-col gap-2">
@@ -245,6 +250,7 @@ const nonMemberGroups = computed(() => {
             <button
               v-if="net.status === 'ready'"
               @click="toggleModify(net.id)"
+              :disabled="net.group_role === 'member'"
               class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
             >
               <IconVue icon="material-symbols:edit" class="text-lg" />

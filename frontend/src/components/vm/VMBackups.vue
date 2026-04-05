@@ -295,7 +295,7 @@ onBeforeUnmount(() => {
       :error="error"
       :loading="isLoading(vm.id, 'create_backup')"
       :disabled="pendingBackupRequests.length > 0"
-      :closeOnCreate="true"
+      :close-on-create="true"
     >
       <label class="label">Backup Name</label>
       <input

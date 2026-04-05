@@ -22,7 +22,7 @@ function fetchSSHKeys() {
 }
 
 function addSSHKey() {
-  api
+  return api
     .post('/ssh-keys', {
       name: name.value,
       key: key.value,
@@ -31,11 +31,13 @@ function addSSHKey() {
       fetchSSHKeys()
       name.value = ''
       key.value = ''
+      return true
     })
     .catch((err) => {
       console.log('Error details:', err.response.data)
       error.value = 'Failed to add SSH key: ' + err.response.data
       console.error('Failed to add SSH key:', err)
+      return false
     })
 }
 
@@ -67,7 +69,7 @@ onMounted(() => {
       </h1>
       <HelpButton />
     </div>
-    <CreateNew title="SSH Key" :create="addSSHKey" :error="error">
+    <CreateNew title="SSH Key" :create="addSSHKey" :error="error" :close-on-create="true">
       <div class="flex flex-col gap-2">
         <label for="name">Name</label>
         <input
