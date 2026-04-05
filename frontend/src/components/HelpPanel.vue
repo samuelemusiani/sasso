@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import HelpHome from '@/components/help/HelpHome.vue'
 import HelpVPN from '@/components/help/HelpVPN.vue'
+import HelpSSHKeys from '@/components/help/HelpSSHKeys.vue'
 import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
 const route = useRoute()
 import type { Component } from 'vue'
@@ -17,6 +18,7 @@ type selector = {
 const helpSelectors: selector[] = [
   { regex: '^/$', component: HelpHome },
   { regex: '^/vpn$', component: HelpVPN },
+  { regex: '^/ssh-keys$', component: HelpSSHKeys },
   { regex: '^/vm/[0-9]*/backups$', component: HelpVMBackups },
 ]
 
