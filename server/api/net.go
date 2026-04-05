@@ -157,6 +157,7 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 				VlanAware: net.VlanAware,
 				Subnet:    net.Subnet,
 				Gateway:   net.Gateway,
+				Broadcast: net.Broadcast,
 				GroupID:   g.ID,
 				GroupName: g.Name,
 				GroupRole: g.Role,
