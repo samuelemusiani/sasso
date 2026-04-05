@@ -642,7 +642,7 @@ func addGroupResources(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, db.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources in group", http.StatusConflict)
+			http.Error(w, "Insufficient resources", http.StatusConflict)
 
 			return
 		}
@@ -894,7 +894,7 @@ func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
 
 			return
 		} else if errors.Is(err, db.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources in group", http.StatusConflict)
+			http.Error(w, "Insufficient resources", http.StatusConflict)
 
 			return
 		}
