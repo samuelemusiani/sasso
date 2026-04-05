@@ -312,6 +312,8 @@ onBeforeUnmount(() => {
         class="input h-32 w-full rounded-lg p-2"
       ></textarea>
     </CreateNew>
+    <div v-else class="mb-3 text-xl font-bold capitalize">Backups</div>
+
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
       <span class="loading loading-spinner place-self-center"></span>
     </div>
@@ -357,12 +359,17 @@ onBeforeUnmount(() => {
               </p>
             </td>
             <td class="" :class="getStatusClass(bk.protected.toString())">
-              <div
-                :class="{
-                  'tooltip tooltip-bottom': !bk.protected && haveFinishedProtectedBackups(),
-                }"
-                data-tip="Max number of protected backups reached"
-              >
+              <div class="tooltip tooltip-top">
+                <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
+                  Cannot change protection if you're not an admin
+                </div>
+                <div
+                  class="tooltip-content border"
+                  v-else-if="!bk.protected && haveFinishedProtectedBackups()"
+                >
+                  Max number of protected backups reached
+                </div>
+
                 <button
                   @click="protectBackup(bk.id, !bk.protected)"
                   :class="bk.protected ? 'btn btn-accent' : 'btn btn-primary'"
@@ -370,7 +377,8 @@ onBeforeUnmount(() => {
                     (!bk.protected && haveFinishedProtectedBackups()) ||
                     loading.is('backup', bk.id, 'protect') ||
                     deletingBackupIDs.includes(bk.id) ||
-                    restoringBackupIDs.includes(bk.id)
+                    restoringBackupIDs.includes(bk.id) ||
+                    $props.vm.group_role === 'member'
                   "
                   class="btn btn-sm md:btn-md btn-outline w-32 rounded-lg"
                 >
@@ -390,19 +398,20 @@ onBeforeUnmount(() => {
                 </button>
               </div>
             </td>
-            <td
-              v-if="$props.vm.group_role !== 'member'"
-              class="flex justify-evenly gap-2 text-right text-sm font-medium"
-            >
-              <div
-                :class="{ 'tooltip tooltip-left': $props.vm.status != 'stopped' }"
-                data-tip="Canot restore if VM is not stopped"
-              >
+            <td class="flex justify-evenly gap-2 text-right text-sm font-medium">
+              <div class="tooltip tooltip-top">
+                <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
+                  Cannot restore if you're not an admin
+                </div>
+                <div class="tooltip-content border" v-else-if="$props.vm.status != 'stopped'">
+                  Cannot restore if VM is not stopped
+                </div>
                 <button
                   :disabled="
                     $props.vm.status != 'stopped' ||
                     deletingBackupIDs.includes(bk.id) ||
-                    restoringBackupIDs.includes(bk.id)
+                    restoringBackupIDs.includes(bk.id) ||
+                    $props.vm.group_role === 'member'
                   "
                   @click="preRestoreBackup(bk.id)"
                   class="btn btn-warning btn-outline w-32 rounded-lg"
@@ -418,17 +427,21 @@ onBeforeUnmount(() => {
                   {{ restoringBackupIDs.includes(bk.id) ? 'Restoring' : 'Restore' }}
                 </button>
               </div>
-              <div
-                :class="{ 'tooltip tooltip-left': !bk.can_delete }"
-                data-tip="Cannot delete automatic or protected backups"
-              >
+              <div class="tooltip tooltip-left">
+                <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
+                  Cannot delete if you're not an admin
+                </div>
+                <div class="tooltip-content border" v-else-if="!bk.can_delete">
+                  Cannot delete automatic or protected backups
+                </div>
                 <button
                   @click="preDeleteBackup(bk.id)"
                   class="btn btn-error btn-outline w-32 rounded-lg"
                   :disabled="
                     !bk.can_delete ||
                     deletingBackupIDs.includes(bk.id) ||
-                    restoringBackupIDs.includes(bk.id)
+                    restoringBackupIDs.includes(bk.id) ||
+                    $props.vm.group_role === 'member'
                   "
                 >
                   <span
