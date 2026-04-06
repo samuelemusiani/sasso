@@ -99,6 +99,10 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := func(s, errMsg string) string {
+		if s == "" {
+			return ""
+		}
+
 		tmp := strings.SplitN(s, "/", 2)
 		if len(tmp) != 2 {
 			logger.Error(errMsg, "value", s)
@@ -111,25 +115,14 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 
 	returnableNets := make([]returnNet, 0, len(nets))
 	for _, net := range nets {
-		var gtw, broad string
-		if net.Gateway == "" && net.Broadcast == "" {
-			// This is a new net and the gateway and broadcast have not been set yet.
-			// To avoid logging errors, we just return empty strings.
-			gtw = ""
-			broad = ""
-		} else {
-			gtw = f(net.Gateway, "Invalid gateway format")
-			broad = f(net.Broadcast, "Invalid broadcast format")
-		}
-
 		returnableNets = append(returnableNets, returnNet{
 			ID:        net.ID,
 			Name:      net.Alias,
 			Status:    net.Status,
 			VlanAware: net.VlanAware,
 			Subnet:    net.Subnet,
-			Gateway:   gtw,
-			Broadcast: broad,
+			Gateway:   f(net.Gateway, "Invalid gateway format"),
+			Broadcast: f(net.Broadcast, "Invalid broadcast format"),
 		})
 	}
 
@@ -156,8 +149,8 @@ func listNets(w http.ResponseWriter, r *http.Request) {
 				Status:    net.Status,
 				VlanAware: net.VlanAware,
 				Subnet:    net.Subnet,
-				Gateway:   net.Gateway,
-				Broadcast: net.Broadcast,
+				Gateway:   f(net.Gateway, "Invalid gateway format"),
+				Broadcast: f(net.Broadcast, "Invalid broadcast format"),
 				GroupID:   g.ID,
 				GroupName: g.Name,
 				GroupRole: g.Role,
