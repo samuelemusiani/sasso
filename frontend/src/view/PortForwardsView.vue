@@ -3,6 +3,10 @@ import { onMounted, ref } from 'vue'
 import type { PortForward } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
+
+const loading = useLoadingStore()
 
 const pfs = ref<PortForward[]>([])
 const port = ref(0)
@@ -41,17 +45,35 @@ function requestPortForward() {
     })
 }
 
+const showDeleteModal = ref(false)
+const portForwardToDelete = ref<number | null>(null)
+
+function preDeletePortForward(id: number) {
+  portForwardToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('portForward', id, 'delete')
+}
+
 function deletePortForward(id: number) {
-  if (confirm('Are you sure you want to delete this port forward?')) {
-    api
-      .delete(`/port-forwards/${id}`)
-      .then(() => {
-        fetchPortForwards()
-      })
-      .catch((err) => {
-        console.error('Failed to delete Port Forward:', err)
-      })
-  }
+  api
+    .delete(`/port-forwards/${id}`)
+    .then(() => {
+      // Small optimization
+      pfs.value = pfs.value.filter((pf) => pf.id !== id)
+      fetchPortForwards()
+    })
+    .catch((err) => {
+      console.error('Failed to delete Port Forward:', err)
+    })
+    .finally(() => {
+      loading.stop('portForward', id, 'delete')
+    })
+}
+
+function cancelDeletePortForward(id: number) {
+  portForwardToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('portForward', id, 'delete')
 }
 
 function fetchPublicIP() {
@@ -118,15 +140,34 @@ onMounted(() => {
           <td class="whitespace-nowrap">{{ pf.approved }}</td>
           <td class="whitespace-nowrap">
             <button
-              @click="deletePortForward(pf.id)"
+              @click="preDeletePortForward(pf.id)"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              :disabled="loading.is('portForward', pf.id, 'delete')"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <span
+                v-if="loading.is('portForward', pf.id, 'delete')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Port Forward"
+      positiveText="Delete Port Forward"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deletePortForward(portForwardToDelete!)"
+      @negative="cancelDeletePortForward(portForwardToDelete!)"
+    >
+      <p>Are you sure you want to delete this Port Forward? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

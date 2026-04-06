@@ -45,7 +45,7 @@ const menu = {
       <HelpButton />
     </div>
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <AdminCard v-for="(value, key) in menu" :key="key" :value="value"></AdminCard>
     </div>
   </div>

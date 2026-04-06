@@ -10,6 +10,7 @@ import BubbleAlert from '@/components/BubbleAlert.vue'
 import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
 import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
 import { useUserResources } from '@/composables/userResources'
+import ModalAlert from '@/components/ModalAlert.vue'
 
 const { fetchUserResources, userFreeResources } = useUserResources(api)
 
@@ -144,17 +145,35 @@ function createVM() {
     })
 }
 
+const showDeleteModal = ref(false)
+const vmToDelete = ref<number | null>(null)
+
+function preDeleteVM(vmid: number) {
+  vmToDelete.value = vmid
+  showDeleteModal.value = true
+  loading.start('vm', vmid, 'delete')
+}
+
 function deleteVM(vmid: number) {
-  if (confirm(`Are you sure you want to delete VM ${vmid}?`)) {
-    api
-      .delete(`/vm/${vmid}`)
-      .then(() => {
-        fetchVMs()
-      })
-      .catch((err) => {
-        console.error('Failed to delete VM:', err)
-      })
-  }
+  api
+    .delete(`/vm/${vmid}`)
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to delete VM:', err)
+    })
+    .finally(() => {
+      vmToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('vm', vmid, 'delete')
+    })
+}
+
+function cancelDeleteVM(vmid: number) {
+  vmToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('vm', vmid, 'delete')
 }
 
 function stopVM(vmid: number) {
@@ -440,11 +459,15 @@ const nonMemberGroups = computed(() => {
 
                 <button
                   v-if="vm.status === 'unknown'"
-                  @click="deleteVM(vm.id)"
-                  :disabled="vm.group_role == 'member'"
+                  @click="preDeleteVM(vm.id)"
+                  :disabled="vm.group_role == 'member' || isLoading(vm.id, 'delete')"
                   class="btn btn-error btn-outline col-span-2 min-w-24 rounded-lg"
                 >
-                  <IconVue icon="material-symbols:delete" class="text-lg" />
+                  <span
+                    v-if="isLoading(vm.id, 'delete')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <IconVue v-else icon="material-symbols:delete" class="text-lg" />
                   <span class="hidden lg:inline">Delete</span>
                 </button>
               </div>
@@ -471,5 +494,19 @@ const nonMemberGroups = computed(() => {
       @confirm="confirmStart"
       @cancel="cancelStart"
     />
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete VM"
+      positiveText="Delete VM"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteVM(vmToDelete!)"
+      @negative="cancelDeleteVM(vmToDelete!)"
+    >
+      <p>Are you sure you want to delete this VM? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

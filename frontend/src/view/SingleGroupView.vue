@@ -7,8 +7,11 @@ import { useToastService } from '@/composables/useToast'
 import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
 import CreateNew from '@/components/CreateNew.vue'
 import UserStats from '@/components/UserStats.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
 
 const { error: toastError, success: toastSuccess } = useToastService()
+const loading = useLoadingStore()
 
 const group = ref<Group | null>(null)
 
@@ -61,6 +64,63 @@ function getResourcesForUser(userId: number): GroupResource | undefined {
 
 const addOrUpdateResources = computed(() => {
   return group.value?.resources?.find((r) => r.user_id === me.value?.user_id) !== undefined
+})
+
+const showDeleteModal = ref(false)
+const deleteTargetId = ref<number | null>(null) // e.g. groupId for group deletion or inviteId for invitation revocation
+const deleteModalObject = ref('') // e.g. 'Group' or 'Invitation'
+const titleDeleteModal = computed(() => {
+  switch (deleteModalObject.value) {
+    case 'Group':
+      return 'Delete Group'
+    case 'Invitation':
+      return 'Revoke Invitation'
+    case 'Member':
+      return 'Remove Member'
+    case 'Me':
+      return 'Leave Group'
+    default:
+      return ''
+  }
+})
+
+const positiveTextDeleteModal = computed(() => {
+  switch (deleteModalObject.value) {
+    case 'Group':
+      return 'Delete group'
+    case 'Invitation':
+      return 'Revoke invitation'
+    case 'Member':
+      return 'Remove member'
+    case 'Me':
+      return 'Leave group'
+    default:
+      return ''
+  }
+})
+
+function resetDeleteModal() {
+  showDeleteModal.value = false
+  new Promise((resolve) => setTimeout(resolve, 300)).then(() => {
+    // wait for modal close animation to finish before resetting the object and id
+    deleteModalObject.value = ''
+    deleteTargetId.value = null
+  })
+}
+
+const bodyDeleteModal = computed(() => {
+  switch (deleteModalObject.value) {
+    case 'Group':
+      return 'Are you sure you want to delete this group? This action cannot be undone.'
+    case 'Invitation':
+      return 'Are you sure you want to revoke this invitation?'
+    case 'Member':
+      return 'Are you sure you want to remove this member?'
+    case 'Me':
+      return 'Are you sure you want to leave this group?'
+    default:
+      return ''
+  }
 })
 
 function saveResources() {
@@ -135,19 +195,34 @@ function fetchInvitations() {
     })
 }
 
+function preRevokeUserInvite(id: number) {
+  deleteModalObject.value = 'Invitation'
+  deleteTargetId.value = id
+  showDeleteModal.value = true
+  loading.start('groupInvite', id, 'delete')
+}
+
 function revokeUserInvite(id: number) {
-  if (confirm('Are you sure you want to revoke this invitation?')) {
-    api
-      .delete(`/groups/${groupId}/invites/${id}`)
-      .then(() => {
-        fetchInvitations()
-        toastSuccess('Invitation revoked successfully.')
-      })
-      .catch((err) => {
-        console.error('Failed to revoke invitation:', err)
-        toastError(`Failed to revoke invitation. ${err.response?.data}`)
-      })
-  }
+  api
+    .delete(`/groups/${groupId}/invites/${id}`)
+    .then(() => {
+      // small optimization
+      invitations.value = invitations.value.filter((invite) => invite.id !== id)
+      fetchInvitations()
+    })
+    .catch((err) => {
+      console.error('Failed to revoke invitation:', err)
+      toastError(`Failed to revoke invitation. ${err.response?.data}`)
+    })
+    .finally(() => {
+      resetDeleteModal()
+      loading.stop('groupInvite', id, 'delete')
+    })
+}
+
+function cancelRevokeUserInvite(id: number) {
+  resetDeleteModal()
+  loading.stop('groupInvite', id, 'delete')
 }
 
 function fetchMembers() {
@@ -175,47 +250,117 @@ function fetchMe() {
     })
 }
 
+function preDeleteMember(id: number) {
+  if (id === me.value?.user_id) {
+    deleteModalObject.value = 'Me'
+  } else {
+    deleteModalObject.value = 'Member'
+  }
+  deleteTargetId.value = id
+  showDeleteModal.value = true
+  loading.start('groupMember', id, 'delete')
+}
+
 function deleteMember(id: number) {
   let leave_me = false
-  let msg = ''
   let id_path = id.toString()
   if (id === me.value?.user_id) {
-    msg = 'leave the group'
     id_path = 'me'
     leave_me = true
-  } else {
-    msg = 'remove this member'
   }
-  if (confirm('Are you sure you want to ' + msg + '?')) {
-    api
-      .delete(`/groups/${groupId}/members/${id_path}`)
-      .then(() => {
-        if (leave_me) {
-          router.replace('/group')
-          return
-        }
-        toastSuccess('Member removed successfully.')
-        fetchMembers()
-      })
-      .catch((err) => {
-        console.error('Failed to remove member:', err)
-        toastError(`Failed to remove member. ${err.response?.data}`)
-      })
-  }
+
+  api
+    .delete(`/groups/${groupId}/members/${id_path}`)
+    .then(() => {
+      if (leave_me) {
+        router.replace('/group')
+        return
+      }
+      // small optimization
+      if (group.value && group.value.members) {
+        group.value.members = group.value.members.filter((m) => m.user_id !== id)
+      }
+      fetchMembers()
+    })
+    .catch((err) => {
+      console.error('Failed to remove member:', err)
+      toastError(`Failed to remove member. ${err.response?.data}`)
+    })
+    .finally(() => {
+      resetDeleteModal()
+      loading.stop('groupMember', id, 'delete')
+    })
+}
+
+function cancelDeleteMember(id: number) {
+  resetDeleteModal()
+  loading.stop('groupMember', id, 'delete')
+}
+
+function preDeleteGroup(id: number) {
+  deleteModalObject.value = 'Group'
+  deleteTargetId.value = id
+  showDeleteModal.value = true
+  loading.start('group', groupId, 'delete')
 }
 
 function deleteGroup(id: number) {
-  if (confirm('Are you sure you want to delete this Group?')) {
-    api
-      .delete(`/groups/${id}`)
-      .then(() => {
-        toastSuccess('Group deleted successfully.')
-        router.push('/group')
-      })
-      .catch((err) => {
-        console.error('Failed to delete Group:', err)
-        toastError(`Failed to delete Group. ${err.response?.data}`)
-      })
+  api
+    .delete(`/groups/${id}`)
+    .then(() => {
+      toastSuccess('Group deleted successfully.')
+      router.push('/group')
+    })
+    .catch((err) => {
+      console.error('Failed to delete Group:', err)
+      toastError(`Failed to delete Group. ${err.response?.data}`)
+    })
+    .finally(() => {
+      resetDeleteModal()
+      loading.stop('group', id, 'delete')
+    })
+}
+
+function cancelDeleteGroup(id: number) {
+  resetDeleteModal()
+  loading.stop('group', id, 'delete')
+}
+
+function deleteModalPositiveFunc(id: number) {
+  switch (deleteModalObject.value) {
+    case 'Group':
+      deleteGroup(id)
+      break
+    case 'Invitation':
+      revokeUserInvite(id)
+      break
+    case 'Member':
+      deleteMember(id)
+      break
+    case 'Me':
+      deleteMember(id)
+      break
+    default:
+      console.error('Unknown delete object:', deleteModalObject.value)
+  }
+}
+
+function deleteModalNegativeFunc(id: number) {
+  switch (deleteModalObject.value) {
+    case 'Group':
+      cancelDeleteGroup(id)
+      break
+    case 'Invitation':
+      cancelRevokeUserInvite(id)
+      break
+    case 'Member':
+      cancelDeleteMember(id)
+      break
+    case 'Me':
+      cancelDeleteMember(id)
+      break
+    default:
+      console.error('Unknown delete object:', deleteModalObject.value)
   }
 }
 
@@ -412,13 +557,29 @@ onMounted(() => {
 
       <button
         v-if="me && me.role != 'owner'"
-        @click="deleteMember(me.user_id)"
-        class="btn btn-error rounded-lg"
+        @click="preDeleteMember(me.user_id)"
+        class="btn btn-error btn-outline rounded-lg"
+        :disabled="loading.is('groupMember', me.user_id, 'delete')"
       >
-        Leave Group
+        <span
+          v-if="loading.is('groupMember', me.user_id, 'delete')"
+          class="loading loading-spinner loading-xs"
+        ></span>
+        <IconVue v-else icon="pepicons-pencil:leave" class="text-lg"></IconVue>
+        <p class="hidden md:inline">Leave Group</p>
       </button>
-      <button v-else @click="deleteGroup(groupId)" class="btn btn-error rounded-lg">
-        Delete Group
+      <button
+        v-else
+        @click="preDeleteGroup(groupId)"
+        class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+        :disabled="loading.is('group', groupId, 'delete')"
+      >
+        <span
+          v-if="loading.is('group', groupId, 'delete')"
+          class="loading loading-spinner loading-xs"
+        ></span>
+        <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
+        <p class="hidden md:inline">Delete</p>
       </button>
     </div>
 
@@ -474,10 +635,16 @@ onMounted(() => {
                 <td>
                   <button
                     v-show="me && me.role == 'owner' && member.user_id != me.user_id"
-                    @click="deleteMember(member.user_id)"
-                    class="btn btn-sm btn-error"
+                    @click="preDeleteMember(member.user_id)"
+                    class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+                    :disabled="loading.is('groupMember', member.user_id, 'delete')"
                   >
-                    Delete
+                    <span
+                      v-if="loading.is('groupMember', member.user_id, 'delete')"
+                      class="loading loading-spinner loading-xs"
+                    ></span>
+                    <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
+                    <p class="hidden md:inline">Remove</p>
                   </button>
                 </td>
               </tr>
@@ -518,11 +685,16 @@ onMounted(() => {
                 <td>{{ invite.state }}</td>
                 <td>
                   <button
-                    :disabled="me?.role != 'owner'"
-                    @click="revokeUserInvite(invite.id)"
-                    class="btn btn-sm btn-error"
+                    @click="preRevokeUserInvite(invite.id)"
+                    class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+                    :disabled="loading.is('groupInvite', invite.id, 'delete')"
                   >
-                    Revoke
+                    <span
+                      v-if="loading.is('groupInvite', invite.id, 'delete')"
+                      class="loading loading-spinner loading-xs"
+                    ></span>
+                    <IconVue v-else icon="material-symbols:undo" class="text-lg"></IconVue>
+                    <p class="hidden md:inline">Revoke</p>
                   </button>
                 </td>
               </tr>
@@ -531,5 +703,21 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      :title="titleDeleteModal"
+      :positiveText="positiveTextDeleteModal"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteModalPositiveFunc(deleteTargetId!)"
+      @negative="deleteModalNegativeFunc(deleteTargetId!)"
+    >
+      <p>
+        {{ bodyDeleteModal }}
+      </p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

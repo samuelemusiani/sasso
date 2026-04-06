@@ -3,6 +3,10 @@ import { onMounted, ref } from 'vue'
 import type { Group, GroupInvite } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
+
+const loading = useLoadingStore()
 
 const groups = ref<Group[]>([])
 const name = ref('')
@@ -54,17 +58,37 @@ function createGroup() {
     })
 }
 
+const showDeleteModal = ref(false)
+const groupToDelete = ref<number | null>(null)
+
+function preDeleteGroup(id: number) {
+  groupToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('group', id, 'delete')
+}
+
 function deleteGroup(id: number) {
-  if (confirm('Are you sure you want to delete this Group?')) {
-    api
-      .delete(`/groups/${id}`)
-      .then(() => {
-        fetchGroups()
-      })
-      .catch((err) => {
-        console.error('Failed to delete Group:', err)
-      })
-  }
+  api
+    .delete(`/groups/${id}`)
+    .then(() => {
+      // small optimization
+      groups.value = groups.value.filter((g) => g.id !== id)
+      fetchGroups()
+    })
+    .catch((err) => {
+      console.error('Failed to delete Group:', err)
+    })
+    .finally(() => {
+      showDeleteModal.value = false
+      groupToDelete.value = null
+      loading.stop('group', id, 'delete')
+    })
+}
+
+function cancelDeleteGroup(id: number) {
+  showDeleteModal.value = false
+  groupToDelete.value = null
+  loading.stop('group', id, 'delete')
 }
 
 function manageInvitation(id: number, action: string) {
@@ -128,10 +152,15 @@ onMounted(() => {
             </RouterLink>
             <button
               v-show="g.role === 'owner'"
-              @click="deleteGroup(g.id)"
+              @click="preDeleteGroup(g.id)"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              :disabled="loading.is('group', g.id, 'delete')"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <span
+                v-if="loading.is('group', g.id, 'delete')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>
           </td>
@@ -180,5 +209,19 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Group"
+      positiveText="Delete Group"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteGroup(groupToDelete!)"
+      @negative="cancelDeleteGroup(groupToDelete!)"
+    >
+      <p>Are you sure you want to delete this Group? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>
