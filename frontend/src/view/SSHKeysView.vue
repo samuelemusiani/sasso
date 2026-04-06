@@ -3,11 +3,23 @@ import { onMounted, ref } from 'vue'
 import type { SSHKey } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
+
+const loading = useLoadingStore()
 
 const keys = ref<SSHKey[]>([])
 const name = ref('')
 const key = ref('')
 const error = ref('')
+
+const wrap = ref(false)
+function toggleWrap() {
+  wrap.value = !wrap.value
+}
 
 function fetchSSHKeys() {
   api
@@ -41,18 +53,36 @@ function addSSHKey() {
     })
 }
 
+const showDeleteModal = ref(false)
+const sshKeyToDelete = ref<number | null>(null)
+
+function preDeleteSSHKey(id: number) {
+  sshKeyToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('sshKey', id, 'delete')
+}
+
 function deleteSSHKey(id: number) {
-  if (confirm('Are you sure you want to delete this SSH key?')) {
-    api
-      .delete(`/ssh-keys/${id}`)
-      .then(() => {
-        fetchSSHKeys()
-      })
-      .catch((err) => {
-        error.value = 'Failed to delete SSH key: ' + err.response.data
-        console.error('Failed to delete SSH key:', err)
-      })
-  }
+  api
+    .delete(`/ssh-keys/${id}`)
+    .then(() => {
+      fetchSSHKeys()
+    })
+    .catch((err) => {
+      console.error('Failed to delete SSH key:', err)
+      toastError('Failed to delete SSH key')
+    })
+    .finally(() => {
+      sshKeyToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('sshKey', id, 'delete')
+    })
+}
+
+function cancelDeleteSSHKey(id: number) {
+  sshKeyToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('sshKey', id, 'delete')
 }
 
 onMounted(() => {
@@ -88,27 +118,44 @@ onMounted(() => {
         />
       </div>
     </CreateNew>
-    <div class="overflow-x-auto">
+    <div class="">
       <table class="table min-w-full divide-y divide-gray-200">
         <thead class="">
           <tr>
             <th scope="col" class="">Name</th>
             <th scope="col" class="">Key</th>
-            <th scope="col" class="relative px-6 py-3">
-              <span class="sr-only">Actions</span>
+            <th scope="col" class="">
+              <div class="flex items-center justify-between gap-2">
+                <div>Actions</div>
+                <button class="btn btn-sm btn-warning w-28 rounded-lg" @click="toggleWrap">
+                  <IconVue :icon="wrap ? 'mdi:unwrap' : 'mdi:wrap'" class="text-lg" />
+                  {{ wrap ? 'Unwrap' : 'Wrap' }}
+                </button>
+              </div>
             </th>
           </tr>
         </thead>
         <tbody class="divide-y">
           <tr v-for="sshKey in keys" :key="sshKey.id">
-            <td class="whitespace-nowrap">{{ sshKey.name }}</td>
-            <td class="whitespace-nowrap">{{ sshKey.key }}</td>
+            <td class="text-lg font-semibold whitespace-nowrap">{{ sshKey.name }}</td>
+            <td
+              class="max-w-80 lg:max-w-104 xl:max-w-136 2xl:max-w-200"
+              :class="wrap ? 'break-all' : 'text-nowrap'"
+            >
+              <div class="overflow-x-auto text-ellipsis">
+                {{ sshKey.key }}
+              </div>
+            </td>
             <td class="text-right text-sm font-medium">
               <button
-                @click="deleteSSHKey(sshKey.id)"
+                @click="preDeleteSSHKey(sshKey.id)"
                 class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
               >
-                <IconVue icon="material-symbols:delete" class="text-lg"></IconVue>
+                <span
+                  v-if="loading.is('sshKey', sshKey.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
                 <p class="hidden md:inline">Delete</p>
               </button>
             </td>
@@ -116,5 +163,19 @@ onMounted(() => {
         </tbody>
       </table>
     </div>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete SSH Key"
+      positiveText="Delete Key"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteSSHKey(sshKeyToDelete!)"
+      @negative="cancelDeleteSSHKey(sshKeyToDelete!)"
+    >
+      <p>Are you sure you want to delete this SSH key? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>
