@@ -509,31 +509,42 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 			return err
 		}
 
+		if count != 1 {
+			return nil
+		}
+
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
 			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
-		if count == 1 {
-			var adminResource GroupResource
+		var adminResource GroupResource
 
-			err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
-				First(&adminResource).Error
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				logger.Error("Failed to check admin group resource", "error", err)
-
-				return err
-			} else if err == nil {
-				// Admin resource exists, remove it
-				adminResource.Nets = max(0, adminResource.Nets-1)
-
-				err = tx.Save(&adminResource).Error
-				if err != nil {
-					logger.Error("Failed to remove admin group resource", "error", err)
-
-					return err
-				}
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
+			First(&adminResource).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// if there is no admin resource, nothing to do
+				return nil
 			}
+
+			return fmt.Errorf("failed to check admin group resource: %w", err)
+		}
+
+		// Admin resource exists
+		if adminResource.Nets == 0 {
+			// if there is no net assigned to the admin resource, nothing to do
+			// this could be the case if the groups was created in the v0.1.* versions
+			// where we didn't assign a net to the admin resource by default
+			return nil
+		}
+
+		// We have an admin resource with nets assigned, we need to remove one net
+		adminResource.Nets--
+
+		err = tx.Save(&adminResource).Error
+		if err != nil {
+			return fmt.Errorf("failed to remove admin group resource: %w", err)
 		}
 
 		return nil
