@@ -224,7 +224,9 @@ function fetchNets() {
   api
     .get('/net')
     .then((res) => {
-      nets.value = res.data as Net[]
+      nets.value = res.data.filter((net: Net) => {
+        return net.status === 'ready'
+      }) as Net[]
       if (!$props.interface && nets.value.length > 0) {
         form.value.vnet_id = nets.value[0]?.id || 0
       }
