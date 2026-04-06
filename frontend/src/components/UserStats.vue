@@ -1,15 +1,72 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const props = defineProps<{
   stats: Array<{
     item: string
-    icon: string
+    icon?: string
     active: number
     max: number
     allocated: number
     group_max?: number
-    color: string
+    color?: string
+    unit?: string
   }>
 }>()
+
+// As we use this components in multiple places, make sense to provide some
+// default values for icon, and color if a special item is specified
+const mstats = computed(() => {
+  return props.stats.map((stat) => {
+    let icon = 'heroicons-solid:chip'
+    let color = 'text-primary'
+    let unit = undefined
+
+    if (stat.icon == undefined) {
+      switch (stat.item.toLowerCase()) {
+        case 'cpu':
+          icon = 'heroicons-solid:chip'
+          break
+        case 'ram':
+          icon = 'fluent:ram-20-regular'
+          unit = 'GB'
+          break
+        case 'disk':
+          icon = 'mingcute:storage-line'
+          unit = 'GB'
+          break
+        case 'net':
+          icon = 'ph:network'
+          break
+      }
+    } else {
+      icon = stat.icon
+    }
+
+    if (stat.color == undefined) {
+      switch (stat.item.toLowerCase()) {
+        case 'cpu':
+          color = 'text-primary'
+          break
+        case 'ram':
+          color = 'text-success'
+          unit = 'GB'
+          break
+        case 'disk':
+          color = 'text-accent'
+          unit = 'GB'
+          break
+        case 'net':
+          color = 'text-orange-400'
+          break
+      }
+    } else {
+      color = stat.color
+    }
+
+    return { ...stat, icon, color, unit }
+  })
+})
 
 const colors: Record<string, string> = {
   'text-primary': '#365fab',
@@ -27,7 +84,7 @@ const colors: Record<string, string> = {
   <!-- Cards View -->
   <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
     <div
-      v-for="stat in props.stats"
+      v-for="stat in mstats"
       :key="stat.item"
       class="group bg-base-100 border-base-300/20 hover:border-base-300/40 relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-sm hover:shadow-2xl"
     >
@@ -48,18 +105,16 @@ const colors: Record<string, string> = {
               {{ stat.allocated }}
             </span>
             <div class="text-base-content/60">
-              <span v-if="stat.item === 'RAM' || stat.item === 'Disk'" class="text-sm font-bold"
-                >GB</span
-              >
-              <span v-else class="text-sm font-bold">{{ stat.item }}s</span>
+              <span class="text-sm font-bold">{{
+                stat.unit !== undefined ? stat.unit : stat.item + 's'
+              }}</span>
               <div class="text-xs">allocated</div>
             </div>
           </div>
           <div class="text-right">
             <div class="text-base-content/80 text-xl font-bold">
               {{ stat.max }}
-              <span v-if="stat.item === 'RAM' || stat.item === 'Disk'" class="text-sm">GB</span>
-              <span v-else class="text-sm font-bold">{{ stat.item }}s</span>
+              <span class="text-sm font-bold">{{ stat.unit ? stat.unit : stat.item + 's' }}</span>
             </div>
             <div class="text-base-content/60 text-xs">total</div>
           </div>
@@ -73,13 +128,13 @@ const colors: Record<string, string> = {
               <span>Active</span>
               <span
                 >{{ stat.active }} / {{ stat.allocated }}
-                {{ stat.item === 'RAM' || stat.item === 'Disk' ? 'GB' : stat.item }}</span
+                {{ stat.unit ? stat.unit : stat.item }}</span
               >
             </div>
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.active / stat.allocated) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
+                :style="`width: ${(stat.active != 0 ? stat.active / stat.allocated : 0) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
@@ -89,8 +144,7 @@ const colors: Record<string, string> = {
             <div class="text-base-content/70 flex justify-between text-xs">
               <span>Allocated</span>
               <span
-                >{{ stat.allocated }} / {{ stat.max }}
-                {{ stat.item === 'RAM' || stat.item === 'Disk' ? 'GB' : stat.item }}</span
+                >{{ stat.allocated }} / {{ stat.max }} {{ stat.unit ? stat.unit : stat.item }}</span
               >
             </div>
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
@@ -106,8 +160,7 @@ const colors: Record<string, string> = {
             <div class="text-base-content/70 flex justify-between text-xs">
               <span>Group shared</span>
               <span
-                >{{ stat.group_max }} / {{ stat.max }}
-                {{ stat.item === 'RAM' || stat.item === 'Disk' ? 'GB' : stat.item }}</span
+                >{{ stat.group_max }} / {{ stat.max }} {{ stat.unit ? stat.unit : stat.item }}</span
               >
             </div>
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">

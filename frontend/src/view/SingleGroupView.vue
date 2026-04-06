@@ -241,35 +241,27 @@ async function fetchResourceStats() {
       stats.value = [
         {
           item: 'CPU',
-          icon: 'heroicons-solid:chip',
           active: data.active_vms_cores,
           max: data.max_cores,
           allocated: data.allocated_cores,
-          color: 'text-primary',
         },
         {
           item: 'RAM',
-          icon: 'fluent:ram-20-regular',
           active: data.active_vms_ram / 1024,
           max: data.max_ram / 1024,
           allocated: data.allocated_ram / 1024,
-          color: 'text-success',
         },
         {
           item: 'Disk',
-          icon: 'mingcute:storage-line',
           active: data.active_vms_disk,
           max: data.max_disk,
           allocated: data.allocated_disk,
-          color: 'text-accent',
         },
         {
           item: 'Net',
-          icon: 'ph:network',
           active: -1,
           max: data.max_nets,
           allocated: data.allocated_nets,
-          color: 'text-orange-400',
         },
       ]
     })

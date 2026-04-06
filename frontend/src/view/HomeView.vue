@@ -16,39 +16,31 @@ const stats = computed(() => {
   return [
     {
       item: 'CPU',
-      icon: 'heroicons-solid:chip',
       active: userResourcesGB.value.active_vms_cores,
       max: userResourcesGB.value.max_cores,
       allocated: userResourcesGB.value.allocated_cores,
       group_max: userResourcesGB.value.group_max_cores,
-      color: 'text-primary',
     },
     {
       item: 'RAM',
-      icon: 'fluent:ram-20-regular',
       active: userResourcesGB.value.active_vms_ram,
       max: userResourcesGB.value.max_ram,
       allocated: userResourcesGB.value.allocated_ram,
       group_max: userResourcesGB.value.group_max_ram,
-      color: 'text-success',
     },
     {
       item: 'Disk',
-      icon: 'mingcute:storage-line',
       active: userResourcesGB.value.active_vms_disk,
       max: userResourcesGB.value.max_disk,
       allocated: userResourcesGB.value.allocated_disk,
       group_max: userResourcesGB.value.group_max_disk,
-      color: 'text-accent',
     },
     {
       item: 'Net',
-      icon: 'ph:network',
       active: -1,
       max: userResourcesGB.value.max_nets,
       allocated: userResourcesGB.value.allocated_nets,
       group_max: userResourcesGB.value.group_max_nets,
-      color: 'text-orange-400',
     },
   ]
 })
