@@ -4,8 +4,12 @@ import type { TelegramBot } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { useToastService } from '@/composables/useToast'
+import { useLoadingStore } from '@/stores/loading'
+import ModalAlert from '@/components/ModalAlert.vue'
 
 const { error: toastError, success: toastSuccess } = useToastService()
+
+const loading = useLoadingStore()
 
 const bots = ref<TelegramBot[]>([])
 const name = ref('')
@@ -50,20 +54,40 @@ function requestTelegramBot() {
     })
 }
 
+const showDeleteModal = ref(false)
+const botToDelete = ref<number | null>(null)
+
+function preDeleteTelegramBot(id: number) {
+  botToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('telegramBot', id, 'delete')
+}
+
 function deleteTelegramBot(id: number) {
-  if (confirm('Are you sure you want to delete this Telegram Bot?')) {
-    api
-      .delete(`/notify/telegram/${id}`)
-      .then(() => {
-        fetchTelegramBots()
-      })
-      .catch((err) => {
-        console.error('Failed to delete Telegram Bot:', err)
-      })
-  }
+  api
+    .delete(`/notify/telegram/${id}`)
+    .then(() => {
+      fetchTelegramBots()
+    })
+    .catch((err) => {
+      console.error('Failed to delete Telegram Bot:', err)
+      toastError('Failed to delete Telegram Bot')
+    })
+    .finally(() => {
+      botToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('telegramBot', id, 'delete')
+    })
+}
+
+function cancelDeleteTelegramBot(id: number) {
+  botToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('telegramBot', id, 'delete')
 }
 
 function testTelegramBot(id: number) {
+  loading.start('telegramBot', id, 'test')
   api
     .post(`/notify/telegram/${id}/test`)
     .then(() => {
@@ -73,9 +97,13 @@ function testTelegramBot(id: number) {
       console.error('Failed to send test notification:', err)
       toastError('Failed to send test notification')
     })
+    .finally(() => {
+      loading.stop('telegramBot', id, 'test')
+    })
 }
 
 function toggleEnableDisable(id: number, enabled: boolean) {
+  loading.start('telegramBot', id, 'toggle')
   api
     .patch(`/notify/telegram/${id}`, { enabled: enabled })
     .then(() => {
@@ -83,6 +111,10 @@ function toggleEnableDisable(id: number, enabled: boolean) {
     })
     .catch((err) => {
       console.error('Failed to toggle enable/disable:', err)
+      toastError('Failed to toggle enable/disable')
+    })
+    .finally(() => {
+      loading.stop('telegramBot', id, 'toggle')
     })
 }
 
@@ -145,31 +177,61 @@ onMounted(() => {
             <button
               @click="testTelegramBot(bot.id)"
               class="btn btn-primary btn-sm md:btn-md btn-outline ml-2 rounded-lg"
+              :disabled="loading.is('telegramBot', bot.id, 'test')"
             >
-              <IconVue icon="material-symbols:experiment" class="text-lg" />
+              <span
+                v-if="loading.is('telegramBot', bot.id, 'test')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:experiment" class="text-lg" />
               <p>Test</p>
             </button>
             <button
               @click="toggleEnableDisable(bot.id, !bot.enabled)"
               :class="bot.enabled ? 'btn btn-warning' : 'btn btn-success'"
-              class="btn btn-sm md:btn-md btn-outline rounded-lg"
+              class="btn btn-sm md:btn-md btn-outline w-30 rounded-lg"
+              :disabled="loading.is('telegramBot', bot.id, 'toggle')"
             >
+              <span
+                v-if="loading.is('telegramBot', bot.id, 'toggle')"
+                class="loading loading-spinner loading-xs"
+              ></span>
               <IconVue
+                v-else
                 :icon="bot.enabled ? 'material-symbols:toggle-on' : 'material-symbols:toggle-off'"
                 class="text-lg"
               />
               <p class="hidden md:inline">{{ bot.enabled ? 'Disable' : 'Enable' }}</p>
             </button>
             <button
-              @click="deleteTelegramBot(bot.id)"
+              @click="preDeleteTelegramBot(bot.id)"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              :disabled="loading.is('telegramBot', bot.id, 'delete')"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <span
+                v-if="loading.is('telegramBot', bot.id, 'delete')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Bot"
+      positiveText="Delete Bot"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteTelegramBot(botToDelete!)"
+      @negative="cancelDeleteTelegramBot(botToDelete!)"
+    >
+      <p>Are you sure you want to delete this Bot key? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>
