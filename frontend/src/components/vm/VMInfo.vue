@@ -8,6 +8,10 @@ import { useLoadingStore } from '@/stores/loading'
 import { useRouter } from 'vue-router'
 import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
 import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
 
 const $props = defineProps<{
   vm: VM
@@ -75,17 +79,31 @@ function restartVM(vmid: number) {
     .finally(() => loading.stop('vm', vmid, 'restart'))
 }
 
+const showDeleteModal = ref(false)
+const vmToDelete = ref<number | null>(null)
+
+function preDeleteVM(vmid: number) {
+  vmToDelete.value = vmid
+  showDeleteModal.value = true
+  loading.start('vm', vmid, 'delete')
+}
+
 function deleteVM(vmid: number) {
-  if (confirm(`Are you sure you want to delete VM ${vmid}?`)) {
-    api
-      .delete(`/vm/${vmid}`)
-      .then(() => {
-        router.push('/vm')
-      })
-      .catch((err) => {
-        console.error('Failed to delete VM:', err)
-      })
-  }
+  api
+    .delete(`/vm/${vmid}`)
+    .then(() => {
+      router.push('/vm')
+    })
+    .catch((err) => {
+      console.error('Failed to delete VM:', err)
+      toastError('Failed to delete VM')
+    })
+}
+
+function cancelDeleteVM(vmid: number) {
+  vmToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('vm', vmid, 'delete')
 }
 
 const disableDelete = computed(() => {
@@ -184,11 +202,15 @@ const disableDelete = computed(() => {
     <div class="divider text-error my-4 font-bold">Danger Zone</div>
 
     <button
-      @click="deleteVM(vm.id)"
+      @click="preDeleteVM(vm.id)"
       :disabled="disableDelete"
       class="btn btn-error btn-outline w-70 rounded-lg"
     >
-      <IconVue icon="material-symbols:delete" class="text-lg" />
+      <span
+        v-if="loading.is('vm', vm.id, 'delete')"
+        class="loading loading-spinner loading-xs"
+      ></span>
+      <IconVue v-else icon="material-symbols:delete" class="text-lg" />
       <span class="hidden lg:inline">Delete</span>
     </button>
 
@@ -199,5 +221,19 @@ const disableDelete = computed(() => {
       @confirm="confirmStart"
       @cancel="cancelStart"
     />
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete VM"
+      positiveText="Delete VM"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteVM(vmToDelete!)"
+      @negative="cancelDeleteVM(vmToDelete!)"
+    >
+      <p>Are you sure you want to delete this VM? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>
