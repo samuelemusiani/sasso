@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import InterfaceForm from '@/components/vm/InterfaceForm.vue'
 import { getStatusClass } from '@/const'
 import { useLoadingStore } from '@/stores/loading'
+import ModalAlert from '@/components/ModalAlert.vue'
 
 const $props = defineProps<{
   vm: VM
@@ -55,17 +56,34 @@ function fetchNets() {
     })
 }
 
+const showDeleteModal = ref(false)
+const interfaceToDelete = ref<number | null>(null)
+
+function preDeleteInterface(id: number) {
+  interfaceToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('interface', id, 'delete')
+}
+
 function deleteInterface(ifaceid: number) {
-  if (confirm('Are you sure you want to delete this interface?')) {
-    api
-      .delete(`/vm/${vmid}/interface/${ifaceid}`)
-      .then(() => {
-        fetchInterfaces()
-      })
-      .catch((err) => {
-        console.error('Failed to delete interface:', err)
-      })
-  }
+  api
+    .delete(`/vm/${vmid}/interface/${ifaceid}`)
+    .then(() => {
+      fetchInterfaces()
+    })
+    .catch((err) => {
+      console.error('Failed to delete interface:', err)
+    })
+    .finally(() => {
+      interfaceToDelete.value = null
+      showDeleteModal.value = false
+    })
+}
+
+function cancelDeleteInterface(ifaceid: number) {
+  interfaceToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('interface', ifaceid, 'delete')
 }
 
 function handleInterfaceAdded() {
@@ -175,16 +193,44 @@ onBeforeUnmount(() => {
               v-if="vm && vm.group_role !== 'member'"
               class="flex justify-end gap-2 text-right text-sm font-medium"
             >
-              <button @click="showEditForm(iface)" class="btn btn-primary rounded-lg p-2">
-                Edit
+              <button
+                @click="showEditForm(iface)"
+                class="btn btn-primary btn-outline rounded-lg p-2"
+                :disabled="iface.status !== 'ready'"
+              >
+                <IconVue icon="material-symbols:edit" class="text-lg" />
+                <p class="hidden md:inline">Edit</p>
               </button>
-              <button @click="deleteInterface(iface.id)" class="btn btn-error rounded-lg p-2">
-                Delete
+              <button
+                @click="preDeleteInterface(iface.id)"
+                class="btn btn-error btn-outline rounded-lg p-2"
+                :disabled="iface.status !== 'ready'"
+              >
+                <span
+                  v-if="loading.is('interface', iface.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <IconVue v-else icon="material-symbols:delete" class="text-lg" />
+                <p class="hidden md:inline">Delete</p>
               </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Interface"
+      positiveText="Delete Interface"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteInterface(interfaceToDelete!)"
+      @negative="cancelDeleteInterface(interfaceToDelete!)"
+    >
+      <p>Are you sure you want to delete this Interface? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

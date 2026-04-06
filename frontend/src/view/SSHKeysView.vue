@@ -150,6 +150,7 @@ onMounted(() => {
               <button
                 @click="preDeleteSSHKey(sshKey.id)"
                 class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+                :disabled="loading.is('sshKey', sshKey.id, 'delete')"
               >
                 <span
                   v-if="loading.is('sshKey', sshKey.id, 'delete')"

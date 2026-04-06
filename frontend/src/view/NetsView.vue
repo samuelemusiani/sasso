@@ -5,8 +5,12 @@ import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { getStatusClass } from '@/const'
 import { useToastService } from '@/composables/useToast'
+import { useLoadingStore } from '@/stores/loading'
+import ModalAlert from '@/components/ModalAlert.vue'
 
 const { error: toastError } = useToastService()
+
+const loading = useLoadingStore()
 
 const nets = ref<Net[]>([])
 const formNetName = ref('')
@@ -122,11 +126,16 @@ function modifyNet() {
     })
 }
 
-function deleteNet(id: number) {
-  if (!confirm('Are you sure you want to delete this network?')) {
-    return
-  }
+const showDeleteModal = ref(false)
+const netToDelete = ref<number | null>(null)
 
+function preDeleteNet(id: number) {
+  netToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('net', id, 'delete')
+}
+
+function deleteNet(id: number) {
   api
     .delete(`/net/${id}`)
     .then(() => {
@@ -137,6 +146,17 @@ function deleteNet(id: number) {
       toastError(`Failed to delete network: ` + err.response.data)
       console.error(`Failed to delete network ${id}:`, err)
     })
+    .finally(() => {
+      netToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('net', id, 'delete')
+    })
+}
+
+function cancelDeleteNet(id: number) {
+  netToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('net', id, 'delete')
 }
 
 function toggleModify(id: number) {
@@ -258,16 +278,34 @@ const nonMemberGroups = computed(() => {
             </button>
             <button
               v-if="net.status === 'ready' || net.status === 'unknown'"
-              @click="deleteNet(net.id)"
-              :disabled="net.group_role === 'member'"
+              @click="preDeleteNet(net.id)"
+              :disabled="net.group_role === 'member' || loading.is('net', net.id, 'delete')"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <span
+                v-if="loading.is('net', net.id, 'delete')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Net"
+      positiveText="Delete Net"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteNet(netToDelete!)"
+      @negative="cancelDeleteNet(netToDelete!)"
+    >
+      <p>Are you sure you want to delete this Net? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

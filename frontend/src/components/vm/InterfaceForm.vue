@@ -202,9 +202,6 @@ const vlanTagMessage = computed(() => {
 watch([() => form.value.vnet_id, () => $props.interfaces], ([newVnetId]) => {
   const net = nets.value.find((n) => n.id === newVnetId)
   const interfaceWithGateway = $props.interfaces.some((i) => i.gateway !== '')
-  console.log('newVnetId:', newVnetId)
-  console.log('Nets:', nets.value)
-  console.log('Net:', net, 'Net with gateway:', interfaceWithGateway)
   if (net && !interfaceWithGateway) {
     console.log('here')
     form.value.gateway = net.gateway
