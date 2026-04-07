@@ -1019,6 +1019,18 @@ func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
 		return
 	}
 
+	updateVMsActive(resources)
+
+	// Sometimes the server could be restarted while VMs are being created or
+	// deleted, leaving some VMs in 'creating' or 'deleting' status.
+	// For 'creating' VMs, if they are found on Proxmox, we set them to
+	// 'pre-configuring', otherwise we set them to 'pre-creating' to trigger a creation.
+	// For 'deleting' VMs, if they are not found on Proxmox, we delete them from the DB,
+	// otherwise we set them to 'pre-deleting' to trigger a deletion.
+	updateVMsCreatingDeleting(resources)
+}
+
+func updateVMsActive(resources []*gprox.ClusterResource) {
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()
@@ -1174,6 +1186,73 @@ func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
 		err := db.UpdateVMStatus(vmid, string(VMStatusUnknown))
 		if err != nil {
 			logger.Error("failed to update status of VM", "vmid", vmid, "new_status", VMStatusUnknown, "err", err)
+		}
+	}
+}
+
+func updateVMsCreatingDeleting(resources []*gprox.ClusterResource) {
+	// We map resources by VMID for easier access
+	vmidToResource := make(map[uint64]*gprox.ClusterResource)
+
+	for _, r := range resources {
+		if r.Type != "qemu" {
+			continue
+		}
+
+		vmidToResource[r.VMID] = r
+	}
+
+	creatingVMs, err := db.GetVMsWithStatus(string(VMStatusCreating))
+	if err != nil {
+		logger.Error("failed to get VMs with 'creating' status", "error", err)
+
+		return
+	}
+
+	for _, v := range creatingVMs {
+		_, ok := vmidToResource[v.ID]
+		if !ok {
+			logger.Warn("VM in 'creating' status not found in Proxmox. Setting status to 'pre-creating'", "vmid", v.ID)
+
+			err := db.UpdateVMStatus(v.ID, string(VMStatusPreCreating))
+			if err != nil {
+				logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreCreating, "err", err)
+			}
+		}
+
+		logger.Info("VM in 'creating' status found in Proxmox. Setting status to 'pre-configuring'", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreConfiguring, "err", err)
+		}
+	}
+
+	deletingVMs, err := db.GetVMsWithStatus(string(VMStatusDeleting))
+	if err != nil {
+		logger.Error("failed to get VMs with 'deleting' status", "error", err)
+
+		return
+	}
+
+	for _, v := range deletingVMs {
+		_, ok := vmidToResource[v.ID]
+		if !ok {
+			logger.Info("VM in 'deleting' status not found in Proxmox. Deleting from DB", "vmid", v.ID)
+
+			err := db.DeleteVMByID(v.ID)
+			if err != nil {
+				logger.Error("failed to delete VM from DB", "vmid", v.ID, "err", err)
+			}
+
+			continue
+		}
+
+		logger.Warn("VM in 'deleting' status found in Proxmox. Setting status to 'pre-deleting' to trigger deletion", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreDeleting))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreDeleting, "err", err)
 		}
 	}
 }
