@@ -34,6 +34,10 @@ const groups = ref<Group[]>([])
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
+const readyTemplates = computed(() => {
+  return templates.value.filter((t) => t.ready)
+})
+
 const { showModal, modalMissing, preStartVM, confirmStart, cancelStart } = useVmStartWithChecks({
   api,
   loading,
@@ -334,7 +338,7 @@ const nonMemberGroups = computed(() => {
         <div>
           <label for="template">OS</label>
           <select class="select w-full rounded-lg border" v-model="template">
-            <option v-for="t in templates" :key="t.name" :value="t.name">{{ t.name }}</option>
+            <option v-for="t in readyTemplates" :key="t.name" :value="t.name">{{ t.name }}</option>
           </select>
         </div>
       </div>
