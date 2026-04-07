@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
     <div v-else class="mb-3 text-xl font-bold capitalize">Backups</div>
 
     <div v-if="isLoading(vm.id, 'fetch_backups')" class="grid h-70">
-      <span class="loading loading-spinner place-self-center"></span>
+      <span class="loading loading-spinner text-primary place-self-center"></span>
     </div>
 
     <div v-else class="overflow-x-auto">

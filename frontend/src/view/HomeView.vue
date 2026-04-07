@@ -79,10 +79,10 @@ onMounted(() => {
       <h2 class="text-base-content/80 my-2 text-xl font-semibold">Usage of your resources</h2>
     </div>
 
-    <UserStats v-if="stats" :stats="stats" />
+    <UserStats v-if="stats.length !== 0" :stats="stats" />
 
-    <div v-else class="flex h-64 items-center justify-center">
-      <span class="loading loading-spinner loading-lg text-primary"></span>
+    <div v-else class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
     </div>
   </div>
 </template>

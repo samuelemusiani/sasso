@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
   <div class="flex flex-col gap-4">
     <div class="text-xl font-bold capitalize">Backup requests history</div>
     <div v-if="isLoading(vmid, 'fetch-backup-requests')" class="grid h-70">
-      <span class="loading loading-spinner place-self-center"></span>
+      <span class="loading loading-spinner text-primary place-self-center"></span>
     </div>
     <table v-else class="table min-w-full divide-y">
       <thead>

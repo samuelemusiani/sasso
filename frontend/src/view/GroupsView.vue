@@ -5,7 +5,9 @@ import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
 
+const { error: toastError } = useToastService()
 const loading = useLoadingStore()
 
 const groups = ref<Group[]>([])
@@ -16,6 +18,7 @@ const error = ref('')
 const invitations = ref<GroupInvite[]>([])
 
 function fetchGroups() {
+  loading.start('groups', null, 'fetch')
   api
     .get('/groups')
     .then((res) => {
@@ -24,10 +27,15 @@ function fetchGroups() {
     })
     .catch((err) => {
       console.error('Failed to fetch Groups:', err)
+      toastError('Failed to fetch Groups: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('groups', null, 'fetch')
     })
 }
 
 function fetchInvitations() {
+  loading.start('groupInvitations', null, 'fetch')
   api
     .get('/groups/invites')
     .then((res) => {
@@ -36,6 +44,10 @@ function fetchInvitations() {
     })
     .catch((err) => {
       console.error('Failed to fetch Invitations:', err)
+      toastError('Failed to fetch Invitations: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('groupInvitations', null, 'fetch')
     })
 }
 
@@ -130,7 +142,11 @@ onMounted(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('groups', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Name</th>
@@ -174,7 +190,11 @@ onMounted(() => {
       <h2 class="mb-2 text-xl font-semibold">Group Invitations</h2>
     </div>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('groupInvitations', null, 'fetch')" class="grid h-24">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Name</th>

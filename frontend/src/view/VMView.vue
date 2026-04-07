@@ -122,7 +122,7 @@ onBeforeUnmount(() => {
         </label>
         <div class="tab-content border-t-base-300 border-t pt-4">
           <div v-if="isLoading(vmid, 'fetch_vm')" class="grid h-70">
-            <span class="loading loading-spinner place-self-center"></span>
+            <span class="loading loading-spinner text-primary place-self-center"></span>
           </div>
           <template v-else-if="vm && activeTab === tab.id">
             <router-view :vm="vm" @update-vm="fetchVM" @status-change="handleStatusChange" />

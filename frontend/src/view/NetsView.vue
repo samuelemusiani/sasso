@@ -23,6 +23,7 @@ const modifying = ref(false)
 const modifyingNetId = ref<number | null>(null)
 
 function fetchNets() {
+  loading.start('net', null, 'fetch')
   api
     .get('/net')
     .then((res) => {
@@ -31,8 +32,11 @@ function fetchNets() {
       nets.value = res.data as Net[]
     })
     .catch((err) => {
-      error.value = 'Failed to fetch nets: ' + err.response.data
       console.error('Failed to fetch nets:', err)
+      toastError('Failed to fetch nets: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('net', null, 'fetch')
     })
 }
 
@@ -229,7 +233,11 @@ const nonMemberGroups = computed(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('net', null, 'fetch')" class="grid h-32">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th>Name</th>

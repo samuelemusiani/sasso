@@ -4,8 +4,10 @@ import type { VPNConfig } from '@/types'
 import { onMounted, ref } from 'vue'
 import VPNConfigComponent from '@/components/VPNConfig.vue'
 import { useToastService } from '@/composables/useToast'
+import { useLoadingStore } from '@/stores/loading'
 
 const { error: toastError, success: toastSuccess } = useToastService()
+const loading = useLoadingStore()
 
 const vpnConfig = ref<VPNConfig[]>([])
 
@@ -13,6 +15,7 @@ const message = ref('')
 const errorMessage = ref('')
 
 function fetchVPNConfig() {
+  loading.start('vpnConfig', null, 'fetch')
   api
     .get('/vpn/wireguard')
     .then((res) => {
@@ -28,6 +31,10 @@ function fetchVPNConfig() {
     })
     .catch((err) => {
       console.error('Failed to fetch VPN config:', err)
+      toastError('Failed to fetch VPN configuration: ' + err.response)
+    })
+    .finally(() => {
+      loading.stop('vpnConfig', null, 'fetch')
     })
 }
 
@@ -75,15 +82,21 @@ onMounted(() => {
       <HelpButton />
     </div>
 
-    <div v-for="config in vpnConfig" :key="config.id" class="my-4">
-      <VPNConfigComponent :vpnConfig="config" @delete="deleteVPN(config.id)" />
+    <div v-if="loading.is('vpnConfig', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
     </div>
-    <div class="flex flex-col items-center gap-4">
-      <button @click="newVPNConfig" class="btn btn-primary rounded-lg">
-        Create New VPN Configuration
-      </button>
-      <p v-if="message" class="mt-2 text-green-600">{{ message }}</p>
-      <p v-if="errorMessage" class="text-error mt-2">{{ errorMessage }}</p>
+
+    <div v-else>
+      <div v-for="config in vpnConfig" :key="config.id" class="my-4">
+        <VPNConfigComponent :vpnConfig="config" @delete="deleteVPN(config.id)" />
+      </div>
+      <div class="flex flex-col items-center gap-4">
+        <button @click="newVPNConfig" class="btn btn-primary rounded-lg">
+          Create New VPN Configuration
+        </button>
+        <p v-if="message" class="mt-2 text-green-600">{{ message }}</p>
+        <p v-if="errorMessage" class="text-error mt-2">{{ errorMessage }}</p>
+      </div>
     </div>
   </div>
 </template>

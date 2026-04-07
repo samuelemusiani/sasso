@@ -22,14 +22,18 @@ function toggleWrap() {
 }
 
 function fetchSSHKeys() {
+  loading.start('sshKeys', null, 'fetch')
   api
     .get('/ssh-keys')
     .then((res) => {
       keys.value = res.data as SSHKey[]
     })
     .catch((err) => {
-      error.value = 'Failed to fetch SSH keys: ' + err.response.data
       console.error('Failed to fetch SSH keys:', err)
+      toastError('Failed to fetch SSH keys: ' + err.response)
+    })
+    .finally(() => {
+      loading.stop('sshKeys', null, 'fetch')
     })
 }
 
@@ -118,7 +122,12 @@ onMounted(() => {
         />
       </div>
     </CreateNew>
-    <div class="">
+
+    <div v-if="loading.is('sshKeys', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <div v-else>
       <table class="table min-w-full divide-y divide-gray-200">
         <thead class="">
           <tr>

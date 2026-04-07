@@ -118,14 +118,14 @@ onBeforeUnmount(() => {
 
       <div class="modal-action flex justify-between">
         <!-- Negative -->
-        <button class="btn" type="button" @click="choose('negative')">
+        <button class="btn rounded-lg" type="button" @click="choose('negative')">
           {{ negativeText }}
         </button>
 
         <!-- Positive -->
         <button
           type="button"
-          class="btn"
+          class="btn rounded-lg"
           :class="props.positiveBtnClass ?? 'btn-primary'"
           @click="choose('positive')"
         >

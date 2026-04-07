@@ -5,7 +5,9 @@ import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
 
+const { error: toastError } = useToastService()
 const loading = useLoadingStore()
 
 const pfs = ref<PortForward[]>([])
@@ -16,6 +18,7 @@ const publicIP = ref('')
 const error = ref('')
 
 function fetchPortForwards() {
+  loading.start('portForwards', null, 'fetch')
   api
     .get('/port-forwards')
     .then((res) => {
@@ -23,6 +26,10 @@ function fetchPortForwards() {
     })
     .catch((err) => {
       console.error('Failed to fetch Port Forwards:', err)
+      toastError('Failed to fetch Port Forwards: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('portForwards', null, 'fetch')
     })
 }
 
@@ -103,7 +110,11 @@ onMounted(() => {
     </div>
     <div>
       <p class="">
-        The public IP is: <strong>{{ publicIP }}</strong>
+        <span> The public IP is: </span>
+        <span v-if="!publicIP" class="loading loading-dots loading-xs"></span>
+        <span v-else class="font-mono font-bold">
+          {{ publicIP }}
+        </span>
       </p>
     </div>
     <CreateNew
@@ -120,7 +131,11 @@ onMounted(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('portForwards', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Out Port</th>

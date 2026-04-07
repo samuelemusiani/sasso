@@ -3,11 +3,16 @@ import { onMounted, ref } from 'vue'
 import type { InterfaceExtended } from '@/types'
 import { api } from '@/lib/api'
 import { getStatusClass } from '@/const'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
+const loading = useLoadingStore()
 
 const interfaces = ref<InterfaceExtended[]>([])
-const error = ref('')
 
 function fetchInterfaces() {
+  loading.start('interfaces', null, 'fetch')
   api
     .get('/interfaces')
     .then((res) => {
@@ -15,8 +20,11 @@ function fetchInterfaces() {
       interfaces.value = res.data as InterfaceExtended[]
     })
     .catch((err) => {
-      error.value = 'Failed to fetch interfaces: ' + err.response.data
       console.error('Failed to fetch interfaces:', err)
+      toastError('Failed to fetch interfaces: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('interfaces', null, 'fetch')
     })
 }
 
@@ -34,7 +42,11 @@ onMounted(() => {
       <HelpButton />
     </div>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('interfaces', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th class="">ID</th>

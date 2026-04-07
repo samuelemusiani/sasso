@@ -8,7 +8,6 @@ import { useLoadingStore } from '@/stores/loading'
 import ModalAlert from '@/components/ModalAlert.vue'
 
 const { error: toastError, success: toastSuccess } = useToastService()
-
 const loading = useLoadingStore()
 
 const bots = ref<TelegramBot[]>([])
@@ -19,6 +18,7 @@ const chat_id = ref('')
 const error = ref('')
 
 function fetchTelegramBots() {
+  loading.start('telegramBots', null, 'fetch')
   api
     .get('/notify/telegram')
     .then((res) => {
@@ -27,6 +27,10 @@ function fetchTelegramBots() {
     })
     .catch((err) => {
       console.error('Failed to fetch Telegram Bots:', err)
+      toastError('Failed to fetch Telegram Bots: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('telegramBots', null, 'fetch')
     })
 }
 
@@ -159,7 +163,11 @@ onMounted(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('telegramBots', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Name</th>

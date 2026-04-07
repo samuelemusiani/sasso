@@ -11,8 +11,10 @@ import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
 import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
 import { useUserResources } from '@/composables/userResources'
 import ModalAlert from '@/components/ModalAlert.vue'
+import { useToastService } from '@/composables/useToast'
 
 const { fetchUserResources, userFreeResources } = useUserResources(api)
+const { error: toastError } = useToastService()
 
 const vms = ref<VM[]>([])
 const templates = ref<Template[]>([])
@@ -62,6 +64,7 @@ const minDiskForCurrentTemplate = computed(() => {
 })
 
 function fetchVMs() {
+  loading.start('vm', 0, 'fetch')
   api
     .get('/vm')
     .then((res) => {
@@ -70,6 +73,10 @@ function fetchVMs() {
     })
     .catch((err) => {
       console.error('Failed to fetch VMs:', err)
+      toastError('Failed to fetch VMs: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('vm', 0, 'fetch')
     })
 }
 
@@ -372,7 +379,11 @@ const nonMemberGroups = computed(() => {
       </select>
     </CreateNew>
 
-    <table class="table table-auto divide-y">
+    <div v-if="isLoading(0, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table table-auto divide-y">
       <thead>
         <tr>
           <th v-show="showIds" scope="col">ID</th>
