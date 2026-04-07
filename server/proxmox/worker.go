@@ -1028,6 +1028,10 @@ func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
 	// For 'deleting' VMs, if they are not found on Proxmox, we delete them from the DB,
 	// otherwise we set them to 'pre-deleting' to trigger a deletion.
 	updateVMsCreatingDeleting(resources)
+
+	// For 'configuring' we just put them to 'pre-configuring' to trigger a
+	// reconfiguration.
+	updateVMsConfiguring()
 }
 
 func updateVMsActive(resources []*gprox.ClusterResource) {
@@ -1253,6 +1257,24 @@ func updateVMsCreatingDeleting(resources []*gprox.ClusterResource) {
 		err := db.UpdateVMStatus(v.ID, string(VMStatusPreDeleting))
 		if err != nil {
 			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreDeleting, "err", err)
+		}
+	}
+}
+
+func updateVMsConfiguring() {
+	configuringVMs, err := db.GetVMsWithStatus(string(VMStatusConfiguring))
+	if err != nil {
+		logger.Error("failed to get VMs with 'configuring' status", "error", err)
+
+		return
+	}
+
+	for _, v := range configuringVMs {
+		logger.Warn("VM in 'configuring' status found. Setting status to 'pre-configuring' to trigger reconfiguration", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreConfiguring, "err", err)
 		}
 	}
 }
