@@ -129,8 +129,94 @@ func mapVMIDToProxmoxNodes(parentCtx context.Context, cluster *proxmox.Cluster) 
 	return vmNodes, nil
 }
 
+type taskKey string
+
+var proxmoxTaskIDKey taskKey = "proxmoxTaskID"
+var proxmoxTaskTypeKey taskKey = "proxmoxTaskType"
+
+// withCancelGrace returns a context that is canceled either:
+//   - when parent is done + grace duration, OR
+//   - when you call the returned cancel func.
+func withCancelGrace(parent context.Context, grace time.Duration, logEvery time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		select {
+		case <-parent.Done():
+			if grace <= 0 {
+				cancel()
+
+				return
+			}
+
+			if logEvery <= 0 {
+				logEvery = 20 * time.Second
+			}
+
+			start := time.Now()
+			deadline := start.Add(grace)
+
+			proxmoxTaskID, err := parent.Value(proxmoxTaskIDKey).(string)
+			if !err {
+				proxmoxTaskID = "unknown"
+			}
+
+			proxmoxTaskType, err := parent.Value(proxmoxTaskTypeKey).(string)
+			if !err {
+				proxmoxTaskType = "unknown"
+			}
+
+			logger.Info("parent context done; delaying cancellation for grace period",
+				"grace", grace.Truncate(time.Second), "logEvery", logEvery,
+				"proxmoxTaskID", proxmoxTaskID, "proxmoxTaskType", proxmoxTaskType)
+
+			timer := time.NewTimer(grace)
+			defer timer.Stop()
+
+			ticker := time.NewTicker(logEvery)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-timer.C:
+					logger.Info("grace period elapsed; canceling", "waited", time.Since(start).Truncate(time.Second))
+					cancel()
+
+					return
+
+				case <-ticker.C:
+					remaining := max(time.Until(deadline), 0) // avoid negative durations
+					logger.Info(
+						"waiting for grace period before canceling",
+						"remaining", remaining.Truncate(time.Second),
+						"elapsed", time.Since(start).Truncate(time.Second),
+						"grace", grace.Truncate(time.Second),
+						"proxmoxTaskID", proxmoxTaskID,
+						"proxmoxTaskType", proxmoxTaskType,
+					)
+
+				case <-ctx.Done():
+					// Explicit cancel (caller called cancel()) — stop waiting immediately.
+					return
+				}
+			}
+
+		case <-ctx.Done():
+			// canceled explicitly
+		}
+	}()
+
+	return ctx, cancel
+}
+
 func waitForProxmoxTaskCompletion(parentCtx context.Context, t *proxmox.Task) (bool, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, 240*time.Second)
+	parentCtx = context.WithValue(parentCtx, proxmoxTaskIDKey, string(t.UPID))
+	parentCtx = context.WithValue(parentCtx, proxmoxTaskTypeKey, t.Type)
+
+	graceCtx, graceCancel := withCancelGrace(parentCtx, 70*time.Second, 15*time.Second)
+	defer graceCancel()
+
+	ctx, cancel := context.WithTimeout(graceCtx, 240*time.Second)
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 240, 1)
 
 	cancel()

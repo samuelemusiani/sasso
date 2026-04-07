@@ -2,6 +2,7 @@ package proxmox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -78,7 +79,7 @@ func Worker(ctx context.Context) {
 		now := time.Now()
 
 		cluster, err := getProxmoxCluster(ctx, client)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Error("failed to get Proxmox cluster in main worker", "error", err)
 
 			continue
@@ -95,7 +96,7 @@ func Worker(ctx context.Context) {
 		workerCycleDurationObserve("lifetime_vms", func() { enforceVMLifetimes(ctx) })
 
 		vmNodes, err := mapVMIDToProxmoxNodes(ctx, cluster)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Error("failed to map VMID to Proxmox nodes", "error", err)
 
 			continue
@@ -398,6 +399,11 @@ func createVMs(parentCtx context.Context) {
 	}
 
 	for _, v := range vms {
+		// avoid doing any operation if the context is canceled
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		if v.Status != string(VMStatusPreCreating) {
 			continue
 		}
@@ -497,6 +503,10 @@ func deleteVMs(parentCtx context.Context, vmsLocation map[uint64]string) {
 	}
 
 	for _, v := range vms {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		logger.Debug("Deleting VM", "vmid", v.ID)
 
 		err := db.DeleteAllInterfacesByVMID(v.ID)
@@ -878,6 +888,10 @@ func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
 	}
 
 	for _, v := range vms {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		nodeName, ok := vmNodes[v.ID]
 		if !ok {
 			logger.Error("Can't configure VM. Not found on cluster resources", "vmid", v.ID)
@@ -1472,6 +1486,10 @@ func deleteInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		nodeName, ok := vmNodes[uint64(iface.VMID)]
 		if !ok {
 			logger.Error("Can't configure interface. VM not found on cluster resources", "vmid", iface.VMID, "interface_id", iface.ID)
@@ -1559,6 +1577,10 @@ func configureInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
 	}
 
 	for _, iface := range interfaces {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		dbVM, err := db.GetVMByID(uint64(iface.VMID))
 		if err != nil {
 			logger.Error("failed to get VM by ID for interface", "interface_id", iface.ID, "vmid", iface.VMID, "err", err)
@@ -1719,6 +1741,10 @@ func deleteBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 	}
 
 	for _, r := range bkr {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		slog.Debug("Deleting backup", "id", r.ID)
 
 		if r.Volid == nil {
@@ -1800,6 +1826,10 @@ func restoreBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 	}
 
 	for _, r := range bkr {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		slog.Debug("Restoring backup", "id", r.ID)
 
 		if r.Volid == nil {
@@ -1883,6 +1913,10 @@ func createBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 	}
 
 	for _, r := range bkr {
+		if parentCtx.Err() != nil {
+			return
+		}
+
 		slog.Debug("Creating backup", "id", r.ID)
 
 		nodeName, ok := mapVMContent[uint64(r.VMID)]
