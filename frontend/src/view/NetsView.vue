@@ -232,13 +232,13 @@ const nonMemberGroups = computed(() => {
     <table class="table w-full table-auto">
       <thead>
         <tr>
-          <th class="">Name</th>
-          <th class="">Owner</th>
-          <th class="">Status</th>
-          <th class="">VlanAware</th>
-          <th class="">Subnet</th>
-          <th class="">Gateway</th>
-          <th class=""></th>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Status</th>
+          <th>VlanAware</th>
+          <th>Subnet</th>
+          <th>Gateway</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -248,47 +248,59 @@ const nonMemberGroups = computed(() => {
           class="hover"
           :class="net.group_name ? 'bg-base-200' : ''"
         >
-          <td class="min-w-28 text-lg font-semibold">{{ net.name }}</td>
-          <td class="">{{ net.group_name ? net.group_name : 'Me' }}</td>
-          <td class="font-semibold capitalize" :class="getStatusClass(net.status)">
-            {{ net.status }}
-          </td>
-          <td class="">{{ net.vlanaware }}</td>
-          <td class="">
-            <template v-if="net.subnet">{{ net.subnet }}</template>
-            <div v-else class="flex items-center">
-              <span class="loading loading-dots loading-sm"></span>
+          <td>
+            <div class="min-w-28 text-lg font-semibold">
+              {{ net.name }}
             </div>
           </td>
-          <td class="">
-            <template v-if="net.gateway">{{ net.gateway }}</template>
-            <div v-else class="flex items-center">
-              <span class="loading loading-dots loading-sm"></span>
+          <td>{{ net.group_name ? net.group_name : 'Me' }}</td>
+          <td>
+            <div class="font-semibold capitalize" :class="getStatusClass(net.status)">
+              {{ net.status }}
             </div>
           </td>
-          <td class="flex gap-8">
-            <button
-              v-if="net.status === 'ready'"
-              @click="toggleModify(net.id)"
-              :disabled="net.group_role === 'member'"
-              class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
-            >
-              <IconVue icon="material-symbols:edit" class="text-lg" />
-              <p class="hidden md:inline">Edit</p>
-            </button>
-            <button
-              v-if="net.status === 'ready' || net.status === 'unknown'"
-              @click="preDeleteNet(net.id)"
-              :disabled="net.group_role === 'member' || loading.is('net', net.id, 'delete')"
-              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-            >
-              <span
-                v-if="loading.is('net', net.id, 'delete')"
-                class="loading loading-spinner loading-xs"
-              ></span>
-              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
-              <p class="hidden md:inline">Delete</p>
-            </button>
+          <td>{{ net.vlanaware }}</td>
+          <td>
+            <div>
+              <template v-if="net.subnet">{{ net.subnet }}</template>
+              <div v-else class="flex items-center">
+                <span class="loading loading-dots loading-sm"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div>
+              <template v-if="net.gateway">{{ net.gateway }}</template>
+              <div v-else class="flex items-center">
+                <span class="loading loading-dots loading-sm"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="flex gap-8">
+              <button
+                v-if="net.status === 'ready'"
+                @click="toggleModify(net.id)"
+                :disabled="net.group_role === 'member'"
+                class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+              >
+                <IconVue icon="material-symbols:edit" class="text-lg" />
+                <p class="hidden md:inline">Edit</p>
+              </button>
+              <button
+                v-if="net.status === 'ready' || net.status === 'unknown'"
+                @click="preDeleteNet(net.id)"
+                :disabled="net.group_role === 'member' || loading.is('net', net.id, 'delete')"
+                class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              >
+                <span
+                  v-if="loading.is('net', net.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <IconVue v-else icon="material-symbols:delete" class="text-lg" />
+                <p class="hidden md:inline">Delete</p>
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
