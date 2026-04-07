@@ -688,9 +688,9 @@ func updateVNets(parentCtx context.Context, cluster *gprox.Cluster) {
 
 	logger.Debug("Updating VNets in worker")
 
-	dbVNets, err := db.GetVNetsWithStatus(string(VNetStatusReady))
+	dbVNetsReady, err := db.GetVNetsWithStatus(string(VNetStatusReady))
 	if err != nil {
-		logger.Error("failed to get VNets with 'pre-creating' status", "error", err)
+		logger.Error("failed to get VNets with 'ready' status", "error", err)
 
 		return
 	}
@@ -706,17 +706,19 @@ func updateVNets(parentCtx context.Context, cluster *gprox.Cluster) {
 		return
 	}
 
-	nameToPVNet := make(map[string]*gprox.VNet)
-	for _, pn := range pVNets {
-		nameToPVNet[pn.Name] = pn
+	mapVnetsFunc := func(vnets []*gprox.VNet) map[string]*gprox.VNet {
+		// Allow index proxmox VNets by name
+		nameToPVNet := make(map[string]*gprox.VNet)
+		for _, pn := range vnets {
+			nameToPVNet[pn.Name] = pn
+		}
+
+		return nameToPVNet
 	}
 
-	tagToPVNet := make(map[uint32]*gprox.VNet)
-	for _, pn := range pVNets {
-		tagToPVNet[pn.Tag] = pn
-	}
+	nameToPVNet := mapVnetsFunc(pVNets)
 
-	for _, v := range dbVNets {
+	for _, v := range dbVNetsReady {
 		pvn, ok := nameToPVNet[v.Name]
 		if !ok {
 			logger.Warn("VNet not found in Proxmox. Setting status to unknown", "vnet", v.Name)
@@ -753,6 +755,108 @@ func updateVNets(parentCtx context.Context, cluster *gprox.Cluster) {
 			}
 
 			continue
+		}
+	}
+
+	// Sometimes the server could be restarted while VNets are being created or
+	// deleted, leaving some VNets in 'creating' or 'deleting' status.
+	// For 'creating' VNets, if they are found on Proxmox, we set them to 'ready',
+	// otherwise we set them to 'pre-creating' to trigger a creation.
+	// For 'deleting' VNets, if they are not found on Proxmox, we delete them from the DB,
+	// otherwise we set them to 'pre-deleting' to trigger a deletion.
+	// For both of them if they are found on Proxmox but with different configuration,
+	// we set them to 'unknown'.
+
+	ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
+	pVNets, err = cluster.SDNVNetsWithPending(ctx)
+
+	cancel()
+
+	if err != nil {
+		logger.Error("failed to get pending VNets from Proxmox", "error", err)
+
+		return
+	}
+
+	nameToPVNet = mapVnetsFunc(pVNets)
+
+	dbVNetsCreating, err := db.GetVNetsWithStatus(string(VNetStatusCreating))
+	if err != nil {
+		logger.Error("failed to get VNets with 'creating' status", "error", err)
+
+		return
+	}
+
+	for _, v := range dbVNetsCreating {
+		pvn, ok := nameToPVNet[v.Name]
+		if !ok {
+			logger.Warn("VNet in 'creating' status not found in Proxmox. Setting status to pre-creating", "vnet", v.Name)
+
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusPreCreating))
+			if err != nil {
+				logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusPreCreating, "err", err)
+			}
+
+			continue
+		}
+
+		// Empty state means that the VNet is created and applied
+		if pvn.Name != v.Name || pvn.Tag != v.Tag || pvn.State != "" {
+			logger.Warn("VNet in 'creating' status found in Proxmox. But it has different configuration. Setting status to unknown", "vnet", v.Name, "db_name", v.Name, "proxmox_name", pvn.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
+
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+
+			continue
+		}
+
+		logger.Info("VNet in 'creating' status found in Proxmox with correct configuration. Setting status to ready", "vnet", v.Name)
+
+		err = db.UpdateVNetStatus(v.ID, string(VNetStatusReady))
+		if err != nil {
+			logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusReady, "err", err)
+		}
+	}
+
+	// Handle 'deleting' VNets
+	dbVNetsDeleting, err := db.GetVNetsWithStatus(string(VNetStatusDeleting))
+	if err != nil {
+		logger.Error("failed to get VNets with 'deleting' status", "error", err)
+
+		return
+	}
+
+	for _, v := range dbVNetsDeleting {
+		pvn, ok := nameToPVNet[v.Name]
+		if !ok {
+			logger.Info("VNet in 'deleting' status not found in Proxmox. Deleting from DB", "vnet", v.Name)
+
+			err = db.DeleteNetByID(v.ID)
+			if err != nil {
+				logger.Error("failed to delete VNet from DB", "vnet", v.Name, "err", err)
+			}
+
+			continue
+		}
+
+		if pvn.Name != v.Name || pvn.Tag != v.Tag {
+			logger.Warn("VNet in 'deleting' status found in Proxmox. But it has different configuration. Setting status to unknown", "vnet", v.Name, "db_name", v.Name, "proxmox_name", pvn.Name, "db_tag", v.Tag, "proxmox_tag", pvn.Tag)
+
+			err = db.UpdateVNetStatus(v.ID, string(VNetStatusUnknown))
+			if err != nil {
+				logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusUnknown, "err", err)
+			}
+
+			continue
+		}
+
+		logger.Warn("VNet in 'deleting' status found in Proxmox. Setting status to pre-deleting to trigger deletion", "vnet", v.Name)
+
+		err = db.UpdateVNetStatus(v.ID, string(VNetStatusPreDeleting))
+		if err != nil {
+			logger.Error("failed to update status of VNet", "vnet", v.Name, "new_status", VNetStatusPreDeleting, "err", err)
 		}
 	}
 }
@@ -915,6 +1019,22 @@ func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
 		return
 	}
 
+	updateVMsActive(resources)
+
+	// Sometimes the server could be restarted while VMs are being created or
+	// deleted, leaving some VMs in 'creating' or 'deleting' status.
+	// For 'creating' VMs, if they are found on Proxmox, we set them to
+	// 'pre-configuring', otherwise we set them to 'pre-creating' to trigger a creation.
+	// For 'deleting' VMs, if they are not found on Proxmox, we delete them from the DB,
+	// otherwise we set them to 'pre-deleting' to trigger a deletion.
+	updateVMsCreatingDeleting(resources)
+
+	// For 'configuring' we just put them to 'pre-configuring' to trigger a
+	// reconfiguration.
+	updateVMsConfiguring()
+}
+
+func updateVMsActive(resources []*gprox.ClusterResource) {
 	allVMStatus := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
 
 	activeVMs, err := db.GetAllActiveVMsWithUnknown()
@@ -1070,6 +1190,91 @@ func updateVMs(parentCtx context.Context, cluster *gprox.Cluster) {
 		err := db.UpdateVMStatus(vmid, string(VMStatusUnknown))
 		if err != nil {
 			logger.Error("failed to update status of VM", "vmid", vmid, "new_status", VMStatusUnknown, "err", err)
+		}
+	}
+}
+
+func updateVMsCreatingDeleting(resources []*gprox.ClusterResource) {
+	// We map resources by VMID for easier access
+	vmidToResource := make(map[uint64]*gprox.ClusterResource)
+
+	for _, r := range resources {
+		if r.Type != "qemu" {
+			continue
+		}
+
+		vmidToResource[r.VMID] = r
+	}
+
+	creatingVMs, err := db.GetVMsWithStatus(string(VMStatusCreating))
+	if err != nil {
+		logger.Error("failed to get VMs with 'creating' status", "error", err)
+
+		return
+	}
+
+	for _, v := range creatingVMs {
+		_, ok := vmidToResource[v.ID]
+		if !ok {
+			logger.Warn("VM in 'creating' status not found in Proxmox. Setting status to 'pre-creating'", "vmid", v.ID)
+
+			err := db.UpdateVMStatus(v.ID, string(VMStatusPreCreating))
+			if err != nil {
+				logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreCreating, "err", err)
+			}
+		}
+
+		logger.Info("VM in 'creating' status found in Proxmox. Setting status to 'pre-configuring'", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreConfiguring, "err", err)
+		}
+	}
+
+	deletingVMs, err := db.GetVMsWithStatus(string(VMStatusDeleting))
+	if err != nil {
+		logger.Error("failed to get VMs with 'deleting' status", "error", err)
+
+		return
+	}
+
+	for _, v := range deletingVMs {
+		_, ok := vmidToResource[v.ID]
+		if !ok {
+			logger.Info("VM in 'deleting' status not found in Proxmox. Deleting from DB", "vmid", v.ID)
+
+			err := db.DeleteVMByID(v.ID)
+			if err != nil {
+				logger.Error("failed to delete VM from DB", "vmid", v.ID, "err", err)
+			}
+
+			continue
+		}
+
+		logger.Warn("VM in 'deleting' status found in Proxmox. Setting status to 'pre-deleting' to trigger deletion", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreDeleting))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreDeleting, "err", err)
+		}
+	}
+}
+
+func updateVMsConfiguring() {
+	configuringVMs, err := db.GetVMsWithStatus(string(VMStatusConfiguring))
+	if err != nil {
+		logger.Error("failed to get VMs with 'configuring' status", "error", err)
+
+		return
+	}
+
+	for _, v := range configuringVMs {
+		logger.Warn("VM in 'configuring' status found. Setting status to 'pre-configuring' to trigger reconfiguration", "vmid", v.ID)
+
+		err := db.UpdateVMStatus(v.ID, string(VMStatusPreConfiguring))
+		if err != nil {
+			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusPreConfiguring, "err", err)
 		}
 	}
 }
