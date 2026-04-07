@@ -203,7 +203,7 @@ const disableDelete = computed(() => {
 
     <button
       @click="preDeleteVM(vm.id)"
-      :disabled="disableDelete"
+      :disabled="disableDelete || isLoading(vm.id, 'delete')"
       class="btn btn-error btn-outline w-70 rounded-lg"
     >
       <span
