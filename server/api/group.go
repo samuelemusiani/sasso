@@ -617,42 +617,6 @@ type addGroupResourcesRequest struct {
 	Nets  uint `json:"nets"`
 }
 
-func addGroupResources(w http.ResponseWriter, r *http.Request) {
-	group := mustGetGroupFromContext(r)
-
-	var req addGroupResourcesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-
-		return
-	}
-
-	userID := mustGetUserIDFromContext(r)
-
-	m := getUserResourceMutex(userID)
-
-	m.Lock()
-	defer m.Unlock()
-
-	err := db.AddGroupResources(group.ID, userID, db.ResourcesWithNets{
-		Cores: req.Cores,
-		RAM:   req.RAM,
-		Disk:  req.Disk,
-		Nets:  req.Nets,
-	})
-	if err != nil {
-		if errors.Is(err, db.ErrInsufficientResources) {
-			http.Error(w, "Insufficient resources", http.StatusConflict)
-
-			return
-		}
-
-		http.Error(w, "Failed to add resources to group member", http.StatusInternalServerError)
-
-		return
-	}
-}
-
 func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
@@ -812,7 +776,7 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.UpdateGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
+	err = db.SetGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
@@ -871,7 +835,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func modifyGroupResources(w http.ResponseWriter, r *http.Request) {
+func setGroupResources(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 	userID := mustGetUserIDFromContext(r)
 

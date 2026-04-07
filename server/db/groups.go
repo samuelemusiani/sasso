@@ -737,7 +737,7 @@ func AddGroupResources(groupID, userID uint, res ResourcesWithNets) error {
 	})
 }
 
-func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
+func SetGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		var groupResource GroupResource
 
@@ -792,6 +792,7 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 			return err
 		}
 
+		// We have SetGroupResourceByAdmin for this
 		if userID == adminID {
 			return nil
 		}
@@ -846,6 +847,10 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 		currentResources.RAM = newResources.RAM
 		currentResources.Disk = newResources.Disk
 		currentResources.Nets = newResources.Nets
+
+		// In case it's the first time and currentResources is empty
+		currentResources.GroupID = groupID
+		currentResources.UserID = userID
 
 		err = tx.Save(&currentResources).Error
 		if err != nil {

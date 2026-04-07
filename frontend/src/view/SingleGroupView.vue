@@ -124,13 +124,13 @@ const bodyDeleteModal = computed(() => {
 })
 
 function saveResources() {
-  const method = addOrUpdateResources.value ? 'put' : 'post'
-  return api[method](`/groups/${groupId}/resources`, {
-    cores: cores.value,
-    ram: ram.value,
-    disk: disk.value,
-    nets: nets.value,
-  })
+  return api
+    .put(`/groups/${groupId}/resources`, {
+      cores: cores.value,
+      ram: ram.value,
+      disk: disk.value,
+      nets: nets.value,
+    })
     .then(() => {
       toastSuccess('Resources saved successfully.')
       fetchGroup() // This will re-fetch group and resources
