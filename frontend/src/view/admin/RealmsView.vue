@@ -9,7 +9,6 @@ import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
 
 const { error: toastError } = useToastService()
-
 const loading = useLoadingStore()
 
 const realms = ref<Realm[]>([])
@@ -18,6 +17,7 @@ const addingRealm = ref(false)
 const addingType = ref('ldap')
 
 function fetchRealms() {
+  loading.start('realms', null, 'fetch')
   api
     .get('/admin/realms')
     .then((res) => {
@@ -25,6 +25,10 @@ function fetchRealms() {
     })
     .catch((err) => {
       console.error('Failed to fetch realms:', err)
+      toastError('Failed to fetch realms: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('realms', null, 'fetch')
     })
 }
 
@@ -78,12 +82,17 @@ onMounted(() => {
       <AdminBreadcrumbs />
       <HelpButton />
     </div>
-    <button class="btn btn-primary" @click="addingRealm = true" v-show="!addingRealm">
+    <button class="btn btn-primary rounded-lg" @click="addingRealm = true" v-show="!addingRealm">
       Add LDAP Realm
     </button>
-    <table class="mt-2 table w-full p-2" v-show="!addingRealm">
+
+    <div v-if="loading.is('realms', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="mt-2 table w-full p-2" v-show="!addingRealm">
       <thead>
-        <tr class="">
+        <tr class="uppercase">
           <th class="">Name</th>
           <th class="">Description</th>
           <th class="">Type</th>
@@ -97,12 +106,16 @@ onMounted(() => {
           <td class="">{{ realm.type }}</td>
           <td class="">
             <div class="flex justify-start gap-2" v-show="realm.type != 'local'">
-              <RouterLink class="btn btn-primary" :to="`/admin/realms/${realm.id}`"
-                >Edit</RouterLink
+              <RouterLink
+                class="btn btn-primary btn-sm md:btn-md rounded-lg"
+                :to="`/admin/realms/${realm.id}`"
               >
+                <IconVue icon="material-symbols:edit" class="text-lg" />
+                <p class="hidden md:inline">Edit</p>
+              </RouterLink>
               <button
                 @click="preDeleteRealm(realm.id)"
-                class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+                class="btn btn-error btn-sm md:btn-md rounded-lg"
                 :disabled="loading.is('realm', realm.id, 'delete')"
               >
                 <span
