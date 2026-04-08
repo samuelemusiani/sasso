@@ -80,6 +80,19 @@ function fetchVMs() {
     })
 }
 
+function fetchVMsWithoutLoading() {
+  api
+    .get('/vm')
+    .then((res) => {
+      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
+      vms.value = tmp as VM[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch VMs:', err)
+      toastError('Failed to fetch VMs: ' + err.response.data)
+    })
+}
+
 function fetchTemplates() {
   api
     .get('/vm/templates')
@@ -219,7 +232,7 @@ onMounted(() => {
   fetchGroups()
   fetchUserResources()
   intervalId = setInterval(() => {
-    fetchVMs()
+    fetchVMsWithoutLoading()
     fetchTemplates()
     fetchUserResources()
   }, 5000)
