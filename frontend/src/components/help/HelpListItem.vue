@@ -23,18 +23,23 @@ const $props = defineProps<{
 
 <template>
   <div v-if="$props.routes.length > 0">
-    <ul class="list-disc">
-      <li class="my-8 list-item" v-for="r in $props.routes" :key="r.path">
-        <RouterLink class="link link-primary flex capitalize" :to="`${$props.basePath}/${r.path}`">
-          <!-- show something nicer if you set meta.title -->
-          <div class="flex items-center gap-2" v-if="r.meta">
-            <IconVue :icon="getPageIcon(r.meta.title)" class="text-primary inline" />
-            <div v-if="r.meta" class="font-semibold">
-              {{ r.meta.title }}
+    <ul class="flex flex-col gap-2">
+      <li class="" v-for="r in $props.routes" :key="r.path">
+        <div class="border-b-base-100 border-b hover:rounded-lg">
+          <RouterLink
+            class="hover:bg-base-100 text-primary flex rounded-lg p-2 capitalize"
+            :to="`${$props.basePath}/${r.path}`"
+          >
+            <!-- show something nicer if you set meta.title -->
+            <div class="flex items-center gap-2" v-if="r.meta">
+              <IconVue :icon="getPageIcon(r.meta.title)" class="text-primary inline text-2xl" />
+              <div v-if="r.meta" class="font-semibold">
+                {{ r.meta.title }}
+              </div>
             </div>
-          </div>
-        </RouterLink>
-        <div v-if="r.children" class="ml-4">
+          </RouterLink>
+        </div>
+        <div v-if="r.children" class="ml-8 pt-2">
           <HelpListItem :base-path="`${$props.basePath}/${r.path}`" :routes="r.children" />
         </div>
       </li>
