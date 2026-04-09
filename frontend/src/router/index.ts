@@ -109,6 +109,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '/help',
         component: HelpView,
+        meta: { fullscreen: true },
         children: [
           { path: 'home', component: HelpHome, meta: { title: 'home' } },
           {
