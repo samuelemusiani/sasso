@@ -32,8 +32,7 @@ function mapChildRoutes(routes: RouteRecordRaw[]): ruteRecord[] {
         return { ...r, children: mapChildRoutes(r.children) }
       }
       return r
-    })
-    .sort((a, b) => a.path.localeCompare(b.path)) as ruteRecord[]
+    }) as ruteRecord[]
 }
 
 const helpChildRoutes = computed(() => {
