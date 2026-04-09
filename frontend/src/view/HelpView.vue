@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, type Component, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute, type RouteRecordRaw } from 'vue-router'
 import { getPageIcon } from '@/const'
 import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import HelpListItem from '@/components/help/HelpListItem.vue'
+import { useUiStore } from '@/stores/ui'
 
 const router = useRouter()
 const route = useRoute()
+const ui = useUiStore()
 
 const isBaseHelpRoute = computed(() => route.path === '/help' || route.path === '/help/')
 
@@ -41,6 +43,19 @@ const helpChildRoutes = computed(() => {
   const tmp = mapChildRoutes(helpRoute?.children || [])
   console.log('help child routes', tmp)
   return tmp
+})
+
+let wasHelpOpen = false
+
+onMounted(() => {
+  wasHelpOpen = ui.helpOpen
+  ui.closeHelp()
+})
+
+onBeforeUnmount(() => {
+  if (wasHelpOpen) {
+    ui.openHelp()
+  }
 })
 </script>
 
