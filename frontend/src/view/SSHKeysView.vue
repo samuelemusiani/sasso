@@ -6,6 +6,7 @@ import CreateNew from '@/components/CreateNew.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
 
 const { error: toastError } = useToastService()
 
@@ -98,7 +99,7 @@ onMounted(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="text-base-content flex items-center gap-2 text-3xl font-bold">
-        <IconVue icon="material-symbols:key" class="text-primary" />
+        <IconVue :icon="getPageIcon('ssh-keys')" class="text-primary" />
         SSH Keys
       </h1>
       <HelpButton />

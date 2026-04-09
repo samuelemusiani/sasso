@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
 import { api } from '@/lib/api'
 import { useToastService } from '@/composables/useToast'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import CreateNew from '@/components/CreateNew.vue'
 import UserStats from '@/components/UserStats.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
@@ -453,7 +453,7 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
+    <BreadcrumbNav />
 
     <div v-if="group" class="rounded-lg p-4 shadow">
       <h2 class="mb-2 text-xl font-semibold">{{ group.name }}</h2>

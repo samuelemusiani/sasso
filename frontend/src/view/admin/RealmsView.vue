@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { Realm } from '@/types'
 import RealmsMultiplexer from '@/components/realms/RealmsMultiplexer.vue'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
@@ -79,7 +79,7 @@ onMounted(() => {
 <template>
   <div class="p-2">
     <div class="flex justify-between">
-      <AdminBreadcrumbs />
+      <BreadcrumbNav />
       <HelpButton />
     </div>
     <button class="btn btn-primary rounded-lg" @click="addingRealm = true" v-show="!addingRealm">

@@ -4,6 +4,7 @@ import UserStats from '@/components/UserStats.vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 import { useUserResources } from '@/composables/userResources'
+import { getPageIcon } from '@/const'
 
 const { fetchUserResources, userResourcesGB } = useUserResources(api)
 
@@ -71,7 +72,7 @@ onMounted(() => {
     <div class="mb-6">
       <div class="flex justify-between">
         <h1 class="flex items-center gap-3 text-3xl font-bold">
-          <IconVue class="text-primary" icon="material-symbols:home-rounded"></IconVue>
+          <IconVue class="text-primary" :icon="getPageIcon('home')"></IconVue>
           Hi {{ whoami?.username }}!
         </h1>
         <HelpButton />

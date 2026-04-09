@@ -5,6 +5,7 @@ import { onMounted, ref } from 'vue'
 import VPNConfigComponent from '@/components/VPNConfig.vue'
 import { useToastService } from '@/composables/useToast'
 import { useLoadingStore } from '@/stores/loading'
+import { getPageIcon } from '@/const'
 
 const { error: toastError, success: toastSuccess } = useToastService()
 const loading = useLoadingStore()
@@ -76,7 +77,7 @@ onMounted(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h2 class="card-title text-base-content flex items-center gap-3 text-3xl font-bold">
-        <IconVue icon="cib:wireguard" class="text-primary" />
+        <IconVue :icon="getPageIcon('vpn')" class="text-primary" />
         WireGuard VPN
       </h2>
       <HelpButton />

@@ -4,7 +4,7 @@ import { ref, onMounted } from 'vue'
 import { api } from '@/lib/api'
 import { useRoute } from 'vue-router'
 import type { Realm, LDAPRealm } from '@/types'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 
 const $route = useRoute()
 const $emit = defineEmits(['realmAdded'])
@@ -46,7 +46,7 @@ onMounted(() => {
 <template>
   <div class="p-2">
     <div class="flex justify-between">
-      <AdminBreadcrumbs />
+      <BreadcrumbNav />
       <HelpButton />
     </div>
     <LDAPForm

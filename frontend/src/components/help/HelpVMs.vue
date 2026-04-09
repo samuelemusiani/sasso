@@ -130,7 +130,7 @@ import { RouterLink } from 'vue-router'
       </p>
       <p>The command to connect to the VM is usually something like this:</p>
       <pre class="bg-base-100 overflow-x-auto rounded-lg py-4 font-mono">
-        ssh &ltuser&gt@&ltip&gt </pre
+        ssh &lt;user&gt;@&lt;ip&gt; </pre
       >
       <p>
         For example, if the OS image is Debian and the IP address of the interface is

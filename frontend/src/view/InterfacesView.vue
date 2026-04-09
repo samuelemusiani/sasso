@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { InterfaceExtended } from '@/types'
 import { api } from '@/lib/api'
-import { getStatusClass } from '@/const'
+import { getStatusClass, getPageIcon } from '@/const'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
 
@@ -37,7 +37,7 @@ onMounted(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="ph:path"></IconVue>Interfaces
+        <IconVue class="text-primary" :icon="getPageIcon('interfaces')"></IconVue>Interfaces
       </h1>
       <HelpButton />
     </div>

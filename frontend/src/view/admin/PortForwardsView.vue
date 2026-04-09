@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { AdminPortForward } from '@/types'
 import { api } from '@/lib/api'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
 
@@ -56,7 +56,7 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
-      <AdminBreadcrumbs />
+      <BreadcrumbNav />
       <HelpButton />
     </div>
     <div class="overflow-x-auto">

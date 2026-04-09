@@ -12,6 +12,7 @@ import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
 import { useUserResources } from '@/composables/userResources'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
 
 const { fetchUserResources, userFreeResources } = useUserResources(api)
 const { error: toastError } = useToastService()
@@ -254,7 +255,7 @@ const nonMemberGroups = computed(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
+        <IconVue class="text-primary" :icon="getPageIcon('vm')"></IconVue>Virtual Machine
       </h1>
       <HelpButton />
     </div>

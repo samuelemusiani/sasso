@@ -4,6 +4,7 @@ import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { api } from '@/lib/api'
 import type { VM } from '@/types'
 import { useLoadingStore } from '@/stores/loading'
+import { getPageIcon } from '@/const'
 
 const router = useRouter()
 const route = useRoute()
@@ -21,7 +22,7 @@ const tabs = [
   { id: 'info', label: 'Info', path: '', icon: 'ph:info' },
   { id: 'resources', label: 'Resources', path: 'resources', icon: 'ph:cpu' },
   { id: 'interfaces', label: 'Interfaces', path: 'interfaces', icon: 'ph:path' },
-  { id: 'backups', label: 'Backups', path: 'backups', icon: 'material-symbols:backup-outline' },
+  { id: 'backups', label: 'Backups', path: 'backups', icon: `${getPageIcon('backups')}-outline` },
 ]
 
 const activeTab = computed(() => {

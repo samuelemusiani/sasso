@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
 
@@ -35,7 +35,7 @@ onMounted(() => {
 <template>
   <div class="p-2">
     <div class="flex justify-between px-4">
-      <AdminBreadcrumbs />
+      <BreadcrumbNav />
       <HelpButton />
     </div>
 

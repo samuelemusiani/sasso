@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminCard from '@/components/AdminCard.vue'
+import { getPageIcon } from '@/const'
 
 const menu = {
   users: {
@@ -11,7 +12,7 @@ const menu = {
   groups: {
     to: '/admin/groups',
     color: 'error',
-    icon: 'mdi:account-group-outline',
+    icon: getPageIcon('groups'),
     title: 'Groups',
   },
   realms: {
@@ -23,13 +24,13 @@ const menu = {
   sshKeys: {
     to: '/admin/ssh-keys',
     color: 'warning',
-    icon: 'mdi:key-outline',
+    icon: getPageIcon('ssh-keys'),
     title: 'SSH Keys',
   },
   portForwards: {
     to: '/admin/port-forwards',
     color: 'success',
-    icon: 'mdi:network-outline',
+    icon: getPageIcon('port-forwards'),
     title: 'Port Forwards',
   },
 }
@@ -39,8 +40,7 @@ const menu = {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="material-symbols:admin-panel-settings"></IconVue>Admin
-        Panel
+        <IconVue class="text-primary" :icon="getPageIcon('admin')"></IconVue>Admin Panel
       </h1>
       <HelpButton />
     </div>

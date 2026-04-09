@@ -1,38 +1,16 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import HelpHome from '@/components/help/HelpHome.vue'
-import HelpVMs from '@/components/help/HelpVMs.vue'
-import HelpVPN from '@/components/help/HelpVPN.vue'
-import HelpSSHKeys from '@/components/help/HelpSSHKeys.vue'
-import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
+import { useRoute, RouterLink } from 'vue-router'
+import { computed } from 'vue'
+
 const route = useRoute()
-import type { Component } from 'vue'
+const helpComponent = computed(() => route.meta.helpComponent)
 
 import { useUiStore } from '@/stores/ui'
 const ui = useUiStore()
 
-type selector = {
-  regex: string
-  component: Component
-}
-
-const helpSelectors: selector[] = [
-  { regex: '^/$', component: HelpHome },
-  { regex: '^/vm$', component: HelpVMs },
-  { regex: '^/vpn$', component: HelpVPN },
-  { regex: '^/ssh-keys$', component: HelpSSHKeys },
-  { regex: '^/vm/[0-9]*/backups$', component: HelpVMBackups },
-]
-
-function componentFromRoute(path: string) {
-  for (const selector of helpSelectors) {
-    const regex = new RegExp(selector.regex)
-    if (regex.test(path)) {
-      return selector.component
-    }
-  }
-  return null
-}
+const fullHelpRoute = computed(() => {
+  return '/help' + route.path
+})
 </script>
 
 <template>
@@ -48,14 +26,25 @@ function componentFromRoute(path: string) {
           </div>
 
           <div class="h-[82vh] overflow-y-auto pr-2">
-            <component v-if="componentFromRoute(route.path)" :is="componentFromRoute(route.path)" />
+            <component v-if="helpComponent" :is="helpComponent" />
             <div v-else class="">
               <span class="text-base-content/60">No help content for this page yet :(</span>
             </div>
           </div>
         </div>
 
-        <button class="btn btn-outline btn-info rounded-lg" @click="ui.closeHelp()">Close</button>
+        <div class="flex justify-between gap-2">
+          <button class="btn btn-outline btn-info flex-1 rounded-lg" @click="ui.closeHelp()">
+            Close
+          </button>
+          <RouterLink
+            :to="fullHelpRoute"
+            class="btn btn-outline btn-info flex-1 rounded-lg"
+            @click="ui.closeHelp()"
+          >
+            Full Page
+          </RouterLink>
+        </div>
       </div>
     </div>
   </div>

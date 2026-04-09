@@ -7,6 +7,7 @@ import { getStatusClass } from '@/const'
 import { useToastService } from '@/composables/useToast'
 import { useLoadingStore } from '@/stores/loading'
 import ModalAlert from '@/components/ModalAlert.vue'
+import { getPageIcon } from '@/const'
 
 const { error: toastError } = useToastService()
 
@@ -192,7 +193,7 @@ const nonMemberGroups = computed(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
+        <IconVue class="text-primary" :icon="getPageIcon('net')"></IconVue>Networks
       </h1>
       <HelpButton />
     </div>

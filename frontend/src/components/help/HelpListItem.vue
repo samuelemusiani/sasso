@@ -1,0 +1,43 @@
+<script setup lang="ts">
+import { getPageIcon } from '@/const'
+import HelpListItem from '@/components/help/HelpListItem.vue'
+import { RouterLink } from 'vue-router'
+import type { Component } from 'vue'
+
+type routeMeta = {
+  title: string
+}
+
+type routeRecord = {
+  path: string
+  component: Component
+  meta: routeMeta
+  children?: routeRecord[]
+}
+
+const $props = defineProps<{
+  routes: routeRecord[]
+  basePath?: string
+}>()
+</script>
+
+<template>
+  <div v-if="$props.routes.length > 0">
+    <ul class="list-disc">
+      <li class="my-8 list-item" v-for="r in $props.routes" :key="r.path">
+        <RouterLink class="link link-primary flex capitalize" :to="`${$props.basePath}/${r.path}`">
+          <!-- show something nicer if you set meta.title -->
+          <div class="flex items-center gap-2" v-if="r.meta">
+            <IconVue :icon="getPageIcon(r.meta.title)" class="text-primary inline" />
+            <div v-if="r.meta" class="font-semibold">
+              {{ r.meta.title }}
+            </div>
+          </div>
+        </RouterLink>
+        <div v-if="r.children" class="ml-4">
+          <HelpListItem :base-path="`${$props.basePath}/${r.path}`" :routes="r.children" />
+        </div>
+      </li>
+    </ul>
+  </div>
+</template>

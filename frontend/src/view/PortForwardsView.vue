@@ -6,6 +6,7 @@ import CreateNew from '@/components/CreateNew.vue'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
 
 const { error: toastError } = useToastService()
 const loading = useLoadingStore()
@@ -104,7 +105,7 @@ onMounted(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="material-symbols:router"></IconVue>Port Forwards
+        <IconVue class="text-primary" :icon="getPageIcon('port-forwards')"></IconVue>Port Forwards
       </h1>
       <HelpButton />
     </div>

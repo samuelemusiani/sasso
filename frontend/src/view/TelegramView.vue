@@ -6,6 +6,7 @@ import CreateNew from '@/components/CreateNew.vue'
 import { useToastService } from '@/composables/useToast'
 import { useLoadingStore } from '@/stores/loading'
 import ModalAlert from '@/components/ModalAlert.vue'
+import { getPageIcon } from '@/const'
 
 const { error: toastError, success: toastSuccess } = useToastService()
 const loading = useLoadingStore()
@@ -131,7 +132,7 @@ onMounted(() => {
   <div class="flex flex-col gap-2 p-2">
     <div class="flex justify-between">
       <h1 class="flex items-center gap-2 text-3xl font-bold">
-        <IconVue class="text-primary" icon="mdi:telegram"></IconVue>Telegram Bots
+        <IconVue class="text-primary" :icon="getPageIcon('telegram')"></IconVue>Telegram Bots
       </h1>
       <HelpButton />
     </div>
