@@ -41,6 +41,19 @@ function fetchNets() {
     })
 }
 
+function fetchNetsWithoutLoading() {
+  api
+    .get('/net')
+    .then((res) => {
+      res.data.sort((a: Net, b: Net) => a.id - b.id)
+      nets.value = res.data as Net[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch nets:', err)
+      toastError('Failed to fetch nets: ' + err.response.data)
+    })
+}
+
 function fetchGroups() {
   api.get('/groups').then((res) => {
     groups.value = res.data as Group[]
@@ -53,7 +66,7 @@ onMounted(() => {
   fetchNets()
   fetchGroups()
   intervalId = setInterval(() => {
-    fetchNets()
+    fetchNetsWithoutLoading()
   }, 5000)
 })
 

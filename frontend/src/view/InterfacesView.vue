@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onBeforeUnmount } from 'vue'
 import type { InterfaceExtended } from '@/types'
 import { api } from '@/lib/api'
 import { getStatusClass, getPageIcon } from '@/const'
@@ -28,8 +28,32 @@ function fetchInterfaces() {
     })
 }
 
+function fetchInterfacesWithoutLoading() {
+  api
+    .get('/interfaces')
+    .then((res) => {
+      res.data.sort((a: InterfaceExtended, b: InterfaceExtended) => a.id - b.id)
+      interfaces.value = res.data as InterfaceExtended[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch interfaces:', err)
+      toastError('Failed to fetch interfaces: ' + err.response.data)
+    })
+}
+
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchInterfaces()
+  intervalId = window.setInterval(() => {
+    fetchInterfacesWithoutLoading()
+  }, 5000) // Refresh every 5 seconds
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
