@@ -1,22 +1,25 @@
 <script setup lang="ts">
 import { getStatusClass } from '@/const'
 import { RouterLink } from 'vue-router'
+import CodeSnippet from '@/components/help/CodeSnippet.vue'
+import HelpParagraph from '@/components/help/HelpParagraph.vue'
+import HelpPage from '@/components/help/HelpPage.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Introduction</h2>
+  <HelpPage>
+    <HelpParagraph>
+      <template #title>Introduction</template>
       <p>
         VMs are the core of sasso. In this page you can find a summary of all yours VMs - even the
         group shared ones - and some relevant information about them. More detailed information
         about each VM can be found in the VM details page, which you can access by clicking the
         "Manage" button on the right of each VM.
       </p>
-    </div>
+    </HelpParagraph>
 
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Fields</h2>
+    <HelpParagraph>
+      <template #title>Fields</template>
       <p>
         <b class="text-info">Name</b> is the name and <b>hostname</b> of your VM. Use it to
         distinguish between your VMs.
@@ -88,9 +91,10 @@ import { RouterLink } from 'vue-router'
         debugging and to identify the VM when contacting the administrator. You can find it in the
         VM details page or using the "Show IDs" toggle on the top right of the page.
       </p>
-    </div>
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Actions</h2>
+    </HelpParagraph>
+
+    <HelpParagraph>
+      <template #title>Actions</template>
       <p>You can perform various actions on your VMs:</p>
       <ul class="list-disc pl-6">
         <li>
@@ -113,9 +117,9 @@ import { RouterLink } from 'vue-router'
           lose all the data on the VM.
         </li>
       </ul>
-    </div>
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Access</h2>
+    </HelpParagraph>
+    <HelpParagraph>
+      <template #title>Access</template>
       <p>
         To access the VM you first need to add an
         <RouterLink to="/ssh-keys" class="link link-primary">SSH key to your account</RouterLink>,
@@ -129,20 +133,16 @@ import { RouterLink } from 'vue-router'
         the VM is based on Debian, the user is "debian" and so on.
       </p>
       <p>The command to connect to the VM is usually something like this:</p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg py-4 font-mono">
-        ssh &lt;user&gt;@&lt;ip&gt; </pre
-      >
+      <CodeSnippet> ssh &lt;user&gt;@&lt;ip&gt; </CodeSnippet>
       <p>
         For example, if the OS image is Debian and the IP address of the interface is
-        <span class="bg-base-100 rounded-lg p-1 font-mono">10.0.0.1</span>, the command would be:
+        <CodeSnippet :inline="true">10.0.0.1</CodeSnippet>, the command would be:
       </p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg py-4 font-mono">
-        ssh debian@10.0.0.1 </pre
-      >
+      <CodeSnippet> ssh debian@10.0.0.1 </CodeSnippet>
       <p>
         Please note that <b class="text-info">SSH Keys</b> only apply to "Stopped" VMs. If you add
         an SSH key to a VM that is already running, the key will not be added until the next boot.
       </p>
-    </div>
-  </div>
+    </HelpParagraph>
+  </HelpPage>
 </template>

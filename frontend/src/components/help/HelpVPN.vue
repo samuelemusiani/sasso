@@ -1,39 +1,44 @@
+<script setup lang="ts">
+import CodeSnippet from '@/components/help/CodeSnippet.vue'
+import HelpParagraph from '@/components/help/HelpParagraph.vue'
+import HelpPage from '@/components/help/HelpPage.vue'
+</script>
+
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Introduction</h2>
+  <HelpPage>
+    <HelpParagraph>
+      <template #title>Introduction</template>
       <p>
         Sasso uses a VPN service based on
         <a class="link link-error" href="https://www.wireguard.com/" target="_blank">WireGuard</a>.
         This allows you to connect to your VMs as if they were directly connected to your local
         network, providing a secure and fast connection to them.
       </p>
-    </div>
+    </HelpParagraph>
 
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Security</h2>
+    <HelpParagraph>
+      <template #title>Security</template>
       <p>
         All the traffic between your device and your VMs that goes through the VPN is
         <b>encrypted</b> using WireGuard's encryption protocols. This ensures that no one exept you
         and the Sasso servers can access the data being transmitted, providing a secure connection
         even over public insecure networks.
       </p>
-    </div>
+    </HelpParagraph>
 
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Configurations</h2>
+    <HelpParagraph>
+      <template #title>Configurations</template>
       <p>
         Wireguard uses a profile (configuration) to define a connection. Refer to the offical
         documentation on how to use them. If you have the
         <span class="bg-base-100 rounded-lg p-1 font-mono">wg-quick</span> command line tool
         installed, you can use the following command to activate a profile:
       </p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg p-4 font-mono">
- wg-quick up /path/to/profile.conf </pre
-      >
-    </div>
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Multiple profiles</h2>
+      <CodeSnippet> wg-quick up /path/to/profile.conf </CodeSnippet>
+    </HelpParagraph>
+
+    <HelpParagraph>
+      <template #title>Multiple profiles</template>
       <p>
         In this page you can find multiple profiles (configurations) that you can use to connect to
         your VMs. Every profile is equivalent and they all have the permission to connect to all
@@ -50,6 +55,6 @@
         If you want to delete a profile or regenerate it (which will invalidate the previous one),
         just click "<i>Delete configuration</i>" button on the top right of each profile.
       </p>
-    </div>
-  </div>
+    </HelpParagraph>
+  </HelpPage>
 </template>

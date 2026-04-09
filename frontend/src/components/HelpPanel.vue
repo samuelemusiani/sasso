@@ -34,14 +34,16 @@ const fullHelpRoute = computed(() => {
         </div>
 
         <div class="flex justify-between gap-2">
-          <button class="btn btn-outline btn-info flex-1 rounded-lg" @click="ui.closeHelp()">
+          <button class="btn btn-outline flex-1 rounded-lg" @click="ui.closeHelp()">
+            <IconVue icon="material-symbols:close" class="text-lg" />
             Close
           </button>
           <RouterLink
             :to="fullHelpRoute"
-            class="btn btn-outline btn-info flex-1 rounded-lg"
+            class="btn btn-info flex-1 rounded-lg"
             @click="ui.closeHelp()"
           >
+            <IconVue icon="iconoir:page" class="text-lg" />
             Full Page
           </RouterLink>
         </div>

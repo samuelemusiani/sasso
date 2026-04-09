@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { VPNConfig } from '@/types'
 import { computed, ref } from 'vue'
+import { copyToClipboard, downloadTextFile } from '@/lib/utils'
+import { useToastService } from '@/composables/useToast'
+
+const { success: toastSuccess } = useToastService()
 
 const $props = defineProps<{
   vpnConfig: VPNConfig
@@ -13,15 +17,8 @@ const $emits = defineEmits<{
 const copySuccess = ref(false)
 
 async function copyConfig() {
-  try {
-    await navigator.clipboard.writeText($props.vpnConfig.vpn_config)
-    copySuccess.value = true
-    setTimeout(() => {
-      copySuccess.value = false
-    }, 2000)
-  } catch (error) {
-    console.error('Error copying VPN config:', error)
-  }
+  await copyToClipboard($props.vpnConfig.vpn_config)
+  toastSuccess('VPN configuration copied to clipboard!')
 }
 
 function downloadConfig() {
@@ -30,15 +27,10 @@ function downloadConfig() {
     return
   }
 
-  const blob = new Blob([$props.vpnConfig.vpn_config], { type: 'text/plain' })
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'sasso-wireguard.conf'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(url)
+  downloadTextFile({
+    text: $props.vpnConfig.vpn_config,
+    filename: 'sasso-wireguard.conf',
+  })
 }
 
 function deleteConfig() {

@@ -1,20 +1,26 @@
+<script setup lang="ts">
+import CodeSnippet from '@/components/help/CodeSnippet.vue'
+import HelpParagraph from '@/components/help/HelpParagraph.vue'
+import HelpPage from '@/components/help/HelpPage.vue'
+</script>
+
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Introduction</h2>
+  <HelpPage>
+    <HelpParagraph>
+      <template #title>Introduction</template>
       <p>
         To access a VM via SSH, you need to have at least one SSH key added to your account. This
         page allows you to manage your SSH keys.
       </p>
-    </div>
+    </HelpParagraph>
 
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Generation</h2>
+    <HelpParagraph>
+      <template #title>Generation</template>
       <p>
         If you don't have an SSH key, you can generate one using the following command on your local
         machine:
       </p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg p-4 font-mono">ssh-keygen -t ed25519 </pre>
+      <CodeSnippet>ssh-keygen -t ed25519 </CodeSnippet>
       <p>
         This will generate a new SSH key pair (a private key and a public key). The public key is
         the one you need to add to your Sasso account, while the private key should be kept secret
@@ -26,21 +32,21 @@
         is the public key and what you have to add to Sasso. An example of a public key looks like
         this:
       </p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg p-4 font-mono">
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMtcEPAeo8hwYbZrhzIlF1pqp2ILSBbxo2oDoXd401+A user@pc</pre
-      >
-    </div>
+      <CodeSnippet>
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMtcEPAeo8hwYbZrhzIlF1pqp2ILSBbxo2oDoXd401+A user@pc
+      </CodeSnippet>
+    </HelpParagraph>
 
-    <div class="flex flex-col gap-2">
-      <h2 class="text-info font-bold">Name</h2>
+    <HelpParagraph>
+      <template #title>Name</template>
       <p>
         The "<i>Name</i>" field is just a label for you to identify the key, it has no effect on the
         actual SSH key.
       </p>
-    </div>
+    </HelpParagraph>
 
-    <div>
-      <h2 class="text-info font-bold">Distribution to VMs</h2>
+    <HelpParagraph>
+      <template #title> Distribution to VMs </template>
       <p>
         After adding or deleting an SSH key, the changes will be automatically applied to all your
         VMs. <b>ONLY STOPPED VMs</b> will be affected by the changes immediately. If you have a
@@ -50,14 +56,12 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMtcEPAeo8hwYbZrhzIlF1pqp2ILSBbxo2oDoXd401+A
       <p>
         After modifying your SSH keys, already accesed VMs will probably display an error like this:
       </p>
-      <pre class="bg-base-100 overflow-x-auto rounded-lg p-4 font-mono">
-WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! </pre
-      >
+      <CodeSnippet> WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! </CodeSnippet>
       <p>
         This is caused by the fact that every time you modify your SSH keys, the SSH server on your
         VMs regenerates its host keys. If you are using the VPN you are safe. Just follow the error
         message on how to update the host key on your local machine.
       </p>
-    </div>
-  </div>
+    </HelpParagraph>
+  </HelpPage>
 </template>
