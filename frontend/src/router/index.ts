@@ -37,6 +37,7 @@ import HelpVMs from '@/components/help/HelpVMs.vue'
 import HelpVPN from '@/components/help/HelpVPN.vue'
 import HelpSSHKeys from '@/components/help/HelpSSHKeys.vue'
 import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
+import HelpNets from '@/components/help/HelpNets.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -78,7 +79,7 @@ const routes: RouteRecordRaw[] = [
           },
         ],
       },
-      { path: '/net', component: NetsView },
+      { path: '/net', component: NetsView, meta: { helpComponent: HelpNets } },
       { path: '/interfaces', component: InterfacesView },
       { path: '/ssh-keys', component: SSHKeysView, meta: { helpComponent: HelpSSHKeys } },
       { path: '/vpn', component: VPNView, meta: { helpComponent: HelpVPN } },
@@ -120,6 +121,7 @@ const routes: RouteRecordRaw[] = [
               { path: 'backups', component: HelpVMBackups, meta: { title: 'backups' } },
             ],
           },
+          { path: 'net', component: HelpNets, meta: { title: 'nets' } },
           { path: 'ssh-keys', component: HelpSSHKeys, meta: { title: 'ssh-keys' } },
           { path: 'vpn', component: HelpVPN, meta: { title: 'vpn' } },
         ],
