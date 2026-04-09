@@ -158,7 +158,7 @@ function deleteNet(id: number) {
     .delete(`/net/${id}`)
     .then(() => {
       console.log(`Network ${id} deleted successfully`)
-      fetchNets()
+      fetchNetsWithoutLoading()
     })
     .catch((err) => {
       toastError(`Failed to delete network: ` + err.response.data)
@@ -257,7 +257,7 @@ const nonMemberGroups = computed(() => {
           <th>Name</th>
           <th>Owner</th>
           <th>Status</th>
-          <th>VlanAware</th>
+          <th>Vlan Support</th>
           <th>Subnet</th>
           <th>Gateway</th>
           <th></th>
