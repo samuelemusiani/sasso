@@ -11,7 +11,6 @@ import (
 
 var (
 	VNetStatusUnknown       VMStatus = "unknown"
-	VNetStatusPending       VMStatus = "pending"
 	VNetStatusReady         VMStatus = "ready"
 	VNetStatusReconfiguring VMStatus = "reconfiguring"
 
@@ -32,7 +31,6 @@ var (
 
 	AllNetStates = []VMStatus{
 		VNetStatusUnknown,
-		VNetStatusPending,
 		VNetStatusReady,
 		VNetStatusReconfiguring,
 		VNetStatusPreCreating,
