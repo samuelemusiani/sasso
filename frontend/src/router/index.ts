@@ -44,6 +44,7 @@ import HelpVMInterfaces from '@/components/help/HelpVMInterfaces.vue'
 import HelpInterfaces from '@/components/help/HelpInterfaces.vue'
 import HelpSettings from '@/components/help/HelpSettings.vue'
 import HelpTelegram from '@/components/help/HelpTelegram.vue'
+import HelpPortForwards from '@/components/help/HelpPortForwards.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -104,7 +105,11 @@ const routes: RouteRecordRaw[] = [
       { path: '/interfaces', component: InterfacesView, meta: { helpComponent: HelpInterfaces } },
       { path: '/ssh-keys', component: SSHKeysView, meta: { helpComponent: HelpSSHKeys } },
       { path: '/vpn', component: VPNView, meta: { helpComponent: HelpVPN } },
-      { path: '/port-forwards', component: PortForwardsView },
+      {
+        path: '/port-forwards',
+        component: PortForwardsView,
+        meta: { helpComponent: HelpPortForwards },
+      },
       { path: '/telegram', component: TelegramView, meta: { helpComponent: HelpTelegram } },
       { path: '/settings', component: SettingsView, meta: { helpComponent: HelpSettings } },
       {
@@ -149,6 +154,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'interfaces', component: HelpInterfaces, meta: { title: 'interfaces' } },
           { path: 'ssh-keys', component: HelpSSHKeys, meta: { title: 'ssh-keys' } },
           { path: 'vpn', component: HelpVPN, meta: { title: 'vpn' } },
+          { path: 'port-forwards', component: HelpPortForwards, meta: { title: 'port-forwards' } },
           { path: 'telegram', component: HelpTelegram, meta: { title: 'telegram' } },
           { path: 'settings', component: HelpSettings, meta: { title: 'settings' } },
         ],
