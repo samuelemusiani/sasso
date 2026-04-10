@@ -142,7 +142,6 @@ onMounted(() => {
       :create="requestTelegramBot"
       :error="error"
       :close-on-create="true"
-      :open="true"
     >
       <div class="flex flex-col gap-2">
         <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
