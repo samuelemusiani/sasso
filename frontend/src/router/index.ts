@@ -42,6 +42,7 @@ import HelpVMInfo from '@/components/help/HelpVMInfo.vue'
 import HelpVMResources from '@/components/help/HelpVMResources.vue'
 import HelpVMInterfaces from '@/components/help/HelpVMInterfaces.vue'
 import HelpInterfaces from '@/components/help/HelpInterfaces.vue'
+import HelpSettings from '@/components/help/HelpSettings.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -104,7 +105,7 @@ const routes: RouteRecordRaw[] = [
       { path: '/vpn', component: VPNView, meta: { helpComponent: HelpVPN } },
       { path: '/port-forwards', component: PortForwardsView },
       { path: '/telegram', component: TelegramView },
-      { path: '/settings', component: SettingsView },
+      { path: '/settings', component: SettingsView, meta: { helpComponent: HelpSettings } },
       {
         path: '/group',
         children: [
@@ -147,6 +148,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'interfaces', component: HelpInterfaces, meta: { title: 'interfaces' } },
           { path: 'ssh-keys', component: HelpSSHKeys, meta: { title: 'ssh-keys' } },
           { path: 'vpn', component: HelpVPN, meta: { title: 'vpn' } },
+          { path: 'settings', component: HelpSettings, meta: { title: 'settings' } },
         ],
       },
     ],
