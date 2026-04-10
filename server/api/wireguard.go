@@ -108,12 +108,6 @@ func getUserWireguardPeers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(wgPeers) == 0 {
-		http.Error(w, "No wireguard peers found for user", http.StatusNotFound)
-
-		return
-	}
-
 	returnConfigs := make([]returnConfig, 0, len(wgPeers))
 	for i := range wgPeers {
 		// New generated configs are empty, skip validation and do not return them

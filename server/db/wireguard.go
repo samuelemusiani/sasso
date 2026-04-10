@@ -56,6 +56,10 @@ func GetWireguardPeerByUserID(userID uint) ([]WireguardPeer, error) {
 
 	result := db.Where("user_id = ?", userID).Preload("AllowedIPs").Find(&vpnConfigs)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return []WireguardPeer{}, nil
+		}
+
 		return nil, fmt.Errorf("failed to retrieve wireguard peers by user ID: %w", result.Error)
 	}
 
