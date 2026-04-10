@@ -92,6 +92,19 @@ func CreateWireguardPeer(userID uint) error {
 	return nil
 }
 
+func CountPendingWireguardPeersByUserID(userID uint) (int64, error) {
+	var count int64
+
+	result := db.Model(&WireguardPeer{}).
+		Where("user_id = ? AND ip IS NULL", userID). // KEEP AS TEXT. Nil check does not work for structures
+		Count(&count)
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to count pending wireguard peers by user ID: %w", result.Error)
+	}
+
+	return count, nil
+}
+
 func UpdateWireguardPeer(wgPeer *WireguardPeer) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		err := tx.Delete(&WireguardAllowedIP{}, "wireguard_peer_id = ?", wgPeer.ID).Error

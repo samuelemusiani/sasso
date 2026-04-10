@@ -151,7 +151,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 		r.Post("/ssh-keys", addSSHKey)
 		r.Delete("/ssh-keys/{id}", deleteSSHKey)
 
-		r.Get("/vpn/wireguard", getUserWireguardPeers)
+		r.Get("/vpn/wireguard", getUserWireguardPeersMeta)
 		r.Post("/vpn/wireguard", addWireguardPeer)
 		r.Delete("/vpn/wireguard/{id}", deleteWireguardPeer)
 
