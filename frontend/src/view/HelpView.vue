@@ -65,8 +65,11 @@ onBeforeUnmount(() => {
     </h1>
     <BreadcrumbNav />
 
-    <div v-if="isBaseHelpRoute" class="p-4">
-      <HelpListItem v-if="isBaseHelpRoute" base-path="/help" :routes="helpChildRoutes" />
+    <div v-if="isBaseHelpRoute">
+      <h2 class="text-info text-2xl font-bold">Index</h2>
+      <div class="py-4">
+        <HelpListItem v-if="isBaseHelpRoute" base-path="/help" :routes="helpChildRoutes" />
+      </div>
     </div>
 
     <div v-else class="help-content">

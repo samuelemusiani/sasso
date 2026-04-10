@@ -27,12 +27,15 @@ const $props = defineProps<{
       <li class="" v-for="r in $props.routes" :key="r.path">
         <div class="border-b-base-100 border-b hover:rounded-lg">
           <RouterLink
-            class="hover:bg-base-100 text-primary flex rounded-lg p-2 capitalize"
+            class="hover:bg-base-100 text-info flex rounded-lg p-2 capitalize"
             :to="`${$props.basePath}/${r.path}`"
           >
             <!-- show something nicer if you set meta.title -->
             <div class="flex items-center gap-2" v-if="r.meta">
-              <IconVue :icon="getPageIcon(r.meta.title)" class="text-primary inline text-2xl" />
+              <IconVue
+                :icon="getPageIcon(r.meta.title)"
+                class="text-info inline rounded-lg text-2xl"
+              />
               <div v-if="r.meta" class="font-semibold">
                 {{ r.meta.title }}
               </div>
