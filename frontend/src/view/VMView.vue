@@ -19,9 +19,14 @@ const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
 const tabs = [
-  { id: 'info', label: 'Info', path: '', icon: 'ph:info' },
-  { id: 'resources', label: 'Resources', path: 'resources', icon: 'ph:cpu' },
-  { id: 'interfaces', label: 'Interfaces', path: 'interfaces', icon: 'ph:path' },
+  { id: 'info', label: 'Info', path: '', icon: `${getPageIcon('info')}` },
+  { id: 'resources', label: 'Resources', path: 'resources', icon: `${getPageIcon('resources')}` },
+  {
+    id: 'interfaces',
+    label: 'Interfaces',
+    path: 'interfaces',
+    icon: `${getPageIcon('interfaces')}`,
+  },
   { id: 'backups', label: 'Backups', path: 'backups', icon: `${getPageIcon('backups')}-outline` },
 ]
 

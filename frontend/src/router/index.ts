@@ -38,6 +38,9 @@ import HelpVPN from '@/components/help/HelpVPN.vue'
 import HelpSSHKeys from '@/components/help/HelpSSHKeys.vue'
 import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
 import HelpNets from '@/components/help/HelpNets.vue'
+import HelpVMInfo from '@/components/help/HelpVMInfo.vue'
+import HelpVMResources from '@/components/help/HelpVMResources.vue'
+import HelpVMInterfaces from '@/components/help/HelpVMInterfaces.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -58,9 +61,24 @@ const routes: RouteRecordRaw[] = [
             component: VMView,
             redirect: { name: 'vm-info' },
             children: [
-              { path: 'info', name: 'vm-info', component: VMInfo },
-              { path: 'resources', name: 'vm-resources', component: VMResources },
-              { path: 'interfaces', name: 'vm-interfaces', component: VMInterfaces },
+              {
+                path: 'info',
+                name: 'vm-info',
+                component: VMInfo,
+                meta: { helpComponent: HelpVMInfo },
+              },
+              {
+                path: 'resources',
+                name: 'vm-resources',
+                component: VMResources,
+                meta: { helpComponent: HelpVMResources },
+              },
+              {
+                path: 'interfaces',
+                name: 'vm-interfaces',
+                component: VMInterfaces,
+                meta: { helpComponent: HelpVMInterfaces },
+              },
               {
                 path: 'backups',
                 name: 'vm-backups',
@@ -118,6 +136,9 @@ const routes: RouteRecordRaw[] = [
             meta: { title: 'vm' },
             children: [
               { path: '', component: HelpVMs, meta: { title: 'vm' } },
+              { path: 'info', component: HelpVMInfo, meta: { title: 'info' } },
+              { path: 'resources', component: HelpVMResources, meta: { title: 'resources' } },
+              { path: 'interfaces', component: HelpVMInterfaces, meta: { title: 'interfaces' } },
               { path: 'backups', component: HelpVMBackups, meta: { title: 'backups' } },
             ],
           },

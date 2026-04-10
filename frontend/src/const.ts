@@ -59,6 +59,10 @@ export function getPageIcon(page: string) {
     case 'backup':
     case 'backups':
       return 'material-symbols:backup'
+    case 'info':
+      return 'ph:info'
+    case 'resources':
+      return 'ph:cpu'
     default:
       return ''
   }
