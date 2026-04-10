@@ -7,7 +7,7 @@ import { useToastService } from '@/composables/useToast'
 import { useLoadingStore } from '@/stores/loading'
 import { getPageIcon } from '@/const'
 
-const { error: toastError, success: toastSuccess } = useToastService()
+const { error: toastError } = useToastService()
 const loading = useLoadingStore()
 
 const vpnConfig = ref<VPNConfig[]>([])
@@ -117,7 +117,6 @@ function deleteVPN(id: number) {
     .delete(`/vpn/wireguard/${id}`)
     .then(() => {
       fetchVPNConfigWithoutLoading()
-      toastSuccess('VPN configuration deleted successfully.')
     })
     .catch((err) => {
       console.error('Failed to delete VPN config:', err)

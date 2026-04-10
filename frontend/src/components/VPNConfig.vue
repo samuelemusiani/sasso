@@ -3,8 +3,11 @@ import type { VPNConfig } from '@/types'
 import { computed, ref } from 'vue'
 import { copyToClipboard, downloadTextFile } from '@/lib/utils'
 import { useToastService } from '@/composables/useToast'
+import { useLoadingStore } from '@/stores/loading'
+import ModalAlert from '@/components/ModalAlert.vue'
 
 const { success: toastSuccess } = useToastService()
+const loading = useLoadingStore()
 
 const $props = defineProps<{
   vpnConfig: VPNConfig
@@ -14,6 +17,8 @@ const $props = defineProps<{
 const $emits = defineEmits<{
   (e: 'delete'): void
 }>()
+
+const uniqueId = computed(() => ($props.vpnConfig ? $props.vpnConfig.id : Math.random()))
 
 const copySuccess = ref(false)
 
@@ -34,9 +39,20 @@ function downloadConfig() {
   })
 }
 
+const showDeleteModal = ref(false)
+
+function preDeleteConfig() {
+  loading.start('vpnConfig', uniqueId.value, 'delete')
+  showDeleteModal.value = true
+}
+
 function deleteConfig() {
-  alert('Are you sure you want to delete this configuration? This action cannot be undone.')
   $emits('delete')
+}
+
+function cancelDeleteConfig() {
+  loading.stop('vpnConfig', uniqueId.value, 'delete')
+  showDeleteModal.value = false
 }
 
 const showKeys = ref(false)
@@ -76,8 +92,17 @@ const maskedConfig = computed(() => {
           Download .conf
         </button>
       </div>
-      <button class="btn btn-error btn-sm rounded-lg" @click="deleteConfig" :disabled="skeleton">
-        Delete Configuration
+      <button
+        class="btn btn-error btn-sm rounded-lg"
+        @click="preDeleteConfig"
+        :disabled="skeleton || loading.is('vpnConfig', uniqueId, 'delete')"
+      >
+        <span
+          v-if="loading.is('vpnConfig', uniqueId, 'delete')"
+          class="loading loading-spinner loading-xs"
+        ></span>
+        <IconVue v-else icon="material-symbols:delete" class="text-lg" />
+        Delete
       </button>
     </div>
     <div class="bg-base-100/50 border-base-300/50 rounded-lg border p-4 whitespace-pre">
@@ -100,5 +125,18 @@ const maskedConfig = computed(() => {
         {{ showKeys ? vpnConfig.vpn_config : maskedConfig }}
       </p>
     </div>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Configuration"
+      positiveText="Delete Configuration"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteConfig()"
+      @negative="cancelDeleteConfig()"
+    >
+      <p>Are you sure you want to delete this configuration? This action cannot be undone.</p>
+    </ModalAlert>
   </div>
 </template>
