@@ -102,9 +102,22 @@ type returnConfig struct {
 	VPNConfig string `json:"vpn_config"`
 }
 
-func getUserWireguardPeers(w http.ResponseWriter, r *http.Request) {
+type returnPendingCount struct {
+	Pending int64 `json:"pending"`
+}
+
+func getUserWireguardPeersMeta(w http.ResponseWriter, r *http.Request) {
 	userID := mustGetUserIDFromContext(r)
 
+	pending := r.URL.Query().Has("pending")
+	if pending {
+		countUserPendingWireguardPeers(userID, w, r)
+	} else {
+		returnUserWireguardPeers(userID, w, r)
+	}
+}
+
+func returnUserWireguardPeers(userID uint, w http.ResponseWriter, _ *http.Request) {
 	wgPeers, err := db.GetWireguardPeerByUserID(userID)
 	if err != nil {
 		logger.Error("Failed to get wireguard peers for user from DB", "user_id", userID, "error", err)
@@ -127,11 +140,26 @@ func getUserWireguardPeers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	if err := json.NewEncoder(w).Encode(returnConfigs); err != nil {
 		logger.Error("Failed to encode wireguard peers for user", "user_id", userID, "error", err)
 		http.Error(w, "Failed to encode wireguard peers for user", http.StatusInternalServerError)
+
+		return
+	}
+}
+
+func countUserPendingWireguardPeers(userID uint, w http.ResponseWriter, _ *http.Request) {
+	count, err := db.CountPendingWireguardPeersByUserID(userID)
+	if err != nil {
+		logger.Error("Failed to count pending wireguard peers for user from DB", "user_id", userID, "error", err)
+		http.Error(w, "Failed to count pending wireguard peers for user", http.StatusInternalServerError)
+
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(returnPendingCount{Pending: count}); err != nil {
+		logger.Error("Failed to encode pending wireguard peer count for user", "user_id", userID, "error", err)
+		http.Error(w, "Failed to encode pending wireguard peer count for user", http.StatusInternalServerError)
 
 		return
 	}
