@@ -8,6 +8,7 @@ const { success: toastSuccess } = useToastService()
 
 const $props = defineProps<{
   vpnConfig: VPNConfig
+  skeleton?: boolean
 }>()
 
 const $emits = defineEmits<{
@@ -50,13 +51,14 @@ const maskedConfig = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 p-2">
+  <div class="flex flex-col gap-4 p-2" :class="{ skeleton: skeleton }">
     <div class="flex justify-between">
       <div class="flex items-center gap-2">
         <button
           @click="copyConfig()"
           class="btn btn-outline btn-sm rounded-lg"
           :class="copySuccess ? 'btn-success' : 'btn-primary'"
+          :disabled="skeleton"
         >
           <IconVue
             :icon="copySuccess ? 'material-symbols:check' : 'material-symbols:content-copy'"
@@ -65,25 +67,38 @@ const maskedConfig = computed(() => {
           {{ copySuccess ? 'Copied!' : 'Copy' }}
         </button>
 
-        <button @click="downloadConfig()" class="btn btn-primary btn-sm rounded-lg">
+        <button
+          @click="downloadConfig()"
+          class="btn btn-primary btn-sm rounded-lg"
+          :disabled="skeleton"
+        >
           <IconVue icon="material-symbols:download" class="text-lg" />
           Download .conf
         </button>
       </div>
-      <button class="btn btn-error btn-sm rounded-lg" @click="deleteConfig">
+      <button class="btn btn-error btn-sm rounded-lg" @click="deleteConfig" :disabled="skeleton">
         Delete Configuration
       </button>
     </div>
     <div class="bg-base-100/50 border-base-300/50 rounded-lg border p-4 whitespace-pre">
       <div class="mb-2 flex items-center justify-between">
         <p class="text-base-content/60 mb-2 text-xs font-semibold">sasso-wireguard.conf</p>
-        <button class="badge badge-warning" @click="showKeys = !showKeys">
+        <button
+          class="btn btn-warning btn-sm rounded-lg"
+          @click="showKeys = !showKeys"
+          :disabled="skeleton"
+        >
           <IconVue v-if="showKeys" icon="material-symbols:visibility-off" class="text-xs" />
           <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
           {{ showKeys ? 'Hide' : 'Show' }} keys
         </button>
       </div>
-      <p>{{ showKeys ? vpnConfig.vpn_config : maskedConfig }}</p>
+      <p v-if="skeleton" class="grid h-32">
+        <span class="loading loading-spinner loading-lg place-self-center"></span>
+      </p>
+      <p v-else>
+        {{ showKeys ? vpnConfig.vpn_config : maskedConfig }}
+      </p>
     </div>
   </div>
 </template>
