@@ -13,10 +13,12 @@ type WireguardPeer struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	IP              string `gorm:"not null;unique"`
-	PeerPrivateKey  string `gorm:"not null"`
-	ServerPublicKey string `gorm:"not null"`
-	Endpoint        string `gorm:"not null"`
+	// Can be null to allow creating a peer without an IP and filling it later
+	// and not hit the unique constraint on IP
+	IP              *string `gorm:"uniqueIndex"`
+	PeerPrivateKey  string  `gorm:"not null"`
+	ServerPublicKey string  `gorm:"not null"`
+	Endpoint        string  `gorm:"not null"`
 
 	AllowedIPs []WireguardAllowedIP `gorm:"foreignKey:WireguardPeerID;constraint:OnDelete:CASCADE;"`
 

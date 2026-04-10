@@ -23,7 +23,7 @@ func internalWGPeerToDBWGPeer(p *internal.WireguardPeer) *db.WireguardPeer {
 
 	return &db.WireguardPeer{
 		ID:              p.ID,
-		IP:              p.IP,
+		IP:              &p.IP,
 		PeerPrivateKey:  p.PeerPrivateKey,
 		ServerPublicKey: p.ServerPublicKey,
 		Endpoint:        p.Endpoint,
@@ -39,9 +39,14 @@ func dbWGPeerToInternalWGPeer(p *db.WireguardPeer) *internal.WireguardPeer {
 		allowedIPs[i] = ip.IP
 	}
 
+	ip := ""
+	if p.IP != nil {
+		ip = *p.IP
+	}
+
 	return &internal.WireguardPeer{
 		ID:              p.ID,
-		IP:              p.IP,
+		IP:              ip,
 		PeerPrivateKey:  p.PeerPrivateKey,
 		ServerPublicKey: p.ServerPublicKey,
 		Endpoint:        p.Endpoint,
@@ -111,7 +116,7 @@ func getUserWireguardPeers(w http.ResponseWriter, r *http.Request) {
 	returnConfigs := make([]returnConfig, 0, len(wgPeers))
 	for i := range wgPeers {
 		// New generated configs are empty, skip validation and do not return them
-		if wgPeers[i].IP == "" {
+		if wgPeers[i].IP == nil || *wgPeers[i].IP == "" {
 			continue
 		}
 
