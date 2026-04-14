@@ -15,6 +15,7 @@ const groups = ref<Group[]>([])
 const name = ref('')
 const description = ref('')
 const error = ref('')
+const showIds = ref(false)
 
 const invitations = ref<GroupInvite[]>([])
 
@@ -98,15 +99,25 @@ onMounted(() => {
       <HelpButton />
     </div>
     <CreateNew title="Group" :create="createGroup" :error="error" :close-on-create="true">
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <label for="name">Name</label>
-          <input type="text" id="name" v-model="name" class="input w-48 rounded-lg border p-2" />
-        </div>
-        <div>
-          <label for="description" class="mb-1 block">Description</label>
-          <textarea id="description" v-model="description" class="textarea w-full"></textarea>
-        </div>
+      <div>
+        <label for="name">Name</label>
+        <input
+          required
+          type="text"
+          id="name"
+          v-model="name"
+          class="input w-full rounded-lg border p-2"
+          placeholder="Group Name"
+        />
+      </div>
+      <div>
+        <label for="description" class="mb-1 block">Description</label>
+        <textarea
+          id="description"
+          v-model="description"
+          class="textarea w-full rounded-lg"
+          placeholder="Group Description"
+        ></textarea>
       </div>
     </CreateNew>
 
@@ -117,13 +128,23 @@ onMounted(() => {
     <table v-else class="table w-full">
       <thead>
         <tr>
+          <th v-show="showIds" scope="col">ID</th>
           <th scope="col">Name</th>
           <th scope="col">Description</th>
-          <th scope="col" class=""></th>
+          <th scope="col" class="flex justify-end">
+            <button class="badge badge-warning rounded-lg" @click="showIds = !showIds">
+              <IconVue v-if="showIds" icon="material-symbols:visibility-off" class="text-xs" />
+              <IconVue v-else icon="material-symbols:visibility" class="text-xs" />
+              {{ showIds ? 'Hide' : 'Show' }} IDs
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="g in groups" :key="g.id">
+          <td v-show="showIds" class="">
+            {{ g.id }}
+          </td>
           <td class="min-w-40 text-lg font-semibold">{{ g.name }}</td>
           <td>
             <div>
@@ -162,29 +183,32 @@ onMounted(() => {
           <th scope="col">Name</th>
           <th scope="col">Description</th>
           <th scope="col">Role</th>
-          <th scope="col">State</th>
-          <th scope="col">Actions</th>
+          <th scope="col"></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="i in invitations" :key="i.id">
           <td class="whitespace-nowrap">{{ i.group_name }}</td>
-          <td class="whitespace-nowrap">{{ i.group_description }}</td>
+          <td class="whitespace-nowrap">
+            <NotesModal
+              :title="`Description for &quot;${i.group_name ?? ''}&quot;`"
+              :body="i.group_description"
+            />
+          </td>
           <td class="whitespace-nowrap">{{ i.role }}</td>
-          <td class="whitespace-nowrap">{{ i.state }}</td>
-          <td class="flex gap-2">
+          <td class="flex justify-end gap-2">
             <button
               @click="manageInvitation(i.id, 'accept')"
-              class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+              class="btn btn-success btn-sm md:btn-md btn-outline rounded-lg"
             >
-              <IconVue icon="material-symbols:edit" class="text-lg" />
+              <IconVue icon="mdi:invite" class="text-lg" />
               <p class="hidden md:inline">Accept</p>
             </button>
             <button
               @click="manageInvitation(i.id, 'decline')"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <IconVue icon="mdi:remove" class="text-lg" />
               <p class="hidden md:inline">Decline</p>
             </button>
           </td>

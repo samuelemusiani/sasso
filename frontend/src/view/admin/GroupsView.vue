@@ -5,6 +5,7 @@ import type { Group } from '@/types'
 import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
+import NotesModal from '@/components/NotesModal.vue'
 
 const { error: toastError } = useToastService()
 const loading = useLoadingStore()
@@ -57,7 +58,9 @@ onMounted(() => {
         <tr v-for="group in groups" :key="group.id" class="odd:bg-base-100 even:bg-base-200">
           <td class="">{{ group.id }}</td>
           <td class="">{{ group.name }}</td>
-          <td class="">{{ group.description }}</td>
+          <td class="">
+            <NotesModal :body="group.description" :title="`Description for ${group.name}`" />
+          </td>
           <td class="">
             <RouterLink
               :to="`/admin/groups/${group.id}`"
