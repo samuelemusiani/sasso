@@ -3,10 +3,10 @@ import { onMounted, ref } from 'vue'
 import type { Group, GroupInvite } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
-import ModalAlert from '@/components/ModalAlert.vue'
 import { useLoadingStore } from '@/stores/loading'
 import { useToastService } from '@/composables/useToast'
 import { getPageIcon } from '@/const'
+import NotesModal from '@/components/NotesModal.vue'
 
 const { error: toastError } = useToastService()
 const loading = useLoadingStore()
@@ -52,7 +52,7 @@ function fetchInvitations() {
     })
 }
 
-function createGroup() {
+async function createGroup() {
   return api
     .post('/groups', {
       name: name.value,
@@ -69,39 +69,6 @@ function createGroup() {
       error.value = 'Failed to add Group: ' + err.response.data
       return false
     })
-}
-
-const showDeleteModal = ref(false)
-const groupToDelete = ref<number | null>(null)
-
-function preDeleteGroup(id: number) {
-  groupToDelete.value = id
-  showDeleteModal.value = true
-  loading.start('group', id, 'delete')
-}
-
-function deleteGroup(id: number) {
-  api
-    .delete(`/groups/${id}`)
-    .then(() => {
-      // small optimization
-      groups.value = groups.value.filter((g) => g.id !== id)
-      fetchGroups()
-    })
-    .catch((err) => {
-      console.error('Failed to delete Group:', err)
-    })
-    .finally(() => {
-      showDeleteModal.value = false
-      groupToDelete.value = null
-      loading.stop('group', id, 'delete')
-    })
-}
-
-function cancelDeleteGroup(id: number) {
-  showDeleteModal.value = false
-  groupToDelete.value = null
-  loading.stop('group', id, 'delete')
 }
 
 function manageInvitation(id: number, action: string) {
@@ -147,19 +114,26 @@ onMounted(() => {
       <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
     </div>
 
-    <table v-else class="table w-full table-auto">
+    <table v-else class="table w-full">
       <thead>
         <tr>
           <th scope="col">Name</th>
           <th scope="col">Description</th>
-          <th scope="col" class="">Actions</th>
+          <th scope="col" class=""></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="g in groups" :key="g.id">
           <td class="min-w-40 text-lg font-semibold">{{ g.name }}</td>
-          <td class="">{{ g.description }}</td>
-          <td class="flex gap-2">
+          <td>
+            <div>
+              <NotesModal
+                :title="`Description for &quot;${g.name ?? ''}&quot;`"
+                :body="g.description"
+              />
+            </div>
+          </td>
+          <td class="flex justify-end gap-2">
             <RouterLink
               :to="`/group/${g.id}`"
               class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
@@ -167,19 +141,6 @@ onMounted(() => {
               <IconVue icon="material-symbols:edit" class="text-lg" />
               <p class="hidden md:inline">Manage</p>
             </RouterLink>
-            <button
-              v-show="g.role === 'owner'"
-              @click="preDeleteGroup(g.id)"
-              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-              :disabled="loading.is('group', g.id, 'delete')"
-            >
-              <span
-                v-if="loading.is('group', g.id, 'delete')"
-                class="loading loading-spinner loading-xs"
-              ></span>
-              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
-              <p class="hidden md:inline">Delete</p>
-            </button>
           </td>
         </tr>
       </tbody>
@@ -230,19 +191,5 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
-
-    <!-- Delete modal -->
-    <ModalAlert
-      :model-value="showDeleteModal"
-      title="Delete Group"
-      positiveText="Delete Group"
-      negativeText="Cancel action"
-      positiveBtnClass="btn-error"
-      @positive="deleteGroup(groupToDelete!)"
-      @negative="cancelDeleteGroup(groupToDelete!)"
-    >
-      <p>Are you sure you want to delete this Group? This action cannot be undone.</p>
-    </ModalAlert>
-    <!-- End of Delete modal -->
   </div>
 </template>

@@ -9,6 +9,7 @@ import { getStatusClass } from '@/const'
 import { formatDate } from '@/lib/utils'
 import { useToastService } from '@/composables/useToast'
 import ModalAlert from '@/components/ModalAlert.vue'
+import NotesModal from '@/components/NotesModal.vue'
 
 const { error: toastError, success: toastSuccess } = useToastService()
 
@@ -20,10 +21,6 @@ const backups = ref<Backup[]>([])
 
 const name = ref('')
 const notes = ref('')
-
-const notesModalRef = ref<HTMLDialogElement | null>(null)
-const notesModalTitle = ref('')
-const notesModalBody = ref('')
 
 const route = useRoute()
 const vmid = Number(route.params.vmid)
@@ -57,7 +54,7 @@ const restoringBackupIDs = computed(() =>
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
-function fetchPendingBackupsRequests() {
+async function fetchPendingBackupsRequests() {
   return api
     .get(`/vm/${vmid}/backup/request?status=pending`)
     .then((res) => {
@@ -191,7 +188,7 @@ function protectBackup(backupID: string, protect: boolean) {
     })
 }
 
-function makeBackup(): Promise<boolean> {
+async function makeBackup(): Promise<boolean> {
   loading.start('vm', vmid, 'create_backup')
   return api
     .post(`/vm/${vmid}/backup`, {
@@ -202,6 +199,8 @@ function makeBackup(): Promise<boolean> {
       console.log('Backup created')
       fetchPendingBackupsRequests()
       toastSuccess('Backup creation request submitted.')
+      name.value = ''
+      notes.value = ''
       return true
     })
     .catch((err) => {
@@ -212,35 +211,8 @@ function makeBackup(): Promise<boolean> {
     })
     .finally(() => {
       loading.stop('vm', vmid, 'create_backup')
-      name.value = ''
-      notes.value = ''
     })
 }
-
-const truncateLength = 50
-
-function truncateNotes(notes: string, length: number = truncateLength) {
-  if (notes.length > length) {
-    return notes.substring(0, length - 3) + '...'
-  }
-  return notes
-}
-
-function openNotesModal(title: string, body: string) {
-  notesModalTitle.value = title
-  notesModalBody.value = body
-
-  const el = notesModalRef.value
-  if (!el) return
-  if (!el.open) el.showModal()
-}
-
-function closeNotesModal() {
-  const el = notesModalRef.value
-  if (!el) return
-  if (el.open) el.close()
-}
-
 watch(pendingBackupRequests, (newVal, oldVal) => {
   if (oldVal.length > 0 && newVal.length === 0) {
     // All pending requests are done
@@ -339,7 +311,7 @@ onBeforeUnmount(() => {
               <td>{{ br.name }}</td>
               <td></td>
               <td class="max-w-96">
-                {{ truncateNotes(br.notes ?? '', 20) }}
+                <NotesModal :title="`Notes for ${br.name ?? ''}`" :body="br.notes ?? ''" />
               </td>
               <td class="">
                 <div class="">Backup creation...</div>
@@ -354,9 +326,10 @@ onBeforeUnmount(() => {
             <td>{{ bk.name }}</td>
             <td>{{ formatDate(bk.ctime) }}</td>
             <td class="max-w-96">
-              <p class="hover:link" @click="openNotesModal(bk.name, bk.notes)">
-                {{ truncateNotes(bk.notes) }}
-              </p>
+              <NotesModal
+                :title="`Notes for &quot;${bk.name ?? ''}&quot;`"
+                :body="bk.notes ?? ''"
+              />
             </td>
             <td class="" :class="getStatusClass(bk.protected.toString())">
               <div class="tooltip tooltip-top">
@@ -460,23 +433,6 @@ onBeforeUnmount(() => {
         </tbody>
       </table>
     </div>
-
-    <!-- Notes modal -->
-    <dialog ref="notesModalRef" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box">
-        <h3 class="mb-4 text-xl font-bold">Notes for "{{ notesModalTitle }}"</h3>
-        <p class="text-balance">{{ notesModalBody }}</p>
-
-        <div class="modal-action">
-          <button class="btn" type="button" @click="closeNotesModal()">Close</button>
-        </div>
-      </div>
-
-      <form method="dialog" class="modal-backdrop">
-        <button aria-label="Close"></button>
-      </form>
-    </dialog>
-    <!-- End Notes modal -->
 
     <!-- Delete modal -->
     <ModalAlert
