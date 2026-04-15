@@ -1,17 +1,10 @@
 import { ref, computed } from 'vue'
 import type { AxiosInstance } from 'axios'
-import type { UserResource } from '@/types'
-
-type FreeResources = {
-  free_cpu: number
-  free_ram: number
-  free_disk: number
-  free_nets: number
-}
+import type { UserResources, FreeResources } from '@/types'
 
 export function useUserResources(api: AxiosInstance) {
-  const userResources = ref<UserResource | null>(null)
-  const userResourcesGB = computed<UserResource | null>(() => {
+  const userResources = ref<UserResources | null>(null)
+  const userResourcesGB = computed<UserResources | null>(() => {
     if (!userResources.value) return null
     return {
       ...userResources.value,

@@ -2,7 +2,7 @@
 import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
 import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
-import type { VM, Group, Template } from '@/types'
+import type { VM, Group, Template, FreeResources } from '@/types'
 import { api } from '@/lib/api'
 import { formatDate, isVMExpired } from '@/lib/utils'
 import { getStatusClass } from '@/const'
@@ -13,8 +13,10 @@ import { useUserResources } from '@/composables/userResources'
 import ModalAlert from '@/components/ModalAlert.vue'
 import { useToastService } from '@/composables/useToast'
 import { getPageIcon } from '@/const'
+import { useGroupResources } from '@/composables/groupResources'
 
 const { fetchUserResources, userFreeResources } = useUserResources(api)
+const { fetchGroupResources, groupFreeResources } = useGroupResources(api)
 const { error: toastError } = useToastService()
 
 const vms = ref<VM[]>([])
@@ -27,12 +29,13 @@ const template = ref('')
 const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
-const newVMGroupId = ref<number>()
+const newVMGroupId = ref<number>(-1)
 const error = ref('')
 
 const showIds = ref(false)
 
 const groups = ref<Group[]>([])
+const resourcesOfGroups = ref<Map<number, FreeResources>>(new Map())
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
@@ -62,6 +65,22 @@ function preStartVMWrapper(vmid: number) {
 const minDiskForCurrentTemplate = computed(() => {
   const selectedTemplate = templates.value.find((t) => t.name === template.value)
   return selectedTemplate ? selectedTemplate.disk : 4
+})
+
+const maxResourcesForVM = computed(() => {
+  if (newVMGroupId.value !== -1) {
+    const groupRes = resourcesOfGroups.value.get(newVMGroupId.value)
+    return {
+      cores: groupRes?.free_cpu ?? 0,
+      ram: groupRes?.free_ram ?? 0,
+      disk: groupRes?.free_disk ?? 0,
+    }
+  }
+  return {
+    cores: userFreeResources.value?.free_cpu ?? 0,
+    ram: userFreeResources.value?.free_ram ?? 0,
+    disk: userFreeResources.value?.free_disk ?? 0,
+  }
 })
 
 function fetchVMs() {
@@ -123,7 +142,7 @@ interface VMCreationBody {
   group_id?: number
 }
 
-function createVM() {
+async function createVM() {
   const body: VMCreationBody = {
     name: name.value,
     cores: cores.value,
@@ -135,7 +154,7 @@ function createVM() {
     notes: notes.value,
   }
 
-  if (newVMGroupId.value) {
+  if (newVMGroupId.value !== -1) {
     body.group_id = newVMGroupId.value
   }
 
@@ -158,7 +177,7 @@ function createVM() {
       notes.value = ''
       include_global_ssh_keys.value = true
       error.value = ''
-      newVMGroupId.value = undefined
+      newVMGroupId.value = -1
 
       return true
     })
@@ -225,6 +244,22 @@ function fetchGroups() {
   })
 }
 
+// TODO: Optimize this with the backend so we can
+// fetch multiple groups in a single request
+function fetchGroupResourcesForGroups() {
+  groups.value.forEach((group) => {
+    fetchGroupResources(group.id)
+      .then(() => {
+        if (groupFreeResources.value) {
+          resourcesOfGroups.value.set(group.id, groupFreeResources.value)
+        }
+      })
+      .catch((err) => {
+        console.error(`Failed to fetch resources for group ${group.id}:`, err)
+      })
+  })
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
@@ -232,10 +267,12 @@ onMounted(() => {
   fetchTemplates()
   fetchGroups()
   fetchUserResources()
+  fetchGroupResourcesForGroups()
   intervalId = setInterval(() => {
     fetchVMsWithoutLoading()
     fetchTemplates()
     fetchUserResources()
+    fetchGroupResourcesForGroups()
   }, 5000)
 })
 
@@ -283,7 +320,7 @@ const nonMemberGroups = computed(() => {
                 v-model="cores"
                 class="input join-item validator w-full rounded-l-lg border p-2"
                 min="1"
-                :max="userFreeResources?.free_cpu"
+                :max="maxResourcesForVM.cores"
               />
               <div
                 class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
@@ -291,7 +328,7 @@ const nonMemberGroups = computed(() => {
                 <div class="tooltip flex items-center">
                   <div class="tooltip-content rounded-lg border p-2">Max available CPU cores</div>
                   <span class="mr-1 opacity-50">/ </span>
-                  {{ userFreeResources?.free_cpu }}
+                  {{ maxResourcesForVM.cores }}
                 </div>
               </div>
             </div>
@@ -307,7 +344,7 @@ const nonMemberGroups = computed(() => {
                 v-model="ram"
                 class="input joint-item validator w-full rounded-l-lg border p-2"
                 min="1024"
-                :max="userFreeResources?.free_ram"
+                :max="maxResourcesForVM.ram"
               />
               <div
                 class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
@@ -315,7 +352,7 @@ const nonMemberGroups = computed(() => {
                 <div class="tooltip flex items-center">
                   <div class="tooltip-content rounded-lg border p-2">Max available RAM</div>
                   <span class="mr-1 opacity-50">/ </span>
-                  {{ userFreeResources?.free_ram }}
+                  {{ maxResourcesForVM.ram }}
                 </div>
               </div>
             </div>
@@ -331,7 +368,7 @@ const nonMemberGroups = computed(() => {
                 v-model="disk"
                 class="input join-item validator w-full rounded-l-lg border p-2"
                 :min="minDiskForCurrentTemplate"
-                :max="userFreeResources?.free_disk"
+                :max="maxResourcesForVM.disk"
               />
               <div
                 class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
@@ -339,7 +376,7 @@ const nonMemberGroups = computed(() => {
                 <div class="tooltip tooltip-top flex items-center">
                   <div class="tooltip-content rounded-lg border p-2">Max available Disk</div>
                   <span class="mr-1 opacity-50">/ </span>
-                  {{ userFreeResources?.free_disk }}
+                  {{ maxResourcesForVM.disk }}
                 </div>
               </div>
             </div>
@@ -386,7 +423,7 @@ const nonMemberGroups = computed(() => {
 
       <label for="group">Group (Optional)</label>
       <select v-model="newVMGroupId" class="select select-bordered">
-        <option :value="undefined">Me</option>
+        <option :value="-1">Me</option>
         <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
           {{ group.name }}
         </option>

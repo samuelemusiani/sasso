@@ -215,7 +215,7 @@ export interface Template {
   disk: number
 }
 
-export interface UserResource {
+export interface UserResources {
   max_cores: number
   max_ram: number
   max_disk: number
@@ -232,4 +232,25 @@ export interface UserResource {
   group_max_ram: number
   group_max_disk: number
   group_max_nets: number
+}
+
+export interface GroupResources {
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
+  allocated_cores: number
+  allocated_ram: number
+  allocated_disk: number
+  allocated_nets: number
+  active_vms_cores: number
+  active_vms_ram: number
+  active_vms_disk: number
+}
+
+export interface FreeResources {
+  free_cpu: number
+  free_ram: number
+  free_disk: number
+  free_nets: number
 }

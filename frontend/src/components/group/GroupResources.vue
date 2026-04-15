@@ -6,8 +6,10 @@ import CreateNew from '@/components/CreateNew.vue'
 import { useToastService } from '@/composables/useToast'
 import type { Group, GroupMember } from '@/types'
 import { useUserResources } from '@/composables/userResources'
+import { useGroupResources } from '@/composables/groupResources'
 
 const { fetchUserResources, userFreeResources } = useUserResources(api)
+const { fetchGroupResources, groupResourcesGB } = useGroupResources(api)
 
 const $props = defineProps<{
   group: Group
@@ -24,7 +26,36 @@ const disk = ref(0)
 const nets = ref(0)
 const error = ref('')
 
-const stats = ref()
+const stats = computed(() => {
+  if (!groupResourcesGB.value) return null
+
+  return [
+    {
+      item: 'CPU',
+      active: groupResourcesGB.value.active_vms_cores,
+      max: groupResourcesGB.value.max_cores,
+      allocated: groupResourcesGB.value.allocated_cores,
+    },
+    {
+      item: 'RAM',
+      active: groupResourcesGB.value.active_vms_ram,
+      max: groupResourcesGB.value.max_ram,
+      allocated: groupResourcesGB.value.allocated_ram,
+    },
+    {
+      item: 'Disk',
+      active: groupResourcesGB.value.active_vms_disk,
+      max: groupResourcesGB.value.max_disk,
+      allocated: groupResourcesGB.value.allocated_disk,
+    },
+    {
+      item: 'Net',
+      active: -1,
+      max: groupResourcesGB.value.max_nets,
+      allocated: groupResourcesGB.value.allocated_nets,
+    },
+  ]
+})
 
 // Used to update the resource fields when the component is loaded or when the group/me props change
 // So 'update resource' have the current values of the resources instead of 0
@@ -55,7 +86,7 @@ async function saveResources() {
     .then(() => {
       toastSuccess('Resources saved successfully.')
       $emit('update-group')
-      fetchResourceStats()
+      fetchGroupResources($props.group.id)
       return true
     })
     .catch((err) => {
@@ -65,47 +96,10 @@ async function saveResources() {
     })
 }
 
-async function fetchResourceStats() {
-  api
-    .get(`/groups/${$props.group.id}/resources`)
-    .then((res) => {
-      const data = res.data
-      stats.value = [
-        {
-          item: 'CPU',
-          active: data.active_vms_cores,
-          max: data.max_cores,
-          allocated: data.allocated_cores,
-        },
-        {
-          item: 'RAM',
-          active: data.active_vms_ram / 1024,
-          max: data.max_ram / 1024,
-          allocated: data.allocated_ram / 1024,
-        },
-        {
-          item: 'Disk',
-          active: data.active_vms_disk,
-          max: data.max_disk,
-          allocated: data.allocated_disk,
-        },
-        {
-          item: 'Net',
-          active: -1,
-          max: data.max_nets,
-          allocated: data.allocated_nets,
-        },
-      ]
-    })
-    .catch((err) => {
-      console.error('Failed to fetch resource stats:', err)
-    })
-}
-
 let intervalID: number | null = null
 
 onMounted(() => {
-  fetchResourceStats()
+  fetchGroupResources($props.group.id)
   fetchUserResources()
   intervalID = setInterval(() => {
     fetchUserResources()
