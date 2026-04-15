@@ -381,7 +381,7 @@ func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
 		if freeResources.Cores < 0 ||
 			freeResources.RAM < 0 ||
 			freeResources.Disk < 0 {
-			return errors.New("not enough free resources to extend VM lifetime")
+			return ErrInsufficientResources
 		}
 
 		vm.LifeTime = newLifetime

@@ -278,6 +278,10 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
 			return
+		} else if errors.Is(err, proxmox.ErrInsufficientResources) {
+			http.Error(w, "Insufficient resources to extend VM lifetime", http.StatusConflict)
+
+			return
 		}
 
 		logger.Error("Failed to update VM lifetime", "vmID", vmID, "error", err)

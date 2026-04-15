@@ -841,9 +841,11 @@ func UpdateVMLifetime(vmid uint64, extendBy uint) error {
 
 	err = db.UpdateVMLifetime(vmid, vm.LifeTime.AddDate(0, int(extendBy), 0))
 	if err != nil {
-		logger.Error("Failed to update VM lifetime in database", "vmID", vmid, "error", err)
+		if errors.Is(err, db.ErrInsufficientResources) {
+			return ErrInsufficientResources
+		}
 
-		return err
+		return fmt.Errorf("failed to update VM lifetime in database: %w", err)
 	}
 
 	return nil
