@@ -279,6 +279,11 @@ func updateUserLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m := getUserResourcesMutex(req.UserID)
+
+	m.Lock()
+	defer m.Unlock()
+
 	if err := db.UpdateUserLimits(req.UserID, req.MaxCores, req.MaxRAM, req.MaxDisk, req.MaxNets); err != nil {
 		http.Error(w, "Failed to update user limits", http.StatusInternalServerError)
 

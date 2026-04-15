@@ -737,7 +737,7 @@ func AddGroupResources(groupID, userID uint, res ResourcesWithNets) error {
 	})
 }
 
-func SetGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
+func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		var groupResource GroupResource
 
@@ -777,19 +777,11 @@ func SetGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 	})
 }
 
-func RevokeGroupResources(groupID, userID uint) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return revokeGroupResourcesTransaction(tx, groupID, userID)
-	})
-}
-
 func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithNets) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
-			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
-
-			return err
+			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
 		// We have SetGroupResourceByAdmin for this
@@ -801,16 +793,12 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 
 		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&currentResources).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("Failed to find group resource", "error", err)
-
-			return err
+			return fmt.Errorf("failed to find group resource: %w", err)
 		}
 
 		usedInGroup, maxResourceAvailableInGroup, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
 		if err != nil {
-			logger.Error("Failed to get group resources", "error", err)
-
-			return err
+			return fmt.Errorf("failed to get group resources: %w", err)
 		}
 
 		diffCores := int(newResources.Cores - currentResources.Cores)
@@ -829,9 +817,7 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 		// check if we have the resources to assign
 		availableResources, err := availableResourcesForUserIDTransaction(tx, userID)
 		if err != nil {
-			logger.Error("Failed to get available resources for user", "error", err)
-
-			return err
+			return fmt.Errorf("failed to get available resources for user: %w", err)
 		}
 
 		if diffCores > int(availableResources.Cores) ||
@@ -854,9 +840,7 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 
 		err = tx.Save(&currentResources).Error
 		if err != nil {
-			logger.Error("Failed to delete group resource", "error", err)
-
-			return err
+			return fmt.Errorf("failed to save group resource: %w", err)
 		}
 
 		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
@@ -867,9 +851,7 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 				"max_nets":  gorm.Expr("max_nets - ?", diffNets),
 			}).Error
 		if err != nil {
-			logger.Error("Failed to update user limits", "error", err)
-
-			return err
+			return fmt.Errorf("failed to update user limits: %w", err)
 		}
 
 		return nil
@@ -879,9 +861,7 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 	adminID, err := getAdminIDTransaction(tx)
 	if err != nil {
-		logger.Error("Failed to get admin user ID during resource revocation", "error", err)
-
-		return err
+		return fmt.Errorf("failed to get admin user ID: %w", err)
 	}
 
 	if userID == adminID {
@@ -889,52 +869,44 @@ func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 		return tx.Delete(&GroupResource{GroupID: groupID, UserID: userID}).Error
 	}
 
-	var resource GroupResource
+	var currentResources GroupResource
 
-	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&currentResources).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// No resources to revoke
 			return nil
 		}
 
-		logger.Error("Failed to find group resource", "error", err)
-
-		return err
+		return fmt.Errorf("failed to find group resource: %w", err)
 	}
 
-	used, maxResourceAvailable, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+	usedInGroup, maxResourceAvailableInGroup, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
 	if err != nil {
-		logger.Error("Failed to get group resources", "error", err)
-
-		return err
+		return fmt.Errorf("failed to get group resources: %w", err)
 	}
 
-	if maxResourceAvailable.Cores-resource.Cores < used.Cores ||
-		maxResourceAvailable.RAM-resource.RAM < used.RAM ||
-		maxResourceAvailable.Disk-resource.Disk < used.Disk ||
-		maxResourceAvailable.Nets-resource.Nets < used.Nets {
+	if int(maxResourceAvailableInGroup.Cores-currentResources.Cores) < int(usedInGroup.Cores) ||
+		int(maxResourceAvailableInGroup.RAM-currentResources.RAM) < int(usedInGroup.RAM) ||
+		int(maxResourceAvailableInGroup.Disk-currentResources.Disk) < int(usedInGroup.Disk) ||
+		int(maxResourceAvailableInGroup.Nets-currentResources.Nets) < int(usedInGroup.Nets) {
 		return ErrResourcesInUse
 	}
 
-	err = tx.Delete(&resource).Error
+	err = tx.Delete(&currentResources).Error
 	if err != nil {
-		logger.Error("Failed to delete group resource", "error", err)
-
-		return err
+		return fmt.Errorf("failed to delete group resource: %w", err)
 	}
 
 	err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
 		UpdateColumns(map[string]interface{}{
-			"max_cores": gorm.Expr("max_cores + ?", resource.Cores),
-			"max_ram":   gorm.Expr("max_ram + ?", resource.RAM),
-			"max_disk":  gorm.Expr("max_disk + ?", resource.Disk),
-			"max_nets":  gorm.Expr("max_nets + ?", resource.Nets),
+			"max_cores": gorm.Expr("max_cores + ?", currentResources.Cores),
+			"max_ram":   gorm.Expr("max_ram + ?", currentResources.RAM),
+			"max_disk":  gorm.Expr("max_disk + ?", currentResources.Disk),
+			"max_nets":  gorm.Expr("max_nets + ?", currentResources.Nets),
 		}).Error
 	if err != nil {
-		logger.Error("Failed to update user limits", "error", err)
-
-		return err
+		return fmt.Errorf("failed to update user limits: %w", err)
 	}
 
 	return nil

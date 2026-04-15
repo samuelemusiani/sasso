@@ -506,7 +506,7 @@ func leaveGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m2 := getUserResourceMutex(userID)
+	m2 := getUserResourcesMutex(userID)
 
 	m2.Lock()
 	defer m2.Unlock()
@@ -550,7 +550,7 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := getUserResourceMutex(uint(userID))
+	m := getUserResourcesMutex(uint(userID))
 
 	m.Lock()
 	defer m.Unlock()
@@ -615,34 +615,6 @@ type addGroupResourcesRequest struct {
 	RAM   uint `json:"ram"`
 	Disk  uint `json:"disk"`
 	Nets  uint `json:"nets"`
-}
-
-func revokeGroupResources(w http.ResponseWriter, r *http.Request) {
-	group := mustGetGroupFromContext(r)
-	userID := mustGetUserIDFromContext(r)
-
-	m := getUserResourceMutex(userID)
-
-	m.Lock()
-	defer m.Unlock()
-
-	err := db.RevokeGroupResources(group.ID, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, db.ErrNotFound):
-			http.Error(w, "No resources found for group member", http.StatusNotFound)
-
-			return
-		case errors.Is(err, db.ErrResourcesInUse):
-			http.Error(w, "Cannot revoke resources: resources are currently in use", http.StatusConflict)
-
-			return
-		}
-
-		http.Error(w, "Failed to revoke resources from group member", http.StatusInternalServerError)
-
-		return
-	}
 }
 
 func getGroupResources(w http.ResponseWriter, r *http.Request) {
@@ -776,7 +748,7 @@ func adminUpdateGroupResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.SetGroupResourceByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
+	err = db.SetGroupResourcesByAdmin(uint(groupid), req.Cores, req.RAM, req.Disk, req.Nets)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			http.Error(w, "Group not found", http.StatusNotFound)
@@ -845,6 +817,11 @@ func setGroupResources(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	m := getUserResourcesMutex(userID)
+
+	m.Lock()
+	defer m.Unlock()
 
 	err := db.SetGroupResourcesByUserID(group.ID, userID, db.ResourcesWithNets{
 		Cores: req.Cores,

@@ -55,7 +55,7 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := getUserResourceMutex(userID)
+	m := getUserResourcesMutex(userID)
 
 	m.Lock()
 	defer m.Unlock()
@@ -151,7 +151,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m2 := getUserResourceMutex(userID)
+	m2 := getUserResourcesMutex(userID)
 
 	m2.Lock()
 	defer m2.Unlock()
@@ -321,7 +321,7 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
-	m2 := getUserResourceMutex(userID)
+	m2 := getUserResourcesMutex(userID)
 
 	m2.Lock()
 	defer m2.Unlock()

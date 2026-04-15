@@ -33,7 +33,7 @@ func getVMMutex(vmID uint) *sync.Mutex {
 
 // Used to avoid race conditions on user resource updates
 var userResourceMutexes = sync.Map{} // map[uint]*sync.Mutex
-func getUserResourceMutex(userID uint) *sync.Mutex {
+func getUserResourcesMutex(userID uint) *sync.Mutex {
 	mu, _ := userResourceMutexes.LoadOrStore(userID, &sync.Mutex{})
 
 	tmu, ok := mu.(*sync.Mutex)
