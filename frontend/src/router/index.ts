@@ -45,6 +45,9 @@ import HelpInterfaces from '@/components/help/HelpInterfaces.vue'
 import HelpSettings from '@/components/help/HelpSettings.vue'
 import HelpTelegram from '@/components/help/HelpTelegram.vue'
 import HelpPortForwards from '@/components/help/HelpPortForwards.vue'
+import GroupInfo from '@/components/group/GroupInfo.vue'
+import GroupResources from '@/components/group/GroupResources.vue'
+import GroupMembers from '@/components/group/GroupMembers.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -116,7 +119,16 @@ const routes: RouteRecordRaw[] = [
         path: '/group',
         children: [
           { path: '', component: GroupsView },
-          { path: ':id', component: SingleGroupView },
+          {
+            path: ':id',
+            component: SingleGroupView,
+            redirect: { name: 'group-info' },
+            children: [
+              { path: 'info', name: 'group-info', component: GroupInfo },
+              { path: 'resources', name: 'group-resources', component: GroupResources },
+              { path: 'members', name: 'group-members', component: GroupMembers },
+            ],
+          },
         ],
       },
       {

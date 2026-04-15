@@ -25,22 +25,30 @@ export function useUserResources(api: AxiosInstance) {
   const userFreeResources = computed<FreeResources | null>(() => {
     if (!userResources.value) return null
     return {
-      free_cpu:
+      free_cpu: Math.max(
+        0,
         userResources.value.max_cores -
-        userResources.value.allocated_cores -
-        userResources.value.group_max_cores,
-      free_ram:
+          userResources.value.allocated_cores -
+          userResources.value.group_max_cores,
+      ),
+      free_ram: Math.max(
+        0,
         userResources.value.max_ram -
-        userResources.value.allocated_ram -
-        userResources.value.group_max_ram,
-      free_disk:
+          userResources.value.allocated_ram -
+          userResources.value.group_max_ram,
+      ),
+      free_disk: Math.max(
+        0,
         userResources.value.max_disk -
-        userResources.value.allocated_disk -
-        userResources.value.group_max_disk,
-      free_nets:
+          userResources.value.allocated_disk -
+          userResources.value.group_max_disk,
+      ),
+      free_nets: Math.max(
+        0,
         userResources.value.max_nets -
-        userResources.value.allocated_nets -
-        userResources.value.group_max_nets,
+          userResources.value.allocated_nets -
+          userResources.value.group_max_nets,
+      ),
     }
   })
 

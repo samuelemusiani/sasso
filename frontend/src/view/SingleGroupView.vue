@@ -1,152 +1,61 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { Group, GroupInvite, GroupMember, GroupResource } from '@/types'
+import { getPageIcon } from '@/const'
 import { api } from '@/lib/api'
+import type { Group, GroupMember } from '@/types'
 import { useToastService } from '@/composables/useToast'
-import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
-import CreateNew from '@/components/CreateNew.vue'
-import UserStats from '@/components/UserStats.vue'
-import ModalAlert from '@/components/ModalAlert.vue'
-import { useLoadingStore } from '@/stores/loading'
-
-const { error: toastError, success: toastSuccess } = useToastService()
-const loading = useLoadingStore()
-
-const group = ref<Group | null>(null)
 
 const route = useRoute()
 const router = useRouter()
-const groupId = Number(route.params.id)
 
-const username = ref('')
-const role = ref('member')
+const { error: toastError } = useToastService()
 
-const error = ref('')
+const tabs = [
+  { id: 'info', label: 'Info', path: '', icon: `${getPageIcon('info')}` },
+  { id: 'resources', label: 'Resources', path: 'resources', icon: `${getPageIcon('resources')}` },
+  {
+    id: 'members',
+    label: 'Members',
+    path: 'members',
+    icon: `${getPageIcon('group')}`,
+  },
+]
 
-const cores = ref(0)
-const ram = ref(0)
-const disk = ref(0)
-const nets = ref(0)
-
-const groupName = ref(group.value?.name || '')
-const groupDescription = ref(group.value?.description || '')
-
-const me = ref<GroupMember | null>(null)
-
-watch(group, (newGroup) => {
-  if (newGroup) {
-    groupName.value = newGroup.name
-    groupDescription.value = newGroup.description
-  }
+const groupid = computed(() => {
+  const id = route.params.id
+  if (Array.isArray(id)) return Number(id[0])
+  return id ? Number(id) : 0
 })
 
-watch([group, me], ([newGroup, newMe]) => {
-  if (newGroup && newMe) {
-    const myResource = newGroup.resources?.find((r) => r.user_id === newMe.user_id)
-    if (myResource) {
-      cores.value = myResource.cores
-      ram.value = myResource.ram
-      disk.value = myResource.disk
-      nets.value = myResource.nets
+const activeTab = computed(() => {
+  const path = route.path
+  for (const tab of tabs) {
+    if (tab.path === '') {
+      // Check if we're at the base path /vm/:vmid
+      if (path === `/group/${groupid.value}`) return tab.id
+    } else {
+      // Special case for backups, which has a sub-route for requests
+      if (path.endsWith(`/${tab.path}`) || path.endsWith(`/${tab.path}/requests`)) return tab.id
     }
   }
+  return 'info'
 })
 
-const invitations = ref<GroupInvite[]>([])
-// const members = ref<GroupMember[]>([])
-
-const stats = ref()
-
-function getResourcesForUser(userId: number): GroupResource | undefined {
-  return group.value?.resources?.find((r) => r.user_id === userId)
+const navigateToTab = (tabPath: string) => {
+  if (tabPath === '') {
+    router.push(`/group/${groupid.value}`)
+  } else {
+    router.push(`/group/${groupid.value}/${tabPath}`)
+  }
 }
 
-const addOrUpdateResources = computed(() => {
-  return group.value?.resources?.find((r) => r.user_id === me.value?.user_id) !== undefined
-})
-
-const showDeleteModal = ref(false)
-const deleteTargetId = ref<number | null>(null) // e.g. groupId for group deletion or inviteId for invitation revocation
-const deleteModalObject = ref('') // e.g. 'Group' or 'Invitation'
-const titleDeleteModal = computed(() => {
-  switch (deleteModalObject.value) {
-    case 'Group':
-      return 'Delete Group'
-    case 'Invitation':
-      return 'Revoke Invitation'
-    case 'Member':
-      return 'Remove Member'
-    case 'Me':
-      return 'Leave Group'
-    default:
-      return ''
-  }
-})
-
-const positiveTextDeleteModal = computed(() => {
-  switch (deleteModalObject.value) {
-    case 'Group':
-      return 'Delete group'
-    case 'Invitation':
-      return 'Revoke invitation'
-    case 'Member':
-      return 'Remove member'
-    case 'Me':
-      return 'Leave group'
-    default:
-      return ''
-  }
-})
-
-function resetDeleteModal() {
-  showDeleteModal.value = false
-  new Promise((resolve) => setTimeout(resolve, 300)).then(() => {
-    // wait for modal close animation to finish before resetting the object and id
-    deleteModalObject.value = ''
-    deleteTargetId.value = null
-  })
-}
-
-const bodyDeleteModal = computed(() => {
-  switch (deleteModalObject.value) {
-    case 'Group':
-      return 'Are you sure you want to delete this group? This action cannot be undone.'
-    case 'Invitation':
-      return 'Are you sure you want to revoke this invitation?'
-    case 'Member':
-      return 'Are you sure you want to remove this member?'
-    case 'Me':
-      return 'Are you sure you want to leave this group?'
-    default:
-      return ''
-  }
-})
-
-function saveResources() {
-  return api
-    .put(`/groups/${groupId}/resources`, {
-      cores: cores.value,
-      ram: ram.value,
-      disk: disk.value,
-      nets: nets.value,
-    })
-    .then(() => {
-      toastSuccess('Resources saved successfully.')
-      fetchGroup() // This will re-fetch group and resources
-      fetchResourceStats()
-      return true
-    })
-    .catch((err) => {
-      console.error('Failed to save resources:', err)
-      error.value = `Failed to save resources. ${err.response?.data}`
-      return false
-    })
-}
+const group = ref<Group | null>(null)
+const me = ref<GroupMember | null>(null)
 
 function fetchGroup() {
   api
-    .get(`/groups/${groupId}`)
+    .get(`/groups/${groupid.value}`)
     .then((res) => {
       group.value = res.data as Group
     })
@@ -156,78 +65,20 @@ function fetchGroup() {
     })
 }
 
-function inviteUser() {
-  if (!username.value) {
-    error.value = 'Username is required to invite a user.'
-    return false
-  }
-
-  return api
-    .post(`/groups/${groupId}/invites`, {
-      username: username.value,
-      role: role.value,
-    })
-    .then(() => {
-      username.value = ''
-      fetchInvitations()
-      toastSuccess('User invited successfully.')
-
-      return true
-    })
-    .catch((err) => {
-      console.error('Failed to invite user:', err)
-      error.value = `Failed to invite user: ${err.response?.data}`
-
-      return false
-    })
-}
-
-function fetchInvitations() {
+function fetchMe() {
   api
-    .get(`/groups/${groupId}/invites`)
+    .get(`/groups/${groupid.value}/members/me`)
     .then((res) => {
-      const tmp = res.data.sort((a: GroupInvite, b: GroupInvite) => a.id - b.id)
-      invitations.value = tmp as GroupInvite[]
+      me.value = res.data as GroupMember
     })
     .catch((err) => {
-      console.error('Failed to fetch Invitations:', err)
-      toastError(`Failed to fetch Invitations. ${err.response?.data}`)
+      console.error('Failed to fetch current user membership:', err)
     })
-}
-
-function preRevokeUserInvite(id: number) {
-  deleteModalObject.value = 'Invitation'
-  deleteTargetId.value = id
-  showDeleteModal.value = true
-  loading.start('groupInvite', id, 'delete')
-}
-
-function revokeUserInvite(id: number) {
-  api
-    .delete(`/groups/${groupId}/invites/${id}`)
-    .then(() => {
-      // small optimization
-      invitations.value = invitations.value.filter((invite) => invite.id !== id)
-      fetchInvitations()
-    })
-    .catch((err) => {
-      console.error('Failed to revoke invitation:', err)
-      toastError(`Failed to revoke invitation. ${err.response?.data}`)
-    })
-    .finally(() => {
-      resetDeleteModal()
-      loading.stop('groupInvite', id, 'delete')
-    })
-}
-
-function cancelRevokeUserInvite(id: number) {
-  resetDeleteModal()
-  loading.stop('groupInvite', id, 'delete')
 }
 
 function fetchMembers() {
   api
-    .get(`/groups/${groupId}/members`)
+    .get(`/groups/${groupid.value}/members`)
     .then((res) => {
       const tmp = res.data.sort((a: GroupMember, b: GroupMember) => a.user_id - b.user_id)
       if (group.value) {
@@ -239,485 +90,47 @@ function fetchMembers() {
     })
 }
 
-function fetchMe() {
-  api
-    .get(`/groups/${groupId}/members/me`)
-    .then((res) => {
-      me.value = res.data as GroupMember
-    })
-    .catch((err) => {
-      console.error('Failed to fetch current user membership:', err)
-    })
-}
-
-function preDeleteMember(id: number) {
-  if (id === me.value?.user_id) {
-    deleteModalObject.value = 'Me'
-  } else {
-    deleteModalObject.value = 'Member'
-  }
-  deleteTargetId.value = id
-  showDeleteModal.value = true
-  loading.start('groupMember', id, 'delete')
-}
-
-function deleteMember(id: number) {
-  let leave_me = false
-  let id_path = id.toString()
-  if (id === me.value?.user_id) {
-    id_path = 'me'
-    leave_me = true
-  }
-
-  api
-    .delete(`/groups/${groupId}/members/${id_path}`)
-    .then(() => {
-      if (leave_me) {
-        router.replace('/group')
-        return
-      }
-      // small optimization
-      if (group.value && group.value.members) {
-        group.value.members = group.value.members.filter((m) => m.user_id !== id)
-      }
-      fetchMembers()
-    })
-    .catch((err) => {
-      console.error('Failed to remove member:', err)
-      toastError(`Failed to remove member. ${err.response?.data}`)
-    })
-    .finally(() => {
-      resetDeleteModal()
-      loading.stop('groupMember', id, 'delete')
-    })
-}
-
-function cancelDeleteMember(id: number) {
-  resetDeleteModal()
-  loading.stop('groupMember', id, 'delete')
-}
-
-function preDeleteGroup(id: number) {
-  deleteModalObject.value = 'Group'
-  deleteTargetId.value = id
-  showDeleteModal.value = true
-  loading.start('group', groupId, 'delete')
-}
-
-function deleteGroup(id: number) {
-  api
-    .delete(`/groups/${id}`)
-    .then(() => {
-      toastSuccess('Group deleted successfully.')
-      router.push('/group')
-    })
-    .catch((err) => {
-      console.error('Failed to delete Group:', err)
-      toastError(`Failed to delete Group. ${err.response?.data}`)
-    })
-    .finally(() => {
-      resetDeleteModal()
-      loading.stop('group', id, 'delete')
-    })
-}
-
-function cancelDeleteGroup(id: number) {
-  resetDeleteModal()
-  loading.stop('group', id, 'delete')
-}
-
-function deleteModalPositiveFunc(id: number) {
-  switch (deleteModalObject.value) {
-    case 'Group':
-      deleteGroup(id)
-      break
-    case 'Invitation':
-      revokeUserInvite(id)
-      break
-    case 'Member':
-      deleteMember(id)
-      break
-    case 'Me':
-      deleteMember(id)
-      break
-    default:
-      console.error('Unknown delete object:', deleteModalObject.value)
-  }
-}
-
-function deleteModalNegativeFunc(id: number) {
-  switch (deleteModalObject.value) {
-    case 'Group':
-      cancelDeleteGroup(id)
-      break
-    case 'Invitation':
-      cancelRevokeUserInvite(id)
-      break
-    case 'Member':
-      cancelDeleteMember(id)
-      break
-    case 'Me':
-      cancelDeleteMember(id)
-      break
-    default:
-      console.error('Unknown delete object:', deleteModalObject.value)
-  }
-}
-
-function revokeResource() {
-  api
-    .delete(`/groups/${groupId}/resources`)
-    .then(() => {
-      toastSuccess('Your resources have been revoked successfully.')
-      fetchGroup()
-    })
-    .catch((err) => {
-      console.error('Failed to revoke resources:', err)
-      toastError(`Failed to revoke resources. ${err.response?.data}`)
-    })
-}
-
-// TODO: This is duplicated from HomeView.vue, we should refactor to avoid duplication
-async function fetchResourceStats() {
-  api
-    .get(`/groups/${groupId}/resources`)
-    .then((res) => {
-      const data = res.data
-      stats.value = [
-        {
-          item: 'CPU',
-          active: data.active_vms_cores,
-          max: data.max_cores,
-          allocated: data.allocated_cores,
-        },
-        {
-          item: 'RAM',
-          active: data.active_vms_ram / 1024,
-          max: data.max_ram / 1024,
-          allocated: data.allocated_ram / 1024,
-        },
-        {
-          item: 'Disk',
-          active: data.active_vms_disk,
-          max: data.max_disk,
-          allocated: data.allocated_disk,
-        },
-        {
-          item: 'Net',
-          active: -1,
-          max: data.max_nets,
-          allocated: data.allocated_nets,
-        },
-      ]
-    })
-    .catch((err) => {
-      console.error('Failed to fetch resource stats:', err)
-    })
-}
-
-function updateGroup() {
-  return api
-    .put(`/groups/${groupId}`, {
-      name: groupName.value,
-      description: groupDescription.value,
-    })
-    .then(() => {
-      toastSuccess('Group updated successfully.')
-      fetchGroup()
-      return true
-    })
-    .catch((err) => {
-      console.error('Failed to update Group:', err)
-      error.value = `Failed to update Group. ${err.response?.data}`
-      return false
-    })
-}
-
-const showGroupResourcesWarning = computed(() => {
-  if (!group.value || !group.value.resources || !group.value.members) {
-    return false
-  }
-
-  const total_nets = group.value.resources.reduce((sum, r) => sum + r.nets, 0) || 0
-  return group.value.members.length < 2 && total_nets == 0
-})
-
 onMounted(() => {
-  fetchMe()
   fetchGroup()
-  // fetchMembers()
-  fetchInvitations()
-  fetchResourceStats()
+  fetchMe()
 })
 </script>
 
 <template>
-  <div class="p-2">
-    <BreadcrumbNav />
-
-    <div v-if="group" class="rounded-lg p-4 shadow">
-      <h2 class="mb-2 text-xl font-semibold">{{ group.name }}</h2>
-      <p class="mb-4 text-gray-600">{{ group.description }}</p>
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <div v-show="me && me.role == 'owner'" class="flex flex-col gap-2">
-        <CreateNew title="Invitation" :create="inviteUser" :error="error" :close-on-create="true">
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center gap-2">
-              <label for="username">Username</label>
-              <input
-                type="text"
-                id="username"
-                v-model="username"
-                class="input w-48 rounded-lg border p-2"
-              />
-              <label for="role">Role</label>
-              <select id="role" v-model="role" class="input w-48 rounded-lg border p-2">
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          </div>
-        </CreateNew>
-        <CreateNew
-          :hideCreate="true"
-          title="Update Group"
-          :create="updateGroup"
-          :error="error"
-          :close-on-create="true"
-        >
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center gap-2">
-              <label for="groupName">Name</label>
-              <input
-                type="text"
-                id="groupName"
-                v-model="groupName"
-                class="input w-48 rounded-lg border p-2"
-              />
-              <label for="groupDescription">Description</label>
-              <input
-                type="text"
-                id="groupDescription"
-                v-model="groupDescription"
-                class="input w-48 rounded-lg border p-2"
-              />
-            </div>
-          </div>
-        </CreateNew>
-      </div>
-
-      <CreateNew
-        :hideCreate="addOrUpdateResources"
-        :title="(addOrUpdateResources ? 'Update ' : '') + 'Resource'"
-        :create="saveResources"
-        :error="error"
-        :close-on-create="true"
-      >
-        <div class="flex flex-col gap-2">
+  <div class="relative p-2">
+    <HelpButton class="absolute right-2" />
+    <div class="tabs tabs-lift">
+      <template v-for="tab in tabs" :key="tab.id">
+        <label class="tab">
+          <input
+            type="radio"
+            name="vm_view_tabs"
+            :checked="activeTab === tab.id"
+            @change="navigateToTab(tab.path)"
+          />
           <div class="flex items-center gap-2">
-            <label for="cores">Cores</label>
-            <input
-              type="number"
-              id="cores"
-              v-model.number="cores"
-              class="input w-48 rounded-lg border p-2"
-            />
-            <label for="ram">RAM (MB)</label>
-            <input
-              type="number"
-              id="ram"
-              v-model.number="ram"
-              class="input w-48 rounded-lg border p-2"
-            />
-            <label for="disk">Disk (GB)</label>
-            <input
-              type="number"
-              id="disk"
-              v-model.number="disk"
-              class="input w-48 rounded-lg border p-2"
-            />
-            <label for="nets">Nets </label>
-            <input
-              type="number"
-              id="nets"
-              v-model.number="nets"
-              class="input w-48 rounded-lg border p-2"
-            />
+            <IconVue class="text-primary" :icon="tab.icon"></IconVue>
+            <div>
+              {{ tab.label }}
+            </div>
           </div>
+        </label>
+        <div class="tab-content border-t-base-300 border-t pt-4">
+          <!-- <div v-if="isLoading(vmid, 'fetch_vm')" class="grid h-70"> -->
+          <div v-if="false" class="grid h-70">
+            <span class="loading loading-spinner text-primary place-self-center"></span>
+          </div>
+          <template v-else-if="group && me && activeTab === tab.id">
+            <!-- <router-view :vm="vm" @update-vm="fetchVM" @status-change="handleStatusChange" /> -->
+            <router-view
+              :group="group"
+              :me="me"
+              @fetch-group="fetchGroup"
+              @fetch-members="fetchMembers"
+            />
+          </template>
         </div>
-      </CreateNew>
+      </template>
     </div>
-
-    <div class="my-2 flex gap-2">
-      <button @click="revokeResource()" class="btn btn-warning rounded-lg">
-        Revoke My Resources
-      </button>
-
-      <button
-        v-if="me && me.role != 'owner'"
-        @click="preDeleteMember(me.user_id)"
-        class="btn btn-error btn-outline rounded-lg"
-        :disabled="loading.is('groupMember', me.user_id, 'delete')"
-      >
-        <span
-          v-if="loading.is('groupMember', me.user_id, 'delete')"
-          class="loading loading-spinner loading-xs"
-        ></span>
-        <IconVue v-else icon="pepicons-pencil:leave" class="text-lg"></IconVue>
-        <p class="hidden md:inline">Leave Group</p>
-      </button>
-      <button
-        v-else
-        @click="preDeleteGroup(groupId)"
-        class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-        :disabled="loading.is('group', groupId, 'delete')"
-      >
-        <span
-          v-if="loading.is('group', groupId, 'delete')"
-          class="loading loading-spinner loading-xs"
-        ></span>
-        <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
-        <p class="hidden md:inline">Delete</p>
-      </button>
-    </div>
-
-    <div
-      v-if="showGroupResourcesWarning"
-      class="alert alert-info flex w-max flex-col p-4"
-      role="alert"
-    >
-      <p class="font-bold">Groups resources</p>
-      <ul class="list-disc pl-5">
-        <li>To have group resources users can share part of their resources with other group.</li>
-        <li>Users has a default network allocated when the members are more than one.</li>
-      </ul>
-    </div>
-
-    <UserStats v-if="stats" :stats="stats" />
-
-    <div class="divider my-4"></div>
-
-    <div>
-      <h2 class="mb-2 text-xl font-semibold">Group Members</h2>
-      <div>
-        <template v-if="group?.members?.length === 0">
-          <p>No members in this group.</p>
-        </template>
-        <div v-else class="overflow-x-auto">
-          <table class="table w-full">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Cores</th>
-                <th>RAM (MB)</th>
-                <th>Disk (GB)</th>
-                <th>Nets</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody v-if="group?.members">
-              <tr
-                v-for="member in group.members"
-                :key="member.user_id"
-                class="odd:bg-base-100 even:bg-base-200"
-              >
-                <td>
-                  {{ member.username }}<span class="opacity-60">@{{ member.realm_name }}</span>
-                </td>
-                <td>{{ member.role }}</td>
-                <td>{{ getResourcesForUser(member.user_id)?.cores || 0 }}</td>
-                <td>{{ getResourcesForUser(member.user_id)?.ram || 0 }}</td>
-                <td>{{ getResourcesForUser(member.user_id)?.disk || 0 }}</td>
-                <td>{{ getResourcesForUser(member.user_id)?.nets || 0 }}</td>
-                <td>
-                  <button
-                    v-show="me && me.role == 'owner' && member.user_id != me.user_id"
-                    @click="preDeleteMember(member.user_id)"
-                    class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-                    :disabled="loading.is('groupMember', member.user_id, 'delete')"
-                  >
-                    <span
-                      v-if="loading.is('groupMember', member.user_id, 'delete')"
-                      class="loading loading-spinner loading-xs"
-                    ></span>
-                    <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
-                    <p class="hidden md:inline">Remove</p>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider my-4"></div>
-
-    <div>
-      <h2 class="mb-2 text-xl font-semibold">Pending Invitations</h2>
-      <div>
-        <template v-if="invitations.length === 0">
-          <p>No pending invitations.</p>
-        </template>
-        <div v-else class="overflow-x-auto">
-          <table class="table w-full">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Role</th>
-                <th>State</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="invite in invitations"
-                :key="invite.id"
-                class="odd:bg-base-100 even:bg-base-200"
-              >
-                <td>
-                  {{ invite.username }}<span class="opacity-60">@{{ invite.realm_name }}</span>
-                </td>
-                <td>{{ invite.role }}</td>
-                <td>{{ invite.state }}</td>
-                <td>
-                  <button
-                    @click="preRevokeUserInvite(invite.id)"
-                    class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-                    :disabled="loading.is('groupInvite', invite.id, 'delete')"
-                  >
-                    <span
-                      v-if="loading.is('groupInvite', invite.id, 'delete')"
-                      class="loading loading-spinner loading-xs"
-                    ></span>
-                    <IconVue v-else icon="material-symbols:undo" class="text-lg"></IconVue>
-                    <p class="hidden md:inline">Revoke</p>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delete modal -->
-    <ModalAlert
-      :model-value="showDeleteModal"
-      :title="titleDeleteModal"
-      :positiveText="positiveTextDeleteModal"
-      negativeText="Cancel action"
-      positiveBtnClass="btn-error"
-      @positive="deleteModalPositiveFunc(deleteTargetId!)"
-      @negative="deleteModalNegativeFunc(deleteTargetId!)"
-    >
-      <p>
-        {{ bodyDeleteModal }}
-      </p>
-    </ModalAlert>
-    <!-- End of Delete modal -->
   </div>
 </template>

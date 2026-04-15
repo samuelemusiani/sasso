@@ -150,7 +150,7 @@ const colors: Record<string, string> = {
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.allocated / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
+                :style="`width: ${(stat.allocated != 0 ? stat.allocated / stat.max : 0) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
@@ -166,7 +166,7 @@ const colors: Record<string, string> = {
             <div class="bg-base-300/30 h-2 w-full overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full shadow-sm transition-all duration-1000 ease-out"
-                :style="`width: ${(stat.group_max / stat.max) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
+                :style="`width: ${(stat.group_max != 0 ? stat.group_max / stat.max : 0) * 100}%; background: linear-gradient(90deg, ${colors[stat.color]}33, ${colors[stat.color]})`"
               ></div>
             </div>
           </div>
