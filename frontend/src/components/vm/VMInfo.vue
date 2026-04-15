@@ -46,7 +46,7 @@ const { showModal, modalMissing, preStartVM, confirmStart, cancelStart } = useVm
   onStarted: () => $emit('status-change', 'running'),
 })
 
-function updateLifetime(vmid: number, extend_by: number) {
+function updateLifetime(extend_by: number) {
   api
     .patch(`/vm/${$props.vm.id}/lifetime`, { extend_by })
     .then(() => {
@@ -54,6 +54,8 @@ function updateLifetime(vmid: number, extend_by: number) {
     })
     .catch((err) => {
       console.error('Failed to update VM lifetime:', err)
+      console.log('Error response:', err.response.data)
+      toastError('Failed to update VM lifetime: ' + err.response?.data)
     })
 }
 
@@ -186,7 +188,7 @@ const disableDelete = computed(() => {
           {{ option }} month<span v-if="option > 1">s</span>
         </option>
       </select>
-      <button @click="updateLifetime(vm.id, extendBy)" class="btn btn-primary btn-sm rounded-lg">
+      <button @click="updateLifetime(extendBy)" class="btn btn-primary btn-sm rounded-lg">
         <IconVue icon="material-symbols:update" class="text-lg" />
         <span class="hidden md:inline">Extend</span>
       </button>
