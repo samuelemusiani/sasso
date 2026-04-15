@@ -16,7 +16,7 @@ function fetchUsers() {
   api
     .get('/admin/users')
     .then((res) => {
-      users.value = res.data as User[]
+      users.value = res.data.sort((a: User, b: User) => a.id - b.id) as User[]
     })
     .catch((err) => {
       console.error('Failed to fetch users:', err)
