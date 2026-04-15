@@ -617,11 +617,25 @@ type addGroupResourcesRequest struct {
 	Nets  uint `json:"nets"`
 }
 
+type returnGroupResources struct {
+	MaxCores       uint `json:"max_cores"`
+	MaxRAM         uint `json:"max_ram"`
+	MaxDisk        uint `json:"max_disk"`
+	MaxNets        uint `json:"max_nets"`
+	AllocatedCores uint `json:"allocated_cores"`
+	AllocatedRAM   uint `json:"allocated_ram"`
+	AllocatedDisk  uint `json:"allocated_disk"`
+	AllocatedNets  uint `json:"allocated_nets"`
+	ActiveVMsCores uint `json:"active_vms_cores"`
+	ActiveVMsRAM   uint `json:"active_vms_ram"`
+	ActiveVMsDisk  uint `json:"active_vms_disk"`
+}
+
 func getGroupResources(w http.ResponseWriter, r *http.Request) {
 	group := mustGetGroupFromContext(r)
 
 	var (
-		gResources returnUserResources
+		gResources returnGroupResources
 		err        error
 	)
 

@@ -251,6 +251,8 @@ type updateVMLifetimeRequest struct {
 }
 
 func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
+	userID := mustGetUserIDFromContext(r)
+
 	var request updateVMLifetimeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -264,6 +266,11 @@ func updateVMLifetime(w http.ResponseWriter, r *http.Request) {
 
 	m.Lock()
 	defer m.Unlock()
+
+	m2 := getUserResourcesMutex(userID)
+
+	m2.Lock()
+	defer m2.Unlock()
 
 	err := proxmox.UpdateVMLifetime(vmID, request.ExtendBy)
 	if err != nil {
