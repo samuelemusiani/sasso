@@ -598,6 +598,17 @@ type ResourcesWithNets struct {
 	Nets  uint `gorm:"not null"`
 }
 
+// FreeResourcesWithNets is used to represent the free resources. Is almost
+// the same as ResourcesWithNets but with int instead of uint to be able to
+// represent negative values when the used resources are more than the assigned
+// ones
+type FreeResourcesWithNets struct {
+	Cores int `gorm:"not null"`
+	RAM   int `gorm:"not null"`
+	Disk  int `gorm:"not null"`
+	Nets  int `gorm:"not null"`
+}
+
 // GroupResource encodes the resources for a particular group. Admins can
 // assign resources to a group. We have model this as the admin user assigning
 // some of their own resources to the group. As the admin does not have
@@ -646,14 +657,14 @@ func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	return resources, nil
 }
 
-func availableResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (ResourcesWithNets, error) {
+func getFreeResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (FreeResourcesWithNets, error) {
 	var used ResourcesWithNets
 
 	err := tx.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
 	if err != nil {
-		return ResourcesWithNets{}, fmt.Errorf("failed to get user VM resources: %w", err)
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user VM resources: %w", err)
 	}
 
 	var usedNets int64
@@ -662,7 +673,7 @@ func availableResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (Resources
 		Where(&Net{OwnerID: userID, OwnerType: "User"}).
 		Count(&usedNets).Error
 	if err != nil {
-		return ResourcesWithNets{}, fmt.Errorf("failed to get user Net resources: %w", err)
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user Net resources: %w", err)
 	}
 
 	used.Nets = uint(usedNets)
@@ -671,70 +682,15 @@ func availableResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (Resources
 
 	err = tx.First(&u, userID).Error
 	if err != nil {
-		return ResourcesWithNets{}, fmt.Errorf("failed to get user: %w", err)
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	var availableResources ResourcesWithNets
-
-	if u.MaxCores > used.Cores {
-		availableResources.Cores = u.MaxCores - used.Cores
-	}
-
-	if u.MaxRAM > used.RAM {
-		availableResources.RAM = u.MaxRAM - used.RAM
-	}
-
-	if u.MaxDisk > used.Disk {
-		availableResources.Disk = u.MaxDisk - used.Disk
-	}
-
-	if u.MaxNets > uint(usedNets) {
-		availableResources.Nets = u.MaxNets - uint(usedNets)
-	}
-
-	return availableResources, nil
-}
-
-func AddGroupResources(groupID, userID uint, res ResourcesWithNets) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		availableRes, err := availableResourcesForUserIDTransaction(tx, userID)
-		if err != nil {
-			logger.Error("Failed to get available resources for user", "error", err)
-
-			return err
-		}
-
-		if res.Cores > availableRes.Cores ||
-			res.RAM > availableRes.RAM ||
-			res.Disk > availableRes.Disk ||
-			res.Nets > availableRes.Nets {
-			return ErrInsufficientResources
-		}
-
-		groupResource := GroupResource{
-			GroupID:           groupID,
-			UserID:            userID,
-			ResourcesWithNets: res,
-		}
-
-		err = tx.Create(&groupResource).Error
-		if err != nil {
-			return fmt.Errorf("failed to create group resource: %w", err)
-		}
-
-		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
-			UpdateColumns(map[string]interface{}{
-				"max_cores": gorm.Expr("max_cores - ?", res.Cores),
-				"max_ram":   gorm.Expr("max_ram - ?", res.RAM),
-				"max_disk":  gorm.Expr("max_disk - ?", res.Disk),
-				"max_nets":  gorm.Expr("max_nets - ?", res.Nets),
-			}).Error
-		if err != nil {
-			return fmt.Errorf("failed to update user limits: %w", err)
-		}
-
-		return nil
-	})
+	return FreeResourcesWithNets{
+		Cores: int(u.MaxCores) - int(used.Cores),
+		RAM:   int(u.MaxRAM) - int(used.RAM),
+		Disk:  int(u.MaxDisk) - int(used.Disk),
+		Nets:  int(u.MaxNets) - int(used.Nets),
+	}, nil
 }
 
 func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
@@ -815,15 +771,15 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 		}
 
 		// check if we have the resources to assign
-		availableResources, err := availableResourcesForUserIDTransaction(tx, userID)
+		availableResources, err := getFreeResourcesForUserIDTransaction(tx, userID)
 		if err != nil {
 			return fmt.Errorf("failed to get available resources for user: %w", err)
 		}
 
-		if diffCores > int(availableResources.Cores) ||
-			diffRAM > int(availableResources.RAM) ||
-			diffDisk > int(availableResources.Disk) ||
-			diffNets > int(availableResources.Nets) {
+		if diffCores > availableResources.Cores ||
+			diffRAM > availableResources.RAM ||
+			diffDisk > availableResources.Disk ||
+			diffNets > availableResources.Nets {
 			return ErrInsufficientResources
 		}
 
@@ -946,6 +902,22 @@ func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources 
 	}
 
 	return usedResources, maxResources, nil
+}
+
+func getFreeResourcesForGroupIDTransaction(tx *gorm.DB, groupID uint) (FreeResourcesWithNets, error) {
+	usedResources, maxResources, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+	if err != nil {
+		return FreeResourcesWithNets{}, err
+	}
+
+	freeResources := FreeResourcesWithNets{
+		Cores: int(maxResources.Cores) - int(usedResources.Cores),
+		RAM:   int(maxResources.RAM) - int(usedResources.RAM),
+		Disk:  int(maxResources.Disk) - int(usedResources.Disk),
+		Nets:  int(maxResources.Nets) - int(usedResources.Nets),
+	}
+
+	return freeResources, nil
 }
 
 func GetAllGroups() ([]Group, error) {

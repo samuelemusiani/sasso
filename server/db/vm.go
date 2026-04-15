@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -350,16 +351,52 @@ func GetVMsWithLifetimesLessThanAndStatusIN(t time.Time, states []string) ([]VM,
 }
 
 func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
-	result := db.Model(&VM{ID: vmID}).Update("life_time", newLifetime)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return ErrNotFound
+	return db.Transaction(func(tx *gorm.DB) error {
+		var vm VM
+
+		err := tx.First(&vm, vmID).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
+			return fmt.Errorf("failed to find VM: %w", err)
 		}
 
-		return result.Error
-	}
+		var freeResources FreeResourcesWithNets
 
-	return nil
+		switch vm.OwnerType {
+		case "User":
+			freeResources, err = getFreeResourcesForUserIDTransaction(tx, vm.OwnerID)
+		case "Group":
+			freeResources, err = getFreeResourcesForGroupIDTransaction(tx, vm.OwnerID)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to get free resources: %w", err)
+		}
+
+		// If free resources are negative, it means that the user/group is over
+		// quota and we should not allow extending the VM lifetime
+		if freeResources.Cores < 0 ||
+			freeResources.RAM < 0 ||
+			freeResources.Disk < 0 {
+			return errors.New("not enough free resources to extend VM lifetime")
+		}
+
+		vm.LifeTime = newLifetime
+
+		err = tx.Save(&vm).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
+			return fmt.Errorf("failed to save VM: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func GetAllVMsIDsByUserID(userID uint) ([]uint, error) {
