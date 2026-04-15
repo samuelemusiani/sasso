@@ -48,6 +48,7 @@ import HelpPortForwards from '@/components/help/HelpPortForwards.vue'
 import GroupInfo from '@/components/group/GroupInfo.vue'
 import GroupResources from '@/components/group/GroupResources.vue'
 import GroupMembers from '@/components/group/GroupMembers.vue'
+import HelpVMBackupTasks from '@/components/help/HelpVMBackupTasks.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -97,7 +98,12 @@ const routes: RouteRecordRaw[] = [
                     component: VMBackups,
                     meta: { helpComponent: HelpVMBackups },
                   },
-                  { path: 'requests', name: 'vm-backup-requests', component: VMBackupsRequests },
+                  {
+                    path: 'requests',
+                    name: 'vm-backup-requests',
+                    component: VMBackupsRequests,
+                    meta: { helpComponent: HelpVMBackupTasks },
+                  },
                 ],
               },
             ],
@@ -159,7 +165,13 @@ const routes: RouteRecordRaw[] = [
               { path: 'info', component: HelpVMInfo, meta: { title: 'info' } },
               { path: 'resources', component: HelpVMResources, meta: { title: 'resources' } },
               { path: 'interfaces', component: HelpVMInterfaces, meta: { title: 'interfaces' } },
-              { path: 'backups', component: HelpVMBackups, meta: { title: 'backups' } },
+              {
+                path: 'backups',
+                children: [
+                  { path: '', component: HelpVMBackups, meta: { title: 'backups' } },
+                  { path: 'tasks', component: HelpVMBackupTasks, meta: { title: 'backup-tasks' } },
+                ],
+              },
             ],
           },
           { path: 'net', component: HelpNets, meta: { title: 'nets' } },

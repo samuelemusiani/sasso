@@ -333,11 +333,14 @@ onBeforeUnmount(() => {
             </td>
             <td class="" :class="getStatusClass(bk.protected.toString())">
               <div class="tooltip tooltip-top">
-                <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
+                <div
+                  class="tooltip-content rounded-lg border"
+                  v-if="$props.vm.group_role === 'member'"
+                >
                   Cannot change protection if you're not an admin
                 </div>
                 <div
-                  class="tooltip-content border"
+                  class="tooltip-content rounded-lg border"
                   v-else-if="!bk.protected && haveFinishedProtectedBackups()"
                 >
                   Max number of protected backups reached
@@ -372,11 +375,14 @@ onBeforeUnmount(() => {
               </div>
             </td>
             <td class="flex justify-evenly gap-2 text-right text-sm font-medium">
-              <div class="tooltip tooltip-top">
+              <div class="tooltip tooltip-top rounded-lg">
                 <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
                   Cannot restore if you're not an admin
                 </div>
-                <div class="tooltip-content border" v-else-if="$props.vm.status != 'stopped'">
+                <div
+                  class="tooltip-content rounded-lg border"
+                  v-else-if="$props.vm.status != 'stopped'"
+                >
                   Cannot restore if VM is not stopped
                 </div>
                 <button
@@ -401,10 +407,13 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div class="tooltip tooltip-left">
-                <div class="tooltip-content border" v-if="$props.vm.group_role === 'member'">
+                <div
+                  class="tooltip-content rounded-lg border"
+                  v-if="$props.vm.group_role === 'member'"
+                >
                   Cannot delete if you're not an admin
                 </div>
-                <div class="tooltip-content border" v-else-if="!bk.can_delete">
+                <div class="tooltip-content rounded-lg border" v-else-if="!bk.can_delete">
                   Cannot delete automatic or protected backups
                 </div>
                 <button
