@@ -7,14 +7,14 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/jwtauth/v5 v5.4.0
 	github.com/go-ldap/ldap/v3 v3.4.13
-	github.com/luthermonson/go-proxmox v0.4.1
+	github.com/luthermonson/go-proxmox v0.5.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samuelemusiani/go-shorewall v0.0.8
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/wneessen/go-mail v0.7.2
-	golang.org/x/crypto v0.50.0
-	golang.org/x/sys v0.43.0
+	github.com/wneessen/go-mail v0.7.3
+	golang.org/x/crypto v0.51.0
+	golang.org/x/sys v0.44.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
@@ -25,7 +25,7 @@ require (
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
-	github.com/diskfs/go-diskfs v1.9.1 // indirect
+	github.com/diskfs/go-diskfs v1.9.2 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
@@ -44,7 +44,7 @@ require (
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.5 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.1.0 // indirect
+	github.com/lestrrat-go/jwx/v3 v3.1.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/magefile/mage v1.17.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
