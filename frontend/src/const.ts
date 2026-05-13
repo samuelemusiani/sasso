@@ -49,6 +49,7 @@ export function getPageIcon(page: string) {
       return 'mdi:telegram'
     case 'group':
     case 'groups':
+    case 'members':
       return 'material-symbols:group-rounded'
     case 'admin':
       return 'material-symbols:admin-panel-settings'

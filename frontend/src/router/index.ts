@@ -45,6 +45,10 @@ import HelpInterfaces from '@/components/help/HelpInterfaces.vue'
 import HelpSettings from '@/components/help/HelpSettings.vue'
 import HelpTelegram from '@/components/help/HelpTelegram.vue'
 import HelpPortForwards from '@/components/help/HelpPortForwards.vue'
+import HelpGroups from '@/components/help/HelpGroups.vue'
+import HelpGroupInfo from '@/components/help/HelpGroupInfo.vue'
+import HelpGroupMembers from '@/components/help/HelpGroupMembers.vue'
+import HelpGroupResources from '@/components/help/HelpGroupResources.vue'
 import GroupInfo from '@/components/group/GroupInfo.vue'
 import GroupResources from '@/components/group/GroupResources.vue'
 import GroupMembers from '@/components/group/GroupMembers.vue'
@@ -123,6 +127,7 @@ const routes: RouteRecordRaw[] = [
       { path: '/settings', component: SettingsView, meta: { helpComponent: HelpSettings } },
       {
         path: '/group',
+        meta: { helpComponent: HelpGroups },
         children: [
           { path: '', component: GroupsView },
           {
@@ -130,9 +135,24 @@ const routes: RouteRecordRaw[] = [
             component: SingleGroupView,
             redirect: { name: 'group-info' },
             children: [
-              { path: 'info', name: 'group-info', component: GroupInfo },
-              { path: 'resources', name: 'group-resources', component: GroupResources },
-              { path: 'members', name: 'group-members', component: GroupMembers },
+              {
+                path: 'info',
+                name: 'group-info',
+                component: GroupInfo,
+                meta: { helpComponent: HelpGroupInfo },
+              },
+              {
+                path: 'resources',
+                name: 'group-resources',
+                component: GroupResources,
+                meta: { helpComponent: HelpGroupResources },
+              },
+              {
+                path: 'members',
+                name: 'group-members',
+                component: GroupMembers,
+                meta: { helpComponent: HelpGroupMembers },
+              },
             ],
           },
         ],
@@ -180,6 +200,16 @@ const routes: RouteRecordRaw[] = [
           { path: 'vpn', component: HelpVPN, meta: { title: 'vpn' } },
           { path: 'port-forwards', component: HelpPortForwards, meta: { title: 'port-forwards' } },
           { path: 'telegram', component: HelpTelegram, meta: { title: 'telegram' } },
+          {
+            path: 'groups',
+            meta: { title: 'groups' },
+            children: [
+              { path: '', component: HelpGroups, meta: { title: 'groups' } },
+              { path: 'info', component: HelpGroupInfo, meta: { title: 'info' } },
+              { path: 'resources', component: HelpGroupResources, meta: { title: 'resources' } },
+              { path: 'members', component: HelpGroupMembers, meta: { title: 'members' } },
+            ],
+          },
           { path: 'settings', component: HelpSettings, meta: { title: 'settings' } },
         ],
       },
