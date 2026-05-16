@@ -764,6 +764,8 @@ func TestEndpointClone(ctx context.Context) {
 				logger.Error("template not found in proxmox cluster. disabling it", "name", name, "vmid", template.VMID)
 
 				template.Ready = false
+
+				continue
 			}
 
 			pnode, ok = nodeCache[nodeName]
