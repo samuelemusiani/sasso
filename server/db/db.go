@@ -119,16 +119,16 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 		return err
 	}
 
-	err = initUsers()
+	err = initSettings()
 	if err != nil {
-		logger.Error("Failed to initialize users in database", "error", err)
+		logger.Error("Failed to initialize settings in database", "error", err)
 
 		return err
 	}
 
-	err = initSettings()
+	err = initUsers()
 	if err != nil {
-		logger.Error("Failed to initialize settings in database", "error", err)
+		logger.Error("Failed to initialize users in database", "error", err)
 
 		return err
 	}
