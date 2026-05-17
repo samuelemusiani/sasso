@@ -199,16 +199,17 @@ const vlanTagMessage = computed(() => {
 
 // We have to watch interfaces in order to set the gateway correctly for a new
 // possible interface when one with a gateway is added (as the form remains open)
-watch([() => form.value.vnet_id, () => $props.interfaces], ([newVnetId]) => {
-  const net = nets.value.find((n) => n.id === newVnetId)
-  const interfaceWithGateway = $props.interfaces.some((i) => i.gateway !== '')
-  if (net && !interfaceWithGateway) {
-    console.log('here')
-    form.value.gateway = net.gateway
-  } else {
-    form.value.gateway = ''
-  }
-})
+watch(
+  [() => form.value.vnet_id, () => $props.interfaces.some((i) => i.gateway !== '')],
+  ([newVnetId, interfaceWithGateway]) => {
+    const net = nets.value.find((n) => n.id === newVnetId)
+    if (net && !interfaceWithGateway) {
+      form.value.gateway = net.gateway
+    } else if (!editing.value) {
+      form.value.gateway = ''
+    }
+  },
+)
 
 watch(
   () => filteredNets.value,
@@ -239,6 +240,11 @@ function fetchNets() {
 
 function handleSubmit() {
   if (editing.value) {
+    // If the network is not VLAN aware, we have to set the VLAN tag to 0,
+    // otherwise the backend will reject the request
+    if (!currentNet.value?.vlanaware) {
+      form.value.vlan_tag = 0
+    }
     return updateInterface()
   } else {
     return addInterface()
@@ -301,7 +307,11 @@ watch(
       ipValidationResult.value.status === 'warning'
     ) {
       checkingIP.value = true
-      const used = await isIPUsed(newIp, form.value.vnet_id, Number(form.value.vlan_tag))
+      let vlanTag = Number(form.value.vlan_tag)
+      if (!currentNet.value?.vlanaware) {
+        vlanTag = 0
+      }
+      const used = await isIPUsed(newIp, form.value.vnet_id, vlanTag)
       checkingIP.value = false
       if (used) {
         ipIsUsed.value = true
