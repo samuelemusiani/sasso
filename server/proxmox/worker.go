@@ -1993,26 +1993,42 @@ func configureSSHKeys(parentCtx context.Context, vmNodes map[uint64]string) {
 
 	states := []string{string(VMStatusStopped), string(VMStatusRunning), string(VMStatusPaused)}
 
-	ssht := db.GetLastSSHKeyUpdate()
+	// ----------------- START -----------------
 
-	vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
-	if err != nil {
-		logger.Error("failed to get time of last created VM with states", "error", err)
+	// Notes: This optimization does not work. The scenario is the following:
+	// A VM is being created. The worker is therefore stuck in createVMs function
+	// From the UI multiple VMs are created. So the creation date in the DB is Now()
+	// The first VM finishes creation and the worker starts configuring SSH keys.
+	// Updates the SSH keys and put the lastConfigureSSHKeysTime to Now() + few seconds
+	// The worker does a cycle and creates the other VMs in proxmox.
+	// Now the VMs should be configured with the SSH keys but the worker thinks
+	//	that there is no need to configure SSH keys because there is no new SSH key
+	// or VM (the creation date of the VMs is before lastConfigureSSHKeysTime)
 
-		return
-	}
+	// This is related to https://github.com/samuelemusiani/sasso/issues/302
 
-	groupt := db.GetLastUserGroupUpdate()
+	// ssht := db.GetLastSSHKeyUpdate()
 
-	// Every 6 hours we force a reconfiguration of SSH keys
-	if !lastConfigureSSHKeysTime.Before(time.Now().Add(-6*time.Hour)) &&
-		lastConfigureSSHKeysTime.After(ssht) &&
-		lastConfigureSSHKeysTime.After(vmt) &&
-		lastConfigureSSHKeysTime.After(groupt) {
-		logger.Debug("No need to configure SSH keys. No new SSH keys or VMs")
+	// vmt, err := db.GetTimeOfLastCreatedVMWithStates(states)
+	// if err != nil {
+	// 	logger.Error("failed to get time of last created VM with states", "error", err)
+	//
+	// 	return
+	// }
 
-		return
-	}
+	// groupt := db.GetLastUserGroupUpdate()
+
+	// // Every 6 hours we force a reconfiguration of SSH keys
+	// if !lastConfigureSSHKeysTime.Before(time.Now().Add(-6*time.Hour)) &&
+	// 	lastConfigureSSHKeysTime.After(ssht) &&
+	// 	lastConfigureSSHKeysTime.After(vmt) &&
+	// 	lastConfigureSSHKeysTime.After(groupt) {
+	// 	logger.Debug("No need to configure SSH keys. No new SSH keys or VMs")
+	//
+	// 	return
+	// }
+
+	// ----------------- END -------------------
 
 	// TODO: We could optimize this further by checking why the ssh keys table
 	// changed and only updating the VMs of the users that have changes (unless
