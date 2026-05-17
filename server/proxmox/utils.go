@@ -80,6 +80,23 @@ func getSizeFromStorageString(s string) (uint, error) {
 	return 0, ErrInvalidStorageString
 }
 
+// This function updates the bridge in the iface string if it's different from the provided bridge.
+// update VM 610000702: -net0 virtio=BC:24:11:18:93:1D,bridge=sasVR,mtu=1
+// In this case bridge is a vnet
+func updateBridgeIfDifferent(iface string, bridge string) string {
+	parts := strings.Split(iface, ",")
+	for i, part := range parts {
+		currentBridge, found := strings.CutPrefix(part, "bridge=")
+		if found && currentBridge != bridge {
+			parts[i] = "bridge=" + bridge
+
+			break
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 // If vlanTag is 0, remove any existing tag from the iface string
 func substituteVlanTag(iface string, vlanTag uint16) string {
 	// Iface has the following format: "virtio=BC:24:11:64:07:FE,bridge=saspS,tag=7,firewall=1"

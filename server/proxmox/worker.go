@@ -1640,6 +1640,8 @@ func configureInterfaces(parentCtx context.Context, vmNodes map[uint64]string) {
 			continue
 		}
 
+		pnet = updateBridgeIfDifferent(pnet, dbNet.Name)
+
 		if dbNet.VlanAware {
 			pnet = substituteVlanTag(pnet, iface.VlanTag)
 		}
