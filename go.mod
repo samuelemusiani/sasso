@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-chi/jwtauth/v5 v5.4.0
 	github.com/go-ldap/ldap/v3 v3.4.13
 	github.com/luthermonson/go-proxmox v0.5.0
