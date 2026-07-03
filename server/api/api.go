@@ -58,11 +58,11 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	vpnConfigs = vpn
 
 	// Middleware
-	publicRouter.Use(middleware.RealIP)
+	publicRouter.Use(middleware.ClientIPFromHeader("X-Forwarded-For"))
 	publicRouter.Use(middleware.Recoverer)
 	publicRouter.Use(middleware.CleanPath)
 
-	privateRouter.Use(middleware.RealIP)
+	privateRouter.Use(middleware.ClientIPFromHeader("X-Forwarded-For"))
 	privateRouter.Use(middleware.Recoverer)
 	privateRouter.Use(middleware.CleanPath)
 
