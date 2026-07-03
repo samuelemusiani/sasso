@@ -50,7 +50,7 @@ linters:
     # - godox - Detects usage of FIXME, TODO and other keywords inside comments.
     - goheader
     # - gomoddirectives - Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     # - gosec - Inspects source code for security problems.
     - gosmopolitan
