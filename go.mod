@@ -12,7 +12,7 @@ require (
 	github.com/samuelemusiani/go-shorewall v0.0.8
 	github.com/seancfoley/ipaddress-go v1.7.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/wneessen/go-mail v0.7.3
+	github.com/wneessen/go-mail v0.8.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0
 	gorm.io/driver/postgres v1.6.0
@@ -55,7 +55,6 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
