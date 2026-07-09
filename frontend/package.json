@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
-    "axios": "^1.13.2",
+    "axios": "^1.16.0",
     "chart.js": "^4.5.0",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.1.16",
@@ -42,9 +42,9 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "typescript": "~5.9.3",
-    "vite": "^7.2.4",
+    "vite": "^8.1.4",
     "vite-plugin-vue-devtools": "^8.0.5",
-    "vitest": "^4.0.13",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.1.5"
   }
 }
