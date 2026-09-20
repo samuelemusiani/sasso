@@ -134,8 +134,7 @@ func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 
 	// not present, inconsistent
-	var linkNotFoundErr netlink.LinkNotFoundError
-	if errors.As(err, &linkNotFoundErr) {
+	if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 		return false, nil
 	}
 
