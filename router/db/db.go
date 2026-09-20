@@ -31,8 +31,6 @@ func Init(dbLogger *slog.Logger, c config.Database) error {
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
-	logger.Debug("Connecting to database", "url", url)
-
 	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
 		Logger: gormlogger.New(
 			log.New(os.Stdout, "\r\n", log.LstdFlags),
