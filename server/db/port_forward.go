@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -26,9 +27,7 @@ type PortForward struct {
 
 func initPortForwards() error {
 	if err := db.AutoMigrate(&PortForward{}); err != nil {
-		logger.Error("Failed to migrate port forwards table", "error", err)
-
-		return err
+		return fmt.Errorf("failed to migrate port forwards table: %w", err)
 	}
 
 	logger.Debug("Port forwards table migrated successfully")
@@ -39,9 +38,7 @@ func initPortForwards() error {
 func GetPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Find(&pfs).Error; err != nil {
-		logger.Error("Failed to get all port forwards", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get all port forwards: %w", err)
 	}
 
 	return pfs, nil
@@ -58,9 +55,7 @@ func GetPortForwardsWithNames() ([]PortForward, error) {
 		Joins("LEFT JOIN groups ON pf.owner_type = ? AND pf.owner_id = groups.id", "Group").
 		Find(&portForwards).Error
 	if err != nil {
-		logger.Error("Failed to get port forwards with usernames", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get port forwards with usernames: %w", err)
 	}
 
 	return portForwards, nil
@@ -76,9 +71,7 @@ func GetGroupPortForwardsByUserID(userID uint) ([]PortForward, error) {
 		Where("ug.user_id = ?", userID).
 		Find(&pfs).Error
 	if err != nil {
-		logger.Error("Failed to get group port forwards for user", "userID", userID, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get group port forwards for user: %w", err)
 	}
 
 	return pfs, nil
@@ -87,9 +80,7 @@ func GetGroupPortForwardsByUserID(userID uint) ([]PortForward, error) {
 func GetApprovedPortForwards() ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Where("approved = ?", true).Find(&pfs).Error; err != nil {
-		logger.Error("Failed to get approved port forwards", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get approved port forwards: %w", err)
 	}
 
 	return pfs, nil
@@ -98,9 +89,7 @@ func GetApprovedPortForwards() ([]PortForward, error) {
 func GetPortForwardByID(id uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, id).Error; err != nil {
-		logger.Error("Failed to find port forward by ID", "pfID", id, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to find port forward by ID: %w", err)
 	}
 
 	return &pf, nil
@@ -109,9 +98,7 @@ func GetPortForwardByID(id uint) (*PortForward, error) {
 func GetPortForwardsByUserID(userID uint) ([]PortForward, error) {
 	var pfs []PortForward
 	if err := db.Where(&PortForward{OwnerID: userID}).Find(&pfs).Error; err != nil {
-		logger.Error("Failed to get port forwards for user", "userID", userID, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get port forwards for user: %w", err)
 	}
 
 	return pfs, nil
@@ -128,9 +115,7 @@ func AddPortForwardForGroup(outPort, destPort uint16, destIP, subnet string, gro
 func addPortForwardForOwner(outPort, destPort uint16, destIP, subnet string, ownerID uint, ownerType string) (*PortForward, error) {
 	net, err := GetVNetBySubnet(subnet)
 	if err != nil {
-		logger.Error("Failed to find VNet by subnet", "subnet", subnet, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to find VNet by subnet: %w", err)
 	}
 
 	pf := &PortForward{
@@ -143,9 +128,7 @@ func addPortForwardForOwner(outPort, destPort uint16, destIP, subnet string, own
 		VNetID:    net.ID,
 	}
 	if err := db.Create(pf).Error; err != nil {
-		logger.Error("Failed to create port forward", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to create port forward: %w", err)
 	}
 
 	return pf, nil
@@ -153,9 +136,7 @@ func addPortForwardForOwner(outPort, destPort uint16, destIP, subnet string, own
 
 func UpdatePortForwardApproval(pfID uint, approve bool) error {
 	if err := db.Model(&PortForward{}).Where("id = ?", pfID).Update("approved", approve).Error; err != nil {
-		logger.Error("Failed to update port forward approval", "pfID", pfID, "error", err)
-
-		return err
+		return fmt.Errorf("failed to update port forward approval: %w", err)
 	}
 
 	return nil
@@ -174,9 +155,7 @@ func GetRandomAvailableOutPort(start, end uint16) (uint16, error) {
 
 	err := db.Raw(query, start, end).Scan(&outPort).Error
 	if err != nil {
-		logger.Error("Failed to get random available out port", "error", err)
-
-		return 0, err
+		return 0, fmt.Errorf("failed to get random available out port: %w", err)
 	}
 
 	return uint16(outPort), nil
@@ -184,9 +163,7 @@ func GetRandomAvailableOutPort(start, end uint16) (uint16, error) {
 
 func DeletePortForward(pfID uint) error {
 	if err := db.Delete(&PortForward{}, pfID).Error; err != nil {
-		logger.Error("Failed to delete port forward", "pfID", pfID, "error", err)
-
-		return err
+		return fmt.Errorf("failed to delete port forward: %w", err)
 	}
 
 	return nil
@@ -201,7 +178,7 @@ func CountPortForwardsWithStates() ([]StatusCount, error) {
 		Scan(&counts)
 
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to count port forwards with states: %w", result.Error)
 	}
 
 	return counts, nil

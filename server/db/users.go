@@ -81,9 +81,7 @@ func getLocalRealmIDTransaction(tx *gorm.DB) (uint, error) {
 func initUsers() error {
 	err := db.AutoMigrate(&User{})
 	if err != nil {
-		logger.Error("Failed to migrate Users table", "error", err)
-
-		return err
+		return fmt.Errorf("failed to migrate users table: %w", err)
 	}
 
 	var adminUser User
@@ -95,9 +93,7 @@ func initUsers() error {
 		return nil
 	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// Some other error occurred
-		logger.Error("Failed to check for admin user", "error", result.Error)
-
-		return result.Error
+		return fmt.Errorf("failed to check for admin user: %w", result.Error)
 	}
 
 	localRealmID, err := getLocalRealmIDTransaction(db)
@@ -116,15 +112,11 @@ func initUsers() error {
 
 	adminUser.Password, err = bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost)
 	if err != nil {
-		logger.Error("Failed to hash password", "error", err)
-
-		return err
+		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	if err := CreateUser(&adminUser); err != nil {
-		logger.Error("Failed to create admin user", "error", err)
-
-		return err
+		return fmt.Errorf("failed to create admin user: %w", err)
 	}
 
 	s := `===============================================================
@@ -134,10 +126,10 @@ Admin user created successfully. Password: %s
 
 	_, err = fmt.Printf(s, passwd)
 	if err != nil {
-		logger.Error("Failed to print admin password", "error", err)
+		return fmt.Errorf("failed to print admin password: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func UpdateAdminPassword(password string) error {
@@ -177,9 +169,7 @@ func GetUserByUsernameAndRealmID(username string, realmID uint) (User, error) {
 			return User{}, ErrNotFound
 		}
 
-		logger.Error("Failed to retrieve user by username", "error", result.Error)
-
-		return User{}, result.Error
+		return User{}, fmt.Errorf("failed to retrieve user by username: %w", result.Error)
 	}
 
 	return user, nil
@@ -194,9 +184,7 @@ func GetUserByID(id uint) (User, error) {
 			return User{}, ErrNotFound
 		}
 
-		logger.Error("Failed to retrieve user by ID", "error", result.Error)
-
-		return User{}, result.Error
+		return User{}, fmt.Errorf("failed to retrieve user by ID: %w", result.Error)
 	}
 
 	return user, nil
@@ -207,9 +195,7 @@ func GetAllUsers() ([]User, error) {
 
 	result := db.Find(&users)
 	if result.Error != nil {
-		logger.Error("Failed to retrieve all users", "error", result.Error)
-
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to retrieve all users: %w", result.Error)
 	}
 
 	return users, nil
@@ -219,9 +205,7 @@ func CreateUser(user *User) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		result := tx.Create(user)
 		if result.Error != nil {
-			logger.Error("Failed to create user", "error", result.Error)
-
-			return result.Error
+			return fmt.Errorf("failed to create user: %w", result.Error)
 		}
 
 		return createDefaultSettingsForUserTransaction(tx, user.ID)
@@ -233,9 +217,7 @@ func CreateUser(user *User) error {
 func UpdateUser(user *User) error {
 	result := db.Save(user)
 	if result.Error != nil {
-		logger.Error("Failed to update user", "error", result.Error)
-
-		return result.Error
+		return fmt.Errorf("failed to update user: %w", result.Error)
 	}
 
 	return nil
@@ -244,9 +226,7 @@ func UpdateUser(user *User) error {
 func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, maxNets uint) error {
 	var user User
 	if err := db.First(&user, userID).Error; err != nil {
-		logger.Error("Failed to find user by ID", "userID", userID, "error", err)
-
-		return err
+		return fmt.Errorf("failed to find user by ID: %w", err)
 	}
 
 	result := db.Model(&user).
@@ -258,9 +238,7 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 			MaxNets:  maxNets,
 		})
 	if result.Error != nil {
-		logger.Error("Failed to update user limits", "error", result.Error)
-
-		return result.Error
+		return fmt.Errorf("failed to update user limits: %w", result.Error)
 	}
 
 	return nil
@@ -269,9 +247,7 @@ func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, max
 func GetAllUserEmails() ([]string, error) {
 	var emails []string
 	if err := db.Model(&User{}).Where("id != ?", 1).Pluck("email", &emails).Error; err != nil {
-		logger.Error("Failed to retrieve all user emails", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve all user emails: %w", err)
 	}
 
 	return emails, nil
@@ -287,9 +263,7 @@ func getAdminIDTransaction(tx *gorm.DB) (uint, error) {
 			WHERE realms.name = 'Local' AND users.username = 'admin'
 		`).Scan(&adminID).Error
 	if err != nil {
-		logger.Error("Failed to get admin ID", "error", err)
-
-		return 0, err
+		return 0, fmt.Errorf("failed to get admin ID: %w", err)
 	}
 
 	return adminID, nil
@@ -302,9 +276,7 @@ func GetLocalAdmin() (*User, error) {
 		Where("realms.name = ? AND users.username = ?", "Local", "admin").
 		First(&admin).Error
 	if err != nil {
-		logger.Error("Failed to get admin ID", "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to get local admin: %w", err)
 	}
 
 	return &admin, nil

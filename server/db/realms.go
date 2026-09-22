@@ -1,6 +1,10 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"fmt"
+
+	"gorm.io/gorm"
+)
 
 var (
 	LocalRealmType = "local"
@@ -35,9 +39,7 @@ type LDAPRealm struct {
 func initRealms() error {
 	err := db.AutoMigrate(&Realm{}, &LDAPRealm{})
 	if err != nil {
-		logger.Error("Failed to migrate Realms table", "error", err)
-
-		return err
+		return fmt.Errorf("failed to migrate realms table: %w", err)
 	}
 
 	var localRealm Realm
@@ -57,9 +59,7 @@ func initRealms() error {
 
 	result = db.Create(&localRealm)
 	if result.Error != nil {
-		logger.Error("Failed to create local realm", "error", result.Error)
-
-		return result.Error
+		return fmt.Errorf("failed to create local realm: %w", result.Error)
 	}
 
 	logger.Debug("Local realm initialized successfully")
@@ -72,9 +72,7 @@ func GetAllRealms() ([]Realm, error) {
 
 	result := db.Find(&realms)
 	if result.Error != nil {
-		logger.Error("Failed to retrieve realms", "error", result.Error)
-
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to retrieve realms: %w", result.Error)
 	}
 
 	return realms, nil
@@ -83,15 +81,11 @@ func GetAllRealms() ([]Realm, error) {
 func AddLDAPRealm(realm LDAPRealm) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&realm.Realm).Error; err != nil {
-			logger.Error("Failed to create associated Realm for LDAP realm", "error", err)
-
-			return err
+			return fmt.Errorf("failed to create associated realm for LDAP realm: %w", err)
 		}
 
 		if err := tx.Create(&realm).Error; err != nil {
-			logger.Error("Failed to add LDAP realm", "error", err)
-
-			return err
+			return fmt.Errorf("failed to add LDAP realm: %w", err)
 		}
 
 		logger.Debug("LDAP realm added successfully")
@@ -103,9 +97,7 @@ func AddLDAPRealm(realm LDAPRealm) error {
 func GetRealmByID(id uint) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, id).Error; err != nil {
-		logger.Error("Failed to find realm by ID", "realmID", id, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to find realm by ID: %w", err)
 	}
 
 	return &realm, nil
@@ -114,9 +106,7 @@ func GetRealmByID(id uint) (*Realm, error) {
 func GetLDAPRealmByID(id uint) (*LDAPRealm, error) {
 	var ldapRealm LDAPRealm
 	if err := db.First(&ldapRealm, id).Error; err != nil {
-		logger.Error("Failed to find LDAP realm by ID", "ldapRealmID", id, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to find LDAP realm by ID: %w", err)
 	}
 
 	return &ldapRealm, nil
@@ -125,15 +115,11 @@ func GetLDAPRealmByID(id uint) (*LDAPRealm, error) {
 func DeleteRealmByID(id uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&Realm{}, "id = ?", id).Error; err != nil {
-			logger.Error("Failed to delete realm", "realmID", id, "error", err)
-
-			return err
+			return fmt.Errorf("failed to delete realm: %w", err)
 		}
 
 		if err := tx.Delete(&LDAPRealm{}, "realm_id = ?", id).Error; err != nil {
-			logger.Error("Failed to delete associated LDAP realm", "realmID", id, "error", err)
-
-			return err
+			return fmt.Errorf("failed to delete associated LDAP realm: %w", err)
 		}
 
 		logger.Debug("Realm deleted successfully", "realmID", id)
@@ -145,15 +131,11 @@ func DeleteRealmByID(id uint) error {
 func UpdateLDAPRealm(realm LDAPRealm) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(&realm.Realm).Error; err != nil {
-			logger.Error("Failed to update associated Realm for LDAP realm", "error", err)
-
-			return err
+			return fmt.Errorf("failed to update associated realm for LDAP realm: %w", err)
 		}
 
 		if err := tx.Save(&realm).Error; err != nil {
-			logger.Error("Failed to update LDAP realm", "error", err)
-
-			return err
+			return fmt.Errorf("failed to update LDAP realm: %w", err)
 		}
 
 		logger.Debug("LDAP realm updated successfully", "realmID", realm.ID)
@@ -165,9 +147,7 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 func GetRealmByName(name string) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, "name = ?", name).Error; err != nil {
-		logger.Error("Failed to find realm by name", "name", name, "error", err)
-
-		return nil, err
+		return nil, fmt.Errorf("failed to find realm by name: %w", err)
 	}
 
 	return &realm, nil

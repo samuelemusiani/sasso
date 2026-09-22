@@ -46,9 +46,7 @@ func GetLastSSHKeyUpdate() time.Time {
 func initSSHKeys() error {
 	err := db.AutoMigrate(&SSHKey{})
 	if err != nil {
-		logger.Error("Failed to migrate SSHKeys table", "error", err)
-
-		return err
+		return fmt.Errorf("failed to migrate SSHKeys table: %w", err)
 	}
 
 	return nil
@@ -59,7 +57,7 @@ func GetSSHKeysByUserID(userID uint) ([]SSHKey, error) {
 
 	result := db.Where("user_id = ?", userID).Find(&keys)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get SSH keys by user ID: %w", result.Error)
 	}
 
 	return keys, nil
@@ -70,7 +68,7 @@ func GetGlobalSSHKeys() ([]SSHKey, error) {
 
 	result := db.Where("global = true").Find(&keys)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get global SSH keys: %w", result.Error)
 	}
 
 	return keys, nil
@@ -96,7 +94,7 @@ func CreateSSHKey(name string, key string, userID uint) (*SSHKey, error) {
 
 		result := tx.Create(sshKey)
 		if result.Error != nil {
-			return result.Error
+			return fmt.Errorf("failed to create SSH key: %w", result.Error)
 		}
 
 		return nil
@@ -108,7 +106,7 @@ func CreateSSHKey(name string, key string, userID uint) (*SSHKey, error) {
 func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
 	admin, err := GetLocalAdmin()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get local admin: %w", err)
 	}
 
 	sshKey := &SSHKey{
@@ -131,7 +129,7 @@ func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
 
 		result := tx.Create(sshKey)
 		if result.Error != nil {
-			return result.Error
+			return fmt.Errorf("failed to create global SSH key: %w", result.Error)
 		}
 
 		return nil
@@ -143,7 +141,7 @@ func CreateGlobalSSHKey(name string, key string) (*SSHKey, error) {
 func DeleteSSHKey(id uint, userID uint) error {
 	result := db.Where("id = ? AND user_id = ?", id, userID).Delete(&SSHKey{})
 	if result.Error != nil {
-		return result.Error
+		return fmt.Errorf("failed to delete SSH key: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -156,7 +154,7 @@ func DeleteSSHKey(id uint, userID uint) error {
 func DeleteGlobalSSHKey(id uint) error {
 	result := db.Where("id = ? AND global = true", id).Delete(&SSHKey{})
 	if result.Error != nil {
-		return result.Error
+		return fmt.Errorf("failed to delete global SSH key: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -176,7 +174,7 @@ func GetSSHKeysByGroupID(groupID uint) ([]SSHKey, error) {
 		Order("ssh_keys.id ASC").
 		Find(&keys)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get SSH keys by group ID: %w", result.Error)
 	}
 
 	return keys, nil

@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -27,9 +28,7 @@ type BackupRequest struct {
 
 func initBackupRequests() error {
 	if err := db.AutoMigrate(&BackupRequest{}); err != nil {
-		logger.Error("Failed to migrate backup_requests table", "error", err)
-
-		return err
+		return fmt.Errorf("failed to migrate backup_requests table: %w", err)
 	}
 
 	return nil
@@ -44,7 +43,7 @@ func GetBackupRequestByID(id uint) (*BackupRequest, error) {
 			return nil, ErrNotFound
 		}
 
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup request by ID: %w", result.Error)
 	}
 
 	return &backupRequest, nil
@@ -80,7 +79,7 @@ func newBackupRequestWithVolid(backupType, status string, volid *string, vmID, o
 
 	result := db.Create(backupRequest)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to create backup request: %w", result.Error)
 	}
 
 	return backupRequest, nil
@@ -93,7 +92,7 @@ func UpdateBackupRequestStatus(id uint, status string) error {
 			return ErrNotFound
 		}
 
-		return result.Error
+		return fmt.Errorf("failed to update backup request status: %w", result.Error)
 	}
 
 	return nil
@@ -104,7 +103,7 @@ func GetBackupRequestWithStatusAndType(status, t string) ([]BackupRequest, error
 
 	result := db.Where(&BackupRequest{Status: status, Type: t}).Find(&backupRequests)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup requests by status and type: %w", result.Error)
 	}
 
 	return backupRequests, nil
@@ -140,7 +139,7 @@ func getBackupRequestsByOwnerID(ownerID uint, ownerType, status string, vmid uin
 
 	result := db.Where(&searchCriteria).Find(&backupRequests)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup requests by owner ID: %w", result.Error)
 	}
 
 	return backupRequests, nil
@@ -153,7 +152,7 @@ func IsAPendingBackupRequest(vmID uint) (bool, error) {
 		Where(&BackupRequest{ID: vmID, Type: "pending"}).
 		Count(&count)
 	if result.Error != nil {
-		return false, result.Error
+		return false, fmt.Errorf("failed to check for pending backup request: %w", result.Error)
 	}
 
 	return count > 0, nil
@@ -166,7 +165,7 @@ func IsAPendingBackupRequestWithVolid(vmID uint, volid string) (bool, error) {
 		Where(&BackupRequest{ID: vmID, Volid: &volid, Type: "pending"}).
 		Count(&count)
 	if result.Error != nil {
-		return false, result.Error
+		return false, fmt.Errorf("failed to check for pending backup request with volid: %w", result.Error)
 	}
 
 	return count > 0, nil
@@ -177,7 +176,7 @@ func GetBackupRequestsByVMIDStatusAndType(vmID uint, status, t string) ([]Backup
 
 	result := db.Where(&BackupRequest{VMID: vmID, Status: status, Type: t}).Find(&backupRequests)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup requests by VM ID, status and type: %w", result.Error)
 	}
 
 	return backupRequests, nil
