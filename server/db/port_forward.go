@@ -1,8 +1,11 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type PortForward struct {
@@ -89,6 +92,10 @@ func GetApprovedPortForwards() ([]PortForward, error) {
 func GetPortForwardByID(id uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find port forward by ID: %w", err)
 	}
 

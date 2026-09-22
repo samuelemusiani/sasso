@@ -1,9 +1,12 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Interface struct {
@@ -41,6 +44,10 @@ func initInterfaces() error {
 func GetInterfaceByID(id uint) (*Interface, error) {
 	var iface Interface
 	if err := db.First(&iface, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find interface by ID: %w", err)
 	}
 

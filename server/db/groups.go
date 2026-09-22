@@ -622,6 +622,10 @@ func getFreeResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (FreeResourc
 
 	err = tx.First(&u, userID).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return FreeResourcesWithNets{}, ErrNotFound
+		}
+
 		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user: %w", err)
 	}
 

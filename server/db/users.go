@@ -72,6 +72,10 @@ func getLocalRealmIDTransaction(tx *gorm.DB) (uint, error) {
 
 	err := tx.Select("id").Where("name = ?", "Local").First(&Realm{}).Scan(&realmID).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrNotFound
+		}
+
 		return 0, fmt.Errorf("failed to get local realm ID: %w", err)
 	}
 
@@ -143,6 +147,10 @@ func UpdateAdminPassword(password string) error {
 
 		err = tx.First(&admin, adminID).Error
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
 			return fmt.Errorf("failed to get admin user: %w", err)
 		}
 
@@ -226,6 +234,10 @@ func UpdateUser(user *User) error {
 func UpdateUserLimits(userID uint, maxCores uint, maxRAM uint, maxDisk uint, maxNets uint) error {
 	var user User
 	if err := db.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+
 		return fmt.Errorf("failed to find user by ID: %w", err)
 	}
 
@@ -276,6 +288,10 @@ func GetLocalAdmin() (*User, error) {
 		Where("realms.name = ? AND users.username = ?", "Local", "admin").
 		First(&admin).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to get local admin: %w", err)
 	}
 

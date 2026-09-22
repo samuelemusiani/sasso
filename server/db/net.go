@@ -1,6 +1,11 @@
 package db
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+)
 
 type Net struct {
 	ID        uint  `gorm:"primaryKey"`
@@ -39,6 +44,10 @@ func initNetworks() error {
 func GetNetByID(id uint) (*Net, error) {
 	var net Net
 	if err := db.First(&net, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find network by ID: %w", err)
 	}
 
@@ -48,6 +57,10 @@ func GetNetByID(id uint) (*Net, error) {
 func GetNetByName(name string) (*Net, error) {
 	var net Net
 	if err := db.Where("name = ?", name).First(&net).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find network by name: %w", err)
 	}
 
@@ -265,6 +278,10 @@ func GetAllNets() ([]Net, error) {
 func GetVNetBySubnet(subnet string) (*Net, error) {
 	var net Net
 	if err := db.Where("subnet = ?", subnet).First(&net).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find network by subnet: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -97,6 +98,10 @@ func AddLDAPRealm(realm LDAPRealm) error {
 func GetRealmByID(id uint) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find realm by ID: %w", err)
 	}
 
@@ -106,6 +111,10 @@ func GetRealmByID(id uint) (*Realm, error) {
 func GetLDAPRealmByID(id uint) (*LDAPRealm, error) {
 	var ldapRealm LDAPRealm
 	if err := db.First(&ldapRealm, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find LDAP realm by ID: %w", err)
 	}
 
@@ -147,6 +156,10 @@ func UpdateLDAPRealm(realm LDAPRealm) error {
 func GetRealmByName(name string) (*Realm, error) {
 	var realm Realm
 	if err := db.First(&realm, "name = ?", name).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to find realm by name: %w", err)
 	}
 
