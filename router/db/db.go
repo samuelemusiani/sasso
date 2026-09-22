@@ -15,19 +15,19 @@ import (
 )
 
 var (
-	db     *gorm.DB
-	logger *slog.Logger
+	db *gorm.DB
+	// logger *slog.Logger
 
 	ErrNotFound = errors.New("record not found")
 )
 
-func Init(dbLogger *slog.Logger, c config.Database) error {
+func Init(_ *slog.Logger, c config.Database) error {
 	err := checkConfig(c)
 	if err != nil {
 		return err
 	}
 
-	logger = dbLogger
+	// logger = dbLogger
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
