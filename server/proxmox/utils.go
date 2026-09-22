@@ -18,10 +18,13 @@ func EncodeBase62(num uint32) string {
 	if num == 0 {
 		return string(base62Alphabet[0])
 	}
+
 	var sb strings.Builder
+
 	for num > 0 {
 		remainder := num % 62
-		sb.WriteByte(base62Alphabet[remainder])
+		_ = sb.WriteByte(base62Alphabet[remainder])
+
 		num /= 62
 	}
 	// reverse since we construct in reverse order
@@ -29,19 +32,23 @@ func EncodeBase62(num uint32) string {
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
+
 	return string(runes)
 }
 
 // DecodeBase62 decodes a base62 string into a uint32
 func DecodeBase62(s string) (uint32, error) {
 	var num uint32
+
 	for _, c := range s {
 		index := strings.IndexRune(base62Alphabet, c)
 		if index == -1 {
 			return 0, fmt.Errorf("invalid character: %c", c)
 		}
+
 		num = num*62 + uint32(index)
 	}
+
 	return num, nil
 }
 
@@ -57,13 +64,15 @@ func getSizeFromStorageString(s string) (uint, error) {
 		if len(kv) != 2 {
 			continue
 		}
-		switch kv[0] {
-		case "size":
+
+		if kv[0] == "size" {
 			sizeStr := strings.TrimSuffix(kv[1], "G")
+
 			val, err := strconv.ParseUint(sizeStr, 10, 32)
 			if err != nil {
 				return 0, fmt.Errorf("invalid size value: %w", err)
 			}
+
 			return uint(val), nil
 		}
 	}
@@ -71,143 +80,267 @@ func getSizeFromStorageString(s string) (uint, error) {
 	return 0, ErrInvalidStorageString
 }
 
+// This function updates the bridge in the iface string if it's different from the provided bridge.
+// update VM 610000702: -net0 virtio=BC:24:11:18:93:1D,bridge=sasVR,mtu=1
+// In this case bridge is a vnet
+func updateBridgeIfDifferent(iface string, bridge string) string {
+	parts := strings.Split(iface, ",")
+	for i, part := range parts {
+		currentBridge, found := strings.CutPrefix(part, "bridge=")
+		if found && currentBridge != bridge {
+			parts[i] = "bridge=" + bridge
+
+			break
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 // If vlanTag is 0, remove any existing tag from the iface string
 func substituteVlanTag(iface string, vlanTag uint16) string {
 	// Iface has the following format: "virtio=BC:24:11:64:07:FE,bridge=saspS,tag=7,firewall=1"
-
 	parts := strings.Split(iface, ",")
-	var newParts []string
+
+	newParts := make([]string, 0, len(parts))
 	for _, part := range parts {
 		if strings.HasPrefix(part, "tag=") {
 			if vlanTag == 0 {
 				continue // skip existing tag
-			} else {
-				part = fmt.Sprintf("tag=%d", vlanTag)
 			}
+
+			part = fmt.Sprintf("tag=%d", vlanTag)
 		}
+
 		newParts = append(newParts, part)
 	}
 
 	if vlanTag != 0 && !strings.Contains(iface, "tag=") {
 		newParts = append(newParts, fmt.Sprintf("tag=%d", vlanTag))
 	}
+
 	return strings.Join(newParts, ",")
 }
 
-func mapVMIDToProxmoxNodes(cluster *proxmox.Cluster) (map[uint64]string, error) {
-	resources, err := getProxmoxResources(cluster, "vm")
+func mapVMIDToProxmoxNodes(parentCtx context.Context, cluster *proxmox.Cluster) (map[uint64]string, error) {
+	if parentCtx.Err() != nil {
+		return nil, parentCtx.Err()
+	}
+
+	resources, err := getProxmoxResources(parentCtx, cluster, "vm")
 	if err != nil {
 		return nil, err
 	}
 
 	// Map VMID to Node
 	vmNodes := make(map[uint64]string)
+
 	for _, r := range resources {
 		if r.Type != "qemu" {
 			continue
 		}
+
 		vmNodes[r.VMID] = r.Node
 	}
 
 	return vmNodes, nil
 }
 
-func waitForProxmoxTaskCompletion(t *proxmox.Task) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+type taskKey string
+
+var proxmoxTaskIDKey taskKey = "proxmoxTaskID"
+var proxmoxTaskTypeKey taskKey = "proxmoxTaskType"
+
+// withCancelGrace returns a context that is canceled either:
+//   - when parent is done + grace duration, OR
+//   - when you call the returned cancel func.
+func withCancelGrace(parent context.Context, grace time.Duration, logEvery time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		select {
+		case <-parent.Done():
+			if grace <= 0 {
+				cancel()
+
+				return
+			}
+
+			if logEvery <= 0 {
+				logEvery = 20 * time.Second
+			}
+
+			start := time.Now()
+			deadline := start.Add(grace)
+
+			proxmoxTaskID, err := parent.Value(proxmoxTaskIDKey).(string)
+			if !err {
+				proxmoxTaskID = "unknown"
+			}
+
+			proxmoxTaskType, err := parent.Value(proxmoxTaskTypeKey).(string)
+			if !err {
+				proxmoxTaskType = "unknown"
+			}
+
+			logger.Info("parent context done; delaying cancellation for grace period",
+				"grace", grace.Truncate(time.Second), "logEvery", logEvery,
+				"proxmoxTaskID", proxmoxTaskID, "proxmoxTaskType", proxmoxTaskType)
+
+			timer := time.NewTimer(grace)
+			defer timer.Stop()
+
+			ticker := time.NewTicker(logEvery)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-timer.C:
+					logger.Info("grace period elapsed; canceling", "waited", time.Since(start).Truncate(time.Second))
+					cancel()
+
+					return
+
+				case <-ticker.C:
+					remaining := max(time.Until(deadline), 0) // avoid negative durations
+					logger.Info(
+						"waiting for grace period before canceling",
+						"remaining", remaining.Truncate(time.Second),
+						"elapsed", time.Since(start).Truncate(time.Second),
+						"grace", grace.Truncate(time.Second),
+						"proxmoxTaskID", proxmoxTaskID,
+						"proxmoxTaskType", proxmoxTaskType,
+					)
+
+				case <-ctx.Done():
+					// Explicit cancel (caller called cancel()) — stop waiting immediately.
+					return
+				}
+			}
+
+		case <-ctx.Done():
+			// canceled explicitly
+		}
+	}()
+
+	return ctx, cancel
+}
+
+func waitForProxmoxTaskCompletion(parentCtx context.Context, t *proxmox.Task) (bool, error) {
+	parentCtx = context.WithValue(parentCtx, proxmoxTaskIDKey, string(t.UPID))
+	parentCtx = context.WithValue(parentCtx, proxmoxTaskTypeKey, t.Type)
+
+	graceCtx, graceCancel := withCancelGrace(parentCtx, 70*time.Second, 15*time.Second)
+	defer graceCancel()
+
+	ctx, cancel := context.WithTimeout(graceCtx, 240*time.Second)
 	isSuccessful, completed, err := t.WaitForCompleteStatus(ctx, 240, 1)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to wait for Proxmox task completion", "error", err)
-		return false, err
+		return false, fmt.Errorf("error while waiting for Proxmox task completion: %w", err)
 	}
 
 	if !completed {
-		return waitForProxmoxTaskCompletion(t)
+		return waitForProxmoxTaskCompletion(parentCtx, t)
 	}
 
 	if !isSuccessful {
-		logger.Error("Proxmox task failed")
-		return false, errors.New("task_failed")
+		return false, errors.New("task failed")
 	}
 
 	return true, nil
 }
 
-func getProxmoxCluster(client *proxmox.Client) (*proxmox.Cluster, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxCluster(parentCtx context.Context, client *proxmox.Client) (*proxmox.Cluster, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	cluster, err := client.Cluster(ctx)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox cluster", "error", err)
 		return nil, err
 	}
+
 	return cluster, nil
 }
 
-func getProxmoxNode(client *proxmox.Client, nodeName string) (*proxmox.Node, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxNode(parentCtx context.Context, client *proxmox.Client, nodeName string) (*proxmox.Node, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	node, err := client.Node(ctx, nodeName)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox node", "error", err, "node", nodeName)
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox node %s: %w", nodeName, err)
 	}
+
 	return node, nil
 }
 
-func getProxmoxVM(node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxVM(parentCtx context.Context, node *proxmox.Node, vmid int) (*proxmox.VirtualMachine, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	vm, err := node.VirtualMachine(ctx, vmid)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox VM", "error", err, "node", node.Name, "vmid", vmid)
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox VM %d on node %s: %w", vmid, node.Name, err)
 	}
+
 	return vm, nil
 }
 
-func getProxmoxResources(cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+func getProxmoxResources(parentCtx context.Context, cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 20*time.Second)
 	resources, err := cluster.Resources(ctx, filters...)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox resources", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox cluster resources: %w", err)
 	}
+
 	return resources, nil
 }
 
-func configureVM(vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func configureVM(parentCtx context.Context, vm *proxmox.VirtualMachine, config proxmox.VirtualMachineOption) (bool, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	task, err := vm.Config(ctx, config)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to set VM config", "error", err, "vmid", vm.VMID)
-		return false, err
+		return false, fmt.Errorf("failed to set VM config: %w", err)
 	}
 
-	return waitForProxmoxTaskCompletion(task)
+	return waitForProxmoxTaskCompletion(parentCtx, task)
 }
 
-func getProxmoxStorage(node *proxmox.Node, storage string) (*proxmox.Storage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func getProxmoxStorage(parentCtx context.Context, node *proxmox.Node, storage string) (*proxmox.Storage, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	s, err := node.Storage(ctx, storage)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox Storage", "error", err, "node", node.Name, "storage", storage)
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox storage %s on node %s: %w", storage, node.Name, err)
 	}
+
 	return s, nil
 }
 
-func getProxmoxStorageBackups(s *proxmox.Storage, VMID uint) ([]*proxmox.StorageContent, error) {
+func getProxmoxStorageBackups(parentCtx context.Context, s *proxmox.Storage, vmid uint) ([]*proxmox.StorageContent, error) {
 	// Getting backups can take a while, so use a longer timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	content, err := s.GetBackupsForVM(ctx, VMID)
+	ctx, cancel := context.WithTimeout(parentCtx, 1*time.Minute)
+	content, err := s.GetBackupsForVM(ctx, vmid)
+
 	cancel()
+
 	if err != nil {
-		logger.Error("Failed to get Proxmox Storage content", "error", err, "storage", s.Name)
-		return nil, err
+		return nil, fmt.Errorf("failed to get Proxmox storage backups for VMID %d on storage %s: %w", vmid, s.Name, err)
 	}
+
 	return content, nil
 }

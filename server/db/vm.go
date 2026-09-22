@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -14,11 +15,12 @@ type VM struct {
 
 	Status string `gorm:"type:varchar(20);not null;default:'unknown';check:status IN ('running','stopped','paused','unknown','deleting','creating','pre-deleting','pre-creating','configuring','pre-configuring')"`
 
-	Name  string `gorm:"type:varchar(20);not null"`
-	Notes string `gorm:"type:text;not null;default:''"`
-	Cores uint   `gorm:"not null;default:1"`
-	RAM   uint   `gorm:"not null;default:1024"`
-	Disk  uint   `gorm:"not null;default:4"`
+	Name     string `gorm:"type:varchar(20);not null"`
+	Notes    string `gorm:"type:text;not null;default:''"`
+	Cores    uint   `gorm:"not null;default:1"`
+	RAM      uint   `gorm:"not null;default:1024"`
+	Disk     uint   `gorm:"not null;default:4"`
+	Template string `gorm:"not null"`
 
 	LifeTime time.Time `gorm:"not null"`
 
@@ -31,111 +33,147 @@ type VM struct {
 	ExpirationNotifications []VMExpirationNotification `gorm:"foreignKey:VMID;constraint:OnDelete:CASCADE"`
 }
 
+type Resources struct {
+	Cores uint `gorm:"not null"`
+	RAM   uint `gorm:"not null"`
+	Disk  uint `gorm:"not null"`
+}
+
 func initVMs() error {
 	err := db.AutoMigrate(&VM{})
 	if err != nil {
-		logger.Error("Failed to migrate VMs table", "error", err)
-		return err
+		return fmt.Errorf("failed to migrate VMs table: %w", err)
 	}
+
 	return nil
 }
 
 func GetVMsByUserID(userID uint) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where(&VM{OwnerID: userID, OwnerType: "User"}).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs by user ID: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func GetVMsByGroupID(groupID uint) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs by group ID: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func ExistsVMWithUserIDAndName(userID uint, name string) (bool, error) {
-	return existsVMWithOwnerIdAndName(userID, "User", name)
+	return existsVMWithOwnerIDAndName(userID, "User", name)
 }
 
 func ExistsVMWithGroupIDAndName(groupID uint, name string) (bool, error) {
-	return existsVMWithOwnerIdAndName(groupID, "Group", name)
+	return existsVMWithOwnerIDAndName(groupID, "Group", name)
 }
 
 // Returns true if a VM with the given userID and name exists
-func existsVMWithOwnerIdAndName(ownerID uint, ownerType, name string) (bool, error) {
+func existsVMWithOwnerIDAndName(ownerID uint, ownerType, name string) (bool, error) {
 	var count int64
+
 	result := db.Model(&VM{}).Where(&VM{OwnerID: ownerID, OwnerType: ownerType, Name: name}).
 		Count(&count)
 	if result.Error != nil {
-		return false, result.Error
+		return false, fmt.Errorf("failed to check existence of VM by owner ID and name: %w", result.Error)
 	}
+
 	return count > 0, nil
 }
 
-func NewVMForUser(ID uint64, userID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(ID, userID, "User", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
+type NewVMRequest struct {
+	ID                   uint64
+	Status               string
+	Name                 string
+	Notes                string
+	Cores                uint
+	RAM                  uint
+	Disk                 uint
+	LifeTime             time.Time
+	IncludeGlobalSSHKeys bool
+	Template             string
 }
 
-func NewVMForGroup(ID uint64, groupID uint, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	return newvm(ID, groupID, "Group", status, name, notes, cores, ram, disk, lifeTime, includeGlobalSSHKeys)
-}
-
-func newvm(ID uint64, ownerID uint, ownerType string, status, name, notes string, cores, ram, disk uint, lifeTime time.Time, includeGlobalSSHKeys bool) (*VM, error) {
-	vm := &VM{
-		ID:                   ID,
-		Status:               status,
-		Name:                 name,
-		Notes:                notes,
-		Cores:                cores,
-		RAM:                  ram,
-		Disk:                 disk,
-		LifeTime:             lifeTime,
-		IncludeGlobalSSHKeys: includeGlobalSSHKeys,
+func vmFromNewVMRequest(req NewVMRequest, ownerID uint, ownerType string) VM {
+	return VM{
+		ID:                   req.ID,
+		Status:               req.Status,
+		Name:                 req.Name,
+		Notes:                req.Notes,
+		Cores:                req.Cores,
+		RAM:                  req.RAM,
+		Disk:                 req.Disk,
+		Template:             req.Template,
+		LifeTime:             req.LifeTime,
+		IncludeGlobalSSHKeys: req.IncludeGlobalSSHKeys,
 		OwnerID:              ownerID,
 		OwnerType:            ownerType,
 	}
-	result := db.Create(vm)
+}
+
+func NewVMForUser(req NewVMRequest, ownerID uint) (*VM, error) {
+	return newvm(vmFromNewVMRequest(req, ownerID, "User"))
+}
+
+func NewVMForGroup(req NewVMRequest, ownerID uint) (*VM, error) {
+	return newvm(vmFromNewVMRequest(req, ownerID, "Group"))
+}
+
+func newvm(vm VM) (*VM, error) {
+	result := db.Create(&vm)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to create VM: %w", result.Error)
 	}
-	return vm, nil
+
+	return &vm, nil
 }
 
 func GetVMByID(vmID uint64) (*VM, error) {
 	var vm VM
+
 	result := db.First(&vm, vmID)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, result.Error
+
+		return nil, fmt.Errorf("failed to get VM by ID: %w", result.Error)
 	}
+
 	return &vm, nil
 }
 
 func DeleteVMByID(vmID uint64) error {
 	result := db.Delete(&VM{}, vmID)
 	if result.Error != nil {
-		return result.Error
+		return fmt.Errorf("failed to delete VM by ID: %w", result.Error)
 	}
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
+
 	return nil
 }
 
 func UpdateVMStatus(vmID uint64, status string) error {
 	result := db.Model(&VM{ID: vmID}).Update("status", status)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
-		return result.Error
+
+		return fmt.Errorf("failed to update VM status: %w", result.Error)
 	}
 
 	return nil
@@ -146,10 +184,11 @@ func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
 		UpdateColumns(VM{Cores: cores, RAM: ram, Disk: disk})
 
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
-		return result.Error
+
+		return fmt.Errorf("failed to update VM resources: %w", result.Error)
 	}
 
 	return nil
@@ -165,36 +204,44 @@ func GetVMByGroupIDAndVMID(groupID uint, vmID uint64) (*VM, error) {
 
 func getVMByOwnerIDAndVMID(ownerID uint, ownerType string, vmID uint64) (*VM, error) {
 	var vm VM
+
 	result := db.Where(&VM{OwnerID: ownerID, OwnerType: ownerType, ID: vmID}).First(&vm)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, result.Error
+
+		return nil, fmt.Errorf("failed to get VM by owner ID and VM ID: %w", result.Error)
 	}
+
 	return &vm, nil
 }
 
 func GetVMsWithStatus(status string) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where(&VM{Status: status}).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs with status: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func GetVMsWithStates(states []string) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where("status IN ?", states).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs with states: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
 	var vm VM
+
 	result := db.Where("status IN ?", states).
 		Order("created_at DESC").
 		Limit(1).
@@ -203,8 +250,10 @@ func GetTimeOfLastCreatedVMWithStates(states []string) (time.Time, error) {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return time.Time{}, nil // No VMs found with the specified states
 		}
-		return time.Time{}, result.Error
+
+		return time.Time{}, fmt.Errorf("failed to get time of last created VM with states: %w", result.Error)
 	}
+
 	return vm.CreatedAt, nil
 }
 
@@ -216,95 +265,136 @@ func GetAllActiveVMsWithUnknown() ([]VM, error) {
 	return GetVMsWithStates([]string{"running", "stopped", "paused", "unknown"})
 }
 
-func GetVMResourcesByUserID(userID uint) (uint, uint, uint, error) {
+func GetVMResourcesByUserID(userID uint) (Resources, error) {
 	return getVMResourcesByOwner(userID, "User")
 }
 
-func GetVMResourcesByGroupID(groupID uint) (uint, uint, uint, error) {
+func GetVMResourcesByGroupID(groupID uint) (Resources, error) {
 	return getVMResourcesByOwner(groupID, "Group")
 }
 
-func getVMResourcesByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
-	var result struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-	}
+func getVMResourcesByOwner(ownerID uint, ownerType string) (Resources, error) {
+	var result Resources
 
 	err := db.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: ownerID, OwnerType: ownerType}).Scan(&result).Error
-
 	if err != nil {
-		return 0, 0, 0, err
+		return Resources{}, fmt.Errorf("failed to get VM resources by owner: %w", err)
 	}
 
-	return result.Cores, result.RAM, result.Disk, nil
+	return result, nil
 }
 
-func GetResourcesActiveVMsByUserID(userID uint) (uint, uint, uint, error) {
+func GetResourcesActiveVMsByUserID(userID uint) (Resources, error) {
 	return getResourcesActiveVMsByOwner(userID, "User")
 }
 
-func GetResourcesActiveVMsByGroupID(groupID uint) (uint, uint, uint, error) {
+func GetResourcesActiveVMsByGroupID(groupID uint) (Resources, error) {
 	return getResourcesActiveVMsByOwner(groupID, "Group")
 }
 
-func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (uint, uint, uint, error) {
-	var result struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-	}
+func getResourcesActiveVMsByOwner(ownerID uint, ownerType string) (Resources, error) {
+	var result Resources
 
 	err := db.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: ownerID, OwnerType: ownerType, Status: "running"}).Scan(&result).Error
-
 	if err != nil {
-		return 0, 0, 0, err
+		return Resources{}, fmt.Errorf("failed to get resources of active VMs by owner: %w", err)
 	}
 
-	return result.Cores, result.RAM, result.Disk, nil
+	return result, nil
 }
 
-func CountVMs() (int64, error) {
-	var count int64
-	result := db.Model(&VM{}).Count(&count)
+type StatusCount struct {
+	Status string
+	Count  int64
+}
+
+func CountVMsWithStates() ([]StatusCount, error) {
+	var counts []StatusCount
+
+	result := db.Model(&VM{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Scan(&counts)
 	if result.Error != nil {
-		return 0, result.Error
+		return nil, fmt.Errorf("failed to count VMs with states: %w", result.Error)
 	}
-	return count, nil
+
+	return counts, nil
 }
 
 func GetVMsWithLifetimesLessThan(t time.Time) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where("life_time < ?", t).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs with lifetimes less than: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func GetVMsWithLifetimesLessThanAndStatusIN(t time.Time, states []string) ([]VM, error) {
 	var vms []VM
+
 	result := db.Where("life_time < ? AND status IN ?", t, states).Find(&vms)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get VMs with lifetimes less than and status in: %w", result.Error)
 	}
+
 	return vms, nil
 }
 
 func UpdateVMLifetime(vmID uint64, newLifetime time.Time) error {
-	result := db.Model(&VM{ID: vmID}).Update("life_time", newLifetime)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return ErrNotFound
-		}
-		return result.Error
-	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		var vm VM
 
-	return nil
+		err := tx.First(&vm, vmID).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
+			return fmt.Errorf("failed to find VM: %w", err)
+		}
+
+		var freeResources FreeResourcesWithNets
+
+		switch vm.OwnerType {
+		case "User":
+			freeResources, err = getFreeResourcesForUserIDTransaction(tx, vm.OwnerID)
+		case "Group":
+			freeResources, err = getFreeResourcesForGroupIDTransaction(tx, vm.OwnerID)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to get free resources: %w", err)
+		}
+
+		// If free resources are negative, it means that the user/group is over
+		// quota and we should not allow extending the VM lifetime
+		if freeResources.Cores < 0 ||
+			freeResources.RAM < 0 ||
+			freeResources.Disk < 0 {
+			return ErrInsufficientResources
+		}
+
+		vm.LifeTime = newLifetime
+
+		err = tx.Save(&vm).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
+			return fmt.Errorf("failed to save VM: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func GetAllVMsIDsByUserID(userID uint) ([]uint, error) {
@@ -317,12 +407,14 @@ func GetAllVMsIDsByGroupID(goupID uint) ([]uint, error) {
 
 func getAllVMsIDsByOwner(ownerID uint, ownerType string) ([]uint, error) {
 	var ids []uint
+
 	err := db.Model(&VM{}).
 		Where(&VM{OwnerID: ownerID, OwnerType: ownerType}).
 		Pluck("id", &ids).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all VM IDs by owner: %w", err)
 	}
+
 	return ids, nil
 }
 
@@ -335,9 +427,9 @@ type VMExpirationNotification struct {
 func initVMExpirationNotifications() error {
 	err := db.AutoMigrate(&VMExpirationNotification{})
 	if err != nil {
-		logger.Error("Failed to migrate VMExpirationNotifications table", "error", err)
-		return err
+		return fmt.Errorf("failed to migrate VMExpirationNotifications table: %w", err)
 	}
+
 	return nil
 }
 
@@ -346,30 +438,37 @@ func NewVMExpirationNotification(vmID uint64, daysBefore uint) (*VMExpirationNot
 		VMID:       vmID,
 		DaysBefore: daysBefore,
 	}
+
 	result := db.Create(notification)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to create VM expiration notification: %w", result.Error)
 	}
+
 	return notification, nil
 }
 
 func GetVMExpirationNotificationsByVMID(vmID uint64) ([]VMExpirationNotification, error) {
 	var notifications []VMExpirationNotification
+
 	result := db.Model(&VMExpirationNotification{VMID: vmID}).Find(&notifications)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, result.Error
+
+		return nil, fmt.Errorf("failed to get VM expiration notifications by VM ID: %w", result.Error)
 	}
+
 	return notifications, nil
 }
 
 func CountGroupVMs(groupID uint) (int64, error) {
 	var count int64
+
 	result := db.Model(&VM{}).Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Count(&count)
 	if result.Error != nil {
-		return 0, result.Error
+		return 0, fmt.Errorf("failed to count group VMs: %w", result.Error)
 	}
+
 	return count, nil
 }

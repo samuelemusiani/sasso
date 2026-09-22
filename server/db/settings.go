@@ -1,6 +1,11 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+)
 
 type Setting struct {
 	ID     uint `gorm:"primaryKey"`
@@ -32,22 +37,24 @@ type Setting struct {
 
 func initSettings() error {
 	if err := db.AutoMigrate(&Setting{}); err != nil {
-		logger.Error("Failed to migrate settings table", "error", err)
-		return err
+		return fmt.Errorf("failed to migrate settings table: %w", err)
 	}
+
 	logger.Debug("Settings table migrated successfully")
+
 	return nil
 }
 
 func GetSettingsByUserID(userID uint) (*Setting, error) {
 	var setting Setting
 	if err := db.Where(&Setting{UserID: userID}).First(&setting).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		logger.Error("Failed to get settings by user ID", "userID", userID, "error", err)
-		return nil, err
+
+		return nil, fmt.Errorf("failed to get settings by user ID: %w", err)
 	}
+
 	return &setting, nil
 }
 
@@ -79,16 +86,16 @@ func createDefaultSettingsForUserTransaction(tx *gorm.DB, userID uint) error {
 	}
 
 	if err := tx.Create(&setting).Error; err != nil {
-		logger.Error("Failed to create default settings for user", "userID", userID, "error", err)
-		return err
+		return fmt.Errorf("failed to create default settings for user: %w", err)
 	}
+
 	return nil
 }
 
 func UpdateSettings(setting *Setting) error {
 	if err := db.Save(setting).Error; err != nil {
-		logger.Error("Failed to update settings", "error", err)
-		return err
+		return fmt.Errorf("failed to update settings: %w", err)
 	}
+
 	return nil
 }

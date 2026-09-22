@@ -1,6 +1,8 @@
 package db
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -26,21 +28,24 @@ type BackupRequest struct {
 
 func initBackupRequests() error {
 	if err := db.AutoMigrate(&BackupRequest{}); err != nil {
-		logger.Error("Failed to migrate backup_requests table", "error", err)
-		return err
+		return fmt.Errorf("failed to migrate backup_requests table: %w", err)
 	}
+
 	return nil
 }
 
 func GetBackupRequestByID(id uint) (*BackupRequest, error) {
 	var backupRequest BackupRequest
+
 	result := db.First(&backupRequest, id)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, result.Error
+
+		return nil, fmt.Errorf("failed to get backup request by ID: %w", result.Error)
 	}
+
 	return &backupRequest, nil
 }
 
@@ -71,80 +76,108 @@ func newBackupRequestWithVolid(backupType, status string, volid *string, vmID, o
 		Name:      name,
 		Notes:     notes,
 	}
+
 	result := db.Create(backupRequest)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to create backup request: %w", result.Error)
 	}
+
 	return backupRequest, nil
 }
 
 func UpdateBackupRequestStatus(id uint, status string) error {
 	result := db.Model(&BackupRequest{ID: id}).Update("status", status)
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return ErrNotFound
-		} else if result.RowsAffected == 0 {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) || result.RowsAffected == 0 {
 			return ErrNotFound
 		}
-		return result.Error
+
+		return fmt.Errorf("failed to update backup request status: %w", result.Error)
 	}
+
 	return nil
 }
 
 func GetBackupRequestWithStatusAndType(status, t string) ([]BackupRequest, error) {
 	var backupRequests []BackupRequest
+
 	result := db.Where(&BackupRequest{Status: status, Type: t}).Find(&backupRequests)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup requests by status and type: %w", result.Error)
 	}
+
 	return backupRequests, nil
 }
 
-func GetBackupRequestsByUserID(userID uint) ([]BackupRequest, error) {
-	return getBackupRequestsByOwnerID(userID, "User")
+// GetBackupRequestsByUserID returns backup requests for a user.
+// If status is empty, it will return all backup requests for the user.
+// If vmid is not 0, it will return backup requests for the user and vmid.
+func GetBackupRequestsByUserID(userID uint, status string, vmid uint) ([]BackupRequest, error) {
+	return getBackupRequestsByOwnerID(userID, "User", status, vmid)
 }
 
-func GetBackupRequestsByGroupID(groupID uint) ([]BackupRequest, error) {
-	return getBackupRequestsByOwnerID(groupID, "Group")
+// GetBackupRequestsByGroupID returns backup requests for a group.
+// If status is empty, it will return all backup requests for the group.
+// If vmid is not 0, it will return backup requests for the group and vmid.
+func GetBackupRequestsByGroupID(groupID uint, status string, vmid uint) ([]BackupRequest, error) {
+	return getBackupRequestsByOwnerID(groupID, "Group", status, vmid)
 }
 
-func getBackupRequestsByOwnerID(ownerID uint, ownerType string) ([]BackupRequest, error) {
+// if status is empty, it will return all backup requests
+// if vmid is not 0, it will return backup requests for the owner and vmid
+func getBackupRequestsByOwnerID(ownerID uint, ownerType, status string, vmid uint) ([]BackupRequest, error) {
 	var backupRequests []BackupRequest
-	result := db.Where(&BackupRequest{OwnerID: ownerID, OwnerType: ownerType}).
-		Find(&backupRequests)
-	if result.Error != nil {
-		return nil, result.Error
+
+	searchCriteria := &BackupRequest{OwnerID: ownerID, OwnerType: ownerType}
+	if status != "" {
+		searchCriteria.Status = status
 	}
+
+	if vmid != 0 {
+		searchCriteria.VMID = vmid
+	}
+
+	result := db.Where(&searchCriteria).Find(&backupRequests)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get backup requests by owner ID: %w", result.Error)
+	}
+
 	return backupRequests, nil
 }
 
 func IsAPendingBackupRequest(vmID uint) (bool, error) {
 	var count int64
+
 	result := db.Model(&BackupRequest{}).
 		Where(&BackupRequest{ID: vmID, Type: "pending"}).
 		Count(&count)
 	if result.Error != nil {
-		return false, result.Error
+		return false, fmt.Errorf("failed to check for pending backup request: %w", result.Error)
 	}
+
 	return count > 0, nil
 }
 
 func IsAPendingBackupRequestWithVolid(vmID uint, volid string) (bool, error) {
 	var count int64
+
 	result := db.Model(&BackupRequest{}).
 		Where(&BackupRequest{ID: vmID, Volid: &volid, Type: "pending"}).
 		Count(&count)
 	if result.Error != nil {
-		return false, result.Error
+		return false, fmt.Errorf("failed to check for pending backup request with volid: %w", result.Error)
 	}
+
 	return count > 0, nil
 }
 
 func GetBackupRequestsByVMIDStatusAndType(vmID uint, status, t string) ([]BackupRequest, error) {
 	var backupRequests []BackupRequest
+
 	result := db.Where(&BackupRequest{VMID: vmID, Status: status, Type: t}).Find(&backupRequests)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get backup requests by VM ID, status and type: %w", result.Error)
 	}
+
 	return backupRequests, nil
 }

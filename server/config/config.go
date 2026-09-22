@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -12,16 +14,19 @@ type Config struct {
 	Proxmox       Proxmox       `toml:"proxmox"`
 	Notifications Notifications `toml:"notifications"`
 	PortForwards  PortForwards  `toml:"port_forwards"`
+	VPN           VPN           `toml:"vpn"`
 }
 
 type Server struct {
-	Bind        string `toml:"bind"`
-	LogRequests bool   `toml:"log_requests"`
+	Bind            string        `toml:"bind"`
+	LogRequests     bool          `toml:"log_requests"`
+	ShutdownTimeout time.Duration `toml:"shutdown_timeout"`
 }
 
 type Database struct {
 	User     string `toml:"user"`
 	Password string `toml:"password"`
+	Database string `toml:"database"`
 	Host     string `toml:"host"`
 	Port     uint16 `toml:"port"`
 }
@@ -34,19 +39,14 @@ type Secrets struct {
 }
 
 type Proxmox struct {
-	Url                string          `toml:"url"`
-	TokenID            string          `toml:"token_id"`
-	Secret             string          `toml:"secret"`
-	InsecureSkipVerify bool            `toml:"insecure_skip_verify"`
-	Template           ProxmoxTemplate `toml:"template"`
-	Clone              ProxmoxClone    `toml:"clone"`
-	Network            ProxmoxNetwork  `toml:"network"`
-	Backup             ProxmoxBackup   `toml:"backup"`
-}
-
-type ProxmoxTemplate struct {
-	Node string `toml:"node"`
-	VMID int    `toml:"vmid"`
+	URL                string            `toml:"url"`
+	TokenID            string            `toml:"token_id"`
+	Secret             string            `toml:"secret"`
+	InsecureSkipVerify bool              `toml:"insecure_skip_verify"`
+	Templates          map[string]uint64 `toml:"templates"`
+	Clone              ProxmoxClone      `toml:"clone"`
+	Network            ProxmoxNetwork    `toml:"network"`
+	Backup             ProxmoxBackup     `toml:"backup"`
 }
 
 type ProxmoxClone struct {
@@ -94,10 +94,16 @@ type Email struct {
 }
 
 type PortForwards struct {
+	MaxPort  uint16 `toml:"max_port"`
+	MinPort  uint16 `toml:"min_port"`
 	PublicIP string `toml:"public_ip"`
 }
 
-var config Config = Config{}
+type VPN struct {
+	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
+}
+
+var config Config
 
 func Get() *Config {
 	return &config
@@ -105,5 +111,6 @@ func Get() *Config {
 
 func Parse(path string) error {
 	_, err := toml.DecodeFile(path, &config)
+
 	return err
 }

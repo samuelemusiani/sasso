@@ -113,9 +113,13 @@ export interface BackupRequest {
   id: number
   created_at: string
 
+  backup_id: string
   type: string
   status: string
   vmid: number
+
+  name?: string
+  notes?: string
 }
 
 export interface Stat {
@@ -203,4 +207,50 @@ export interface Settings {
   telegram_ssh_keys_changed_on_vm_notification: boolean
   telegram_user_invitation_notification: boolean
   telegram_user_removal_from_group_notification: boolean
+}
+
+export interface Template {
+  name: string
+  ready: boolean
+  disk: number
+}
+
+export interface UserResources {
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
+  allocated_cores: number
+  allocated_ram: number
+  allocated_disk: number
+  allocated_nets: number
+  active_vms_cores: number
+  active_vms_ram: number
+  active_vms_disk: number
+
+  group_max_cores: number
+  group_max_ram: number
+  group_max_disk: number
+  group_max_nets: number
+}
+
+export interface GroupResources {
+  max_cores: number
+  max_ram: number
+  max_disk: number
+  max_nets: number
+  allocated_cores: number
+  allocated_ram: number
+  allocated_disk: number
+  allocated_nets: number
+  active_vms_cores: number
+  active_vms_ram: number
+  active_vms_disk: number
+}
+
+export interface FreeResources {
+  free_cpu: number
+  free_ram: number
+  free_disk: number
+  free_nets: number
 }

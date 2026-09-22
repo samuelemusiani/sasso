@@ -5,8 +5,13 @@ import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
 import { getStatusClass } from '@/const'
 import { useToastService } from '@/composables/useToast'
+import { useLoadingStore } from '@/stores/loading'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { getPageIcon } from '@/const'
 
 const { error: toastError } = useToastService()
+
+const loading = useLoadingStore()
 
 const nets = ref<Net[]>([])
 const formNetName = ref('')
@@ -19,6 +24,7 @@ const modifying = ref(false)
 const modifyingNetId = ref<number | null>(null)
 
 function fetchNets() {
+  loading.start('net', null, 'fetch')
   api
     .get('/net')
     .then((res) => {
@@ -27,8 +33,24 @@ function fetchNets() {
       nets.value = res.data as Net[]
     })
     .catch((err) => {
-      error.value = 'Failed to fetch nets: ' + err.response.data
       console.error('Failed to fetch nets:', err)
+      toastError('Failed to fetch nets: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('net', null, 'fetch')
+    })
+}
+
+function fetchNetsWithoutLoading() {
+  api
+    .get('/net')
+    .then((res) => {
+      res.data.sort((a: Net, b: Net) => a.id - b.id)
+      nets.value = res.data as Net[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch nets:', err)
+      toastError('Failed to fetch nets: ' + err.response.data)
     })
 }
 
@@ -44,7 +66,7 @@ onMounted(() => {
   fetchNets()
   fetchGroups()
   intervalId = setInterval(() => {
-    fetchNets()
+    fetchNetsWithoutLoading()
   }, 5000)
 })
 
@@ -62,43 +84,45 @@ interface NetCreationBody {
 
 function createOrModifyNet() {
   if (modifying.value) {
-    modifyNet()
-    return
+    return modifyNet()
   }
-  createNet()
+  return createNet()
 }
 
 function createNet() {
   if (!formNetName.value) {
     error.value = 'Please provide a valid network name'
-    return
+    return false
   }
 
   const body: NetCreationBody = {
     name: formNetName.value,
     vlanaware: formNetVlanAware.value,
   }
+
   if (formNetGroupId.value) {
     body.group_id = formNetGroupId.value
   }
 
-  api
+  return api
     .post('/net', body)
     .then(() => {
       formNetName.value = ''
       formNetVlanAware.value = false
       fetchNets()
+      return true
     })
     .catch((err) => {
-      error.value = 'Failed to create net: ' + err.response.data
       console.error('Failed to create net:', err)
+      error.value = 'Failed to create net: ' + err.response.data
+      return false
     })
 }
 
 function modifyNet() {
   if (!formNetName.value) {
     error.value = 'Please provide a valid network name'
-    return
+    return false
   }
 
   const body: NetCreationBody = {
@@ -106,33 +130,51 @@ function modifyNet() {
     vlanaware: formNetVlanAware.value,
   }
 
-  api
+  return api
     .put(`/net/${modifyingNetId.value}`, body)
     .then(() => {
       toggleModify(-1)
       fetchNets()
+      return true
     })
     .catch((err) => {
-      error.value = 'Failed to create net: ' + err.response.data
       console.error('Failed to create net:', err)
+      error.value = 'Failed to create net: ' + err.response.data
+      return false
     })
 }
 
-function deleteNet(id: number) {
-  if (!confirm('Are you sure you want to delete this network?')) {
-    return
-  }
+const showDeleteModal = ref(false)
+const netToDelete = ref<number | null>(null)
 
+function preDeleteNet(id: number) {
+  netToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('net', id, 'delete')
+}
+
+function deleteNet(id: number) {
   api
     .delete(`/net/${id}`)
     .then(() => {
       console.log(`Network ${id} deleted successfully`)
-      fetchNets()
+      fetchNetsWithoutLoading()
     })
     .catch((err) => {
       toastError(`Failed to delete network: ` + err.response.data)
       console.error(`Failed to delete network ${id}:`, err)
     })
+    .finally(() => {
+      netToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('net', id, 'delete')
+    })
+}
+
+function cancelDeleteNet(id: number) {
+  netToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('net', id, 'delete')
 }
 
 function toggleModify(id: number) {
@@ -162,9 +204,12 @@ const nonMemberGroups = computed(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="flex items-center gap-2 text-3xl font-bold">
-      <IconVue class="text-primary" icon="ph:network"></IconVue>Networks
-    </h1>
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" :icon="getPageIcon('net')"></IconVue>Networks
+      </h1>
+      <HelpButton />
+    </div>
 
     <CreateNew
       :title="modifying ? 'Modify Network' : 'Network'"
@@ -172,6 +217,7 @@ const nonMemberGroups = computed(() => {
       :create="createOrModifyNet"
       :error="error"
       :open="modifying"
+      :close-on-create="true"
       @close="toggleModify(-1)"
     >
       <div class="flex flex-col gap-2">
@@ -201,16 +247,20 @@ const nonMemberGroups = computed(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('net', null, 'fetch')" class="grid h-32">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
-          <th class="">Name</th>
-          <th class="">Owner</th>
-          <th class="">Status</th>
-          <th class="">VlanAware</th>
-          <th class="">Subnet</th>
-          <th class="">Gateway</th>
-          <th class=""></th>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Status</th>
+          <th>Vlan Support</th>
+          <th>Subnet</th>
+          <th>Gateway</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -220,35 +270,76 @@ const nonMemberGroups = computed(() => {
           class="hover"
           :class="net.group_name ? 'bg-base-200' : ''"
         >
-          <td class="min-w-28 text-lg font-semibold">{{ net.name }}</td>
-          <td class="">{{ net.group_name ? net.group_name : 'Me' }}</td>
-          <td class="font-semibold capitalize" :class="getStatusClass(net.status)">
-            {{ net.status }}
+          <td>
+            <div class="min-w-28 text-lg font-semibold">
+              {{ net.name }}
+            </div>
           </td>
-          <td class="">{{ net.vlanaware }}</td>
-          <td class="">{{ net.subnet }}</td>
-          <td class="">{{ net.gateway }}</td>
-          <td class="flex gap-8">
-            <button
-              v-if="net.status === 'ready'"
-              @click="toggleModify(net.id)"
-              class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
-            >
-              <IconVue icon="material-symbols:edit" class="text-lg" />
-              <p class="hidden md:inline">Edit</p>
-            </button>
-            <button
-              v-if="net.status === 'ready' || net.status === 'unknown'"
-              @click="deleteNet(net.id)"
-              :disabled="net.group_role === 'member'"
-              class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
-            >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
-              <p class="hidden md:inline">Delete</p>
-            </button>
+          <td>{{ net.group_name ? net.group_name : 'Me' }}</td>
+          <td>
+            <div class="font-semibold capitalize" :class="getStatusClass(net.status)">
+              {{ net.status }}
+            </div>
+          </td>
+          <td>{{ net.vlanaware }}</td>
+          <td>
+            <div>
+              <template v-if="net.subnet">{{ net.subnet }}</template>
+              <div v-else class="flex items-center">
+                <span class="loading loading-dots loading-sm"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div>
+              <template v-if="net.gateway">{{ net.gateway }}</template>
+              <div v-else class="flex items-center">
+                <span class="loading loading-dots loading-sm"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="flex gap-8">
+              <button
+                v-if="net.status === 'ready'"
+                @click="toggleModify(net.id)"
+                :disabled="net.group_role === 'member'"
+                class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+              >
+                <IconVue icon="material-symbols:edit" class="text-lg" />
+                <p class="hidden md:inline">Edit</p>
+              </button>
+              <button
+                v-if="net.status === 'ready' || net.status === 'unknown'"
+                @click="preDeleteNet(net.id)"
+                :disabled="net.group_role === 'member' || loading.is('net', net.id, 'delete')"
+                class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              >
+                <span
+                  v-if="loading.is('net', net.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <IconVue v-else icon="material-symbols:delete" class="text-lg" />
+                <p class="hidden md:inline">Delete</p>
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Net"
+      positiveText="Delete Net"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteNet(netToDelete!)"
+      @negative="cancelDeleteNet(netToDelete!)"
+    >
+      <p>Are you sure you want to delete this Net? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

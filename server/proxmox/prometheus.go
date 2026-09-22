@@ -24,19 +24,21 @@ var (
 
 	objectCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "sasso_object_count",
+			Name: "sasso_object",
 			Help: "Number of objects in the system.",
-		}, []string{"object"})
+		}, []string{"object", "status"})
 )
 
 func workerCycleDurationObserve(function string, f func()) {
 	now := time.Now()
+
 	defer func() {
 		workerFunctionsDuration.WithLabelValues(function).Observe(time.Since(now).Seconds())
 	}()
+
 	f()
 }
 
-func objectCountSet(object string, count int64) {
-	objectCount.WithLabelValues(object).Set(float64(count))
+func objectCountSet(object, status string, count int64) {
+	objectCount.WithLabelValues(object, status).Set(float64(count))
 }

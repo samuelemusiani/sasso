@@ -40,11 +40,13 @@ func (b *bucketLimiter) allow() bool {
 		if b.tokens > b.capacity {
 			b.tokens = b.capacity
 		}
+
 		b.lastUpdate = now
 	}
 
 	if b.tokens > 0 {
 		b.tokens--
+
 		return true
 	}
 

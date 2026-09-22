@@ -2,18 +2,28 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
+const loading = useLoadingStore()
 
 const users = ref<User[]>([])
 
 function fetchUsers() {
+  loading.start('users', null, 'fetch')
   api
     .get('/admin/users')
     .then((res) => {
-      users.value = res.data as User[]
+      users.value = res.data.sort((a: User, b: User) => a.id - b.id) as User[]
     })
     .catch((err) => {
       console.error('Failed to fetch users:', err)
+      toastError('Failed to fetch users: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('users', null, 'fetch')
     })
 }
 
@@ -24,10 +34,18 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
-    <table class="mt-2 table w-full p-2">
+    <div class="flex justify-between px-4">
+      <BreadcrumbNav />
+      <HelpButton />
+    </div>
+
+    <div v-if="loading.is('users', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="mt-2 table w-full p-2">
       <thead>
-        <tr class="">
+        <tr class="uppercase">
           <th class="">Username</th>
           <th class="">Email</th>
           <th class="">Role</th>
@@ -42,7 +60,13 @@ onMounted(() => {
           <td class="">{{ user.role }}</td>
           <td class="">{{ user.realm }}</td>
           <td class="">
-            <RouterLink :to="`/admin/users/${user.id}`" class="btn btn-primary"> Edit </RouterLink>
+            <RouterLink
+              :to="`/admin/users/${user.id}`"
+              class="btn btn-primary btn-sm md:btn-md rounded-lg"
+            >
+              <IconVue icon="material-symbols:edit" class="text-lg" />
+              <p class="hidden md:inline">Edit</p>
+            </RouterLink>
           </td>
         </tr>
       </tbody>

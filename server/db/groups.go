@@ -36,20 +36,23 @@ type UserGroup struct {
 	Role      string // e.g., "member", "admin", "owner"
 }
 
-var lastUserGroupTableUpdate time.Time = time.Time{}
+var lastUserGroupTableUpdate = time.Time{}
 
-func (ug *UserGroup) AfterUpdate(tx *gorm.DB) (err error) {
+func (*UserGroup) AfterUpdate(_ *gorm.DB) (err error) {
 	lastUserGroupTableUpdate = time.Now()
+
 	return nil
 }
 
-func (ug *UserGroup) AfterCreate(tx *gorm.DB) (err error) {
+func (*UserGroup) AfterCreate(_ *gorm.DB) (err error) {
 	lastUserGroupTableUpdate = time.Now()
+
 	return nil
 }
 
-func (ug *UserGroup) AfterDelete(tx *gorm.DB) (err error) {
+func (*UserGroup) AfterDelete(_ *gorm.DB) (err error) {
 	lastUserGroupTableUpdate = time.Now()
+
 	return nil
 }
 
@@ -60,25 +63,25 @@ func GetLastUserGroupUpdate() time.Time {
 func UpdateGroupByID(groupID uint, name, description string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		var group Group
+
 		err := tx.Where("id != ? AND name = ?", groupID, name).First(&group).Error
 		if err == nil {
 			return ErrAlreadyExists
-		} else if err != gorm.ErrRecordNotFound {
-			logger.Error("Failed to check existing group", "error", err)
-			return err
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to check existing group: %w", err)
 		}
 
 		result := tx.Model(&Group{}).Where("id = ?", groupID).
 			Updates(Group{Name: name, Description: description})
 		if result.Error != nil {
-			logger.Error("Failed to update group", "error", result.Error)
-			return result.Error
+			return fmt.Errorf("failed to update group: %w", result.Error)
 		}
+
 		return nil
 	})
 }
 
-// This struct is only used for queries
+// GroupMemberWithUsername is only used for queries
 type GroupMemberWithUsername struct {
 	UserID    uint
 	Username  string
@@ -105,13 +108,11 @@ func initGroups() error {
 
 func CreateGroup(name, description string, userID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-
 		var group Group
 		if err := tx.Where(&Group{Name: name}).First(&group).Error; err == nil {
 			return ErrAlreadyExists
-		} else if err != gorm.ErrRecordNotFound {
-			logger.Error("Failed to check existing group", "error", err)
-			return err
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to check existing group: %w", err)
 		}
 
 		group = Group{
@@ -119,8 +120,7 @@ func CreateGroup(name, description string, userID uint) error {
 			Description: description,
 		}
 		if err := tx.Create(&group).Error; err != nil {
-			logger.Error("Failed to create group", "error", err)
-			return err
+			return fmt.Errorf("failed to create group: %w", err)
 		}
 
 		userGroup := UserGroup{
@@ -129,8 +129,7 @@ func CreateGroup(name, description string, userID uint) error {
 			Role:    "owner",
 		}
 		if err := tx.Create(&userGroup).Error; err != nil {
-			logger.Error("Failed to add user to group", "error", err)
-			return err
+			return fmt.Errorf("failed to add user to group: %w", err)
 		}
 
 		return nil
@@ -139,15 +138,16 @@ func CreateGroup(name, description string, userID uint) error {
 
 func GetGroupsByUserID(userID uint) ([]Group, error) {
 	var groups []Group
+
 	err := db.Table("groups").
 		Select("groups.*, user_groups.role as role").
 		Joins("JOIN user_groups ON user_groups.group_id = groups.id").
 		Where("user_groups.user_id = ?", userID).
 		Find(&groups).Error
 	if err != nil {
-		logger.Error("Failed to retrieve groups by user ID", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve groups by user ID: %w", err)
 	}
+
 	return groups, nil
 }
 
@@ -155,30 +155,27 @@ func DeleteGroup(groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// Delete all invitations for the group
 		if err := tx.Delete(&GroupInvitation{}, "group_id = ?", groupID).Error; err != nil {
-			logger.Error("Failed to delete group invitations", "error", err)
-			return err
+			return fmt.Errorf("failed to delete group invitations: %w", err)
 		}
 
 		// Remove every user from the group
 		if err := tx.Delete(&UserGroup{}, "group_id = ?", groupID).Error; err != nil {
-			logger.Error("Failed to delete user-group associations", "error", err)
-			return err
+			return fmt.Errorf("failed to delete user-group associations: %w", err)
 		}
 
 		// Find all group resources and return them to users
 		var resources []GroupResource
+
 		err := tx.Model(&GroupResource{}).
 			Where("group_id = ?", groupID).
 			Find(&resources).Error
 		if err != nil {
-			logger.Error("Failed to retrieve group resources", "error", err)
-			return err
+			return fmt.Errorf("failed to retrieve group resources: %w", err)
 		}
 
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
-			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
-			return err
+			return fmt.Errorf("failed to get admin user ID during resource revocation: %w", err)
 		}
 
 		for _, r := range resources {
@@ -186,6 +183,7 @@ func DeleteGroup(groupID uint) error {
 				// Admin user, skip
 				continue
 			}
+
 			err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
 				UpdateColumns(map[string]interface{}{
 					"max_cores": gorm.Expr("max_cores + ?", r.Cores),
@@ -193,17 +191,19 @@ func DeleteGroup(groupID uint) error {
 					"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
 				}).Error
 			if err != nil {
-				logger.Error("Failed to return resources to user", "error", err)
-				return err
+				return fmt.Errorf("failed to return resources to user: %w", err)
 			}
 		}
+
 		err = tx.Where("group_id = ?", groupID).Delete(&GroupResource{}).Error
+		if err != nil {
+			return fmt.Errorf("failed to delete group resources: %w", err)
+		}
 
 		// Delete the group
 		result := tx.Delete(&Group{}, groupID)
 		if result.Error != nil {
-			logger.Error("Failed to delete group", "error", result.Error)
-			return result.Error
+			return fmt.Errorf("failed to delete group: %w", result.Error)
 		}
 
 		return nil
@@ -212,32 +212,37 @@ func DeleteGroup(groupID uint) error {
 
 func GetGroupByID(groupID uint) (*Group, error) {
 	var group Group
+
 	err := db.First(&group, groupID).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		logger.Error("Failed to retrieve group by ID", "error", err)
-		return nil, err
+
+		return nil, fmt.Errorf("failed to retrieve group by ID: %w", err)
 	}
+
 	return &group, nil
 }
 
 func GetUserRoleInGroup(userID, groupID uint) (string, error) {
 	var userGroup UserGroup
+
 	err := db.First(&userGroup, "user_id = ? AND group_id = ?", userID, groupID).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrNotFound
 		}
-		logger.Error("Failed to retrieve user role in group", "error", err)
-		return "", err
+
+		return "", fmt.Errorf("failed to retrieve user role in group: %w", err)
 	}
+
 	return userGroup.Role, nil
 }
 
 func GetGroupMembers(groupID uint) ([]GroupMemberWithUsername, error) {
 	var members []GroupMemberWithUsername
+
 	err := db.Table("user_groups").
 		Joins("JOIN users ON users.id = user_groups.user_id").
 		Joins("JOIN realms ON users.realm_id = realms.id").
@@ -245,26 +250,24 @@ func GetGroupMembers(groupID uint) ([]GroupMemberWithUsername, error) {
 		Select("users.id as user_id, users.username, user_groups.role, realms.name as realm_name").
 		Scan(&members).Error
 	if err != nil {
-		logger.Error("Failed to retrieve group members", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve group members: %w", err)
 	}
 
 	return members, nil
 }
 
-// This functions is used to get pending invitations for a user along with group
-// details
+// GetGroupsWithInvitationByUserID is used to get pending invitations for a
+// user along with group details
 func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
 	var invitations []GroupInvitation
+
 	err := db.Table("group_invitations as gi").
 		Joins("JOIN groups ON groups.id = gi.group_id JOIN users ON users.id = gi.user_id").
 		Select("gi.id, gi.group_id, groups.name as group_name, groups.description as group_description, gi.role, gi.state, users.username as username").
 		Where("gi.user_id = ? AND state = ?", userID, "pending").
 		Scan(&invitations).Error
-
 	if err != nil {
-		logger.Error("Failed to retrieve group invitations", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve group invitations: %w", err)
 	}
 
 	return invitations, nil
@@ -274,23 +277,26 @@ func DeclineGroupInvitation(invitationID, userID uint) error {
 	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").
 		Update("state", "declined").Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil // No pending invitation found, nothing to do
 		}
-		logger.Error("Failed to decline invitation", "error", err)
-		return err
+
+		return fmt.Errorf("failed to decline invitation: %w", err)
 	}
+
 	return nil
 }
 
 func AcceptGroupInvitation(invitationID, userID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var invitation GroupInvitation
+
 		err := tx.Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").First(&invitation).Error
 		if err != nil {
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrNotFound
 			}
+
 			return fmt.Errorf("failed to find invitation: %w", err)
 		}
 
@@ -304,6 +310,7 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			GroupID: invitation.GroupID,
 			Role:    invitation.Role,
 		}
+
 		err = tx.Create(&userGroup).Error
 		if err != nil {
 			return fmt.Errorf("failed to add user to group: %w", err)
@@ -312,6 +319,7 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 		// If the members are now more than 1 and there is no
 		// admin group resource, we allocate a new net.
 		var count int64
+
 		err = tx.Model(&UserGroup{}).
 			Where("group_id = ?", invitation.GroupID).
 			Count(&count).Error
@@ -326,15 +334,18 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 
 		if count > 1 {
 			var adminResource GroupResource
+
 			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: adminID}).
 				First(&adminResource).Error
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("failed to check admin group resource: %w", err)
-			} else if err == gorm.ErrRecordNotFound {
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
 				res := GroupResource{
 					GroupID: invitation.GroupID,
 					UserID:  adminID,
-					Nets:    1, // Allocate 1 net from admin to the group by default
+					ResourcesWithNets: ResourcesWithNets{
+						Nets: 1, // Allocate 1 net from admin to the group by default
+					},
 				}
 				if err := tx.Create(&res).Error; err != nil {
 					return fmt.Errorf("failed to allocate default resources to group: %w", err)
@@ -349,16 +360,18 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 		if errors.Is(err, ErrNotFound) {
 			return ErrNotFound
 		}
-		logger.Error("Failed to accept invitation", "error", err)
-		return err
+
+		return fmt.Errorf("failed to accept invitation: %w", err)
 	}
+
 	return nil
 }
 
-// This function is used to get pending invitations for a group along with
-// user details
+// GetPendingGroupInvitationsByGroupID is used to get pending invitations for
+// a group along with user details
 func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error) {
 	var invitations []GroupInvitation
+
 	err := db.Table("group_invitations as gi").
 		Joins("JOIN users ON users.id = gi.user_id").
 		Joins("JOIN realms ON users.realm_id = realms.id").
@@ -366,9 +379,9 @@ func GetPendingGroupInvitationsByGroupID(groupID uint) ([]GroupInvitation, error
 		Where("gi.group_id = ? AND gi.state = ?", groupID, "pending").
 		Scan(&invitations).Error
 	if err != nil {
-		logger.Error("Failed to retrieve group invitations", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve group invitations: %w", err)
 	}
+
 	return invitations, nil
 }
 
@@ -382,34 +395,37 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var count int64
+
 		err := tx.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
 		if err != nil {
-			logger.Error("Failed to check existing invitations", "error", err)
-			return err
+			return fmt.Errorf("failed to check existing invitations: %w", err)
 		}
+
 		if count > 0 {
 			return ErrAlreadyExists
 		}
 
 		err = db.Create(&invitation).Error
 		if err != nil {
-			logger.Error("Failed to create group invitation", "error", err)
-			return err
+			return fmt.Errorf("failed to create group invitation: %w", err)
 		}
+
 		return nil
 	})
+
 	return err
 }
 
 func RevokeGroupInvitationToUser(inviteID, groupID uint) error {
 	result := db.Where("id = ? AND group_id = ? AND state = ?", inviteID, groupID, "pending").Delete(&GroupInvitation{})
 	if result.Error != nil {
-		logger.Error("Failed to revoke group invitation", "error", result.Error)
-		return result.Error
+		return fmt.Errorf("failed to revoke group invitation: %w", result.Error)
 	}
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
+
 	return nil
 }
 
@@ -417,16 +433,15 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		err := revokeGroupResourcesTransaction(tx, groupID, userID)
 		if err != nil {
-			logger.Error("Failed to revoke group resources", "error", err)
-			return err
+			return fmt.Errorf("failed to revoke group resources: %w", err)
 		}
 
 		result := tx.Where("user_id = ? AND group_id = ?", userID, groupID).
 			Delete(&UserGroup{})
 		if result.Error != nil {
-			logger.Error("Failed to remove user from group", "error", result.Error)
-			return result.Error
+			return fmt.Errorf("failed to remove user from group: %w", result.Error)
 		}
+
 		if result.RowsAffected == 0 {
 			return ErrNotFound
 		}
@@ -434,12 +449,16 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 		// If the members are now 1 and there is an admin group resource,
 		// we remove the extra net.
 		var count int64
+
 		err = tx.Model(&UserGroup{}).
 			Where("group_id = ?", groupID).
 			Count(&count).Error
 		if err != nil {
-			logger.Error("Failed to count group members", "error", err)
-			return err
+			return fmt.Errorf("failed to count group members: %w", err)
+		}
+
+		if count != 1 {
+			return nil
 		}
 
 		adminID, err := getAdminIDTransaction(tx)
@@ -447,22 +466,33 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
-		if count == 1 {
-			var adminResource GroupResource
-			err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
-				First(&adminResource).Error
-			if err != nil && err != gorm.ErrRecordNotFound {
-				logger.Error("Failed to check admin group resource", "error", err)
-				return err
-			} else if err == nil {
-				// Admin resource exists, remove it
-				adminResource.Nets = max(0, adminResource.Nets-1)
-				err = tx.Save(&adminResource).Error
-				if err != nil {
-					logger.Error("Failed to remove admin group resource", "error", err)
-					return err
-				}
+		var adminResource GroupResource
+
+		err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
+			First(&adminResource).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// if there is no admin resource, nothing to do
+				return nil
 			}
+
+			return fmt.Errorf("failed to check admin group resource: %w", err)
+		}
+
+		// Admin resource exists
+		if adminResource.Nets == 0 {
+			// if there is no net assigned to the admin resource, nothing to do
+			// this could be the case if the groups was created in the v0.1.* versions
+			// where we didn't assign a net to the admin resource by default
+			return nil
+		}
+
+		// We have an admin resource with nets assigned, we need to remove one net
+		adminResource.Nets--
+
+		err = tx.Save(&adminResource).Error
+		if err != nil {
+			return fmt.Errorf("failed to remove admin group resource: %w", err)
 		}
 
 		return nil
@@ -471,47 +501,66 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 
 func DoesUserBelongToGroup(userID, groupID uint) (bool, error) {
 	var count int64
+
 	err := db.Model(&UserGroup{}).Where("user_id = ? AND group_id = ?", userID, groupID).Count(&count).Error
 	if err != nil {
-		logger.Error("Failed to check user membership in group", "error", err)
-		return false, err
+		return false, fmt.Errorf("failed to check user membership in group: %w", err)
 	}
+
 	return count > 0, nil
 }
 
 func CountGroupMembers(groupID uint) (int64, error) {
 	var count int64
+
 	err := db.Model(&UserGroup{}).Where("group_id = ?", groupID).Count(&count).Error
 	if err != nil {
-		logger.Error("Failed to count group members", "error", err)
-		return 0, err
+		return 0, fmt.Errorf("failed to count group members: %w", err)
 	}
+
 	return count, nil
 }
 
 func GetUserIDsByGroupID(groupID uint) ([]uint, error) {
 	var userIDs []uint
+
 	err := db.Model(&UserGroup{}).Where("group_id = ?", groupID).Pluck("user_id", &userIDs).Error
 	if err != nil {
-		logger.Error("Failed to get user IDs by group ID", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get user IDs by group ID: %w", err)
 	}
+
 	return userIDs, nil
 }
 
-// It is possible to asign resources to a group by admins. We have model this
-// as the admin user assigning some of their own resources to the group.
-// As the admin does not have resources, we need to check to avoid reassigning
-// them to it when revoking group resources.
-type GroupResource struct {
-	GroupID uint `gorm:"primaryKey"`
-	UserID  uint `gorm:"primaryKey"`
-
+// ResourcesWithNets encodes resource limits
+type ResourcesWithNets struct {
 	Cores uint `gorm:"not null"`
 	RAM   uint `gorm:"not null"`
 	Disk  uint `gorm:"not null"`
 	Nets  uint `gorm:"not null"`
+}
 
+// FreeResourcesWithNets is used to represent the free resources. Is almost
+// the same as ResourcesWithNets but with int instead of uint to be able to
+// represent negative values when the used resources are more than the assigned
+// ones
+type FreeResourcesWithNets struct {
+	Cores int `gorm:"not null"`
+	RAM   int `gorm:"not null"`
+	Disk  int `gorm:"not null"`
+	Nets  int `gorm:"not null"`
+}
+
+// GroupResource encodes the resources for a particular group. Admins can
+// assign resources to a group. We have model this as the admin user assigning
+// some of their own resources to the group. As the admin does not have
+// resources, we need to check to avoid reassigning them to it when revoking
+// group resources.
+type GroupResource struct {
+	ResourcesWithNets
+
+	GroupID  uint   `gorm:"primaryKey"`
+	UserID   uint   `gorm:"primaryKey"`
 	Username string `gorm:"->;-:migration"`
 }
 
@@ -519,137 +568,76 @@ func initGroupResources() error {
 	return db.AutoMigrate(&GroupResource{})
 }
 
-func GetGroupResourceLimits(groupID uint) (uint, uint, uint, uint, error) {
-	var res struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-		Nets  uint
-	}
+func GetGroupResourceLimits(groupID uint) (ResourcesWithNets, error) {
+	var res ResourcesWithNets
 
 	err := db.Model(&GroupResource{}).
 		Where("group_id = ?", groupID).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
 		Scan(&res).Error
 	if err != nil {
-		logger.Error("Failed to get group max resources", "error", err)
-		return 0, 0, 0, 0, err
+		return ResourcesWithNets{}, fmt.Errorf("failed to query group resource limits: %w", err)
 	}
 
-	return res.Cores, res.RAM, res.Disk, res.Nets, nil
+	return res, nil
 }
 
 func GetGroupResourcesByGroupID(groupID uint) ([]GroupResource, error) {
 	var resources []GroupResource
+
 	err := db.Table("group_resources as gr").
 		Joins("JOIN users ON users.id = gr.user_id").
 		Select("gr.group_id, gr.user_id, gr.cores, gr.ram, gr.disk, gr.nets, users.username as username").
 		Where("gr.group_id = ?", groupID).
 		Scan(&resources).Error
 	if err != nil {
-		logger.Error("Failed to get group resources by group ID", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get group resources by group ID: %w", err)
 	}
+
 	return resources, nil
 }
 
-func availableResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (uint, uint, uint, uint, error) {
-	var used struct {
-		Cores uint
-		RAM   uint
-		Disk  uint
-	}
+func getFreeResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (FreeResourcesWithNets, error) {
+	var used ResourcesWithNets
+
 	err := tx.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
 		Where(&VM{OwnerID: userID, OwnerType: "User"}).Scan(&used).Error
 	if err != nil {
-		logger.Error("Failed to get user VM resources", "error", err)
-		return 0, 0, 0, 0, err
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user VM resources: %w", err)
 	}
 
 	var usedNets int64
+
 	err = tx.Model(&Net{}).
 		Where(&Net{OwnerID: userID, OwnerType: "User"}).
 		Count(&usedNets).Error
 	if err != nil {
-		logger.Error("Failed to get user Net resources", "error", err)
-		return 0, 0, 0, 0, err
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user Net resources: %w", err)
 	}
+
+	used.Nets = uint(usedNets)
 
 	var u User
+
 	err = tx.First(&u, userID).Error
 	if err != nil {
-		logger.Error("Failed to get user", "error", err)
-		return 0, 0, 0, 0, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return FreeResourcesWithNets{}, ErrNotFound
+		}
+
+		return FreeResourcesWithNets{}, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	availableCores := uint(0)
-	if u.MaxCores > used.Cores {
-		availableCores = u.MaxCores - used.Cores
-	}
-
-	availableRAM := uint(0)
-	if u.MaxRAM > used.RAM {
-		availableRAM = u.MaxRAM - used.RAM
-	}
-
-	availableDisk := uint(0)
-	if u.MaxDisk > used.Disk {
-		availableDisk = u.MaxDisk - used.Disk
-	}
-
-	availableNets := uint(0)
-	if u.MaxNets > uint(usedNets) {
-		availableNets = u.MaxNets - uint(usedNets)
-	}
-
-	return availableCores, availableRAM, availableDisk, availableNets, nil
+	return FreeResourcesWithNets{
+		Cores: int(u.MaxCores) - int(used.Cores),
+		RAM:   int(u.MaxRAM) - int(used.RAM),
+		Disk:  int(u.MaxDisk) - int(used.Disk),
+		Nets:  int(u.MaxNets) - int(used.Nets),
+	}, nil
 }
 
-func AddGroupResources(groupID, userID uint, cores, ram, disk, nets uint) error {
-	groupResource := GroupResource{
-		GroupID: groupID,
-		UserID:  userID,
-		Cores:   cores,
-		RAM:     ram,
-		Disk:    disk,
-		Nets:    nets,
-	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		availableCores, availableRAM, availableDisk, availableNets, err := availableResourcesForUserIDTransaction(tx, userID)
-		if err != nil {
-			logger.Error("Failed to get available resources for user", "error", err)
-			return err
-		}
-
-		if cores > availableCores || ram > availableRAM || disk > availableDisk || nets > availableNets {
-			return ErrInsufficientResources
-		}
-
-		err = tx.Create(&groupResource).Error
-		if err != nil {
-			logger.Error("Failed to create group resource", "error", err)
-			return err
-		}
-
-		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
-			UpdateColumns(map[string]interface{}{
-				"max_cores": gorm.Expr("max_cores - ?", cores),
-				"max_ram":   gorm.Expr("max_ram - ?", ram),
-				"max_disk":  gorm.Expr("max_disk - ?", disk),
-				"max_nets":  gorm.Expr("max_nets - ?", nets),
-			}).Error
-		if err != nil {
-			logger.Error("Failed to update user limits", "error", err)
-			return err
-		}
-		return nil
-	})
-	return err
-}
-
-func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
+func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		var groupResource GroupResource
 
@@ -661,14 +649,13 @@ func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 		err = tx.Where(&GroupResource{GroupID: groupID, UserID: adminID}).
 			First(&groupResource).Error
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				groupResource = GroupResource{
-					GroupID: groupID,
-					UserID:  adminID,
-				}
-			} else {
-				logger.Error("Failed to check existing group resource by admin", "error", err)
-				return err
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("failed to check existing group resource by admin: %w", err)
+			}
+
+			groupResource = GroupResource{
+				GroupID: groupID,
+				UserID:  adminID,
 			}
 		}
 
@@ -677,50 +664,43 @@ func UpdateGroupResourceByAdmin(groupID, cores, ram, disk, nets uint) error {
 		groupResource.Disk = disk
 		groupResource.Nets = nets
 
-		err = tx.Save(&groupResource).Error
+		err = db.Save(&groupResource).Error
 		if err != nil {
-			logger.Error("Failed to create group resource by admin", "error", err)
-			return err
+			return fmt.Errorf("failed to create group resource by admin: %w", err)
 		}
+
 		return nil
 	})
 }
 
-func RevokeGroupResources(groupID, userID uint) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return revokeGroupResourcesTransaction(tx, groupID, userID)
-	})
-}
-
-func SetGroupResourcesByUserID(groupID, userID, newCores, newRAM, newDisk, newNets uint) error {
+func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithNets) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
-			logger.Error("Failed to get admin user ID during resource revocation", "error", err)
-			return err
+			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
+		// We have SetGroupResourceByAdmin for this
 		if userID == adminID {
 			return nil
 		}
 
 		var currentResources GroupResource
+
 		err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&currentResources).Error
-		if err != nil && err != gorm.ErrRecordNotFound {
-			logger.Error("Failed to find group resource", "error", err)
-			return err
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to find group resource: %w", err)
 		}
 
 		usedInGroup, maxResourceAvailableInGroup, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
 		if err != nil {
-			logger.Error("Failed to get group resources", "error", err)
-			return err
+			return fmt.Errorf("failed to get group resources: %w", err)
 		}
 
-		diffCores := int(newCores - currentResources.Cores)
-		diffRAM := int(newRAM - currentResources.RAM)
-		diffDisk := int(newDisk - currentResources.Disk)
-		diffNets := int(newNets - currentResources.Nets)
+		diffCores := int(newResources.Cores - currentResources.Cores)
+		diffRAM := int(newResources.RAM - currentResources.RAM)
+		diffDisk := int(newResources.Disk - currentResources.Disk)
+		diffNets := int(newResources.Nets - currentResources.Nets)
 
 		// check if we can revoke the resources
 		if int(maxResourceAvailableInGroup.Cores)+diffCores < int(usedInGroup.Cores) ||
@@ -731,27 +711,32 @@ func SetGroupResourcesByUserID(groupID, userID, newCores, newRAM, newDisk, newNe
 		}
 
 		// check if we have the resources to assign
-		availableCores, availableRAM, availableDisk, availableNets, err := availableResourcesForUserIDTransaction(tx, userID)
+		availableResources, err := getFreeResourcesForUserIDTransaction(tx, userID)
 		if err != nil {
-			logger.Error("Failed to get available resources for user", "error", err)
-			return err
+			return fmt.Errorf("failed to get available resources for user: %w", err)
 		}
 
-		if diffCores > int(availableCores) || diffRAM > int(availableRAM) || diffDisk > int(availableDisk) || diffNets > int(availableNets) {
+		if diffCores > availableResources.Cores ||
+			diffRAM > availableResources.RAM ||
+			diffDisk > availableResources.Disk ||
+			diffNets > availableResources.Nets {
 			return ErrInsufficientResources
 		}
 
 		// we have the resources, we can assign/revoke them. proceeding...
 
-		currentResources.Cores = newCores
-		currentResources.RAM = newRAM
-		currentResources.Disk = newDisk
-		currentResources.Nets = newNets
+		currentResources.Cores = newResources.Cores
+		currentResources.RAM = newResources.RAM
+		currentResources.Disk = newResources.Disk
+		currentResources.Nets = newResources.Nets
+
+		// In case it's the first time and currentResources is empty
+		currentResources.GroupID = groupID
+		currentResources.UserID = userID
 
 		err = tx.Save(&currentResources).Error
 		if err != nil {
-			logger.Error("Failed to delete group resource", "error", err)
-			return err
+			return fmt.Errorf("failed to save group resource: %w", err)
 		}
 
 		err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
@@ -762,9 +747,9 @@ func SetGroupResourcesByUserID(groupID, userID, newCores, newRAM, newDisk, newNe
 				"max_nets":  gorm.Expr("max_nets - ?", diffNets),
 			}).Error
 		if err != nil {
-			logger.Error("Failed to update user limits", "error", err)
-			return err
+			return fmt.Errorf("failed to update user limits: %w", err)
 		}
+
 		return nil
 	})
 }
@@ -772,117 +757,124 @@ func SetGroupResourcesByUserID(groupID, userID, newCores, newRAM, newDisk, newNe
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
 	adminID, err := getAdminIDTransaction(tx)
 	if err != nil {
-		logger.Error("Failed to get admin user ID during resource revocation", "error", err)
-		return err
+		return fmt.Errorf("failed to get admin user ID: %w", err)
 	}
+
 	if userID == adminID {
 		// Admin user, no resources to revoke
 		return tx.Delete(&GroupResource{GroupID: groupID, UserID: userID}).Error
 	}
 
-	var resource GroupResource
-	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&resource).Error
+	var currentResources GroupResource
+
+	err = tx.Where(&GroupResource{GroupID: groupID, UserID: userID}).First(&currentResources).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// No resources to revoke
 			return nil
 		}
-		logger.Error("Failed to find group resource", "error", err)
-		return err
+
+		return fmt.Errorf("failed to find group resource: %w", err)
 	}
 
-	used, maxResourceAvailable, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+	usedInGroup, maxResourceAvailableInGroup, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
 	if err != nil {
-		logger.Error("Failed to get group resources", "error", err)
-		return err
+		return fmt.Errorf("failed to get group resources: %w", err)
 	}
 
-	if maxResourceAvailable.Cores-resource.Cores < used.Cores ||
-		maxResourceAvailable.RAM-resource.RAM < used.RAM ||
-		maxResourceAvailable.Disk-resource.Disk < used.Disk ||
-		maxResourceAvailable.Nets-resource.Nets < used.Nets {
+	if int(maxResourceAvailableInGroup.Cores-currentResources.Cores) < int(usedInGroup.Cores) ||
+		int(maxResourceAvailableInGroup.RAM-currentResources.RAM) < int(usedInGroup.RAM) ||
+		int(maxResourceAvailableInGroup.Disk-currentResources.Disk) < int(usedInGroup.Disk) ||
+		int(maxResourceAvailableInGroup.Nets-currentResources.Nets) < int(usedInGroup.Nets) {
 		return ErrResourcesInUse
 	}
 
-	err = tx.Delete(&resource).Error
+	err = tx.Delete(&currentResources).Error
 	if err != nil {
-		logger.Error("Failed to delete group resource", "error", err)
-		return err
+		return fmt.Errorf("failed to delete group resource: %w", err)
 	}
 
 	err = tx.Model(&User{Model: gorm.Model{ID: userID}}).
 		UpdateColumns(map[string]interface{}{
-			"max_cores": gorm.Expr("max_cores + ?", resource.Cores),
-			"max_ram":   gorm.Expr("max_ram + ?", resource.RAM),
-			"max_disk":  gorm.Expr("max_disk + ?", resource.Disk),
-			"max_nets":  gorm.Expr("max_nets + ?", resource.Nets),
+			"max_cores": gorm.Expr("max_cores + ?", currentResources.Cores),
+			"max_ram":   gorm.Expr("max_ram + ?", currentResources.RAM),
+			"max_disk":  gorm.Expr("max_disk + ?", currentResources.Disk),
+			"max_nets":  gorm.Expr("max_nets + ?", currentResources.Nets),
 		}).Error
 	if err != nil {
-		logger.Error("Failed to update user limits", "error", err)
-		return err
+		return fmt.Errorf("failed to update user limits: %w", err)
 	}
+
 	return nil
 }
 
-type usedResources struct {
-	Cores uint
-	RAM   uint
-	Disk  uint
-	Nets  uint
-}
-
-func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources, usedResources, error) {
-	var used usedResources
-	err := tx.Model(&VM{}).
+func getUsedAndMaxResourcesForGroupID(tx *gorm.DB, groupID uint) (usedResources ResourcesWithNets, maxResources ResourcesWithNets, err error) {
+	err = tx.Model(&VM{}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk").
-		Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Scan(&used).Error
+		Where(&VM{OwnerID: groupID, OwnerType: "Group"}).Scan(&usedResources).Error
 	if err != nil {
-		logger.Error("Failed to get group VM resources", "error", err)
-		return usedResources{}, usedResources{}, err
+		return ResourcesWithNets{}, ResourcesWithNets{}, fmt.Errorf("failed to get group VM resources: %w", err)
 	}
 
 	var usedNets int64
+
 	err = tx.Model(&Net{}).
 		Where(&Net{OwnerID: groupID, OwnerType: "Group"}).
 		Count(&usedNets).Error
 	if err != nil {
-		logger.Error("Failed to get group Net resources", "error", err)
-		return usedResources{}, usedResources{}, err
+		return ResourcesWithNets{}, ResourcesWithNets{}, fmt.Errorf("failed to get group net resources: %w", err)
 	}
-	used.Nets = uint(usedNets)
 
-	var maxResource usedResources
+	usedResources.Nets = uint(usedNets)
+
 	err = tx.Model(&GroupResource{}).
 		Where("group_id = ?", groupID).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
-		Scan(&maxResource).Error
+		Scan(&maxResources).Error
 	if err != nil {
-		logger.Error("Failed to get group max resources", "error", err)
-		return usedResources{}, usedResources{}, err
+		return ResourcesWithNets{}, ResourcesWithNets{}, fmt.Errorf("failed to get group max resources: %w", err)
 	}
 
-	return used, maxResource, nil
+	return usedResources, maxResources, nil
+}
+
+func getFreeResourcesForGroupIDTransaction(tx *gorm.DB, groupID uint) (FreeResourcesWithNets, error) {
+	usedResources, maxResources, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+	if err != nil {
+		return FreeResourcesWithNets{}, err
+	}
+
+	freeResources := FreeResourcesWithNets{
+		Cores: int(maxResources.Cores) - int(usedResources.Cores),
+		RAM:   int(maxResources.RAM) - int(usedResources.RAM),
+		Disk:  int(maxResources.Disk) - int(usedResources.Disk),
+		Nets:  int(maxResources.Nets) - int(usedResources.Nets),
+	}
+
+	return freeResources, nil
 }
 
 func GetAllGroups() ([]Group, error) {
 	var groups []Group
+
 	err := db.Find(&groups).Error
 	if err != nil {
-		logger.Error("Failed to retrieve all groups", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve all groups: %w", err)
 	}
+
 	return groups, nil
 }
 
-func GetUserGroupResourcesByUserID(userID uint) (usedResources, error) {
-	var res usedResources
+func GetUserGroupResourcesByUserID(userID uint) (ResourcesWithNets, error) {
+	var res ResourcesWithNets
+
 	err := db.Model(&GroupResource{}).
 		Where(&GroupResource{UserID: userID}).
 		Select("SUM(cores) as cores, SUM(ram) as ram, SUM(disk) as disk, SUM(nets) as nets").
 		Scan(&res).Error
 	if err != nil {
-		logger.Error("Failed to get user group resources by user ID", "error", err)
-		return usedResources{}, err
+		return ResourcesWithNets{}, fmt.Errorf("failed to get user group resources by user ID: %w", err)
 	}
+
 	return res, nil
 }

@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { api } from '@/lib/api'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { login as _login } from '@/lib/api'
 import type { Realm } from '@/types'
 import type { AxiosError } from 'axios'
+import { useLoadingStore } from '@/stores/loading'
 
 const router = useRouter()
+const route = useRoute()
+
+const nextUrl = computed(() => {
+  const raw = route.query.next
+  return typeof raw === 'string' ? raw : null
+})
 
 const username = ref('')
 const password = ref('')
@@ -15,6 +22,9 @@ const realm = ref('Local')
 const realms = ref<Realm[]>([])
 
 const errorMessage = ref('')
+
+const loading = useLoadingStore()
+const isLoading = () => loading.is('login')
 
 function fetchRealms() {
   api
@@ -32,6 +42,8 @@ function fetchRealms() {
 }
 
 async function login() {
+  errorMessage.value = ''
+  loading.start('login')
   try {
     if (!username.value || !password.value) {
       console.error('Username and password are required')
@@ -45,7 +57,12 @@ async function login() {
     }
     localStorage.setItem('realm', realm.value)
     await _login(username.value, password.value, realmID)
-    router.push('/')
+
+    if (nextUrl.value && nextUrl.value.startsWith('/')) {
+      await router.replace(nextUrl.value)
+    } else {
+      await router.replace({ path: '/' })
+    }
   } catch (error) {
     const axiosError = error as AxiosError
     console.error('Login failed:', error)
@@ -56,6 +73,8 @@ async function login() {
     } else {
       errorMessage.value = 'An error occurred during login'
     }
+  } finally {
+    loading.stop('login')
   }
 }
 
@@ -73,9 +92,10 @@ onMounted(() => {
         </div>
         <div class="w-full">
           <legend class="label mb-1">Username</legend>
-          <label class="input validator rounded-lg">
+          <label class="input validator w-full rounded-lg">
             <IconVue icon="material-symbols:person" class="h-[1em] text-lg opacity-50" />
             <input
+              @keypress.enter="login()"
               type="text"
               v-model="username"
               required
@@ -84,22 +104,21 @@ onMounted(() => {
               minlength="3"
               maxlength="30"
               title="Only letters, numbers or dash"
-              @keyup.enter="login"
             />
           </label>
         </div>
 
         <div class="w-full">
           <legend class="label mb-1">Password</legend>
-          <label class="input rounded-lg">
+          <label class="input w-full rounded-lg">
             <IconVue icon="material-symbols:lock" class="h-[1em] text-lg opacity-50" />
             <input
+              @keypress.enter="login()"
               required
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
               class="grow"
-              @keyup.enter="login"
             />
             <button
               type="button"
@@ -127,7 +146,16 @@ onMounted(() => {
             </option>
           </select>
         </fieldset>
-        <button class="btn btn-primary w-full rounded-lg p-2" @click="login()">Login</button>
+        <button
+          :disabled="isLoading()"
+          class="btn btn-primary w-full rounded-lg p-2"
+          @click="login()"
+        >
+          <div v-if="isLoading()" class="grid h-70">
+            <span class="loading loading-spinner place-self-center"></span>
+          </div>
+          <div v-else>Login</div>
+        </button>
       </div>
     </div>
     <p class="text-base-content/50 absolute inset-x-0 bottom-8 text-center">

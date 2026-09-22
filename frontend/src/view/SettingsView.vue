@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { onMounted, ref, computed } from 'vue'
 import type { Settings } from '@/types'
 import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
 
 const { error: toastError } = useToastService()
 
@@ -118,7 +119,12 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="mb-2 text-2xl font-bold">Settings</h1>
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" :icon="getPageIcon('settings')"></IconVue>Settings
+      </h1>
+      <HelpButton />
+    </div>
     <table class="table w-full table-auto">
       <thead>
         <tr>

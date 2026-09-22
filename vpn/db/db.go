@@ -1,37 +1,42 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
-	"samuelemusiani/sasso/vpn/config"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	gorm_logger "gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
+	"samuelemusiani/sasso/vpn/config"
 )
 
 var (
-	db     *gorm.DB     = nil
-	logger *slog.Logger = nil
+	db     *gorm.DB
+	logger *slog.Logger
 
-	ErrAlreadyExists = fmt.Errorf("record already exists")
+	ErrAlreadyExists = errors.New("record already exists")
 )
 
 func Init(l *slog.Logger, c *config.Database) error {
+	err := checkConfig(c)
+	if err != nil {
+		return err
+	}
+
 	logger = l
-	var err error
 
 	url := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable", c.Host, c.User, c.Password, c.Database, c.Port)
 
 	db, err = gorm.Open(postgres.Open(url), &gorm.Config{
-		Logger: gorm_logger.New(
+		Logger: gormlogger.New(
 			log.New(os.Stdout, "\r\n", log.LstdFlags),
-			gorm_logger.Config{
+			gormlogger.Config{
 				SlowThreshold:             time.Second,
-				LogLevel:                  gorm_logger.Error,
+				LogLevel:                  gormlogger.Error,
 				IgnoreRecordNotFoundError: true,
 				Colorful:                  true,
 			},
@@ -39,17 +44,45 @@ func Init(l *slog.Logger, c *config.Database) error {
 	})
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
+
 		return err
 	}
 
-	if err := initSubnets(); err != nil {
-		logger.Error("Failed to initialize subnets in database", "error", err)
+	if err := initNets(); err != nil {
+		logger.Error("Failed to initialize networks in database", "error", err)
+
 		return err
 	}
 
-	if err := initPeers(); err != nil {
-		logger.Error("Failed to initialize peers in database", "error", err)
+	if err := initWireguardPeers(); err != nil {
+		logger.Error("Failed to initialize wireguard peers in database", "error", err)
+
 		return err
 	}
+
+	return nil
+}
+
+func checkConfig(c *config.Database) error {
+	if c.User == "" {
+		return errors.New("database user is empty")
+	}
+
+	if c.Password == "" {
+		return errors.New("database password is empty")
+	}
+
+	if c.Database == "" {
+		return errors.New("database name is empty")
+	}
+
+	if c.Host == "" {
+		return errors.New("database host is empty")
+	}
+
+	if c.Port == 0 {
+		return errors.New("database port is empty")
+	}
+
 	return nil
 }

@@ -3,14 +3,17 @@
 [public_server]
 bind = ":8080"
 log_requests = true
+shutdown_timeout = "30s"
 
 [private_server]
 bind = ":8081"
 log_requests = false
+shutdown_timeout = "30s"
 
 [database]
 user = "user"
 password = "password"
+database = "sasso"
 host = "localhost"
 port = 5432
 
@@ -36,9 +39,7 @@ insecure_skip_verify = true
 token_id = "root@pam!provolone"
 secret = "2630dda0-b730-4dc7-be14-0b3582c97224"
 
-[proxmox.template]
-node = "pve3"
-vmid = 900900000
+templates = { "Debian 13" = 900900000 }
 
 [proxmox.clone]
 # The node where the clone will be created
@@ -95,3 +96,11 @@ smtp_server = "smtp.gmail.com"
 # Public IP address where the port forwards will be created
 # This is only used to show the user which IP to connect to on the frontend.
 public_ip = "1.2.3.4"
+# Minimum and maximum port numbers for port forwards. This range will be used
+# to pick a random outside port when creating a new port forward.
+min_port = 20000
+max_port = 40000
+
+[vpn]
+# Maximum number of wireguard VPN profiles per user
+max_wireguard_profiles_per_user = 2

@@ -3,14 +3,23 @@ import { onMounted, ref } from 'vue'
 import type { PortForward } from '@/types'
 import { api } from '@/lib/api'
 import CreateNew from '@/components/CreateNew.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
+
+const { error: toastError } = useToastService()
+const loading = useLoadingStore()
 
 const pfs = ref<PortForward[]>([])
 const port = ref(0)
 const ip = ref('')
 
 const publicIP = ref('')
+const error = ref('')
 
 function fetchPortForwards() {
+  loading.start('portForwards', null, 'fetch')
   api
     .get('/port-forwards')
     .then((res) => {
@@ -18,11 +27,15 @@ function fetchPortForwards() {
     })
     .catch((err) => {
       console.error('Failed to fetch Port Forwards:', err)
+      toastError('Failed to fetch Port Forwards: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('portForwards', null, 'fetch')
     })
 }
 
 function requestPortForward() {
-  api
+  return api
     .post('/port-forwards', {
       dest_port: port.value,
       dest_ip: ip.value,
@@ -31,23 +44,44 @@ function requestPortForward() {
       fetchPortForwards()
       port.value = 0
       ip.value = ''
+      return true
     })
     .catch((err) => {
       console.error('Failed to add port forward:', err)
+      error.value = 'Failed to add port forward: ' + err.response.data
+      return false
     })
 }
 
+const showDeleteModal = ref(false)
+const portForwardToDelete = ref<number | null>(null)
+
+function preDeletePortForward(id: number) {
+  portForwardToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('portForward', id, 'delete')
+}
+
 function deletePortForward(id: number) {
-  if (confirm('Are you sure you want to delete this port forward?')) {
-    api
-      .delete(`/port-forwards/${id}`)
-      .then(() => {
-        fetchPortForwards()
-      })
-      .catch((err) => {
-        console.error('Failed to delete Port Forward:', err)
-      })
-  }
+  api
+    .delete(`/port-forwards/${id}`)
+    .then(() => {
+      // Small optimization
+      pfs.value = pfs.value.filter((pf) => pf.id !== id)
+      fetchPortForwards()
+    })
+    .catch((err) => {
+      console.error('Failed to delete Port Forward:', err)
+    })
+    .finally(() => {
+      loading.stop('portForward', id, 'delete')
+    })
+}
+
+function cancelDeletePortForward(id: number) {
+  portForwardToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('portForward', id, 'delete')
 }
 
 function fetchPublicIP() {
@@ -69,12 +103,27 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" :icon="getPageIcon('port-forwards')"></IconVue>Port Forwards
+      </h1>
+      <HelpButton />
+    </div>
     <div>
       <p class="">
-        The public IP is: <strong>{{ publicIP }}</strong>
+        <span> The public IP is: </span>
+        <span v-if="!publicIP" class="loading loading-dots loading-xs"></span>
+        <span v-else class="font-mono font-bold">
+          {{ publicIP }}
+        </span>
       </p>
     </div>
-    <CreateNew title="Port Forward" :create="requestPortForward">
+    <CreateNew
+      title="Port Forward"
+      :create="requestPortForward"
+      :close-on-create="true"
+      :error="error"
+    >
       <div class="flex items-center gap-2">
         <label for="name">Destination Port</label>
         <input type="number" id="name" v-model="port" class="input w-48 rounded-lg border p-2" />
@@ -83,7 +132,11 @@ onMounted(() => {
       </div>
     </CreateNew>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('portForwards', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th scope="col">Out Port</th>
@@ -103,15 +156,34 @@ onMounted(() => {
           <td class="whitespace-nowrap">{{ pf.approved }}</td>
           <td class="whitespace-nowrap">
             <button
-              @click="deletePortForward(pf.id)"
+              @click="preDeletePortForward(pf.id)"
               class="btn btn-error btn-sm md:btn-md btn-outline rounded-lg"
+              :disabled="loading.is('portForward', pf.id, 'delete')"
             >
-              <IconVue icon="material-symbols:delete" class="text-lg" />
+              <span
+                v-if="loading.is('portForward', pf.id, 'delete')"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              <IconVue v-else icon="material-symbols:delete" class="text-lg" />
               <p class="hidden md:inline">Delete</p>
             </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Port Forward"
+      positiveText="Delete Port Forward"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deletePortForward(portForwardToDelete!)"
+      @negative="cancelDeletePortForward(portForwardToDelete!)"
+    >
+      <p>Are you sure you want to delete this Port Forward? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

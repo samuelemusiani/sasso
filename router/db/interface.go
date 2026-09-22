@@ -1,19 +1,20 @@
 package db
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Interface struct {
-	ID        uint `gorm:"primaryKey;autoIncrement"`
 	LocalID   uint `gorm:"not null;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	VNet   string `gorm:"not null;unique"` // Name of the VNet
-	VNetID uint32 `gorm:"not null;unique"` // ID of the VNet (VXLAN ID)
+	VNet   string `gorm:"not null;unique"`     // Name of the VNet
+	VNetID uint32 `gorm:"not null;primaryKey"` // ID of the VNet (VXLAN ID)
 
 	Subnet    string `gorm:"not null;unique"` // Subnet of the VNet
 	RouterIP  string `gorm:"not null;unique"` // Router IP of the VNet
@@ -35,6 +36,7 @@ func GetAllUsedSubnets() ([]string, error) {
 	if err := db.Model(&Interface{}).Pluck("subnet", &subnets).Error; err != nil {
 		return nil, err
 	}
+
 	return subnets, nil
 }
 
@@ -43,37 +45,60 @@ func GetAllInterfaces() ([]Interface, error) {
 	if err := db.Find(&ifaces).Error; err != nil {
 		return nil, err
 	}
+
 	return ifaces, nil
 }
 
 func GetInterfaceByVNet(vnet string) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net = ?", vnet).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		logger.Error("Failed to retrieve interface by VNet", "error", err)
-		return nil, err
+
+		return nil, fmt.Errorf("failed to retrieve interface by VNet: %w", err)
 	}
+
 	return &iface, nil
 }
 
-func GetInterfaceByVNetID(vnetID uint) (*Interface, error) {
+func GetInterfaceByVNetID(vnetID uint32) (*Interface, error) {
 	var iface Interface
 	if err := db.Where("v_net_id = ?", vnetID).First(&iface).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
-		logger.Error("Failed to retrieve interface by VNet ID", "error", err)
-		return nil, err
+
+		return nil, fmt.Errorf("failed to retrieve interface by VNetID: %w", err)
 	}
+
 	return &iface, nil
 }
 
-func DeleteInterface(id uint) error {
-	return db.Delete(&Interface{}, id).Error
+func DeleteInterfaceByVNetID(vnetID uint32) error {
+	return db.Delete(&Interface{VNetID: vnetID}).Error
 }
 
-func UpdateInterface(iface Interface) error {
-	return db.Save(&iface).Error
+func UpdateAllInterfaces(ifaces []Interface) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Exec("DELETE FROM interfaces").Error // Delete all existing records
+		if err != nil {
+			return fmt.Errorf("failed to delete existing interfaces: %w", err)
+		}
+
+		if len(ifaces) == 0 {
+			return nil
+		}
+
+		if err := tx.Create(ifaces).Error; err != nil {
+			return fmt.Errorf("failed to create interfaces in database: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update interfaces: %w", err)
+	}
+
+	return nil
 }

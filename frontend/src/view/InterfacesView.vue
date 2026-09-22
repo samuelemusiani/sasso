@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onBeforeUnmount } from 'vue'
 import type { InterfaceExtended } from '@/types'
 import { api } from '@/lib/api'
-import { getStatusClass } from '@/const'
+import { getStatusClass, getPageIcon } from '@/const'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
+const loading = useLoadingStore()
 
 const interfaces = ref<InterfaceExtended[]>([])
-const error = ref('')
 
 function fetchInterfaces() {
+  loading.start('interfaces', null, 'fetch')
   api
     .get('/interfaces')
     .then((res) => {
@@ -15,23 +20,57 @@ function fetchInterfaces() {
       interfaces.value = res.data as InterfaceExtended[]
     })
     .catch((err) => {
-      error.value = 'Failed to fetch interfaces: ' + err.response.data
       console.error('Failed to fetch interfaces:', err)
+      toastError('Failed to fetch interfaces: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('interfaces', null, 'fetch')
     })
 }
 
+function fetchInterfacesWithoutLoading() {
+  api
+    .get('/interfaces')
+    .then((res) => {
+      res.data.sort((a: InterfaceExtended, b: InterfaceExtended) => a.id - b.id)
+      interfaces.value = res.data as InterfaceExtended[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch interfaces:', err)
+      toastError('Failed to fetch interfaces: ' + err.response.data)
+    })
+}
+
+let intervalId: number | null = null
+
 onMounted(() => {
   fetchInterfaces()
+  intervalId = window.setInterval(() => {
+    fetchInterfacesWithoutLoading()
+  }, 5000) // Refresh every 5 seconds
+})
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="flex items-center gap-2 text-3xl font-bold">
-      <IconVue class="text-primary" icon="ph:path"></IconVue>Interfaces
-    </h1>
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" :icon="getPageIcon('interfaces')"></IconVue>Interfaces
+      </h1>
+      <HelpButton />
+    </div>
 
-    <table class="table w-full table-auto">
+    <div v-if="loading.is('interfaces', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table w-full table-auto">
       <thead>
         <tr>
           <th class="">ID</th>

@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/lib/api'
 import type { Group, GroupResource } from '@/types'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
 import { useToastService } from '@/composables/useToast'
 
 const { error: toastError, success: toastSuccess } = useToastService()
@@ -66,7 +66,10 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
+    <div class="flex justify-between">
+      <BreadcrumbNav />
+      <HelpButton />
+    </div>
     <h2 class="text-2xl font-bold">Group Details</h2>
 
     <div v-if="group" class="mt-4">

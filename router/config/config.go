@@ -4,10 +4,10 @@ import "github.com/BurntSushi/toml"
 
 type Config struct {
 	Server   Server   `toml:"server"`
-	Database Database `toml:"database"`
-	Network  Network  `toml:"network"`
-	Gateway  Gateway  `toml:"gateway"`
-	Firewall Firewall `toml:"firewall"`
+	Database Database `toml:"database"` // DONE
+	Network  Network  `toml:"network"`  // DONE
+	Gateway  Gateway  `toml:"gateway"`  // DONE
+	Firewall Firewall `toml:"firewall"` // DONE
 }
 
 type Server struct {
@@ -21,17 +21,8 @@ type Network struct {
 }
 
 type Gateway struct {
-	Type    string               `toml:"type"`
-	Proxmox ProxmoxGatewayConfig `toml:"proxmox"`
-	Linux   LinuxGatewayConfig   `toml:"linux"`
-}
-
-type ProxmoxGatewayConfig struct {
-	Url                string `toml:"url"`
-	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
-	TokenID            string `toml:"token_id"`
-	Secret             string `toml:"secret"`
-	VMID               uint   `toml:"vmid"`
+	Type  string             `toml:"type"`
+	Linux LinuxGatewayConfig `toml:"linux"`
 }
 
 type LinuxGatewayConfig struct {
@@ -57,9 +48,11 @@ type ShorewallFirewallConfig struct {
 	ExternalZone string `toml:"external_zone"`
 	VMZone       string `toml:"vm_zone"`
 	PublicIP     string `toml:"public_ip"`
+	BasePath     string `toml:"base_path"`
+	ID           string `toml:"id"`
 }
 
-var config Config = Config{}
+var config Config
 
 func Get() *Config {
 	return &config
@@ -67,5 +60,6 @@ func Get() *Config {
 
 func Parse(path string) error {
 	_, err := toml.DecodeFile(path, &config)
+
 	return err
 }

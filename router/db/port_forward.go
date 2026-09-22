@@ -1,6 +1,11 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+)
 
 type PortForward struct {
 	ID       uint   `gorm:"primaryKey"`
@@ -18,17 +23,20 @@ func GetPortForwards() ([]PortForward, error) {
 	if err := db.Find(&pfs).Error; err != nil {
 		return nil, err
 	}
+
 	return pfs, nil
 }
 
 func GetPortForwardByID(pfID uint) (*PortForward, error) {
 	var pf PortForward
 	if err := db.First(&pf, pfID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
+
 		return nil, err
 	}
+
 	return &pf, nil
 }
 
@@ -38,4 +46,28 @@ func AddPortForward(pf PortForward) error {
 
 func RemovePortForward(pfID uint) error {
 	return db.Delete(&PortForward{}, pfID).Error
+}
+
+func UpdateAllPortForwards(pfs []PortForward) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Exec("DELETE FROM port_forwards").Error
+		if err != nil {
+			return fmt.Errorf("failed to delete existing port forwards: %w", err)
+		}
+
+		if len(pfs) == 0 {
+			return nil
+		}
+
+		if err := tx.Create(pfs).Error; err != nil {
+			return fmt.Errorf("failed to create port forwards in database: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update port forwards: %w", err)
+	}
+
+	return nil
 }

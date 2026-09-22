@@ -1,5 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import EmptyView from '../view/EmptyView.vue'
 import HomeView from '../view/HomeView.vue'
 import LoginView from '../view/LoginView.vue'
 import VMView from '../view/VMView.vue'
@@ -28,71 +29,205 @@ import VMInfo from '@/components/vm/VMInfo.vue'
 import VMResources from '@/components/vm/VMResources.vue'
 import VMInterfaces from '@/components/vm/VMInterfaces.vue'
 import VMBackups from '@/components/vm/VMBackups.vue'
+import VMBackupsRequests from '@/components/vm/VMBackupsRequests.vue'
+import VMBackupsBase from '@/components/vm/VMBackupsBase.vue'
+import HelpView from '@/view/HelpView.vue'
+import HelpHome from '@/components/help/HelpHome.vue'
+import HelpVMs from '@/components/help/HelpVMs.vue'
+import HelpVPN from '@/components/help/HelpVPN.vue'
+import HelpSSHKeys from '@/components/help/HelpSSHKeys.vue'
+import HelpVMBackups from '@/components/help/HelpVMBackups.vue'
+import HelpNets from '@/components/help/HelpNets.vue'
+import HelpVMInfo from '@/components/help/HelpVMInfo.vue'
+import HelpVMResources from '@/components/help/HelpVMResources.vue'
+import HelpVMInterfaces from '@/components/help/HelpVMInterfaces.vue'
+import HelpInterfaces from '@/components/help/HelpInterfaces.vue'
+import HelpSettings from '@/components/help/HelpSettings.vue'
+import HelpTelegram from '@/components/help/HelpTelegram.vue'
+import HelpPortForwards from '@/components/help/HelpPortForwards.vue'
+import HelpGroups from '@/components/help/HelpGroups.vue'
+import HelpGroupInfo from '@/components/help/HelpGroupInfo.vue'
+import HelpGroupMembers from '@/components/help/HelpGroupMembers.vue'
+import HelpGroupResources from '@/components/help/HelpGroupResources.vue'
+import GroupInfo from '@/components/group/GroupInfo.vue'
+import GroupResources from '@/components/group/GroupResources.vue'
+import GroupMembers from '@/components/group/GroupMembers.vue'
+import HelpVMBackupTasks from '@/components/help/HelpVMBackupTasks.vue'
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    { path: '/login', component: LoginView },
-    {
-      path: '/',
-      component: SidebarView,
-      children: [
-        { path: '', component: HomeView },
-        { path: '/vm', component: VMsView },
-        {
-          path: '/vm/:vmid',
-          component: VMView,
-          children: [
-            { path: '', name: 'vm-info', component: VMInfo },
-            { path: 'resources', name: 'vm-resources', component: VMResources },
-            { path: 'interfaces', name: 'vm-interfaces', component: VMInterfaces },
-            { path: 'backups', name: 'vm-backups', component: VMBackups },
-          ],
-        },
-        { path: '/net', component: NetsView },
-        { path: '/interfaces', component: InterfacesView },
-        { path: '/ssh-keys', component: SSHKeysView },
-        { path: '/vpn', component: VPNView },
-        { path: '/port-forwards', component: PortForwardsView },
-        { path: '/telegram', component: TelegramView },
-        { path: '/settings', component: SettingsView },
-        {
-          path: '/group',
-          children: [
-            { path: '', component: GroupsView },
-            { path: ':id', component: SingleGroupView },
-          ],
-        },
-        {
-          path: '/admin',
-          children: [
-            { path: '', component: AdminView },
-            { path: 'users', component: AdminUsersView },
-            { path: 'users/:id', component: UserDetailView },
-            { path: 'groups', component: AdminGroupsView },
-            { path: 'groups/:id', component: GroupDetailView },
-            { path: 'realms', component: AdminRealmsView },
-            { path: 'realms/:id', component: RealmsMultiplexer },
-            { path: 'ssh-keys', component: GlobalSSHKeysView },
-            { path: 'port-forwards', component: AdminPortForwardsView },
-          ],
-        },
-      ],
-    },
-    {
-      path: '/error/:code',
-      name: 'Error',
-      component: ErrorPage,
-      props: true, // Pass route params as props
-    },
-    // 404 - Catch all (must be last!)
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'NotFound',
-      component: ErrorPage,
-      props: { code: 404 }, // Default to 404
-    },
-  ],
-})
+const routes: RouteRecordRaw[] = [
+  { path: '/login', component: LoginView },
+  {
+    path: '/',
+    component: SidebarView,
+    redirect: '/home',
+    children: [
+      { path: '/home', component: HomeView, meta: { helpComponent: HelpHome } },
+      {
+        path: '/vm',
+        component: EmptyView,
+        meta: { helpComponent: HelpVMs },
+        children: [
+          { path: '', name: 'vm-list', component: VMsView },
+          {
+            path: '/vm/:vmid',
+            component: VMView,
+            redirect: { name: 'vm-info' },
+            children: [
+              {
+                path: 'info',
+                name: 'vm-info',
+                component: VMInfo,
+                meta: { helpComponent: HelpVMInfo },
+              },
+              {
+                path: 'resources',
+                name: 'vm-resources',
+                component: VMResources,
+                meta: { helpComponent: HelpVMResources },
+              },
+              {
+                path: 'interfaces',
+                name: 'vm-interfaces',
+                component: VMInterfaces,
+                meta: { helpComponent: HelpVMInterfaces },
+              },
+              {
+                path: 'backups',
+                name: 'vm-backups',
+                component: VMBackupsBase,
+                children: [
+                  {
+                    path: '',
+                    name: 'vm-backups-list',
+                    component: VMBackups,
+                    meta: { helpComponent: HelpVMBackups },
+                  },
+                  {
+                    path: 'requests',
+                    name: 'vm-backup-requests',
+                    component: VMBackupsRequests,
+                    meta: { helpComponent: HelpVMBackupTasks },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { path: '/net', component: NetsView, meta: { helpComponent: HelpNets } },
+      { path: '/interfaces', component: InterfacesView, meta: { helpComponent: HelpInterfaces } },
+      { path: '/ssh-keys', component: SSHKeysView, meta: { helpComponent: HelpSSHKeys } },
+      { path: '/vpn', component: VPNView, meta: { helpComponent: HelpVPN } },
+      {
+        path: '/port-forwards',
+        component: PortForwardsView,
+        meta: { helpComponent: HelpPortForwards },
+      },
+      { path: '/telegram', component: TelegramView, meta: { helpComponent: HelpTelegram } },
+      { path: '/settings', component: SettingsView, meta: { helpComponent: HelpSettings } },
+      {
+        path: '/group',
+        meta: { helpComponent: HelpGroups },
+        children: [
+          { path: '', component: GroupsView },
+          {
+            path: ':id',
+            component: SingleGroupView,
+            redirect: { name: 'group-info' },
+            children: [
+              {
+                path: 'info',
+                name: 'group-info',
+                component: GroupInfo,
+                meta: { helpComponent: HelpGroupInfo },
+              },
+              {
+                path: 'resources',
+                name: 'group-resources',
+                component: GroupResources,
+                meta: { helpComponent: HelpGroupResources },
+              },
+              {
+                path: 'members',
+                name: 'group-members',
+                component: GroupMembers,
+                meta: { helpComponent: HelpGroupMembers },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        path: '/admin',
+        children: [
+          { path: '', component: AdminView },
+          { path: 'users', component: AdminUsersView },
+          { path: 'users/:id', component: UserDetailView },
+          { path: 'groups', component: AdminGroupsView },
+          { path: 'groups/:id', component: GroupDetailView },
+          { path: 'realms', component: AdminRealmsView },
+          { path: 'realms/:id', component: RealmsMultiplexer },
+          { path: 'ssh-keys', component: GlobalSSHKeysView },
+          { path: 'port-forwards', component: AdminPortForwardsView },
+        ],
+      },
+      {
+        path: '/help',
+        component: HelpView,
+        meta: { fullscreen: true },
+        children: [
+          { path: 'home', component: HelpHome, meta: { title: 'home' } },
+          {
+            path: 'vm',
+            meta: { title: 'vm' },
+            children: [
+              { path: '', component: HelpVMs, meta: { title: 'vm' } },
+              { path: 'info', component: HelpVMInfo, meta: { title: 'info' } },
+              { path: 'resources', component: HelpVMResources, meta: { title: 'resources' } },
+              { path: 'interfaces', component: HelpVMInterfaces, meta: { title: 'interfaces' } },
+              {
+                path: 'backups',
+                children: [
+                  { path: '', component: HelpVMBackups, meta: { title: 'backups' } },
+                  { path: 'tasks', component: HelpVMBackupTasks, meta: { title: 'backup-tasks' } },
+                ],
+              },
+            ],
+          },
+          { path: 'net', component: HelpNets, meta: { title: 'nets' } },
+          { path: 'interfaces', component: HelpInterfaces, meta: { title: 'interfaces' } },
+          { path: 'ssh-keys', component: HelpSSHKeys, meta: { title: 'ssh-keys' } },
+          { path: 'vpn', component: HelpVPN, meta: { title: 'vpn' } },
+          { path: 'port-forwards', component: HelpPortForwards, meta: { title: 'port-forwards' } },
+          { path: 'telegram', component: HelpTelegram, meta: { title: 'telegram' } },
+          {
+            path: 'groups',
+            meta: { title: 'groups' },
+            children: [
+              { path: '', component: HelpGroups, meta: { title: 'groups' } },
+              { path: 'info', component: HelpGroupInfo, meta: { title: 'info' } },
+              { path: 'resources', component: HelpGroupResources, meta: { title: 'resources' } },
+              { path: 'members', component: HelpGroupMembers, meta: { title: 'members' } },
+            ],
+          },
+          { path: 'settings', component: HelpSettings, meta: { title: 'settings' } },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/error/:code',
+    name: 'Error',
+    component: ErrorPage,
+    props: true, // Pass route params as props
+  },
+  // 404 - Catch all (must be last!)
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: ErrorPage,
+    props: { code: 404 }, // Default to 404
+  },
+]
 
-export default router
+export default createRouter({ history: createWebHistory(import.meta.env.BASE_URL), routes })

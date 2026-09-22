@@ -2,7 +2,9 @@ package fw
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
+
 	"samuelemusiani/sasso/router/config"
 )
 
@@ -21,10 +23,15 @@ type Rule struct {
 
 type Firewall interface {
 	ConstructPortForwardRule(outPort, destPort uint16, destIP string) Rule
+
+	PortForwardRules() ([]Rule, error)
+
 	AddPortForwardRule(r Rule) error
 	AddPortForwardRules(rules []Rule) error
+
 	RemovePortForwardRule(r Rule) error
 	RemovePortForwardRules(rules []Rule) error
+
 	VerifyPortForwardRule(r Rule) (bool, error)
 	VerifyPortForwardRules(rules []Rule) ([]Rule, error)
 }
@@ -32,17 +39,18 @@ type Firewall interface {
 func Init(l *slog.Logger, c config.Firewall) error {
 	logger = l
 
+	var err error
+
 	switch c.Type {
 	case "shorewall":
 		logger.Info("Initializing Shorewall firewall")
-		globalFirewall = &ShorewallFirewall{
-			ExternalZone: c.Shorewall.ExternalZone,
-			VMZone:       c.Shorewall.VMZone,
-			PublicIP:     c.Shorewall.PublicIP,
+
+		globalFirewall, err = newShorewallFirewall(c.Shorewall)
+		if err != nil {
+			return fmt.Errorf("failed to initialize Shorewall firewall: %w", err)
 		}
 	default:
-		logger.Error("Unsupported firewall type", "type", c.Type)
-		return ErrUnsupportedFirewallType
+		return fmt.Errorf("%w: %s", ErrUnsupportedFirewallType, c.Type)
 	}
 
 	return nil

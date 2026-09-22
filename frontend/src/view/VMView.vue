@@ -4,6 +4,7 @@ import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { api } from '@/lib/api'
 import type { VM } from '@/types'
 import { useLoadingStore } from '@/stores/loading'
+import { getPageIcon } from '@/const'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,10 +19,15 @@ const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
 const tabs = [
-  { id: 'info', label: 'Info', path: '', icon: 'ph:info' },
-  { id: 'resources', label: 'Resources', path: 'resources', icon: 'ph:cpu' },
-  { id: 'interfaces', label: 'Interfaces', path: 'interfaces', icon: 'ph:path' },
-  { id: 'backups', label: 'Backups', path: 'backups', icon: 'material-symbols:backup-outline' },
+  { id: 'info', label: 'Info', path: '', icon: `${getPageIcon('info')}` },
+  { id: 'resources', label: 'Resources', path: 'resources', icon: `${getPageIcon('resources')}` },
+  {
+    id: 'interfaces',
+    label: 'Interfaces',
+    path: 'interfaces',
+    icon: `${getPageIcon('interfaces')}`,
+  },
+  { id: 'backups', label: 'Backups', path: 'backups', icon: `${getPageIcon('backups')}-outline` },
 ]
 
 const activeTab = computed(() => {
@@ -31,7 +37,8 @@ const activeTab = computed(() => {
       // Check if we're at the base path /vm/:vmid
       if (path === `/vm/${vmid.value}`) return tab.id
     } else {
-      if (path.endsWith(`/${tab.path}`)) return tab.id
+      // Special case for backups, which has a sub-route for requests
+      if (path.endsWith(`/${tab.path}`) || path.endsWith(`/${tab.path}/requests`)) return tab.id
     }
   }
   return 'info'
@@ -101,7 +108,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div>
+  <div class="relative p-2">
+    <HelpButton class="absolute right-2" />
     <div class="tabs tabs-lift">
       <template v-for="tab in tabs" :key="tab.id">
         <label class="tab" :class="{ 'tab-disabled': shouldDisableTab(tab.id) }">
@@ -118,9 +126,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </label>
-        <div class="tab-content border-t border-t-black p-4">
+        <div class="tab-content border-t-base-300 border-t pt-4">
           <div v-if="isLoading(vmid, 'fetch_vm')" class="grid h-70">
-            <span class="loading loading-spinner place-self-center"></span>
+            <span class="loading loading-spinner text-primary place-self-center"></span>
           </div>
           <template v-else-if="vm && activeTab === tab.id">
             <router-view :vm="vm" @update-vm="fetchVM" @status-change="handleStatusChange" />

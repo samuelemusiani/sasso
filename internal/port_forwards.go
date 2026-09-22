@@ -1,36 +1,43 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"samuelemusiani/sasso/internal/auth"
 	"time"
+
+	"samuelemusiani/sasso/internal/auth"
 )
 
-func FetchPortForwards(endpoint, secret string) ([]PortForward, error) {
+func FetchPortForwards(parentCtx context.Context, endpoint, secret string) (portForwards []PortForward, err error) {
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", endpoint+"/internal/port-forwards", nil)
+
+	req, err := http.NewRequestWithContext(parentCtx, http.MethodGet, endpoint+"/internal/port-forwards", nil)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to create request to fetch port forwards"))
+		return nil, fmt.Errorf("failed to create request to fetch port forwards: %w", err)
 	}
-	auth.AddAuthToRequest(req, secret)
+
+	req = auth.AddAuthToRequest(req, secret)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to perform request to fetch port forwards"))
+		return nil, fmt.Errorf("failed to perform request to fetch port forwards: %w", err)
 	}
-	defer res.Body.Close()
+
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error while closing request body: %w", closeErr)
+		}
+	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.Join(err, fmt.Errorf("failed to fetch port forwards: non-200 status code. %s", res.Status))
+		return nil, fmt.Errorf("failed to fetch port forwards: non-200 status code. %s", res.Status)
 	}
 
-	var portForwards []PortForward
 	err = json.NewDecoder(res.Body).Decode(&portForwards)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to decode port forwards status"))
+		return nil, fmt.Errorf("failed to decode port forwards response: %w", err)
 	}
 
 	return portForwards, nil

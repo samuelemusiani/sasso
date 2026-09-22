@@ -33,11 +33,18 @@ type Wireguard struct {
 }
 
 type Firewall struct {
-	VPNZone   string `toml:"vpn"`
-	SassoZone string `toml:"sasso"`
+	Type      string                  `toml:"type"`
+	Shorewall ShorewallFirewallConfig `toml:"shorewall"`
 }
 
-var config Config = Config{}
+type ShorewallFirewallConfig struct {
+	VPNZone   string `toml:"vpn"`
+	SassoZone string `toml:"sasso"`
+	BasePath  string `toml:"base_path"`
+	ID        string `toml:"id"`
+}
+
+var config Config
 
 func Get() *Config {
 	return &config
@@ -45,5 +52,6 @@ func Get() *Config {
 
 func Parse(path string) error {
 	_, err := toml.DecodeFile(path, &config)
+
 	return err
 }

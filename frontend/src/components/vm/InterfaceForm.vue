@@ -199,19 +199,17 @@ const vlanTagMessage = computed(() => {
 
 // We have to watch interfaces in order to set the gateway correctly for a new
 // possible interface when one with a gateway is added (as the form remains open)
-watch([() => form.value.vnet_id, () => $props.interfaces], ([newVnetId]) => {
-  const net = nets.value.find((n) => n.id === newVnetId)
-  const interfaceWithGateway = $props.interfaces.some((i) => i.gateway !== '')
-  console.log('newVnetId:', newVnetId)
-  console.log('Nets:', nets.value)
-  console.log('Net:', net, 'Net with gateway:', interfaceWithGateway)
-  if (net && !interfaceWithGateway) {
-    console.log('here')
-    form.value.gateway = net.gateway
-  } else {
-    form.value.gateway = ''
-  }
-})
+watch(
+  [() => form.value.vnet_id, () => $props.interfaces.some((i) => i.gateway !== '')],
+  ([newVnetId, interfaceWithGateway]) => {
+    const net = nets.value.find((n) => n.id === newVnetId)
+    if (net && !interfaceWithGateway) {
+      form.value.gateway = net.gateway
+    } else if (!editing.value) {
+      form.value.gateway = ''
+    }
+  },
+)
 
 watch(
   () => filteredNets.value,
@@ -227,7 +225,9 @@ function fetchNets() {
   api
     .get('/net')
     .then((res) => {
-      nets.value = res.data as Net[]
+      nets.value = res.data.filter((net: Net) => {
+        return net.status === 'ready'
+      }) as Net[]
       if (!$props.interface && nets.value.length > 0) {
         form.value.vnet_id = nets.value[0]?.id || 0
       }
@@ -240,14 +240,19 @@ function fetchNets() {
 
 function handleSubmit() {
   if (editing.value) {
-    updateInterface()
+    // If the network is not VLAN aware, we have to set the VLAN tag to 0,
+    // otherwise the backend will reject the request
+    if (!currentNet.value?.vlanaware) {
+      form.value.vlan_tag = 0
+    }
+    return updateInterface()
   } else {
-    addInterface()
+    return addInterface()
   }
 }
 
 function addInterface() {
-  api
+  return api
     .post(`/vm/${$props.vm.id}/interface`, form.value)
     .then(() => {
       form.value = {
@@ -257,16 +262,18 @@ function addInterface() {
         gateway: filteredNets.value[0]?.gateway || '',
       }
       $emit('interfaceAdded')
+      return true
     })
     .catch((err) => {
       console.error('Failed to add interface:', err)
       error.value = 'Failed to add interface: ' + err.response.data
+      return false
     })
 }
 
 function updateInterface() {
-  if (!$props.interface) return
-  api
+  if (!$props.interface) return false
+  return api
     .put(`/vm/${$props.vm.id}/interface/${$props.interface.id}`, form.value)
     .then(() => {
       $emit('interfaceUpdated')
@@ -278,10 +285,12 @@ function updateInterface() {
         ip_add: '',
         gateway: filteredNets.value[0]?.gateway || '',
       }
+      return true
     })
     .catch((err) => {
       console.error('Failed to update interface:', err)
       error.value = 'Failed to update interface: ' + err.response.data
+      return false
     })
 }
 
@@ -298,7 +307,11 @@ watch(
       ipValidationResult.value.status === 'warning'
     ) {
       checkingIP.value = true
-      const used = await isIPUsed(newIp, form.value.vnet_id, Number(form.value.vlan_tag))
+      let vlanTag = Number(form.value.vlan_tag)
+      if (!currentNet.value?.vlanaware) {
+        vlanTag = 0
+      }
+      const used = await isIPUsed(newIp, form.value.vnet_id, vlanTag)
       checkingIP.value = false
       if (used) {
         ipIsUsed.value = true
@@ -325,6 +338,7 @@ onMounted(() => {
     :error="error"
     :hideCreate="editing"
     :disabled="$props.disabled"
+    :close-on-create="true"
     @close="$emit('cancel')"
   >
     <h2 class="text-xl">{{ editing ? 'Edit' : 'Add' }} Interface</h2>
@@ -339,12 +353,27 @@ onMounted(() => {
       </div>
 
       <div class="grid w-70 grid-cols-2">
-        <div>Subnet</div>
-        <div>{{ currentNet?.subnet }}</div>
-        <div>Gateway</div>
-        <div>{{ currentNet?.gateway }}</div>
-        <div>Broadcast</div>
-        <div>{{ currentNet?.broadcast }}</div>
+        <div>Subnet:</div>
+        <div>
+          <template v-if="currentNet && currentNet.subnet">{{ currentNet.subnet }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
+        <div>Gateway:</div>
+        <div>
+          <template v-if="currentNet && currentNet.gateway">{{ currentNet.gateway }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
+        <div>Broadcast:</div>
+        <div>
+          <template v-if="currentNet && currentNet.broadcast">{{ currentNet.broadcast }}</template>
+          <div v-else class="flex items-center">
+            <span class="loading loading-dots loading-sm"></span>
+          </div>
+        </div>
       </div>
       <div v-if="currentNet?.vlanaware">
         <label for="vlan_tag" class="block text-sm font-medium">VLAN Tag</label>

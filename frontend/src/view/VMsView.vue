@@ -2,31 +2,89 @@
 import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
 import { useLoadingStore } from '@/stores/loading'
 import CreateNew from '@/components/CreateNew.vue'
-import type { VM, Group } from '@/types'
+import type { VM, Group, Template, FreeResources } from '@/types'
 import { api } from '@/lib/api'
 import { formatDate, isVMExpired } from '@/lib/utils'
 import { getStatusClass } from '@/const'
 import BubbleAlert from '@/components/BubbleAlert.vue'
+import VMStartChecksModal from '@/components/vm/VMStartChecksModal.vue'
+import { useVmStartWithChecks } from '@/composables/useVMStartWithChecks'
+import { useUserResources } from '@/composables/userResources'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useToastService } from '@/composables/useToast'
+import { getPageIcon } from '@/const'
+import { useGroupResources } from '@/composables/groupResources'
+
+const { fetchUserResources, userFreeResources } = useUserResources(api)
+const { fetchGroupResources, groupFreeResources } = useGroupResources(api)
+const { error: toastError } = useToastService()
 
 const vms = ref<VM[]>([])
+const templates = ref<Template[]>([])
 const name = ref('')
 const cores = ref(1)
 const ram = ref(1024)
 const disk = ref(4)
+const template = ref('')
 const lifetime = ref(1)
 const notes = ref('')
 const include_global_ssh_keys = ref(true)
-const newVMGroupId = ref<number>()
+const newVMGroupId = ref<number>(-1)
 const error = ref('')
 
 const showIds = ref(false)
 
 const groups = ref<Group[]>([])
+const resourcesOfGroups = ref<Map<number, FreeResources>>(new Map())
 
 const loading = useLoadingStore()
 const isLoading = (vmId: number, action: string) => loading.is('vm', vmId, action)
 
+const readyTemplates = computed(() => {
+  return templates.value.filter((t) => t.ready)
+})
+
+const { showModal, modalMissing, preStartVM, confirmStart, cancelStart } = useVmStartWithChecks({
+  api,
+  loading,
+  onStarted: () => {
+    if (startingVMId.value) {
+      const vm = vms.value.find((v) => v.id === startingVMId.value)
+      if (vm) vm.status = 'running'
+    }
+    fetchVMs()
+  },
+})
+
+const startingVMId = ref<number | null>(null)
+function preStartVMWrapper(vmid: number) {
+  startingVMId.value = vmid
+  preStartVM(vmid)
+}
+
+const minDiskForCurrentTemplate = computed(() => {
+  const selectedTemplate = templates.value.find((t) => t.name === template.value)
+  return selectedTemplate ? selectedTemplate.disk : 4
+})
+
+const maxResourcesForVM = computed(() => {
+  if (newVMGroupId.value !== -1) {
+    const groupRes = resourcesOfGroups.value.get(newVMGroupId.value)
+    return {
+      cores: groupRes?.free_cpu ?? 0,
+      ram: groupRes?.free_ram ?? 0,
+      disk: groupRes?.free_disk ?? 0,
+    }
+  }
+  return {
+    cores: userFreeResources.value?.free_cpu ?? 0,
+    ram: userFreeResources.value?.free_ram ?? 0,
+    disk: userFreeResources.value?.free_disk ?? 0,
+  }
+})
+
 function fetchVMs() {
+  loading.start('vm', 0, 'fetch')
   api
     .get('/vm')
     .then((res) => {
@@ -35,6 +93,40 @@ function fetchVMs() {
     })
     .catch((err) => {
       console.error('Failed to fetch VMs:', err)
+      toastError('Failed to fetch VMs: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('vm', 0, 'fetch')
+    })
+}
+
+function fetchVMsWithoutLoading() {
+  api
+    .get('/vm')
+    .then((res) => {
+      const tmp = res.data.sort((a: VM, b: VM) => a.id - b.id)
+      vms.value = tmp as VM[]
+    })
+    .catch((err) => {
+      console.error('Failed to fetch VMs:', err)
+      toastError('Failed to fetch VMs: ' + err.response.data)
+    })
+}
+
+function fetchTemplates() {
+  api
+    .get('/vm/templates')
+    .then((res) => {
+      templates.value = res.data as Template[]
+
+      const selectedStillExists = templates.value.some((t) => t.name === template.value)
+
+      if (!template.value || !selectedStillExists) {
+        template.value = templates.value[0]?.name ?? ''
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to fetch templates:', err)
     })
 }
 
@@ -43,26 +135,30 @@ interface VMCreationBody {
   cores: number
   ram: number
   disk: number
+  template: string
   lifetime: number
   include_global_ssh_keys: boolean
   notes: string
   group_id?: number
 }
 
-function createVM() {
+async function createVM() {
   const body: VMCreationBody = {
     name: name.value,
     cores: cores.value,
     ram: ram.value,
     disk: disk.value,
+    template: template.value,
     lifetime: lifetime.value,
     include_global_ssh_keys: include_global_ssh_keys.value,
     notes: notes.value,
   }
-  if (newVMGroupId.value) {
+
+  if (newVMGroupId.value !== -1) {
     body.group_id = newVMGroupId.value
   }
-  api
+
+  return api
     .post('/vm', body)
     .then(() => {
       fetchVMs()
@@ -70,38 +166,58 @@ function createVM() {
       cores.value = 1
       ram.value = 1024
       disk.value = 4
+
+      if (templates.value.length > 0) {
+        template.value = templates.value[0].name
+      } else {
+        template.value = ''
+      }
+
       lifetime.value = 1
       notes.value = ''
       include_global_ssh_keys.value = true
       error.value = ''
-      newVMGroupId.value = undefined
+      newVMGroupId.value = -1
+
+      return true
     })
     .catch((err) => {
       console.error('Failed to create VM:', err)
       error.value = 'Failed to create VM: ' + err.response.data
+
+      return false
     })
 }
 
-function deleteVM(vmid: number) {
-  if (confirm(`Are you sure you want to delete VM ${vmid}?`)) {
-    api
-      .delete(`/vm/${vmid}`)
-      .then(() => {
-        fetchVMs()
-      })
-      .catch((err) => {
-        console.error('Failed to delete VM:', err)
-      })
-  }
+const showDeleteModal = ref(false)
+const vmToDelete = ref<number | null>(null)
+
+function preDeleteVM(vmid: number) {
+  vmToDelete.value = vmid
+  showDeleteModal.value = true
+  loading.start('vm', vmid, 'delete')
 }
 
-function startVM(vmid: number) {
-  loading.start('vm', vmid, 'start')
+function deleteVM(vmid: number) {
   api
-    .post(`/vm/${vmid}/start`)
-    .then(() => fetchVMs())
-    .catch((err) => console.error('Failed to start VM:', err))
-    .finally(() => loading.stop('vm', vmid, 'start'))
+    .delete(`/vm/${vmid}`)
+    .then(() => {
+      fetchVMs()
+    })
+    .catch((err) => {
+      console.error('Failed to delete VM:', err)
+    })
+    .finally(() => {
+      vmToDelete.value = null
+      showDeleteModal.value = false
+      loading.stop('vm', vmid, 'delete')
+    })
+}
+
+function cancelDeleteVM(vmid: number) {
+  vmToDelete.value = null
+  showDeleteModal.value = false
+  loading.stop('vm', vmid, 'delete')
 }
 
 function stopVM(vmid: number) {
@@ -128,13 +244,35 @@ function fetchGroups() {
   })
 }
 
+// TODO: Optimize this with the backend so we can
+// fetch multiple groups in a single request
+function fetchGroupResourcesForGroups() {
+  groups.value.forEach((group) => {
+    fetchGroupResources(group.id)
+      .then(() => {
+        if (groupFreeResources.value) {
+          resourcesOfGroups.value.set(group.id, groupFreeResources.value)
+        }
+      })
+      .catch((err) => {
+        console.error(`Failed to fetch resources for group ${group.id}:`, err)
+      })
+  })
+}
+
 let intervalId: number | null = null
 
 onMounted(() => {
   fetchVMs()
+  fetchTemplates()
   fetchGroups()
+  fetchUserResources()
+  fetchGroupResourcesForGroups()
   intervalId = setInterval(() => {
-    fetchVMs()
+    fetchVMsWithoutLoading()
+    fetchTemplates()
+    fetchUserResources()
+    fetchGroupResourcesForGroups()
   }, 5000)
 })
 
@@ -152,11 +290,14 @@ const nonMemberGroups = computed(() => {
 
 <template>
   <div class="flex flex-col gap-2 p-2">
-    <h1 class="flex items-center gap-2 text-3xl font-bold">
-      <IconVue class="text-primary" icon="mi:computer"></IconVue>Virtual Machine
-    </h1>
+    <div class="flex justify-between">
+      <h1 class="flex items-center gap-2 text-3xl font-bold">
+        <IconVue class="text-primary" :icon="getPageIcon('vm')"></IconVue>Virtual Machine
+      </h1>
+      <HelpButton />
+    </div>
 
-    <CreateNew title="New VM" :create="createVM" :error="error">
+    <CreateNew title="New VM" :create="createVM" :error="error" :close-on-create="true">
       <div>
         <label for="cores">Name</label>
         <input
@@ -168,31 +309,96 @@ const nonMemberGroups = computed(() => {
           placeholder="My VM Name"
         />
       </div>
-      <div>
-        <label for="cores">CPU Cores</label>
-        <input
-          type="number"
-          id="cores"
-          v-model="cores"
-          class="input w-full rounded-lg border p-2"
-        />
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label for="cores">CPU Cores</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="cores"
+                v-model="cores"
+                class="input join-item validator w-full rounded-l-lg border p-2"
+                min="1"
+                :max="maxResourcesForVM.cores"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available CPU cores</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ maxResourcesForVM.cores }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label for="ram">RAM (MB)</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="ram"
+                v-model="ram"
+                class="input joint-item validator w-full rounded-l-lg border p-2"
+                min="1024"
+                :max="maxResourcesForVM.ram"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available RAM</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ maxResourcesForVM.ram }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label for="disk">Disk (GB)</label>
+          <div>
+            <div class="join w-full">
+              <input
+                type="number"
+                id="disk"
+                v-model="disk"
+                class="input join-item validator w-full rounded-l-lg border p-2"
+                :min="minDiskForCurrentTemplate"
+                :max="maxResourcesForVM.disk"
+              />
+              <div
+                class="join-item bg-base-300 border-base-content/30 rounded-r-lg border p-2 text-sm"
+              >
+                <div class="tooltip tooltip-top flex items-center">
+                  <div class="tooltip-content rounded-lg border p-2">Max available Disk</div>
+                  <span class="mr-1 opacity-50">/ </span>
+                  {{ maxResourcesForVM.disk }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <label for="ram">RAM (MB)</label>
-        <input type="number" id="ram" v-model="ram" class="input w-full rounded-lg border p-2" />
-      </div>
-      <div>
-        <label for="disk">Disk (GB)</label>
-        <input type="number" id="disk" v-model="disk" class="input w-full rounded-lg border" />
-      </div>
-      <div>
-        <label for="lifetime">Lifetime</label>
-        <select class="select w-full rounded-lg border" v-model.number="lifetime">
-          <option value="1" selected>1 Month</option>
-          <option value="3">3 Months</option>
-          <option value="6">6 Months</option>
-          <option value="12">12 Months</option>
-        </select>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="lifetime">Lifetime</label>
+          <select class="select w-full rounded-lg border" v-model.number="lifetime">
+            <option value="1" selected>1 Month</option>
+            <option value="3">3 Months</option>
+            <option value="6">6 Months</option>
+            <option value="12">12 Months</option>
+          </select>
+        </div>
+        <div>
+          <label for="template">OS</label>
+          <select class="select w-full rounded-lg border" v-model="template">
+            <option v-for="t in readyTemplates" :key="t.name" :value="t.name">{{ t.name }}</option>
+          </select>
+        </div>
       </div>
       <div class="flex w-full items-center justify-between">
         <div class="flex items-center gap-2">
@@ -217,14 +423,18 @@ const nonMemberGroups = computed(() => {
 
       <label for="group">Group (Optional)</label>
       <select v-model="newVMGroupId" class="select select-bordered">
-        <option :value="undefined">Me</option>
+        <option :value="-1">Me</option>
         <option v-for="group in nonMemberGroups" :key="group.id" :value="group.id">
           {{ group.name }}
         </option>
       </select>
     </CreateNew>
 
-    <table class="table table-auto divide-y">
+    <div v-if="isLoading(0, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="table table-auto divide-y">
       <thead>
         <tr>
           <th v-show="showIds" scope="col">ID</th>
@@ -263,17 +473,19 @@ const nonMemberGroups = computed(() => {
           <td>{{ formatDate(vm.lifetime) }}</td>
 
           <td>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="*:btn-sm col-span-2 grid grid-cols-3 items-center gap-2 xl:col-span-1">
+            <div class="flex justify-between gap-2 xl:gap-4">
+              <div
+                class="*:btn-sm col-span-2 grid max-w-48 min-w-24 flex-1 grid-cols-1 items-center gap-2 2xl:col-span-1 2xl:min-w-48 2xl:grid-cols-2"
+              >
                 <button
                   v-if="vm.status === 'stopped'"
-                  @click="startVM(vm.id)"
+                  @click="preStartVMWrapper(vm.id)"
                   :disabled="
                     isLoading(vm.id, 'start') ||
                     isVMExpired(vm.lifetime) ||
                     vm.group_role == 'member'
                   "
-                  class="btn btn-success btn-outline col-span-2 rounded-lg"
+                  class="btn btn-success btn-outline col-span-2 min-w-24 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'start')"
@@ -287,7 +499,7 @@ const nonMemberGroups = computed(() => {
                   v-if="vm.status === 'running'"
                   @click="stopVM(vm.id)"
                   :disabled="isLoading(vm.id, 'stop') || vm.group_role == 'member'"
-                  class="btn btn-warning btn-outline rounded-lg"
+                  class="btn btn-warning btn-outline min-w-20 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'stop')"
@@ -301,7 +513,7 @@ const nonMemberGroups = computed(() => {
                   v-if="vm.status === 'running'"
                   @click="restartVM(vm.id)"
                   :disabled="isLoading(vm.id, 'restart') || vm.group_role == 'member'"
-                  class="btn btn-info btn-outline rounded-lg"
+                  class="btn btn-info btn-outline min-w-24 rounded-lg"
                 >
                   <span
                     v-if="isLoading(vm.id, 'restart')"
@@ -313,11 +525,15 @@ const nonMemberGroups = computed(() => {
 
                 <button
                   v-if="vm.status === 'unknown'"
-                  @click="deleteVM(vm.id)"
-                  :disabled="vm.group_role == 'member'"
-                  class="btn btn-error btn-outline col-span-2 rounded-lg"
+                  @click="preDeleteVM(vm.id)"
+                  :disabled="vm.group_role == 'member' || isLoading(vm.id, 'delete')"
+                  class="btn btn-error btn-outline col-span-2 min-w-24 rounded-lg"
                 >
-                  <IconVue icon="material-symbols:delete" class="text-lg" />
+                  <span
+                    v-if="isLoading(vm.id, 'delete')"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <IconVue v-else icon="material-symbols:delete" class="text-lg" />
                   <span class="hidden lg:inline">Delete</span>
                 </button>
               </div>
@@ -325,7 +541,7 @@ const nonMemberGroups = computed(() => {
                 <RouterLink
                   v-if="vm.status !== 'pre-deleting' && vm.status !== 'deleting'"
                   :to="`/vm/${vm.id}`"
-                  class="btn btn-primary btn-sm md:btn-md btn-outline rounded-lg"
+                  class="btn btn-primary btn-outline min-h-8 rounded-lg max-2xl:h-full"
                 >
                   <IconVue icon="material-symbols:edit" class="text-lg" />
                   <p class="hidden md:inline">Manage</p>
@@ -336,5 +552,27 @@ const nonMemberGroups = computed(() => {
         </tr>
       </tbody>
     </table>
+
+    <VMStartChecksModal
+      :model-value="showModal"
+      :missing="modalMissing"
+      :interfaces-href="`/vm/${startingVMId}/interfaces`"
+      @confirm="confirmStart"
+      @cancel="cancelStart"
+    />
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete VM"
+      positiveText="Delete VM"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteVM(vmToDelete!)"
+      @negative="cancelDeleteVM(vmToDelete!)"
+    >
+      <p>Are you sure you want to delete this VM? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

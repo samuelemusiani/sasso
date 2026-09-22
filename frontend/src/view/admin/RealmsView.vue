@@ -3,7 +3,13 @@ import { onMounted, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { Realm } from '@/types'
 import RealmsMultiplexer from '@/components/realms/RealmsMultiplexer.vue'
-import AdminBreadcrumbs from '@/components/AdminBreadcrumbs.vue'
+import BreadcrumbNav from '@/components/BreadcrumbNav.vue'
+import ModalAlert from '@/components/ModalAlert.vue'
+import { useLoadingStore } from '@/stores/loading'
+import { useToastService } from '@/composables/useToast'
+
+const { error: toastError } = useToastService()
+const loading = useLoadingStore()
 
 const realms = ref<Realm[]>([])
 
@@ -11,6 +17,7 @@ const addingRealm = ref(false)
 const addingType = ref('ldap')
 
 function fetchRealms() {
+  loading.start('realms', null, 'fetch')
   api
     .get('/admin/realms')
     .then((res) => {
@@ -18,6 +25,10 @@ function fetchRealms() {
     })
     .catch((err) => {
       console.error('Failed to fetch realms:', err)
+      toastError('Failed to fetch realms: ' + err.response.data)
+    })
+    .finally(() => {
+      loading.stop('realms', null, 'fetch')
     })
 }
 
@@ -26,19 +37,38 @@ function realmAdded() {
   fetchRealms()
 }
 
+const showDeleteModal = ref(false)
+const realmToDelete = ref<number | null>(null)
+
+function preDeleteRealm(id: number) {
+  realmToDelete.value = id
+  showDeleteModal.value = true
+  loading.start('realm', id, 'delete')
+}
+
 function deleteRealm(id: number) {
-  if (!confirm('Are you sure you want to delete this realm?')) {
-    return
-  }
   api
     .delete(`/admin/realms/${id}`)
     .then(() => {
-      console.log(`Realm ${id} deleted successfully`)
+      // small optimization
+      realms.value = realms.value.filter((realm) => realm.id !== id)
       fetchRealms()
     })
     .catch((err) => {
       console.error(`Failed to delete realm ${id}:`, err)
+      toastError('Failed to delete realm')
     })
+    .finally(() => {
+      showDeleteModal.value = false
+      realmToDelete.value = null
+      loading.stop('realm', id, 'delete')
+    })
+}
+
+function cancelDeleteRealm(id: number) {
+  showDeleteModal.value = false
+  realmToDelete.value = null
+  loading.stop('realm', id, 'delete')
 }
 
 onMounted(() => {
@@ -48,13 +78,21 @@ onMounted(() => {
 
 <template>
   <div class="p-2">
-    <AdminBreadcrumbs />
-    <button class="btn btn-primary" @click="addingRealm = true" v-show="!addingRealm">
+    <div class="flex justify-between">
+      <BreadcrumbNav />
+      <HelpButton />
+    </div>
+    <button class="btn btn-primary rounded-lg" @click="addingRealm = true" v-show="!addingRealm">
       Add LDAP Realm
     </button>
-    <table class="mt-2 table w-full p-2" v-show="!addingRealm">
+
+    <div v-if="loading.is('realms', null, 'fetch')" class="grid h-64">
+      <span class="loading loading-spinner loading-lg text-primary place-self-center"></span>
+    </div>
+
+    <table v-else class="mt-2 table w-full p-2" v-show="!addingRealm">
       <thead>
-        <tr class="">
+        <tr class="uppercase">
           <th class="">Name</th>
           <th class="">Description</th>
           <th class="">Type</th>
@@ -68,11 +106,24 @@ onMounted(() => {
           <td class="">{{ realm.type }}</td>
           <td class="">
             <div class="flex justify-start gap-2" v-show="realm.type != 'local'">
-              <RouterLink class="btn btn-primary" :to="`/admin/realms/${realm.id}`"
-                >Edit</RouterLink
+              <RouterLink
+                class="btn btn-primary btn-sm md:btn-md rounded-lg"
+                :to="`/admin/realms/${realm.id}`"
               >
-              <button class="btn btn-error btn-outline" @click="deleteRealm(realm.id)">
-                Delete
+                <IconVue icon="material-symbols:edit" class="text-lg" />
+                <p class="hidden md:inline">Edit</p>
+              </RouterLink>
+              <button
+                @click="preDeleteRealm(realm.id)"
+                class="btn btn-error btn-sm md:btn-md rounded-lg"
+                :disabled="loading.is('realm', realm.id, 'delete')"
+              >
+                <span
+                  v-if="loading.is('realm', realm.id, 'delete')"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <IconVue v-else icon="material-symbols:delete" class="text-lg"></IconVue>
+                <p class="hidden md:inline">Delete</p>
               </button>
             </div>
           </td>
@@ -88,5 +139,19 @@ onMounted(() => {
     />
 
     <router-view class="mt-4" />
+
+    <!-- Delete modal -->
+    <ModalAlert
+      :model-value="showDeleteModal"
+      title="Delete Realm"
+      positiveText="Delete Realm"
+      negativeText="Cancel action"
+      positiveBtnClass="btn-error"
+      @positive="deleteRealm(realmToDelete!)"
+      @negative="cancelDeleteRealm(realmToDelete!)"
+    >
+      <p>Are you sure you want to delete this Realm? This action cannot be undone.</p>
+    </ModalAlert>
+    <!-- End of Delete modal -->
   </div>
 </template>

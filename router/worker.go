@@ -1,417 +1,454 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
+	"net/url"
 	"slices"
 	"time"
 
 	"samuelemusiani/sasso/internal"
-	"samuelemusiani/sasso/internal/auth"
 	"samuelemusiani/sasso/router/config"
 	"samuelemusiani/sasso/router/db"
 	"samuelemusiani/sasso/router/fw"
 	"samuelemusiani/sasso/router/gateway"
-	"samuelemusiani/sasso/router/utils"
 )
 
-func worker(logger *slog.Logger, conf config.Server) {
-	time.Sleep(5 * time.Second)
+func checkConfig(c config.Server) error {
+	if c.Endpoint == "" {
+		return errors.New("server endpoint cannot be empty")
+	}
 
+	if c.Secret == "" {
+		return errors.New("server secret cannot be empty")
+	}
+
+	_, err := url.Parse(c.Endpoint)
+	if err != nil {
+		return errors.New("server endpoint is not a valid URL")
+	}
+
+	return nil
+}
+
+func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, networkConf config.Network, gtw gateway.Gateway, firewall fw.Firewall) {
 	logger.Info("Worker started")
 
-	gtw := gateway.Get()
-	if gtw == nil {
-		panic("Gateway not initialized")
+	var (
+		timeToSleep time.Duration
+		err         error
+	)
+
+	// The first time this worker runs we restore the status from the DB
+
+	interfaces, err := db.GetAllInterfaces()
+	tmpNets := make([]internal.Net, len(interfaces))
+
+	if err != nil {
+		logger.Error("failed to get all interfaces from database", "error", err)
+
+		goto start_loop
 	}
 
-	fw := fw.Get()
-	if fw == nil {
-		panic("Firewall not initialized")
+	for i, iface := range interfaces {
+		tmpNets[i] = internal.Net{
+			Name:      iface.VNet,
+			Tag:       iface.VNetID,
+			Subnet:    iface.Subnet,
+			Gateway:   iface.RouterIP,
+			Broadcast: iface.Broadcast,
+		}
 	}
 
+	err = applyNetsToGateway(logger, gtw, tmpNets)
+	if err != nil {
+		logger.Error("failed to apply nets to gateway", "error", err)
+
+		goto start_loop
+	}
+
+start_loop:
 	for {
-		err := verifyNets(logger, gtw)
 		if err != nil {
-			logger.Error("Failed to verify VNets", "error", err)
+			timeToSleep = 10 * time.Second
+		} else {
+			timeToSleep = 5 * time.Second
 		}
 
-		err = checkPortForwards(logger, fw)
-		if err != nil {
-			logger.Error("Failed to verify port forwards", "error", err)
+		select {
+		case <-time.After(timeToSleep):
+		case <-parentCtx.Done():
+			logger.Info("Worker stopped")
+
+			return
 		}
 
-		nets, err := getNetsStatus(logger, conf)
+		// This worker takes care of two things:
+		// 1. Nets (interfaces)
+		// 2. Port forwards
+		//
+		// We have 3 states for these resources:
+		// 1. Server main state (what we want)
+		// 2. Router state (what we have)
+		// 3. Router DB (what we rember we had)
+		//
+		// - The 3rd state is actually needed only if we lost the connection to the
+		// 	 main server and we want to have the last rembered state. This is the
+		//   case where the service restart and is not able to pull the status from
+		// 	 the main server.
+		// - Every time we pull an update from the server we must update the DB and
+		//   update the Router state
+		// - The DB dependecy will be removed in the future
+		// - The router state will always be based on the Server state or the last
+		//   router DB state.
+		//
+		// Flow:
+		// 1. Pull from Main server (if fail pass over)
+		// 2. Update DB (if no update from main server use last stored state)
+		// 3. Update router State (with Server state or last DB state)
+		// 4. Repeat
+
+		var nets []internal.Net
+
+		nets, err = internal.FetchNets(parentCtx, conf.Endpoint, conf.Secret)
 		if err != nil {
-			logger.Error("Failed to get VNets with status", "error", err)
-			time.Sleep(10 * time.Second)
+			logger.Error("failed to get VNets with status", "error", err)
+
 			continue
 		}
 
-		err = deleteNets(logger, gtw, nets)
-		if err != nil {
-			logger.Error("Failed to delete VNets", "error", err)
-		}
+		oldNets := make([]internal.Net, len(nets))
+		copy(oldNets, nets)
 
-		err = createNets(logger, gtw, nets)
+		nets, err = fillNetsEmptyFields(networkConf, nets)
 		if err != nil {
-			logger.Error("Failed to create VNets", "error", err)
-		}
+			logger.Error("failed to fill nets empty fields", "error", err)
 
-		err = updateNets(logger, conf, nets)
-		if err != nil {
-			logger.Error("Failed to update VNets", "error", err)
-		}
-
-		portForwards, err := getPortForwardsStatus(logger, conf)
-		if err != nil {
-			logger.Error("Failed to get port forwards status", "error", err)
-			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		err = deletePortForwards(logger, fw, portForwards)
+		err = updateDBWithServerNets(nets)
 		if err != nil {
-			logger.Error("Failed to delete port forwards", "error", err)
+			logger.Error("failed to update DB with server nets", "error", err)
 		}
 
-		err = createPortForwards(logger, fw, portForwards)
+		err = applyNetsToGateway(logger, gtw, nets)
 		if err != nil {
-			logger.Error("Failed to create port forwards", "error", err)
+			logger.Error("failed to apply nets to gateway", "error", err)
 		}
 
-		time.Sleep(5 * time.Second)
+		err = pushNetsToMainServer(parentCtx, logger, conf, oldNets, nets)
+		if err != nil {
+			logger.Error("failed to update VNets", "error", err)
+		}
+
+		// ----- port forwards -----
+
+		var portForwards []internal.PortForward
+
+		portForwards, err = internal.FetchPortForwards(parentCtx, conf.Endpoint, conf.Secret)
+		if err != nil {
+			logger.Error("failed to get port forwards status", "error", err)
+
+			continue
+		}
+
+		err = updateDBWithServerPortForwards(portForwards)
+		if err != nil {
+			logger.Error("failed to update DB with server port forwards", "error", err)
+		}
+
+		err = applyPortForwardsToFirewall(logger, firewall, portForwards)
+		if err != nil {
+			logger.Error("failed to apply port forwards to firewall", "error", err)
+		}
 	}
 }
 
-// Fetch the main sasso server for the status of the nets
-func getNetsStatus(logger *slog.Logger, conf config.Server) ([]internal.Net, error) {
-	nets, err := internal.FetchNets(conf.Endpoint, conf.Secret)
-	if err != nil {
-		logger.Error("Failed to fetch nets status from main server", "error", err)
-		return nil, err
-	}
-	return nets, nil
-}
+// pushNetsToMainServer takes care of updating the nets on the main server with
+// the correct subnet, gateway and broadcast fields that we have assigned locally.
+func pushNetsToMainServer(parentCtx context.Context, logger *slog.Logger, conf config.Server, oldNets, currentNets []internal.Net) error {
+	for _, n := range currentNets {
+		oldNetIndex := slices.IndexFunc(oldNets, func(on internal.Net) bool {
+			return on.Tag == n.Tag
+		})
 
-// This function takes care of deleting the interfaces that are present on the DB
-// but not on the machine
-func verifyNets(logger *slog.Logger, gtw gateway.Gateway) error {
-
-	dbInterfaces, err := db.GetAllInterfaces()
-	if err != nil {
-		logger.Error("Failed to get all interfaces from database", "error", err)
-		return err
-	}
-
-	for _, dbIface := range dbInterfaces {
-		ok, err := gtw.VerifyInterface(gateway.InterfaceFromDB(&dbIface))
-
-		if err != nil {
-			return err
+		if oldNetIndex == -1 {
+			return fmt.Errorf("failed to find old net with tag %d", n.Tag)
 		}
 
-		if !ok {
-			// if is not consistant, remove it
-			err = gtw.RemoveInterface(dbIface.LocalID)
-			if err != nil {
-				logger.Error("Failed to remove interface from gateway", "error", err, "local_id", dbIface.LocalID)
-			}
-
-			err = db.DeleteInterface(dbIface.ID)
-			if err != nil {
-				logger.Error("Failed to delete interface from database", "error", err, "interface_id", dbIface.ID)
-			}
-		}
-	}
-
-	return nil
-}
-
-// This function takes care of deleting the nets that are present on the DB
-// but not on the nets slice anymore
-func deleteNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
-
-	dbInterfaces, err := db.GetAllInterfaces()
-	if err != nil {
-		logger.Error("Failed to get all interfaces from database", "error", err)
-		return err
-	}
-
-	var toDelete []db.Interface
-
-	for _, dbIface := range dbInterfaces {
-		if slices.IndexFunc(nets, func(n internal.Net) bool {
-			return n.Name == dbIface.VNet
-		}) == -1 {
-			toDelete = append(toDelete, dbIface)
-		}
-	}
-
-	for _, n := range toDelete {
-		dbIface, err := db.GetInterfaceByVNet(n.VNet)
-		if err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				continue
-			}
-			logger.Error("Failed to get interface from database", "error", err, "vnet", n.VNet)
-			return err
-		}
-
-		iface := gateway.InterfaceFromDB(dbIface)
-		err = gtw.RemoveInterface(iface.LocalID)
-		if err != nil {
-			logger.Error("Failed to remove interface from gateway", "error", err, "local_id", iface.LocalID)
-		}
-
-		err = db.DeleteInterface(iface.ID)
-		if err != nil {
-			logger.Error("Failed to delete interface from database", "error", err, "interface_id", iface.ID)
-		}
-
-	}
-	return nil
-}
-
-// This function takes care of creating the nets that are not present on the DB
-// but are present on the nets slice
-func createNets(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
-	for _, n := range nets {
-		_, err := db.GetInterfaceByVNet(n.Name)
-		if err == nil {
-			continue
-		} else if !errors.Is(err, db.ErrNotFound) {
-			logger.Error("Failed to get interface from database", "error", err, "vnet", n.Name)
+		if oldNets[oldNetIndex].Subnet == n.Subnet && oldNets[oldNetIndex].Gateway == n.Gateway && oldNets[oldNetIndex].Broadcast == n.Broadcast {
 			continue
 		}
 
-		if n.Subnet == "" {
-			n.Subnet, err = utils.NextAvailableSubnet()
-			if err != nil {
-				logger.Error("Failed to get next available subnet", "error", err)
-				return err
-			}
-		}
-
-		if n.Gateway == "" {
-			n.Gateway, err = utils.GatewayAddressFromSubnet(n.Subnet)
-			if err != nil {
-				logger.Error("Failed to get gateway address from subnet", "error", err)
-				return err
-			}
-		}
-
-		if n.Broadcast == "" {
-			n.Broadcast, err = utils.GetBroadcastAddressFromSubnet(n.Subnet)
-			if err != nil {
-				logger.Error("Failed to get broadcast address from subnet", "error", err)
-				return err
-			}
-		}
-
-		inter, err := gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
+		err := internal.UpdateNet(parentCtx, conf.Endpoint, conf.Secret, n)
 		if err != nil {
-			logger.Error("Failed to create new interface on gateway", "error", err)
-			return err
+			return fmt.Errorf("failed to update net on main server: %w", err)
 		}
 
-		err = inter.SaveToDB()
-		if err != nil {
-			logger.Error("Failed to save interface to database", "error", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// This function takes care of updating the nets on the main server that are
-// present on the local DB with the correct subnet, gateway and broadcast
-func updateNets(logger *slog.Logger, conf config.Server, nets []internal.Net) error {
-
-	for _, n := range nets {
-		dbNet, err := db.GetInterfaceByVNet(n.Name)
-		if err != nil {
-			logger.Error("Failed to get interface from database", "error", err, "vnet", n.Name)
-			return err
-		}
-
-		if dbNet.Subnet == n.Subnet && dbNet.RouterIP == n.Gateway && dbNet.Broadcast == n.Broadcast {
-			continue
-		}
-		n.Subnet = dbNet.Subnet
-		n.Gateway = dbNet.RouterIP
-		n.Broadcast = dbNet.Broadcast
-
-		data, err := json.Marshal(n)
-		if err != nil {
-			logger.Error("Failed to marshal net", "error", err, "vnet", n.Name)
-			continue
-		}
-
-		client := http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("PUT", fmt.Sprintf("%s/internal/net/%d", conf.Endpoint, n.ID), bytes.NewBuffer(data))
-		if err != nil {
-			logger.Error("Failed to create request to update net", "error", err, "vnet", n.Name)
-			continue
-		}
-
-		auth.AddAuthToRequest(req, conf.Secret)
-		req.Header.Set("Content-Type", "application/json")
-		res, err := client.Do(req)
-		if err != nil {
-			logger.Error("Failed to update net", "error", err, "vnet", n.Name)
-			continue
-		}
-		defer res.Body.Close()
-
-		if res.StatusCode != http.StatusOK {
-			logger.Error("Failed to update net", "status", res.StatusCode, "vnet", n.Name)
-			continue
-		}
 		logger.Info("Updated net on main server", "vnet", n.Name)
 	}
 
 	return nil
 }
 
-func getPortForwardsStatus(logger *slog.Logger, conf config.Server) ([]internal.PortForward, error) {
-	pfs, err := internal.FetchPortForwards(conf.Endpoint, conf.Secret)
-	if err != nil {
-		logger.Error("Failed to fetch port forwards status from main server", "error", err)
-		return nil, err
-	}
-	return pfs, nil
-}
+func updateDBWithServerPortForwards(pfs []internal.PortForward) error {
+	dbPfs := make([]db.PortForward, 0, len(pfs))
 
-func rulesFromPortForwardsDB(portForwards []db.PortForward) []fw.Rule {
-	var rules []fw.Rule
-	for _, pf := range portForwards {
-		rules = append(rules, fw.Rule{
+	for _, pf := range pfs {
+		dbPfs = append(dbPfs, db.PortForward{
+			ID:       pf.ID,
 			OutPort:  pf.OutPort,
 			DestPort: pf.DestPort,
 			DestIP:   pf.DestIP,
 		})
 	}
 
-	return rules
-}
-
-func checkPortForwards(logger *slog.Logger, firewall fw.Firewall) error {
-	portForwards, err := db.GetPortForwards()
+	err := db.UpdateAllPortForwards(dbPfs)
 	if err != nil {
-		logger.With("error", err).Error("Failed to get all port forwards from DB")
-		return err
-	}
-
-	rules := rulesFromPortForwardsDB(portForwards)
-
-	// get all port forward rules present in db but not in firewall
-	faultyRules, err := firewall.VerifyPortForwardRules(rules)
-	if err != nil {
-		logger.With("error", err).Error("Failed to verify port forward rules")
-		return err
-	}
-
-	// add to firewall
-	err = firewall.AddPortForwardRules(faultyRules)
-	if err != nil {
-		logger.With("error", err).Error("Failed to add faulty rules")
-		return err
+		return fmt.Errorf("failed to update all port forwards in database: %w", err)
 	}
 
 	return nil
 }
 
-// IMPORTANT: pfs are the desired port forwards from the main server, NOT THE ONES THAT MUST BE DELETED.
-// This function deletes the difference between the port forwards in database and the desired ones.
-func deletePortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
+// This function updates the DB with the nets status from the main server.
+func updateDBWithServerNets(nets []internal.Net) error {
+	dbInterfaces := make([]db.Interface, 0, len(nets))
 
-	pdfDb, err := db.GetPortForwards()
-	if err != nil {
-		logger.Error("Failed to get all port forwards from database", "error", err)
-		return err
-	}
-
-	var toBeDeleted []db.PortForward
-	for _, pfDb := range pdfDb {
-		// skip port forwards that are still desired
-		if slices.IndexFunc(pfs, func(pf internal.PortForward) bool {
-			return pf.ID == pfDb.ID
-		}) != -1 {
-			continue
-		}
-
-		// delete port forward
-		toBeDeleted = append(toBeDeleted, pfDb)
-	}
-
-	// delete requested rules, even if are not in database
-	var rules []fw.Rule
-	for _, r := range toBeDeleted {
-		rules = append(rules, fw.Rule{
-			OutPort:  r.OutPort,
-			DestPort: r.DestPort,
-			DestIP:   r.DestIP,
+	for _, n := range nets {
+		dbInterfaces = append(dbInterfaces, db.Interface{
+			VNet:      n.Name,
+			VNetID:    n.Tag,
+			Subnet:    n.Subnet,
+			RouterIP:  n.Gateway,
+			Broadcast: n.Broadcast,
 		})
 	}
 
-	err = firewall.RemovePortForwardRules(rules)
+	err := db.UpdateAllInterfaces(dbInterfaces)
 	if err != nil {
-		logger.Error("Failed to remove ports forward from firewall", "error", err)
-		return err
+		return fmt.Errorf("failed to update all interfaces in database: %w", err)
 	}
 
-	// removes all rules present in database to be deleted
-	for _, localPF := range toBeDeleted {
-		err = db.RemovePortForward(localPF.ID)
-		if err != nil {
-			logger.Error("Failed to remove port forward from database", "error", err, "port_forward_id", localPF.ID)
+	return nil
+}
+
+// fillNetsEmptyFields fills the subnet, gateway and broadcast fields of the
+// nets if they are empty.
+func fillNetsEmptyFields(netConf config.Network, nets []internal.Net) ([]internal.Net, error) {
+	var err error
+
+	subnets := make([]string, 0)
+
+	for i := range nets {
+		if nets[i].Subnet == "" {
+			nets[i].Subnet, err = nextAvailableSubnet(netConf.UsableSubnet, netConf.NewSubnetPrefix, subnets)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get next available subnet: %w", err)
+			}
+
+			subnets = append(subnets, nets[i].Subnet)
+		}
+
+		if nets[i].Gateway == "" {
+			nets[i].Gateway, err = gatewayAddressFromSubnet(nets[i].Subnet)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get gateway address from subnet: %w", err)
+			}
+		}
+
+		if nets[i].Broadcast == "" {
+			nets[i].Broadcast, err = getBroadcastAddressFromSubnet(nets[i].Subnet)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get broadcast address from subnet: %w", err)
+			}
+		}
+	}
+
+	return nets, nil
+}
+
+// applyNetsToGateway applies the nets passed to the gateway. It takes the
+// current status of the gateway and deletes the interfaces that are not
+// present in the nets slice and creates new interfaces.
+func applyNetsToGateway(logger *slog.Logger, gtw gateway.Gateway, nets []internal.Net) error {
+	gtwInterfaces, err := gtw.GetAllInterfaces()
+	if err != nil {
+		return fmt.Errorf("failed to get all interfaces from gateway: %w", err)
+	}
+
+	netsMap := make(map[uint32]internal.Net)
+	for _, n := range nets {
+		netsMap[n.Tag] = n
+	}
+
+	gtwInterfacesMap := make(map[uint32]*gateway.Interface)
+	for _, i := range gtwInterfaces {
+		gtwInterfacesMap[i.VNetID] = i
+	}
+
+	// delete interfaces not present in nets slice
+	for _, iface := range gtwInterfaces {
+		if _, ok := netsMap[iface.VNetID]; ok {
 			continue
+		}
+
+		err = gtw.RemoveInterface(iface.LocalID)
+		if err != nil {
+			return fmt.Errorf("failed to remove interface from gateway: %w", err)
+		}
+
+		logger.Info("Removed interface from gateway", "name", iface.FirewallInterfaceName)
+	}
+
+	// create interfaces present in nets slice but not in gateway
+	for _, n := range nets {
+		if _, ok := gtwInterfacesMap[n.Tag]; ok {
+			continue
+		}
+
+		// This should not happen because this function is called after fillNetsEmptyFields,
+		// but we check it just in case
+		if n.Subnet == "" || n.Gateway == "" || n.Broadcast == "" {
+			return fmt.Errorf("net %s has empty fields, cannot create interface on gateway", n.Name)
+		}
+
+		_, err := gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
+		if err != nil {
+			return fmt.Errorf("failed to create new interface on gateway: %w", err)
+		}
+
+		logger.Info("Created new interface on gateway", "name", n.Name)
+	}
+
+	// verify interfaces that are present in both slices
+	for _, n := range nets {
+		iface, ok := gtwInterfacesMap[n.Tag]
+		if !ok {
+			continue
+		}
+
+		ok, err := gtw.VerifyInterface(iface)
+		if err != nil {
+			return fmt.Errorf("failed to verify interface on gateway: %w", err)
+		}
+
+		if ok {
+			continue
+		}
+
+		logger.Error("interface on gateway is not consistent with net from main server, recreating it", "vnet", n.Name)
+
+		err = gtw.RemoveInterface(iface.LocalID)
+		if err != nil {
+			return fmt.Errorf("failed to remove interface from gateway: %w", err)
+		}
+
+		logger.Info("Removed inconsistent interface from gateway", "name", iface.FirewallInterfaceName)
+
+		_, err = gtw.NewInterface(n.Name, n.Tag, n.Subnet, n.Gateway, n.Broadcast)
+		if err != nil {
+			return fmt.Errorf("failed to create new interface on gateway: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func createPortForwards(logger *slog.Logger, firewall fw.Firewall, pfs []internal.PortForward) error {
-	// Get only the portForwards not in database
-	var pfsNotDb []db.PortForward
-	for _, pf := range pfs {
-		_, err := db.GetPortForwardByID(pf.ID)
-		if err == nil {
-			continue
-		} else if errors.Is(err, db.ErrNotFound) {
-			pfsNotDb = append(pfsNotDb, db.PortForward{
-				ID:       pf.ID,
-				OutPort:  pf.OutPort,
-				DestPort: pf.DestPort,
-				DestIP:   pf.DestIP,
-			})
-		} else {
-			logger.Error("Failed to get port forward from database", "error", err, "port_forward_id", pf.ID)
-			continue
-		}
-	}
-
-	// create rules only if not present in database
-	rules := rulesFromPortForwardsDB(pfsNotDb)
-	err := firewall.AddPortForwardRules(rules)
+// applyPortForwardsToFirewall applies the port forwards passed to the firewall.
+// It takes the current status of the firewall and deletes the port forwards
+// that are not present in the port forwards slice and creates new port forwards.
+func applyPortForwardsToFirewall(logger *slog.Logger, firewall fw.Firewall, wantedRules []internal.PortForward) error {
+	currentRules, err := firewall.PortForwardRules()
 	if err != nil {
-		logger.Error("Failed to add ports forward from firewall", "error", err)
-		return err
+		return fmt.Errorf("failed to get port forward rules from firewall: %w", err)
 	}
 
-	for _, pfDb := range pfsNotDb {
-		err = db.AddPortForward(pfDb)
-		if err != nil {
-			logger.Error("Failed to save port forward to database", "rule", pfDb, "error", err)
+	formatRule := func(r fw.Rule) string {
+		return fmt.Sprintf("%d-%s-%d", r.OutPort, r.DestIP, r.DestPort)
+	}
+
+	currentRulesMap := make(map[string]fw.Rule)
+	for _, r := range currentRules {
+		currentRulesMap[formatRule(r)] = r
+	}
+
+	wantedRulesMap := make(map[string]internal.PortForward)
+	for _, pf := range wantedRules {
+		wantedRulesMap[formatRule(fw.Rule{
+			OutPort:  pf.OutPort,
+			DestIP:   pf.DestIP,
+			DestPort: pf.DestPort,
+		})] = pf
+	}
+
+	// Delete port forwards not present in pfs slice
+	for _, r := range currentRules {
+		if _, ok := wantedRulesMap[formatRule(r)]; ok {
 			continue
 		}
+
+		err = firewall.RemovePortForwardRule(r)
+		if err != nil {
+			return fmt.Errorf("failed to remove port forward rule from firewall: %w", err)
+		}
 	}
+
+	// Create port forwards present in pfs slice but not in firewall
+	for _, pf := range wantedRules {
+		r := fw.Rule{
+			OutPort:  pf.OutPort,
+			DestIP:   pf.DestIP,
+			DestPort: pf.DestPort,
+		}
+
+		if _, ok := currentRulesMap[formatRule(r)]; ok {
+			continue
+		}
+
+		err = firewall.AddPortForwardRule(r)
+		if err != nil {
+			return fmt.Errorf("failed to add port forward rule to firewall: %w", err)
+		}
+	}
+
+	// Verify port forwards that are present in both slices
+	for _, pf := range wantedRules {
+		r := fw.Rule{
+			OutPort:  pf.OutPort,
+			DestIP:   pf.DestIP,
+			DestPort: pf.DestPort,
+		}
+
+		currentRule, ok := currentRulesMap[formatRule(r)]
+		if !ok {
+			continue
+		}
+
+		ok, err := firewall.VerifyPortForwardRule(currentRule)
+		if err != nil {
+			return fmt.Errorf("failed to verify port forward rule on firewall: %w", err)
+		}
+
+		if ok {
+			continue
+		}
+
+		logger.Error("port forward rule on firewall is not consistent with port forward from main server, recreating it", "rule", r)
+
+		err = firewall.RemovePortForwardRule(currentRule)
+		if err != nil {
+			return fmt.Errorf("failed to remove port forward rule from firewall: %w", err)
+		}
+
+		err = firewall.AddPortForwardRule(r)
+		if err != nil {
+			return fmt.Errorf("failed to add port forward rule to firewall: %w", err)
+		}
+	}
+
 	return nil
 }

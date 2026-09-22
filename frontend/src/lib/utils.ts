@@ -44,3 +44,49 @@ export function vmWillExpire(lifetime: string, possibleExtendBy: number[]): VMEx
     possible_extend_by: [],
   }
 }
+
+export async function copyToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  // Fallback (older browsers / some embedded webviews)
+  const el = document.createElement('textarea')
+  el.value = text
+  el.setAttribute('readonly', '')
+  el.style.position = 'absolute'
+  el.style.left = '-9999px'
+  document.body.appendChild(el)
+  el.focus()
+  el.select()
+
+  // TS will warn: deprecated. This is expected for legacy fallback.
+  const ok = document.execCommand('copy')
+
+  document.body.removeChild(el)
+  return ok
+}
+
+export function downloadTextFile(options: {
+  text: string
+  filename: string
+  mimeType?: string // default: 'text/plain'
+  charset?: string // default: 'utf-8'
+}): void {
+  const { text, filename, mimeType = 'text/plain', charset = 'utf-8' } = options
+
+  const blob = new Blob([text], { type: `${mimeType};charset=${charset}` })
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+
+  // cleanup
+  a.remove()
+  URL.revokeObjectURL(url)
+}

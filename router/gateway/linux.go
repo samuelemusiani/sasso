@@ -3,18 +3,18 @@ package gateway
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
-	"samuelemusiani/sasso/router/config"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"samuelemusiani/sasso/router/config"
 )
 
 type LinuxGateway struct {
-	Port  uint16
-	Peers []net.IP
-	MTU   uint16
+	Port          uint16
+	Peers         []net.IP
+	MTU           uint16
+	LinkAliasCode string
 }
 
 func NewLinuxGateway() *LinuxGateway {
@@ -22,52 +22,74 @@ func NewLinuxGateway() *LinuxGateway {
 }
 
 func (lg *LinuxGateway) Init(c config.Gateway) error {
+	if c.Linux.Port == 0 {
+		return errors.New("linux gateway port cannot be 0")
+	}
+
 	lg.Port = c.Linux.Port
+
+	if len(c.Linux.Peers) == 0 {
+		return errors.New("linux gateway must have at least one peer")
+	}
 
 	for _, p := range c.Linux.Peers {
 		ip := net.ParseIP(p)
 		if ip == nil {
-			return fmt.Errorf("Failed to parse peer IP: %s", p)
+			return fmt.Errorf("failed to parse peer IP: %s", p)
 		}
+
 		lg.Peers = append(lg.Peers, ip)
 	}
 
+	if c.Linux.MTU == 0 {
+		return errors.New("linux gateway MTU cannot be 0")
+	}
+
 	lg.MTU = c.Linux.MTU
+
+	// This is used to identify the links created by sasso in the system.
+	// The 'random' string is created with
+	//  echo -n "managed iface" | base64
+	lg.LinkAliasCode = "sasso-bWFuYWdlZCBpZmFjZQ"
 
 	return nil
 }
 
 func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerIP, broadcast string) (*Interface, error) {
+	ipAddr, err := netlink.ParseAddr(routerIP)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse router IP address %s: %w", routerIP, err)
+	}
 
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  int(lg.MTU),
 			Name: vnet,
+			// Alias: lg.LinkAliasCode, // Setting Alias does not work here https://github.com/vishvananda/netlink/issues/902
 		},
 		VxlanId: int(vnetID),
 		Port:    int(lg.Port),
 	}
-	err := netlink.LinkAdd(link)
+
+	err = netlink.LinkAdd(link)
 	if err != nil {
-		logger.Error("Failed to create VxLAN interface", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create VxLAN interface: %w", err)
 	}
-	ipAddr, err := netlink.ParseAddr(routerIP)
+
+	// We need to set the alias after creating the link
+	err = netlink.LinkSetAlias(link, lg.LinkAliasCode)
 	if err != nil {
-		logger.Error("Failed to parse router IP address", "error", err, "routerIP", routerIP)
-		return nil, err
+		return nil, fmt.Errorf("failed to set link alias to link %s: %w", link.Name, err)
 	}
 
 	err = netlink.AddrAdd(link, ipAddr)
 	if err != nil {
-		logger.Error("Failed to add IP address to network interface on router", "error", err, "ipAddress", ipAddr, "iface", link.Name)
-		return nil, err
+		return nil, fmt.Errorf("failed to add IP address %s to network interface %s on router: %w", ipAddr, link.Name, err)
 	}
 
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		slog.Error("Failed to set interface up", "error", err)
-		panic(err)
+		return nil, fmt.Errorf("failed to set link up: %w", err)
 	}
 
 	for _, p := range lg.Peers {
@@ -80,8 +102,7 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 			Family:       unix.AF_BRIDGE,
 		})
 		if err != nil {
-			slog.Error("Failed to add neighbor", "error", err, "p", p.String(), "LinkIndex", link.Index)
-			return nil, err
+			return nil, fmt.Errorf("failed to add neighbor for peer %s on link %s: %w", p.String(), link.Name, err)
 		}
 	}
 
@@ -98,32 +119,30 @@ func (lg *LinuxGateway) NewInterface(vnet string, vnetID uint32, subnet, routerI
 	}, nil
 }
 
-func (lg *LinuxGateway) RemoveInterface(id uint) error {
-	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(id)}})
+func (*LinuxGateway) RemoveInterface(localID uint) error {
+	err := netlink.LinkDel(&netlink.Vxlan{LinkAttrs: netlink.LinkAttrs{Index: int(localID)}})
 	if err != nil && !errors.Is(err, unix.ENODEV) {
-		logger.Error("Failed to remove VxLAN interface", "error", err, "id", id)
-		return err
+		return fmt.Errorf("failed to delete VxLAN interface with index %d: %w", localID, err)
 	}
+
 	return nil
 }
 
-// True if interface is verified, false otherwise
-func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
-
+// VerifyInterface returns True if interface is verified, false otherwise.
+// "Verified" means that the interfaces exists and has all the correct attributes.
+func (*LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 	link, err := netlink.LinkByIndex(int(iface.LocalID))
 
-	// not present, inconsistant
-	var linkNotFoundErr netlink.LinkNotFoundError
-	if errors.As(err, &linkNotFoundErr) {
+	// not present, inconsistent
+	if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 		return false, nil
 	}
 
 	if err != nil {
-		logger.Error("Failed to get Link", "error", err, "id", iface.LocalID)
-		return false, err
+		return false, fmt.Errorf("failed to get link by index %d: %w", iface.LocalID, err)
 	}
 
-	// not a vxlan, inconsistant
+	// not a vxlan, inconsistent
 	if link.Type() != "vxlan" {
 		return false, nil
 	}
@@ -141,6 +160,62 @@ func (lg *LinuxGateway) VerifyInterface(iface *Interface) (bool, error) {
 		return false, nil
 	}
 
-	// else is consistant
+	// else is consistent
 	return true, nil
+}
+
+func (lg *LinuxGateway) GetAllInterfaces() ([]*Interface, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
+	}
+
+	var ifaces []*Interface
+
+	for _, link := range links {
+		if link.Attrs().Alias == lg.LinkAliasCode {
+			vxlanLink, ok := link.(*netlink.Vxlan)
+			if !ok {
+				logger.Error("Failed to cast link to vxlan", "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+			if err != nil {
+				logger.Error("Failed to get addresses for link", "error", err, "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			if len(addrs) == 0 {
+				logger.Error("No addresses found for link", "linkName", link.Attrs().Name)
+
+				continue
+			}
+
+			var subnet string
+
+			for _, addr := range addrs {
+				if addr.IP.Equal(vxlanLink.SrcAddr) {
+					subnet = addr.IPNet.String()
+
+					break
+				}
+			}
+
+			iface := &Interface{
+				LocalID:               uint(link.Attrs().Index),
+				VNet:                  link.Attrs().Name,
+				VNetID:                uint32(vxlanLink.VxlanId),
+				Subnet:                subnet,
+				RouterIP:              vxlanLink.SrcAddr.String(),
+				Broadcast:             vxlanLink.Group.String(),
+				FirewallInterfaceName: link.Attrs().Name,
+			}
+			ifaces = append(ifaces, iface)
+		}
+	}
+
+	return ifaces, nil
 }
