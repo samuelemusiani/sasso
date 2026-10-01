@@ -199,9 +199,11 @@ func ExistsIPInVNetWithVlanTag(vnetID uint, vlanTag uint16, ipAdd string) (bool,
 	ipAdd += "/%"
 
 	var count int64
-	if err := db.Model(&Interface{}).
+
+	err := db.Model(&Interface{}).
 		Where("v_net_id = ? AND vlan_tag = ? AND ip_add LIKE ?", vnetID, vlanTag, ipAdd).
-		Count(&count).Error; err != nil {
+		Count(&count).Error
+	if err != nil {
 		return false, fmt.Errorf("failed to check existence of IP in VNet with VLAN tag: %w", err)
 	}
 
