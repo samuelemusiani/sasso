@@ -58,7 +58,7 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, proxmox.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusConflict)
 		case errors.Is(err, proxmox.ErrNotFound):
-			http.Error(w, "Group not found", http.StatusBadRequest)
+			http.Error(w, "Group not found", http.StatusNotFound)
 		case errors.Is(err, proxmox.ErrVNetNameExists):
 			http.Error(w, "Network name already exists", http.StatusBadRequest)
 		case errors.Is(err, proxmox.ErrPermissionDenied):

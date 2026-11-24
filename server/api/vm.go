@@ -86,6 +86,10 @@ func newVM(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Insufficient resources", http.StatusConflict)
 		case errors.Is(err, proxmox.ErrInvalidVMParam):
 			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, proxmox.ErrNotFound):
+			http.Error(w, "Group not found", http.StatusNotFound)
+		case errors.Is(err, proxmox.ErrPermissionDenied):
+			http.Error(w, "Permission denied", http.StatusForbidden)
 		default:
 			logger.Error("Failed to create new VM", "userID", userID, "error", err)
 			http.Error(w, "Failed to create new VM", http.StatusInternalServerError)

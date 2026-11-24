@@ -242,9 +242,6 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 	}
 
 	l := logger.With("userID", userID, "vmName", req.Name)
-	if ownerType == OwnerTypeGroup {
-		l = logger.With("groupID", ownerID)
-	}
 
 	if !vmNameRegex.MatchString(req.Name) || len(req.Name) > 16 {
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("invalid name"))
@@ -284,8 +281,31 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		return nil, err
 	}
 
-	var group *db.Group
+	var (
+		group *db.Group
+		role  string
+	)
+
 	if ownerType == OwnerTypeGroup {
+		l = l.With("groupID", ownerID)
+
+		// Only an owner or an admin can create a VM in a group. This check
+		// comes before every step that reads or writes the group.
+		role, err = db.GetUserRoleInGroup(userID, ownerID)
+		if errors.Is(err, db.ErrNotFound) {
+			l.Warn("User is not a member of the group, cannot create VM")
+
+			return nil, ErrNotFound
+		} else if err != nil {
+			l.Error("Failed to get user role in group for new VM", "error", err)
+
+			return nil, err
+		}
+
+		if role != "admin" && role != "owner" {
+			return nil, ErrPermissionDenied
+		}
+
 		group, err = db.GetGroupByID(ownerID)
 		if err != nil {
 			logger.Error("Failed to get group from database", "groupID", ownerID, "error", err)
@@ -400,22 +420,8 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		return nil, err
 	}
 
-	var groupName, role string
 	if ownerType == OwnerTypeGroup {
-		groupName = group.Name
-
-		r, err := db.GetUserRoleInGroup(userID, group.ID)
-		if err != nil {
-			l.Error("Failed to get user role in group for new VM", "groupID", group.ID, "error", err)
-
-			return nil, err
-		}
-
-		role = r
-	}
-
-	if ownerType == OwnerTypeGroup {
-		return convertDBVMToVMForGroup(dbVM, ownerID, groupName, role), nil
+		return convertDBVMToVMForGroup(dbVM, ownerID, group.Name, role), nil
 	}
 
 	return convertDBVMToVM(dbVM), nil
