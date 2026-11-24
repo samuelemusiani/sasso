@@ -909,6 +909,41 @@ func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
 			continue
 		}
 
+		// A backup of a stopped VM makes Proxmox report it as running while it
+		// holds the backup lock. Wait for the lock to be released.
+		if vm.Lock != "" || vm.VirtualMachineConfig.Lock != "" {
+			logger.Info("VM is locked in Proxmox, retrying configuration later", "vmid", v.ID, "lock", vm.Lock, "config_lock", vm.VirtualMachineConfig.Lock)
+
+			continue
+		}
+
+		// Proxmox applies a change to cores or memory of a running VM only at
+		// the next cold start. Resizes are accepted only for stopped VMs
+		if vm.Status != string(VMStatusStopped) {
+			logger.Warn("VM is not stopped in Proxmox, resize cancelled", "vmid", v.ID, "status", vm.Status)
+
+			err = syncVMResourcesFromProxmox(&v, vm)
+			if err != nil {
+				// The status stays 'pre-configuring', so the cancellation is retried.
+				logger.Error("failed to update resources of VM", "vmid", v.ID, "err", err)
+
+				continue
+			}
+
+			// Status to write in the row. The VM is not stopped here.
+			newStatus := string(VMStatusUnknown)
+			if vm.Status == string(VMStatusRunning) || vm.Status == string(VMStatusPaused) {
+				newStatus = vm.Status
+			}
+
+			err = db.UpdateVMStatus(v.ID, newStatus)
+			if err != nil {
+				logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", newStatus, "err", err)
+			}
+
+			continue
+		}
+
 		logger.Debug("Configuring VM", "vmid", v.ID)
 
 		if vm.VirtualMachineConfig.Cores != int(v.Cores) {
@@ -921,7 +956,7 @@ func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
 			if err != nil {
 				logger.Error("failed to set cores on VM", "vmid", v.ID, "err", err)
 
-				return
+				continue
 			}
 
 			logger.Debug("Task finished", "isSuccessful", isSuccessful)
@@ -992,30 +1027,52 @@ func configureVMs(parentCtx context.Context, vmNodes map[uint64]string) {
 			}
 		}
 
-		// If a VM needs to be reconfigured (for example changing cores, RAM or disk),
-		// it is put in the 'pre-configuring' status. After the configuration is done,
-		// the vm must be set to the old status, but we don't save it anywhere.
-		// For new created VMs, we just set the status to 'stopped'.
-		// For other VMs, we try to set it to the acctual status in Proxmox, but
-		// if the status is not recognised, we set it to 'stopped'.
-		// (This is not a huge issue, because the updateVMs function will eventually
-		// correct the status)
-		vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused)}
-
-		var newStatus string
-		if slices.Contains(vmStates, vm.Status) {
-			newStatus = vm.Status
-		} else {
-			newStatus = string(VMStatusStopped)
-		}
-
-		err = db.UpdateVMStatus(v.ID, newStatus)
+		// A VM reaches this point only if Proxmox reports it stopped
+		err = db.UpdateVMStatus(v.ID, string(VMStatusStopped))
 		if err != nil {
 			logger.Error("failed to update status of VM", "vmid", v.ID, "new_status", VMStatusStopped, "err", err)
 		}
 
 		logger.Debug("VM configured", "vm", vm)
 	}
+}
+
+// syncVMResourcesFromProxmox sets the cores, RAM and disk of the DB row to what
+// the VM has in Proxmox. It is for a VM where Proxmox, not the DB, is the
+// source of truth, such as a VM that is not stopped and so cannot be
+// reconfigured. Cores and RAM take the larger of the config (which may include
+// pending changes) and the values the running VM uses, so the DB never counts
+// less than what runs.
+func syncVMResourcesFromProxmox(v *db.VM, vm *gprox.VirtualMachine) error {
+	cores := uint(max(vm.VirtualMachineConfig.Cores, vm.CPUs))
+	ram := max(uint(vm.VirtualMachineConfig.Memory), uint(vm.MaxMem/(1024*1024)))
+	disk := v.Disk
+
+	scsi0, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
+	if ok {
+		size, err := getSizeFromStorageString(scsi0)
+		if err != nil {
+			logger.Error("Failed to parse storage on SCSI0, keeping disk size of DB", "vmid", v.ID, "scsi0", scsi0, "error", err)
+		} else {
+			disk = size
+		}
+	} else {
+		logger.Error("failed to find SCSI0 on VM, keeping disk size of DB", "vmid", v.ID)
+	}
+
+	if cores == v.Cores && ram == v.RAM && disk == v.Disk {
+		return nil
+	}
+
+	logger.Warn("VM resources in Proxmox differ from DB, updating DB", "vmid", v.ID,
+		"db_cores", v.Cores, "db_ram", v.RAM, "db_disk", v.Disk, "cores", cores, "ram", ram, "disk", disk)
+
+	err := db.UpdateVMResources(v.ID, cores, ram, disk)
+	if err != nil {
+		return fmt.Errorf("failed to update resources of VM %d in DB: %w", v.ID, err)
+	}
+
+	return nil
 }
 
 // updateVMs updates the status of VMs in the database based on their current status in Proxmox.

@@ -353,13 +353,18 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	m2.Lock()
 	defer m2.Unlock()
 
-	err = proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
+	err = proxmox.UpdateVMResources(r.Context(), vmid, request.Cores, request.RAM, request.Disk)
 	if err != nil {
-		if errors.Is(err, proxmox.ErrInsufficientResources) {
+		switch {
+		case errors.Is(err, proxmox.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusConflict)
 
 			return
-		} else if errors.Is(err, proxmox.ErrInvalidVMParam) {
+		case errors.Is(err, proxmox.ErrInvalidVMState):
+			http.Error(w, "The VM must be stopped to change its resources", http.StatusConflict)
+
+			return
+		case errors.Is(err, proxmox.ErrInvalidVMParam):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
 			return

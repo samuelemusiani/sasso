@@ -8,14 +8,14 @@ import HelpPage from '@/components/help/HelpPage.vue'
     <HelpParagraph>
       <template #title>Introduction</template>
       <p>This page allows you to change the resources of your virtual machine.</p>
+      <p>The resources can be changed only while the VM is stopped.</p>
       <p>
-        You can always add and remove cores and RAM, but you can only increase the disk, you cannot
+        You can add and remove cores and RAM, but you can only increase the disk, you cannot
         decrease it.
       </p>
       <p>
-        The changes you make here will be applied at the next start of the VM. Keep in mind that a
-        reboot from inside the VM will not apply the changes, you need shutdown and start the VM in
-        two separate steps.
+        The change is applied a few seconds after you request it and is in effect when you start the
+        VM again.
       </p>
     </HelpParagraph>
   </HelpPage>

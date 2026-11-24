@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
 import type { VM } from '@/types'
 import CreateNew from '@/components/CreateNew.vue'
@@ -18,6 +18,8 @@ const $props = defineProps<{
 const cores = ref($props.vm.cores)
 const ram = ref($props.vm.ram)
 const disk = ref($props.vm.disk)
+
+const isStopped = computed(() => $props.vm.status === 'stopped')
 
 const $emit = defineEmits(['update-vm'])
 
@@ -63,6 +65,7 @@ onBeforeUnmount(() => {
       :hideCreate="true"
       :create="updateResources"
       :close-on-create="true"
+      :disabled="!isStopped"
     >
       <div class="grid grid-cols-3 gap-4">
         <div>
@@ -139,6 +142,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </CreateNew>
+    <p v-if="!isStopped" class="text-warning">Stop the VM to change its resources</p>
 
     <div class="flex flex-col gap-2">
       <div>CPU Cores: {{ $props.vm.cores }}</div>

@@ -917,12 +917,18 @@ func getUniqueOwnerIDInVM(id uint) (uint, error) {
 	return uint(uniqueOwnerID), nil
 }
 
-func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
+func UpdateVMResources(parentCtx context.Context, vmid uint64, cores, ram, disk uint) error {
 	vm, err := db.GetVMByID(vmid)
 	if err != nil {
 		logger.Error("Failed to get VM from database for updating resources", "vmID", vmid, "error", err)
 
 		return err
+	}
+
+	if vm.Status != string(VMStatusStopped) {
+		logger.Warn("VM is not stopped, cannot update resources", "vmID", vmid, "status", vm.Status)
+
+		return ErrInvalidVMState
 	}
 
 	if cores < vmMinCores {
@@ -935,14 +941,6 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 
 	if vm.Disk > disk {
 		return errors.Join(ErrInvalidVMParam, errors.New("disk size can only be increased"))
-	}
-
-	vmStates := []string{string(VMStatusRunning), string(VMStatusStopped), string(VMStatusPaused), string(VMStatusUnknown)}
-
-	if !slices.Contains(vmStates, vm.Status) {
-		logger.Warn("VM is not in a state for resource updates", "vmID", vmid, "status", vm.Status)
-
-		return ErrInvalidVMState
 	}
 
 	var group *db.Group
@@ -999,6 +997,49 @@ func UpdateVMResources(vmid uint64, cores, ram, disk uint) error {
 		currentResources.RAM-vm.RAM+ram > maxResources.RAM ||
 		currentResources.Disk-vm.Disk+disk > maxResources.Disk {
 		return ErrInsufficientResources
+	}
+
+	// The DB status can say 'stopped' while the VM runs, for example if it was
+	// started directly in Proxmox.
+	cluster, err := getProxmoxCluster(parentCtx, client)
+	if err != nil {
+		logger.Error("Failed to get Proxmox cluster for updating VM resources", "vmID", vmid, "error", err)
+
+		return err
+	}
+
+	vmNodes, err := mapVMIDToProxmoxNodes(parentCtx, cluster)
+	if err != nil {
+		logger.Error("Failed to map VM IDs to Proxmox nodes for updating VM resources", "vmID", vmid, "error", err)
+
+		return err
+	}
+
+	nodeName, exists := vmNodes[vmid]
+	if !exists {
+		logger.Error("VM ID not found in Proxmox cluster for updating VM resources", "vmID", vmid)
+
+		return ErrVMNotFound
+	}
+
+	node, err := getProxmoxNode(parentCtx, client, nodeName)
+	if err != nil {
+		logger.Error("Failed to get Proxmox node for updating VM resources", "vmID", vmid, "node", nodeName, "error", err)
+
+		return err
+	}
+
+	vmr, err := getProxmoxVM(parentCtx, node, int(vmid))
+	if err != nil {
+		logger.Error("Failed to get Proxmox VM for updating VM resources", "vmID", vmid, "node", nodeName, "error", err)
+
+		return ErrVMNotFound
+	}
+
+	if vmr.Status != string(VMStatusStopped) {
+		logger.Warn("VM is not stopped in Proxmox, cannot update resources", "vmID", vmid, "node", nodeName, "status", vmr.Status)
+
+		return ErrInvalidVMState
 	}
 
 	err = db.UpdateVMResources(vmid, cores, ram, disk)
