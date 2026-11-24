@@ -146,8 +146,13 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.DeleteGroup(group.ID); err != nil {
-		if errors.Is(err, db.ErrNotFound) {
+		switch {
+		case errors.Is(err, db.ErrNotFound):
 			http.Error(w, "Group not found", http.StatusNotFound)
+
+			return
+		case errors.Is(err, db.ErrResourcesInUse):
+			http.Error(w, "Cannot delete group: resources are currently in use", http.StatusConflict)
 
 			return
 		}
@@ -844,12 +849,17 @@ func setGroupResources(w http.ResponseWriter, r *http.Request) {
 		Nets:  req.Nets,
 	})
 	if err != nil {
-		if errors.Is(err, db.ErrResourcesInUse) {
+		switch {
+		case errors.Is(err, db.ErrResourcesInUse):
 			http.Error(w, "Cannot modify resources: resources are currently in use", http.StatusConflict)
 
 			return
-		} else if errors.Is(err, db.ErrInsufficientResources) {
+		case errors.Is(err, db.ErrInsufficientResources):
 			http.Error(w, "Insufficient resources", http.StatusConflict)
+
+			return
+		case errors.Is(err, db.ErrNotFound):
+			http.Error(w, "Group not found", http.StatusNotFound)
 
 			return
 		}

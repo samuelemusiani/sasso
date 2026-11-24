@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Group struct {
@@ -153,6 +154,10 @@ func GetGroupsByUserID(userID uint) ([]Group, error) {
 
 func DeleteGroup(groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
+		if err := lockGroupTransaction(tx, groupID); err != nil {
+			return err
+		}
+
 		// Delete all invitations for the group
 		if err := tx.Delete(&GroupInvitation{}, "group_id = ?", groupID).Error; err != nil {
 			return fmt.Errorf("failed to delete group invitations: %w", err)
@@ -173,31 +178,13 @@ func DeleteGroup(groupID uint) error {
 			return fmt.Errorf("failed to retrieve group resources: %w", err)
 		}
 
-		adminID, err := getAdminIDTransaction(tx)
-		if err != nil {
-			return fmt.Errorf("failed to get admin user ID during resource revocation: %w", err)
-		}
-
+		// Every row is deleted. The admin's row (the net given to the
+		// group) goes back to nobody
 		for _, r := range resources {
-			if r.UserID == adminID {
-				// Admin user, skip
-				continue
-			}
-
-			err = tx.Model(&User{Model: gorm.Model{ID: r.UserID}}).
-				UpdateColumns(map[string]interface{}{
-					"max_cores": gorm.Expr("max_cores + ?", r.Cores),
-					"max_ram":   gorm.Expr("max_ram + ?", r.RAM),
-					"max_disk":  gorm.Expr("max_disk + ?", r.Disk),
-				}).Error
+			err = revokeGroupResourcesTransaction(tx, groupID, r.UserID)
 			if err != nil {
 				return fmt.Errorf("failed to return resources to user: %w", err)
 			}
-		}
-
-		err = tx.Where("group_id = ?", groupID).Delete(&GroupResource{}).Error
-		if err != nil {
-			return fmt.Errorf("failed to delete group resources: %w", err)
 		}
 
 		// Delete the group
@@ -431,7 +418,12 @@ func RevokeGroupInvitationToUser(inviteID, groupID uint) error {
 
 func RemoveUserFromGroup(userID, groupID uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		err := revokeGroupResourcesTransaction(tx, groupID, userID)
+		err := lockGroupTransaction(tx, groupID)
+		if err != nil {
+			return err
+		}
+
+		err = revokeGroupResourcesTransaction(tx, groupID, userID)
 		if err != nil {
 			return fmt.Errorf("failed to revoke group resources: %w", err)
 		}
@@ -675,6 +667,11 @@ func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
 
 func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithNets) error {
 	return db.Transaction(func(tx *gorm.DB) error {
+		err := lockGroupTransaction(tx, groupID)
+		if err != nil {
+			return err
+		}
+
 		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
 			return fmt.Errorf("failed to get admin user ID: %w", err)
@@ -752,6 +749,24 @@ func SetGroupResourcesByUserID(groupID, userID uint, newResources ResourcesWithN
 
 		return nil
 	})
+}
+
+// lockGroupTransaction locks the row of the group until the end of tx, so
+// transactions that give back or change donations of the same group run one
+// after the other and never refund the same donation twice. It returns
+// ErrNotFound if the group does not exist (for example it was just deleted).
+func lockGroupTransaction(tx *gorm.DB, groupID uint) error {
+	err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+		First(&Group{}, groupID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+
+		return fmt.Errorf("failed to lock group: %w", err)
+	}
+
+	return nil
 }
 
 func revokeGroupResourcesTransaction(tx *gorm.DB, groupID, userID uint) error {
