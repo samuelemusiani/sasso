@@ -1854,17 +1854,87 @@ func restoreBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 			continue
 		}
 
-		o1 := gprox.VirtualMachineOption{
-			Name:  "force",
-			Value: "1",
+		// The restore replaces the whole VM configuration with the one in the
+		// backup. Cores and RAM are forced to the values in the DB, which is
+		// authoritative for the resource limits.
+		v, err := db.GetVMByID(uint64(r.VMID))
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				logger.Error("Can't restore backup. VM not found in DB", "id", r.ID, "vmid", r.VMID)
+
+				err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+				if err != nil {
+					logger.Error("failed to update backup request status to failed", "id", r.ID, "error", err)
+				}
+
+				continue
+			}
+
+			logger.Error("failed to get VM from DB", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			continue
 		}
-		o2 := gprox.VirtualMachineOption{
-			Name:  "archive",
-			Value: r.Volid,
+
+		if v.Status != string(VMStatusStopped) || v.CreatedAt.After(r.CreatedAt) {
+			logger.Error("Can't restore backup. VM is not stopped or was created after the request", "id", r.ID, "vmid", r.VMID, "status", v.Status)
+
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.Error("failed to update backup request status to failed", "id", r.ID, "error", err)
+			}
+
+			continue
+		}
+
+		// The restore recreates the disk at the size it had at backup time.
+		// This is the authoritative check: another restore of the same VM may
+		// have lowered the disk in the DB after the request was accepted.
+		// Any error fails the request instead of leaving it pending, as a
+		// pending restore blocks start and stop of the VM.
+		bkConfig, err := getProxmoxBackupConfig(parentCtx, node, *r.Volid)
+		if err != nil {
+			logger.Error("Can't restore backup. Backup disk size unknown", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.Error("failed to update backup request status to failed", "id", r.ID, "error", err)
+			}
+
+			continue
+		}
+
+		bkDisk, err := getSizeFromStorageString(bkConfig.SCSI0)
+		if err != nil {
+			logger.Error("Can't restore backup. Backup disk size unknown", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.Error("failed to update backup request status to failed", "id", r.ID, "error", err)
+			}
+
+			continue
+		}
+
+		if bkDisk > v.Disk {
+			logger.Error("Can't restore backup. Backup disk is larger than VM disk", "id", r.ID, "vmid", r.VMID, "backup_disk", bkDisk, "vm_disk", v.Disk)
+
+			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
+			if err != nil {
+				logger.Error("failed to update backup request status to failed", "id", r.ID, "error", err)
+			}
+
+			continue
+		}
+
+		options := []gprox.VirtualMachineOption{
+			{Name: "force", Value: "1"},
+			{Name: "archive", Value: r.Volid},
+			{Name: "cores", Value: v.Cores},
+			{Name: "memory", Value: v.RAM},
 		}
 
 		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-		t, err := node.NewVirtualMachine(ctx, int(r.VMID), o1, o2)
+		t, err := node.NewVirtualMachine(ctx, int(r.VMID), options...)
 
 		cancel()
 
@@ -1875,8 +1945,21 @@ func restoreBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 		}
 
 		isSuccessful, err := waitForProxmoxTaskCompletion(parentCtx, t)
-		if err != nil {
-			logger.Error("failed to wait for Proxmox task completion", "error", err)
+		if err != nil && parentCtx.Err() != nil {
+			// The server is shutting down. The request stays pending, so the
+			// restore is performed again at the next start.
+			logger.Warn("Restore interrupted by shutdown, leaving request pending", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			return
+		}
+
+		if err != nil || !isSuccessful {
+			logger.Error("failed to restore backup", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			err = reconcileVMAfterRestore(parentCtx, node, uint64(r.VMID), restoreFailed)
+			if err != nil {
+				logger.Error("failed to reconcile VM after failed restore", "id", r.ID, "vmid", r.VMID, "error", err)
+			}
 
 			err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusFailed)
 			if err != nil {
@@ -1886,18 +1969,110 @@ func restoreBackups(parentCtx context.Context, mapVMContent map[uint64]string) {
 			continue
 		}
 
-		var status string
-		if isSuccessful {
-			status = BackupRequestStatusCompleted
-		} else {
-			status = BackupRequestStatusFailed
+		// The reconciliation must happen before the request is marked as
+		// completed: a VM with a pending restore request can't be started.
+		err = reconcileVMAfterRestore(parentCtx, node, uint64(r.VMID), restoreSucceeded)
+		if err != nil {
+			logger.Error("failed to reconcile VM after restore, setting it to pre-configuring", "id", r.ID, "vmid", r.VMID, "error", err)
+
+			err = db.UpdateVMStatus(uint64(r.VMID), string(VMStatusPreConfiguring))
+			if err != nil {
+				logger.Error("failed to set VM to pre-configuring", "vmid", r.VMID, "error", err)
+			}
 		}
 
-		err = db.UpdateBackupRequestStatus(r.ID, status)
+		err = db.UpdateBackupRequestStatus(r.ID, BackupRequestStatusCompleted)
 		if err != nil {
-			logger.Error("failed to update backup request status", "status", status, "id", r.ID, "error", err)
+			logger.Error("failed to update backup request status", "status", BackupRequestStatusCompleted, "id", r.ID, "error", err)
 		}
 	}
+}
+
+// restoreOutcome tells reconcileVMAfterRestore whether the Proxmox restore
+// task succeeded.
+type restoreOutcome int
+
+const (
+	restoreSucceeded restoreOutcome = iota
+	restoreFailed
+)
+
+// reconcileVMAfterRestore aligns the DB row and the Proxmox VM after a restore
+// (successful or not). Cores and RAM in the DB are authoritative: if the VM in
+// Proxmox does not match, the VM is set to 'pre-configuring' so that
+// configureVMs applies the DB values. The disk is handled by
+// reconcileRestoredDisk.
+func reconcileVMAfterRestore(parentCtx context.Context, node *gprox.Node, vmID uint64, outcome restoreOutcome) error {
+	vm, err := getProxmoxVM(parentCtx, node, int(vmID))
+	if err != nil {
+		return err
+	}
+
+	v, err := db.GetVMByID(vmID)
+	if err != nil {
+		return fmt.Errorf("failed to get VM %d from DB: %w", vmID, err)
+	}
+
+	realCores := vm.VirtualMachineConfig.Cores
+	realRAM := uint(vm.VirtualMachineConfig.Memory)
+
+	succeeded := outcome == restoreSucceeded
+	exceeds := realCores > int(v.Cores) || realRAM > v.RAM
+	differs := realCores != int(v.Cores) || realRAM != v.RAM
+
+	// After a failed restore the VM may have no disk: configureVMs can't
+	// complete such a VM, so it is set to 'pre-configuring' only when it has
+	// more resources than allowed.
+	if exceeds || (succeeded && differs) {
+		logger.Warn("VM resources differ from DB after restore", "vmid", vmID, "cores", realCores, "db_cores", v.Cores, "ram", realRAM, "db_ram", v.RAM, "restore_succeeded", succeeded)
+
+		err = db.UpdateVMStatus(vmID, string(VMStatusPreConfiguring))
+		if err != nil {
+			return fmt.Errorf("failed to set VM %d to pre-configuring: %w", vmID, err)
+		}
+	}
+
+	return reconcileRestoredDisk(vm, v, outcome)
+}
+
+// reconcileRestoredDisk applies the disk policy after a restore: the disk
+// stays as restored and the DB is updated to its real size, in both
+// directions, so the DB is never smaller than what exists in Proxmox.
+func reconcileRestoredDisk(vm *gprox.VirtualMachine, v *db.VM, outcome restoreOutcome) error {
+	scsi0, ok := vm.VirtualMachineConfig.SCSIs["scsi0"]
+	if !ok {
+		if outcome == restoreSucceeded {
+			return fmt.Errorf("scsi0 not found on VM %d after restore", v.ID)
+		}
+
+		logger.Warn("scsi0 not found on VM after failed restore, leaving DB disk unchanged", "vmid", v.ID)
+
+		return nil
+	}
+
+	size, err := getSizeFromStorageString(scsi0)
+	if err != nil {
+		return fmt.Errorf("failed to parse scsi0 of VM %d (%q): %w", v.ID, scsi0, err)
+	}
+
+	if size == v.Disk {
+		return nil
+	}
+
+	// Should not happen: restores of backups with a disk larger than the VM
+	// disk are refused. Kept as a safety net.
+	if size > v.Disk {
+		logger.Warn("Restored disk is larger than DB value, updating DB", "vmid", v.ID, "disk", size, "db_disk", v.Disk)
+	} else {
+		logger.Debug("Restored disk differs from DB value, updating DB", "vmid", v.ID, "disk", size, "db_disk", v.Disk)
+	}
+
+	err = db.UpdateVMDisk(v.ID, size)
+	if err != nil {
+		return fmt.Errorf("failed to update disk of VM %d: %w", v.ID, err)
+	}
+
+	return nil
 }
 
 func createBackups(parentCtx context.Context, mapVMContent map[uint64]string) {

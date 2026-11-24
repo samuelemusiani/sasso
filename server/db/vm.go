@@ -194,6 +194,21 @@ func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
 	return nil
 }
 
+// UpdateVMDisk updates only the disk size of the VM, leaving cores and RAM
+// untouched.
+func UpdateVMDisk(vmID uint64, disk uint) error {
+	result := db.Model(&VM{}).Where("id = ?", vmID).Update("disk", disk)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update VM disk: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func GetVMByUserIDAndVMID(userID uint, vmID uint64) (*VM, error) {
 	return getVMByOwnerIDAndVMID(userID, "User", vmID)
 }

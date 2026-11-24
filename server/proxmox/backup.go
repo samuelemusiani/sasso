@@ -75,6 +75,7 @@ var (
 	ErrMaxProtectedBackupsReached = errors.New("max_protected_backups_reached")
 	ErrBackupNameTooLong          = errors.New("backup_name_too_long")
 	ErrBackupNotesTooLong         = errors.New("backup_notes_too_long")
+	ErrBackupDiskTooLarge         = errors.New("backup_disk_too_large")
 )
 
 var goodVMStatesForBackupManipulation = []VMStatus{VMStatusRunning, VMStatusStopped, VMStatusPaused}
@@ -376,9 +377,43 @@ func RestoreBackup(parentCtx context.Context, userID uint, groupID *uint, vmID u
 		return 0, ErrInvalidVMState
 	}
 
-	volid, err := findVolid(parentCtx, vmID, backupid, since, volidActionSearch, nil)
+	node, mcontent, err := fetchBackups(parentCtx, vmID, since)
 	if err != nil {
 		return 0, err
+	}
+
+	volid, err := findVolid(parentCtx, vmID, backupid, since, volidActionSearch, mcontent)
+	if err != nil {
+		return 0, err
+	}
+
+	// A restore recreates the disk at the size it had at backup time. A
+	// backup with a disk larger than the current one would grow the disk
+	// without any limit check, so it is refused. The worker repeats this
+	// check before restoring; this one only gives a clear answer to the user.
+	// Sasso/Prxmox does not allow to shrink the disk, but
+	// - if we have a VM A with disk 10GB
+	// - we make a backup
+	// - then we increse it to 20GB
+	// - make a second backup
+	// - restore the first backup
+	// Then, restoring the second backup, would end up in this situation.
+	bkConfig, err := getProxmoxBackupConfig(parentCtx, node, volid)
+	if err != nil {
+		logger.Error("failed to get backup config", "VMID", vmID, "volid", volid, "error", err)
+
+		return 0, err
+	}
+
+	bkDisk, err := getSizeFromStorageString(bkConfig.SCSI0)
+	if err != nil {
+		logger.Error("failed to get disk size of backup", "VMID", vmID, "volid", volid, "error", err)
+
+		return 0, err
+	}
+
+	if bkDisk > vm.Disk {
+		return 0, ErrBackupDiskTooLarge
 	}
 
 	var bkr *db.BackupRequest

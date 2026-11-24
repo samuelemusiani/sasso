@@ -99,6 +99,10 @@ func restoreBackup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid VM state", http.StatusConflict)
 
 			return
+		case errors.Is(err, proxmox.ErrBackupDiskTooLarge):
+			http.Error(w, "The backup disk is larger than the VM disk. Increase the VM disk size first", http.StatusConflict)
+
+			return
 		}
 
 		logger.Error("Failed to restore backup", "userID", userID, "vmID", vm.ID, "backupid", backupid, "error", err)

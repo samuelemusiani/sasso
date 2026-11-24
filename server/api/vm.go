@@ -332,12 +332,28 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 	m.Lock()
 	defer m.Unlock()
 
+	// A resize accepted while a restore is pending would be undone by the
+	// reconciliation of resources the worker performs after the restore.
+	bkRequests, err := db.GetBackupRequestsByVMIDStatusAndType(uint(vmid), "pending", "restore")
+	if err != nil {
+		logger.Error("Failed to check for pending backup requests", "vmID", vmid, "error", err)
+		http.Error(w, "Failed to update VM resources", http.StatusInternalServerError)
+
+		return
+	}
+
+	if len(bkRequests) > 0 {
+		http.Error(w, "Cannot update VM resources with pending restore backup requests", http.StatusConflict)
+
+		return
+	}
+
 	m2 := getUserResourcesMutex(userID)
 
 	m2.Lock()
 	defer m2.Unlock()
 
-	err := proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
+	err = proxmox.UpdateVMResources(vmid, request.Cores, request.RAM, request.Disk)
 	if err != nil {
 		if errors.Is(err, proxmox.ErrInsufficientResources) {
 			http.Error(w, "Insufficient resources", http.StatusConflict)

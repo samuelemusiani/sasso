@@ -292,6 +292,19 @@ func getProxmoxVM(parentCtx context.Context, node *proxmox.Node, vmid int) (*pro
 	return vm, nil
 }
 
+func getProxmoxBackupConfig(parentCtx context.Context, node *proxmox.Node, volid string) (*proxmox.VzdumpConfig, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	config, err := node.VzdumpExtractConfig(ctx, volid)
+
+	cancel()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config of backup %s on node %s: %w", volid, node.Name, err)
+	}
+
+	return config, nil
+}
+
 func getProxmoxResources(parentCtx context.Context, cluster *proxmox.Cluster, filters ...string) (proxmox.ClusterResources, error) {
 	ctx, cancel := context.WithTimeout(parentCtx, 20*time.Second)
 	resources, err := cluster.Resources(ctx, filters...)
