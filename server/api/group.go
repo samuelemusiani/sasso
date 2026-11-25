@@ -94,6 +94,26 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Lock the user so parallel requests cannot all pass the count below
+	m := getUserResourcesMutex(userID)
+
+	m.Lock()
+	defer m.Unlock()
+
+	nGroups, err := db.CountGroupsOwnedByUserID(userID)
+	if err != nil {
+		logger.Error("failed to count groups for user", "user_id", userID, "error", err)
+		http.Error(w, "Failed to count groups for user", http.StatusInternalServerError)
+
+		return
+	}
+
+	if nGroups >= int64(limitsConfig.MaxGroupsPerUser) {
+		http.Error(w, "Maximum number of groups reached for user", http.StatusBadRequest)
+
+		return
+	}
+
 	if err := db.CreateGroup(req.Name, req.Description, userID); err != nil {
 		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "Group name already exists", http.StatusConflict)
@@ -551,6 +571,13 @@ func removeUserFromGroup(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseUint(sUserID, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+
+		return
+	}
+
+	// The caller is the only owner, a group must not lose it
+	if uint(userID) == mustGetUserIDFromContext(r) {
+		http.Error(w, "Group owners cannot leave the group. Transfer ownership or delete the group.", http.StatusConflict)
 
 		return
 	}

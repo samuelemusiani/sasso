@@ -15,6 +15,7 @@ type Config struct {
 	Notifications Notifications `toml:"notifications"`
 	PortForwards  PortForwards  `toml:"port_forwards"`
 	VPN           VPN           `toml:"vpn"`
+	Limits        Limits        `toml:"limits"`
 }
 
 type Server struct {
@@ -101,6 +102,10 @@ type PortForwards struct {
 
 type VPN struct {
 	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
+}
+
+type Limits struct {
+	MaxGroupsPerUser uint `toml:"max_groups_per_user"`
 }
 
 var config Config

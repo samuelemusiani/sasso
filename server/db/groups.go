@@ -490,7 +490,17 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 			return nil
 		}
 
-		// We have an admin resource with nets assigned, we need to remove one net
+		// We have an admin resource with nets assigned, we need to remove one
+		// net, unless the group is using it
+		used, limits, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+		if err != nil {
+			return fmt.Errorf("failed to get group resources: %w", err)
+		}
+
+		if used.Nets >= limits.Nets {
+			return ErrResourcesInUse
+		}
+
 		adminResource.Nets--
 
 		err = tx.Save(&adminResource).Error
@@ -519,6 +529,17 @@ func CountGroupMembers(groupID uint) (int64, error) {
 	err := db.Model(&UserGroup{}).Where("group_id = ?", groupID).Count(&count).Error
 	if err != nil {
 		return 0, fmt.Errorf("failed to count group members: %w", err)
+	}
+
+	return count, nil
+}
+
+func CountGroupsOwnedByUserID(userID uint) (int64, error) {
+	var count int64
+
+	err := db.Model(&UserGroup{}).Where("user_id = ? AND role = ?", userID, "owner").Count(&count).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to count groups owned by user: %w", err)
 	}
 
 	return count, nil

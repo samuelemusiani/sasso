@@ -29,13 +29,18 @@ var (
 	publicServer  *http.Server
 	portForwards  config.PortForwards
 	vpnConfigs    config.VPN
+	limitsConfig  config.Limits
 )
 
 func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, pf config.PortForwards, vpn config.VPN) error {
 	// Logger
 	logger = apiLogger
 
-	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn); err != nil {
+	// Read from the global config, Init already takes the maximum number of
+	// arguments allowed by the linter
+	limits := config.Get().Limits
+
+	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn, limits); err != nil {
 		return err
 	}
 
@@ -56,6 +61,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 	portForwards = pf
 	vpnConfigs = vpn
+	limitsConfig = limits
 
 	// Middleware
 	publicRouter.Use(middleware.ClientIPFromHeader("X-Forwarded-For"))
@@ -394,7 +400,7 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 	}
 }
 
-func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN) error {
+func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN, limits config.Limits) error {
 	if len(key) == 0 {
 		return errors.New("api key cannot be empty")
 	}
@@ -429,6 +435,10 @@ func checkConfig(key []byte, secret string, publicServerConf config.Server, priv
 
 	if vpn.MaxWireguardProfilesPerUser == 0 {
 		return errors.New("vpn max profiles per user cannot be zero")
+	}
+
+	if limits.MaxGroupsPerUser == 0 {
+		return errors.New("limits max groups per user cannot be zero")
 	}
 
 	return nil
