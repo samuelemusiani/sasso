@@ -101,10 +101,8 @@ public_ip = "1.2.3.4"
 min_port = 20000
 max_port = 40000
 
-[vpn]
-# Maximum number of wireguard VPN profiles per user
-max_wireguard_profiles_per_user = 2
-
 [limits]
 # Maximum number of groups a user can own
 max_groups_per_user = 20
+# Maximum number of wireguard VPN profiles per user
+max_wireguard_profiles_per_user = 2

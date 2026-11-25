@@ -176,7 +176,7 @@ func addWireguardPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if nConfigs >= int64(vpnConfigs.MaxWireguardProfilesPerUser) {
+	if nConfigs >= int64(limitsConfig.MaxWireguardProfilesPerUser) {
 		http.Error(w, "Maximum number of wireguard peers reached for user", http.StatusBadRequest)
 
 		return

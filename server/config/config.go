@@ -14,7 +14,6 @@ type Config struct {
 	Proxmox       Proxmox       `toml:"proxmox"`
 	Notifications Notifications `toml:"notifications"`
 	PortForwards  PortForwards  `toml:"port_forwards"`
-	VPN           VPN           `toml:"vpn"`
 	Limits        Limits        `toml:"limits"`
 }
 
@@ -100,12 +99,9 @@ type PortForwards struct {
 	PublicIP string `toml:"public_ip"`
 }
 
-type VPN struct {
-	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
-}
-
 type Limits struct {
-	MaxGroupsPerUser uint `toml:"max_groups_per_user"`
+	MaxGroupsPerUser            uint `toml:"max_groups_per_user"`
+	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
 }
 
 var config Config

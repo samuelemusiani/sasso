@@ -195,7 +195,6 @@ func main() { //nolint:maintidx
 		PublicServer:   c.PublicServer,
 		PrivateServer:  c.PrivateServer,
 		PortForwards:   c.PortForwards,
-		VPN:            c.VPN,
 		Limits:         c.Limits,
 	})
 	if err != nil {

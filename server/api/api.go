@@ -28,7 +28,6 @@ var (
 	privateServer *http.Server
 	publicServer  *http.Server
 	portForwards  config.PortForwards
-	vpnConfigs    config.VPN
 	limitsConfig  config.Limits
 )
 
@@ -41,7 +40,6 @@ type Config struct {
 	PublicServer   config.Server
 	PrivateServer  config.Server
 	PortForwards   config.PortForwards
-	VPN            config.VPN
 	Limits         config.Limits
 }
 
@@ -69,7 +67,6 @@ func Init(apiLogger *slog.Logger, c Config) error {
 	}
 
 	portForwards = c.PortForwards
-	vpnConfigs = c.VPN
 	limitsConfig = c.Limits
 
 	// Middleware
@@ -442,12 +439,12 @@ func checkConfig(c Config) error {
 		return errors.New("port forwards range must be at least 10 ports")
 	}
 
-	if c.VPN.MaxWireguardProfilesPerUser == 0 {
-		return errors.New("vpn max profiles per user cannot be zero")
-	}
-
 	if c.Limits.MaxGroupsPerUser == 0 {
 		return errors.New("limits max groups per user cannot be zero")
+	}
+
+	if c.Limits.MaxWireguardProfilesPerUser == 0 {
+		return errors.New("limits max wireguard profiles per user cannot be zero")
 	}
 
 	return nil
