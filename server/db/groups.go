@@ -298,9 +298,22 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			return fmt.Errorf("failed to find invitation: %w", err)
 		}
 
-		err = tx.Model(&invitation).Update("state", "accepted").Error
+		err = lockGroupTransaction(tx, invitation.GroupID)
 		if err != nil {
-			return fmt.Errorf("failed to update invitation state: %w", err)
+			return err
+		}
+
+		// The invitation was read before the lock: it may have been accepted
+		// or revoked in the meantime
+		result := tx.Model(&GroupInvitation{}).
+			Where("id = ? AND state = ?", invitation.ID, "pending").
+			Update("state", "accepted")
+		if result.Error != nil {
+			return fmt.Errorf("failed to update invitation state: %w", result.Error)
+		}
+
+		if result.RowsAffected != 1 {
+			return ErrNotFound
 		}
 
 		userGroup := UserGroup{
@@ -314,15 +327,21 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			return fmt.Errorf("failed to add user to group: %w", err)
 		}
 
-		// If the members are now more than 1 and there is no
-		// admin group resource, we allocate a new net.
-		var count int64
+		// A group with more than one member gets one net from the admin.
+		// If the admin row does not exist we create it with that net. If it
+		// exists and the group just went from one member to two, we add the
+		// net that RemoveUserFromGroup took back when the group went to one
+		var numberOfMembers int64
 
 		err = tx.Model(&UserGroup{}).
 			Where("group_id = ?", invitation.GroupID).
-			Count(&count).Error
+			Count(&numberOfMembers).Error
 		if err != nil {
 			return fmt.Errorf("failed to count group members: %w", err)
+		}
+
+		if numberOfMembers < 2 {
+			return nil
 		}
 
 		adminID, err := getAdminIDTransaction(tx)
@@ -330,26 +349,32 @@ func AcceptGroupInvitation(invitationID, userID uint) error {
 			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
-		if count > 1 {
-			var adminResource GroupResource
+		var adminResource GroupResource
 
-			err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: adminID}).
-				First(&adminResource).Error
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("failed to check admin group resource: %w", err)
-			} else if errors.Is(err, gorm.ErrRecordNotFound) {
-				res := GroupResource{
-					GroupID: invitation.GroupID,
-					UserID:  adminID,
-					ResourcesWithNets: ResourcesWithNets{
-						Nets: 1, // Allocate 1 net from admin to the group by default
-					},
-				}
-				if err := tx.Create(&res).Error; err != nil {
-					return fmt.Errorf("failed to allocate default resources to group: %w", err)
-				}
+		err = tx.Where(&GroupResource{GroupID: invitation.GroupID, UserID: adminID}).
+			First(&adminResource).Error
+
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			res := GroupResource{
+				GroupID: invitation.GroupID,
+				UserID:  adminID,
+				ResourcesWithNets: ResourcesWithNets{
+					Nets: 1, // Allocate 1 net from admin to the group by default
+				},
 			}
-			// Admin resource exists, nothing to do
+			if err := tx.Create(&res).Error; err != nil {
+				return fmt.Errorf("failed to allocate default resources to group: %w", err)
+			}
+		case err != nil:
+			return fmt.Errorf("failed to check admin group resource: %w", err)
+		case numberOfMembers == 2:
+			adminResource.Nets++
+
+			err = tx.Save(&adminResource).Error
+			if err != nil {
+				return fmt.Errorf("failed to add net to admin group resource: %w", err)
+			}
 		}
 
 		return nil
@@ -434,9 +459,17 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 			return err
 		}
 
-		err = revokeGroupResourcesTransaction(tx, groupID, userID)
+		adminID, err := getAdminIDTransaction(tx)
 		if err != nil {
-			return fmt.Errorf("failed to revoke group resources: %w", err)
+			return fmt.Errorf("failed to get admin user ID: %w", err)
+		}
+
+		// The admin row belongs to the group, not to the admin as a member
+		if userID != adminID {
+			err = revokeGroupResourcesTransaction(tx, groupID, userID)
+			if err != nil {
+				return fmt.Errorf("failed to revoke group resources: %w", err)
+			}
 		}
 
 		result := tx.Where("user_id = ? AND group_id = ?", userID, groupID).
@@ -462,11 +495,6 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 
 		if count != 1 {
 			return nil
-		}
-
-		adminID, err := getAdminIDTransaction(tx)
-		if err != nil {
-			return fmt.Errorf("failed to get admin user ID: %w", err)
 		}
 
 		var adminResource GroupResource
