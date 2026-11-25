@@ -188,7 +188,16 @@ func main() { //nolint:maintidx
 
 	apiLogger := slog.With("module", "api")
 
-	err = api.Init(apiLogger, realKey, c.Secrets.InternalSecret, frontFS, c.PublicServer, c.PrivateServer, c.PortForwards, c.VPN)
+	err = api.Init(apiLogger, api.Config{
+		Key:            realKey,
+		InternalSecret: c.Secrets.InternalSecret,
+		FrontFS:        frontFS,
+		PublicServer:   c.PublicServer,
+		PrivateServer:  c.PrivateServer,
+		PortForwards:   c.PortForwards,
+		VPN:            c.VPN,
+		Limits:         c.Limits,
+	})
 	if err != nil {
 		slog.Error("Failed to initialize API server", "error", err)
 		os.Exit(1)

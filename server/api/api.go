@@ -32,15 +32,24 @@ var (
 	limitsConfig  config.Limits
 )
 
-func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publicServerConf config.Server, privateServerConf config.Server, pf config.PortForwards, vpn config.VPN) error {
+// Config holds what the API needs to start. Key and FrontFS are prepared by
+// main, the other fields come from the config file
+type Config struct {
+	Key            []byte
+	InternalSecret string
+	FrontFS        fs.FS
+	PublicServer   config.Server
+	PrivateServer  config.Server
+	PortForwards   config.PortForwards
+	VPN            config.VPN
+	Limits         config.Limits
+}
+
+func Init(apiLogger *slog.Logger, c Config) error {
 	// Logger
 	logger = apiLogger
 
-	// Read from the global config, Init already takes the maximum number of
-	// arguments allowed by the linter
-	limits := config.Get().Limits
-
-	if err := checkConfig(key, secret, publicServerConf, privateServerConf, pf, vpn, limits); err != nil {
+	if err := checkConfig(c); err != nil {
 		return err
 	}
 
@@ -50,18 +59,18 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 	// Servers
 	publicServer = &http.Server{
-		Addr:    publicServerConf.Bind,
+		Addr:    c.PublicServer.Bind,
 		Handler: publicRouter,
 	}
 
 	privateServer = &http.Server{
-		Addr:    privateServerConf.Bind,
+		Addr:    c.PrivateServer.Bind,
 		Handler: privateRouter,
 	}
 
-	portForwards = pf
-	vpnConfigs = vpn
-	limitsConfig = limits
+	portForwards = c.PortForwards
+	vpnConfigs = c.VPN
+	limitsConfig = c.Limits
 
 	// Middleware
 	publicRouter.Use(middleware.ClientIPFromHeader("X-Forwarded-For"))
@@ -74,7 +83,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 
 	apiRouter := chi.NewRouter()
 
-	if publicServerConf.LogRequests {
+	if c.PublicServer.LogRequests {
 		apiRouter.Use(middleware.Logger)
 	}
 
@@ -82,7 +91,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	apiRouter.Use(prometheusHandler("/api"))
 	apiRouter.Use(middleware.Heartbeat("/api/ping"))
 
-	if privateServerConf.LogRequests {
+	if c.PrivateServer.LogRequests {
 		privateRouter.Use(middleware.Logger)
 	}
 
@@ -90,7 +99,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	privateRouter.Use(prometheusHandler("/internal"))
 	privateRouter.Use(middleware.Heartbeat("/internal/ping"))
 
-	tokenAuth = jwtauth.New("HS256", key, nil)
+	tokenAuth = jwtauth.New("HS256", c.Key, nil)
 
 	// No auth routes
 	apiRouter.Group(func(r chi.Router) {
@@ -249,7 +258,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	// Internal routes
 	internalRouter := chi.NewRouter()
 	internalRouter.Group(func(r chi.Router) {
-		r.Use(auth.AuthMiddleware(secret))
+		r.Use(auth.AuthMiddleware(c.InternalSecret))
 
 		r.Get("/net", internalListNets)
 		r.Put("/net/{id}", internalUpdateNet)
@@ -266,7 +275,7 @@ func Init(apiLogger *slog.Logger, key []byte, secret string, frontFS fs.FS, publ
 	privateRouter.Mount("/internal", internalRouter)
 	privateRouter.Mount("/metrics", promhttp.Handler())
 
-	publicRouter.Get("/*", frontHandler(frontFS))
+	publicRouter.Get("/*", frontHandler(c.FrontFS))
 
 	return nil
 }
@@ -400,44 +409,44 @@ func frontHandler(uiFS fs.FS) http.HandlerFunc {
 	}
 }
 
-func checkConfig(key []byte, secret string, publicServerConf config.Server, privateServerConf config.Server, portForwards config.PortForwards, vpn config.VPN, limits config.Limits) error {
-	if len(key) == 0 {
+func checkConfig(c Config) error {
+	if len(c.Key) == 0 {
 		return errors.New("api key cannot be empty")
 	}
 
-	if secret == "" {
+	if c.InternalSecret == "" {
 		return errors.New("internal secret cannot be empty")
 	}
 
-	if publicServerConf.Bind == "" {
+	if c.PublicServer.Bind == "" {
 		return errors.New("public server bind address cannot be empty")
 	}
 
-	if privateServerConf.Bind == "" {
+	if c.PrivateServer.Bind == "" {
 		return errors.New("private server bind address cannot be empty")
 	}
 
-	if portForwards.PublicIP == "" {
+	if c.PortForwards.PublicIP == "" {
 		return errors.New("port forwards public IP cannot be empty")
 	}
 
-	if portForwards.MinPort > portForwards.MaxPort {
+	if c.PortForwards.MinPort > c.PortForwards.MaxPort {
 		return errors.New("port forwards min port cannot be greater than max port")
 	}
 
-	if portForwards.MinPort == 0 || portForwards.MaxPort == 0 {
+	if c.PortForwards.MinPort == 0 || c.PortForwards.MaxPort == 0 {
 		return errors.New("port forwards min and max port cannot be zero")
 	}
 
-	if portForwards.MaxPort-portForwards.MinPort < 10 {
+	if c.PortForwards.MaxPort-c.PortForwards.MinPort < 10 {
 		return errors.New("port forwards range must be at least 10 ports")
 	}
 
-	if vpn.MaxWireguardProfilesPerUser == 0 {
+	if c.VPN.MaxWireguardProfilesPerUser == 0 {
 		return errors.New("vpn max profiles per user cannot be zero")
 	}
 
-	if limits.MaxGroupsPerUser == 0 {
+	if c.Limits.MaxGroupsPerUser == 0 {
 		return errors.New("limits max groups per user cannot be zero")
 	}
 
