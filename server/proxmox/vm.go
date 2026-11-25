@@ -75,11 +75,11 @@ type VM struct {
 	OwnerID              uint      `json:"-"`
 	OwnerType            string    `json:"-"`
 
-	GroupID   uint   `json:"group_id,omitempty"`
-	GroupName string `json:"group_name,omitempty"`
+	GroupID   uint   `json:"group_id,omitempty"`   //exhaustruct:optional
+	GroupName string `json:"group_name,omitempty"` //exhaustruct:optional
 	// User role in the group (e.g., "member", "admin").
 	// User is the one requesting the VM.
-	GroupRole string `json:"group_role,omitempty"`
+	GroupRole string `json:"group_role,omitempty"` //exhaustruct:optional
 }
 
 type NewVMRequest struct {

@@ -25,7 +25,7 @@ type LDAPRealm struct {
 	URL        string `json:"url"`
 	UserBaseDN string `json:"user_base_dn"`
 	BindDN     string `json:"bind_dn"`
-	Password   string `json:"password,omitempty"`
+	Password   string `json:"password,omitempty"` //exhaustruct:optional
 
 	LoginFilter       string `json:"login_filter"`
 	MaintainerGroupDN string `json:"maintainer_group_dn"`

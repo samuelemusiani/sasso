@@ -21,7 +21,7 @@ type returnPortForward struct {
 	DestIP   string `json:"dest_ip"`
 	Approved bool   `json:"approved"`
 	Name     string `json:"name,omitempty"`
-	IsGroup  bool   `json:"is_group,omitempty"`
+	IsGroup  bool   `json:"is_group,omitempty"` //exhaustruct:optional
 }
 
 func returnPortForwardFromDB(pf *db.PortForward) returnPortForward {

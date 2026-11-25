@@ -29,10 +29,10 @@ type returnUser struct {
 	Email    string      `json:"email"`
 	Realm    string      `json:"realm,omitempty"`
 	Role     db.UserRole `json:"role"`
-	MaxCores uint        `json:"max_cores,omitempty"`
-	MaxRAM   uint        `json:"max_ram,omitempty"`
-	MaxDisk  uint        `json:"max_disk,omitempty"`
-	MaxNets  uint        `json:"max_nets,omitempty"`
+	MaxCores uint        `json:"max_cores,omitempty"` //exhaustruct:optional
+	MaxRAM   uint        `json:"max_ram,omitempty"`   //exhaustruct:optional
+	MaxDisk  uint        `json:"max_disk,omitempty"`  //exhaustruct:optional
+	MaxNets  uint        `json:"max_nets,omitempty"`  //exhaustruct:optional
 }
 
 func login(w http.ResponseWriter, r *http.Request) {

@@ -18,10 +18,10 @@ type returnGroup struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 
-	Role string `json:"role,omitempty"`
+	Role string `json:"role,omitempty"` //exhaustruct:optional
 
-	Members   []returnGroupMember `json:"members,omitempty"`
-	Resources []returnResource    `json:"resources,omitempty"`
+	Members   []returnGroupMember `json:"members,omitempty"`   //exhaustruct:optional
+	Resources []returnResource    `json:"resources,omitempty"` //exhaustruct:optional
 }
 
 type returnGroupMember struct {
@@ -266,6 +266,7 @@ func listGroupInvitations(w http.ResponseWriter, r *http.Request) {
 			Role:             inv.Role,
 			State:            inv.State,
 			Username:         inv.Username,
+			RealmName:        "",
 			GroupName:        inv.GroupName,
 			GroupDescription: inv.GroupDescription,
 		})
@@ -630,9 +631,10 @@ func getMyGroupMembership(w http.ResponseWriter, r *http.Request) {
 	}
 
 	returnMember := returnGroupMember{
-		UserID:   userID,
-		Role:     role,
-		Username: "", // Username is not needed here
+		UserID:    userID,
+		Role:      role,
+		Username:  "", // Username is not needed here
+		RealmName: "", // RealmName is not needed here
 	}
 
 	if err := json.NewEncoder(w).Encode(returnMember); err != nil {

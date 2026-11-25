@@ -31,9 +31,10 @@ type returnNet struct {
 	Gateway   string `json:"gateway"`
 	Broadcast string `json:"broadcast"`
 
-	GroupID   uint   `json:"group_id,omitempty"` // If the net belongs to a
-	GroupName string `json:"group_name,omitempty"`
-	GroupRole string `json:"group_role,omitempty"`
+	// If the net belongs to a group
+	GroupID   uint   `json:"group_id,omitempty"`   //exhaustruct:optional
+	GroupName string `json:"group_name,omitempty"` //exhaustruct:optional
+	GroupRole string `json:"group_role,omitempty"` //exhaustruct:optional
 }
 
 func createNet(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +81,10 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		Name:      net.Alias, // This is correct. For the user the name is the alias.
 		Status:    net.Status,
 		VlanAware: net.VlanAware,
+		// The addresses are not known yet when the net is created
+		Subnet:    "",
+		Gateway:   "",
+		Broadcast: "",
 	}
 
 	w.WriteHeader(http.StatusCreated)

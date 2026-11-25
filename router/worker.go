@@ -53,12 +53,16 @@ func worker(parentCtx context.Context, logger *slog.Logger, conf config.Server, 
 	}
 
 	for i, iface := range interfaces {
+		// Only the fields used to configure the gateway are needed here
 		tmpNets[i] = internal.Net{
+			ID:        0,
+			Zone:      "",
 			Name:      iface.VNet,
 			Tag:       iface.VNetID,
 			Subnet:    iface.Subnet,
 			Gateway:   iface.RouterIP,
 			Broadcast: iface.Broadcast,
+			UserIDs:   nil,
 		}
 	}
 

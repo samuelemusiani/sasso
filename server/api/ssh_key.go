@@ -27,9 +27,10 @@ func getSSHKeys(w http.ResponseWriter, r *http.Request) {
 	resp := make([]newSSHKeyResponse, len(keys))
 	for i := range keys {
 		resp[i] = newSSHKeyResponse{
-			ID:   keys[i].ID,
-			Name: keys[i].Name,
-			Key:  keys[i].Key,
+			ID:     keys[i].ID,
+			Name:   keys[i].Name,
+			Key:    keys[i].Key,
+			Global: false,
 		}
 	}
 
@@ -96,9 +97,10 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := newSSHKeyResponse{
-		ID:   key.ID,
-		Name: key.Name,
-		Key:  key.Key,
+		ID:     key.ID,
+		Name:   key.Name,
+		Key:    key.Key,
+		Global: false,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

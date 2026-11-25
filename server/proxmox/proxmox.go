@@ -104,6 +104,9 @@ func Init(proxmoxLogger *slog.Logger, c config.Proxmox) error {
 		VMTemplates[name] = &VMTemplate{
 			VMID:  vmid,
 			Ready: false,
+			// DiskSize and VM are filled when the template is read from Proxmox
+			DiskSize: 0,
+			VM:       nil,
 		}
 	}
 

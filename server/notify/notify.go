@@ -129,6 +129,9 @@ func sendNotifications() {
 			UserID:  n.UserID,
 			Subject: n.Subject,
 			Body:    n.Body,
+			// The channels are read from n below, not from tmpN
+			Mail:     false,
+			Telegram: false,
 		}
 
 		if bucketLimiter1mInstance != nil && !bucketLimiter1mInstance.allow() {

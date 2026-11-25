@@ -25,6 +25,7 @@ func getInterfacesForVM(w http.ResponseWriter, r *http.Request) {
 	for i, dbIface := range dbIfaces {
 		ifaces[i] = proxmox.Interface{
 			ID:      dbIface.ID,
+			LocalID: 0, // Internal use only, not returned
 			VNetID:  dbIface.VNetID,
 			VlanTag: dbIface.VlanTag,
 			IPAdd:   dbIface.IPAdd,
@@ -129,11 +130,15 @@ func addInterface(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Only used for the checks, the interface is created below
 	tmpFace := proxmox.Interface{
+		ID:      0,
+		LocalID: 0, // Internal use only
 		VNetID:  req.VNetID,
 		VlanTag: req.VlanTag,
 		IPAdd:   req.IPAdd,
 		Gateway: req.Gateway,
+		Status:  "",
 	}
 
 	if tmpFace.Gateway != "" {
@@ -225,8 +230,16 @@ func updateInterface(w http.ResponseWriter, r *http.Request) {
 
 	userID := mustGetUserIDFromContext(r)
 
+	// The other fields are filled from the request below, the status is set by
+	// proxmox.UpdateInterface
 	var piface = proxmox.Interface{
-		ID: iface.ID,
+		ID:      iface.ID,
+		LocalID: 0, // Internal use only
+		VNetID:  0,
+		VlanTag: 0,
+		IPAdd:   "",
+		Gateway: "",
+		Status:  "",
 	}
 
 	if req.VNetID != nil {

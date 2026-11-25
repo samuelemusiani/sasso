@@ -29,7 +29,7 @@ linters:
     - errname
     - errorlint
     - exhaustive
-    # - exhaustruct - Checks if all structure fields are initialized.
+    - exhaustruct_v5 #- Checks if all structure fields are initialized.
     - exptostd
     - fatcontext
     # - forbidigo - Forbids identifiers.
@@ -201,6 +201,18 @@ linters:
           arguments:
             - "^fmt.Print.*"
             - "strings.Builder.WriteString"
+
+    exhaustruct_v5:
+      # Only the structs of this repository are checked, not those of
+      # libraries. The db packages are skipped, because gorm models are filled
+      # in part on purpose (queries, updates).
+      explicit-mode: true
+      enforce-patterns:
+        - '^samuelemusiani/sasso/.*$'
+      ignore-patterns:
+        - '^samuelemusiani/sasso/(server|router|vpn)/db\..*$'
+      # An empty literal is a deliberate zero value
+      allow-empty: true
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
