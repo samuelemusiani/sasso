@@ -52,6 +52,11 @@ func createNet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m := getUserResourcesMutex(userID)
+
+	m.Lock()
+	defer m.Unlock()
+
 	net, err := proxmox.CreateNewNet(userID, req.Name, req.VlanAware, req.GroupID)
 	if err != nil {
 		switch {

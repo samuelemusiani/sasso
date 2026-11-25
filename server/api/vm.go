@@ -372,6 +372,10 @@ func updateVMResources(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
 			return
+		case errors.Is(err, proxmox.ErrNotFound):
+			http.Error(w, "VM or group not found", http.StatusNotFound)
+
+			return
 		}
 
 		logger.Error("Failed to update VM resources", "vmID", vmid, "error", err)

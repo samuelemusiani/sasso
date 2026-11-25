@@ -329,45 +329,27 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		return nil, errors.Join(ErrInvalidVMParam, errors.New("vm name already exists"))
 	}
 
-	var currentResources db.Resources
-	if ownerType == OwnerTypeGroup {
-		currentResources, err = db.GetVMResourcesByGroupID(ownerID)
-	} else {
-		currentResources, err = db.GetVMResourcesByUserID(userID)
-	}
-
-	if err != nil {
-		l.Error("Failed to get current VM resources from database", "error", err)
-
-		return nil, err
-	}
-
-	var maxResources db.ResourcesWithNets
-	if ownerType == OwnerTypeGroup {
-		maxResources, err = db.GetGroupResourceLimits(ownerID)
+	// The limits of a group are checked by db.NewVMForGroup, together with
+	// the creation
+	if ownerType == OwnerTypeUser {
+		currentResources, err := db.GetVMResourcesByUserID(userID)
 		if err != nil {
-			l.Error("Failed to get group resource limits from database", "groupID", ownerID, "error", err)
+			l.Error("Failed to get current VM resources from database", "error", err)
 
 			return nil, err
 		}
-	} else {
-		maxResources = db.ResourcesWithNets{
-			Cores: user.MaxCores,
-			RAM:   user.MaxRAM,
-			Disk:  user.MaxDisk,
+
+		if currentResources.Cores+req.Cores > user.MaxCores {
+			return nil, ErrInsufficientResources
 		}
-	}
 
-	if currentResources.Cores+req.Cores > maxResources.Cores {
-		return nil, ErrInsufficientResources
-	}
+		if currentResources.RAM+req.RAM > user.MaxRAM {
+			return nil, ErrInsufficientResources
+		}
 
-	if currentResources.RAM+req.RAM > maxResources.RAM {
-		return nil, ErrInsufficientResources
-	}
-
-	if currentResources.Disk+req.Disk > maxResources.Disk {
-		return nil, ErrInsufficientResources
+		if currentResources.Disk+req.Disk > user.MaxDisk {
+			return nil, ErrInsufficientResources
+		}
 	}
 
 	var ids []uint
@@ -414,7 +396,12 @@ func NewVM(ownerType OwnerType, ownerID uint, userID uint, req NewVMRequest) (*V
 		dbVM, err = db.NewVMForUser(dbNewVMRequest, ownerID)
 	}
 
-	if err != nil {
+	switch {
+	case errors.Is(err, db.ErrInsufficientResources):
+		return nil, ErrInsufficientResources
+	case errors.Is(err, db.ErrNotFound):
+		return nil, ErrNotFound
+	case err != nil:
 		l.Error("Failed to create new VM in database", "error", err)
 
 		return nil, err
@@ -1048,8 +1035,14 @@ func UpdateVMResources(parentCtx context.Context, vmid uint64, cores, ram, disk 
 		return ErrInvalidVMState
 	}
 
-	err = db.UpdateVMResources(vmid, cores, ram, disk)
-	if err != nil {
+	err = db.UpdateVMResourcesWithinLimits(vmid, cores, ram, disk)
+
+	switch {
+	case errors.Is(err, db.ErrInsufficientResources):
+		return ErrInsufficientResources
+	case errors.Is(err, db.ErrNotFound):
+		return ErrNotFound
+	case err != nil:
 		logger.Error("Failed to update VM resources in database", "vmID", vmid, "error", err)
 
 		return err

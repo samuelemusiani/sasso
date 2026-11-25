@@ -158,6 +158,17 @@ func DeleteGroup(groupID uint) error {
 			return err
 		}
 
+		// Refuse if the group still has VMs or nets, also those covered only
+		// by the admin's row
+		used, _, err := getUsedAndMaxResourcesForGroupID(tx, groupID)
+		if err != nil {
+			return fmt.Errorf("failed to get group resources: %w", err)
+		}
+
+		if used.Cores > 0 || used.RAM > 0 || used.Disk > 0 || used.Nets > 0 {
+			return ErrResourcesInUse
+		}
+
 		// Delete all invitations for the group
 		if err := tx.Delete(&GroupInvitation{}, "group_id = ?", groupID).Error; err != nil {
 			return fmt.Errorf("failed to delete group invitations: %w", err)
@@ -171,7 +182,7 @@ func DeleteGroup(groupID uint) error {
 		// Find all group resources and return them to users
 		var resources []GroupResource
 
-		err := tx.Model(&GroupResource{}).
+		err = tx.Model(&GroupResource{}).
 			Where("group_id = ?", groupID).
 			Find(&resources).Error
 		if err != nil {
@@ -631,6 +642,11 @@ func getFreeResourcesForUserIDTransaction(tx *gorm.DB, userID uint) (FreeResourc
 
 func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
 	return db.Transaction(func(tx *gorm.DB) error {
+		err := lockGroupTransaction(tx, groupID)
+		if err != nil {
+			return err
+		}
+
 		var groupResource GroupResource
 
 		adminID, err := getAdminIDTransaction(tx)
@@ -656,7 +672,7 @@ func SetGroupResourcesByAdmin(groupID, cores, ram, disk, nets uint) error {
 		groupResource.Disk = disk
 		groupResource.Nets = nets
 
-		err = db.Save(&groupResource).Error
+		err = tx.Save(&groupResource).Error
 		if err != nil {
 			return fmt.Errorf("failed to create group resource by admin: %w", err)
 		}

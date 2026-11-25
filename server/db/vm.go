@@ -125,8 +125,43 @@ func NewVMForUser(req NewVMRequest, ownerID uint) (*VM, error) {
 	return newvm(vmFromNewVMRequest(req, ownerID, "User"))
 }
 
+// NewVMForGroup creates the VM only if it fits in the free resources of the
+// group. The row of the group stays locked until the VM is created, so two
+// managers of the group can't both use the same free resources.
 func NewVMForGroup(req NewVMRequest, ownerID uint) (*VM, error) {
-	return newvm(vmFromNewVMRequest(req, ownerID, "Group"))
+	vm := vmFromNewVMRequest(req, ownerID, "Group")
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := lockGroupTransaction(tx, ownerID)
+		if err != nil {
+			return err
+		}
+
+		freeResources, err := getFreeResourcesForGroupIDTransaction(tx, ownerID)
+		if err != nil {
+			return fmt.Errorf("failed to get free resources: %w", err)
+		}
+
+		// A request of 2^63 or more is negative as an int, so we compare
+		// as uint after checking that the free resources are not negative
+		if freeResources.Cores < 0 || uint(freeResources.Cores) < vm.Cores ||
+			freeResources.RAM < 0 || uint(freeResources.RAM) < vm.RAM ||
+			freeResources.Disk < 0 || uint(freeResources.Disk) < vm.Disk {
+			return ErrInsufficientResources
+		}
+
+		err = tx.Create(&vm).Error
+		if err != nil {
+			return fmt.Errorf("failed to create VM: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &vm, nil
 }
 
 func newvm(vm VM) (*VM, error) {
@@ -192,6 +227,65 @@ func UpdateVMResources(vmID uint64, cores, ram, disk uint) error {
 	}
 
 	return nil
+}
+
+// UpdateVMResourcesWithinLimits is like UpdateVMResources, but it returns
+// ErrInsufficientResources if the new size does not fit in the free resources
+// of the owner of the VM. The current size of the VM counts as free. For a
+// group, the row of the group stays locked until the end.
+func UpdateVMResourcesWithinLimits(vmID uint64, cores, ram, disk uint) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		var vm VM
+
+		err := tx.First(&vm, vmID).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+
+			return fmt.Errorf("failed to find VM: %w", err)
+		}
+
+		if vm.OwnerType == "Group" {
+			err = lockGroupTransaction(tx, vm.OwnerID)
+			if err != nil {
+				return err
+			}
+		}
+
+		var freeResources FreeResourcesWithNets
+
+		switch vm.OwnerType {
+		case "User":
+			freeResources, err = getFreeResourcesForUserIDTransaction(tx, vm.OwnerID)
+		case "Group":
+			freeResources, err = getFreeResourcesForGroupIDTransaction(tx, vm.OwnerID)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to get free resources: %w", err)
+		}
+
+		freeCores := freeResources.Cores + int(vm.Cores)
+		freeRAM := freeResources.RAM + int(vm.RAM)
+		freeDisk := freeResources.Disk + int(vm.Disk)
+
+		// A request of 2^63 or more is negative as an int, so we compare
+		// as uint after checking that the free resources are not negative
+		if freeCores < 0 || uint(freeCores) < cores ||
+			freeRAM < 0 || uint(freeRAM) < ram ||
+			freeDisk < 0 || uint(freeDisk) < disk {
+			return ErrInsufficientResources
+		}
+
+		err = tx.Model(&vm).
+			UpdateColumns(VM{Cores: cores, RAM: ram, Disk: disk}).Error
+		if err != nil {
+			return fmt.Errorf("failed to update VM resources: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // UpdateVMDisk updates only the disk size of the VM, leaving cores and RAM

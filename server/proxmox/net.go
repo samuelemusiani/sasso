@@ -143,23 +143,14 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 
 	var nets []db.Net
 
+	// The limit of a group is checked by db.CreateNetForGroup, together with
+	// the creation
 	if groupID != nil {
-		res, err := db.GetGroupResourceLimits(*groupID)
-		if err != nil {
-			logger.Error("Failed to get group resources by group ID", "groupID", *groupID, "error", err)
-
-			return nil, err
-		}
-
 		nets, err = db.GetNetsByGroupID(*groupID)
 		if err != nil {
 			logger.Error("Failed to get nets by group ID", "groupID", *groupID, "error", err)
 
 			return nil, err
-		}
-
-		if len(nets)+1 > int(res.Nets) {
-			return nil, ErrInsufficientResources
 		}
 	} else {
 		nets, err = db.GetNetsByUserID(userID)
@@ -203,7 +194,13 @@ func CreateNewNet(userID uint, name string, vlanaware bool, groupID *uint) (*db.
 	var net *db.Net
 	if groupID != nil {
 		net, err = db.CreateNetForGroup(*groupID, netName, name, cNetwork.SDNZone, tag, vlanaware, string(VNetStatusPreCreating))
-		if err != nil {
+
+		switch {
+		case errors.Is(err, db.ErrInsufficientResources):
+			return nil, ErrInsufficientResources
+		case errors.Is(err, db.ErrNotFound):
+			return nil, ErrNotFound
+		case err != nil:
 			logger.Error("Failed to create network for group", "groupID", *groupID, "error", err)
 
 			return nil, err

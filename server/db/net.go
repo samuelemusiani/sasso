@@ -192,7 +192,9 @@ func CreateNetForUser(userID uint, name, alias, zone string, tag uint32, vlanAwa
 }
 
 // CreateNetForGroup only creates a network for a group in the DB. It does
-// not create the network in Proxmox
+// not create the network in Proxmox. It returns ErrInsufficientResources if
+// the group has no free net. The row of the group stays locked until the net
+// is created.
 func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanAware bool, status string) (*Net, error) {
 	net := &Net{
 		Name:      name,
@@ -205,8 +207,30 @@ func CreateNetForGroup(groupID uint, name, alias, zone string, tag uint32, vlanA
 		Status:    status,
 	}
 
-	if err := db.Create(net).Error; err != nil {
-		return nil, fmt.Errorf("failed to create network for group: %w", err)
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := lockGroupTransaction(tx, groupID)
+		if err != nil {
+			return err
+		}
+
+		freeResources, err := getFreeResourcesForGroupIDTransaction(tx, groupID)
+		if err != nil {
+			return fmt.Errorf("failed to get free resources: %w", err)
+		}
+
+		if freeResources.Nets < 1 {
+			return ErrInsufficientResources
+		}
+
+		err = tx.Create(net).Error
+		if err != nil {
+			return fmt.Errorf("failed to create network for group: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	logger.Debug("Created network for group", "groupID", groupID, "netName", net.Name, "zone", net.Zone, "tag", net.Tag, "vlanAware", net.VlanAware)
