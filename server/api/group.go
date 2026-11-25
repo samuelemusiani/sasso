@@ -310,6 +310,12 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 	switch req.Action {
 	case "accept":
 		if err := db.AcceptGroupInvitation(uint(invitationID), userID); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				http.Error(w, "Invitation not found", http.StatusNotFound)
+
+				return
+			}
+
 			http.Error(w, "Failed to accept invitation", http.StatusInternalServerError)
 
 			return
@@ -449,6 +455,13 @@ func inviteUserToGroup(w http.ResponseWriter, r *http.Request) {
 	if err := db.InviteUserToGroup(u.ID, group.ID, req.Role); err != nil {
 		if errors.Is(err, db.ErrAlreadyExists) {
 			http.Error(w, "User already invited", http.StatusConflict)
+
+			return
+		}
+
+		// The group was deleted after the middleware loaded it
+		if errors.Is(err, db.ErrNotFound) {
+			http.Error(w, "Group not found", http.StatusNotFound)
 
 			return
 		}

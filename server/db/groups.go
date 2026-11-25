@@ -417,9 +417,16 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
+		// The lock makes parallel invites for the same group wait, so the
+		// count below sees the invitation of the one that came first
+		err := lockGroupTransaction(tx, groupID)
+		if err != nil {
+			return err
+		}
+
 		var count int64
 
-		err := tx.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
+		err = tx.Model(&GroupInvitation{}).Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").Count(&count).Error
 		if err != nil {
 			return fmt.Errorf("failed to check existing invitations: %w", err)
 		}
@@ -428,7 +435,7 @@ func InviteUserToGroup(userID, groupID uint, role string) error {
 			return ErrAlreadyExists
 		}
 
-		err = db.Create(&invitation).Error
+		err = tx.Create(&invitation).Error
 		if err != nil {
 			return fmt.Errorf("failed to create group invitation: %w", err)
 		}
@@ -480,6 +487,13 @@ func RemoveUserFromGroup(userID, groupID uint) error {
 
 		if result.RowsAffected == 0 {
 			return ErrNotFound
+		}
+
+		// A pending invitation left over would let the user join again
+		err = tx.Where("user_id = ? AND group_id = ? AND state = ?", userID, groupID, "pending").
+			Delete(&GroupInvitation{}).Error
+		if err != nil {
+			return fmt.Errorf("failed to delete pending invitations: %w", err)
 		}
 
 		// If the members are now 1 and there is an admin group resource,
