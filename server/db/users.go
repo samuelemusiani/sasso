@@ -29,10 +29,10 @@ type User struct {
 	RealmID  uint     `gorm:"not null;uniqueIndex:idx_username_realm;uniqueIndex:idx_email_realm"`
 	Role     UserRole `gorm:"type:varchar(20);not null;default:'user';check:role IN ('admin','user','maintainer')"`
 
-	MaxCores uint `gorm:"not null;default:2"`
-	MaxRAM   uint `gorm:"not null;default:2048"`
-	MaxDisk  uint `gorm:"not null;default:4"`
-	MaxNets  uint `gorm:"not null;default:1"`
+	MaxCores uint `gorm:"not null"`
+	MaxRAM   uint `gorm:"not null"`
+	MaxDisk  uint `gorm:"not null"`
+	MaxNets  uint `gorm:"not null"`
 
 	VMs            []VM            `gorm:"polymorphic:Owner;polymorphicValue:User"`
 	Nets           []Net           `gorm:"polymorphic:Owner;polymorphicValue:User"`
@@ -210,6 +210,23 @@ func GetAllUsers() ([]User, error) {
 }
 
 func CreateUser(user *User) error {
+	// Limits left at zero by the caller come from the config
+	if user.MaxCores == 0 {
+		user.MaxCores = newUserLimits.MaxCores
+	}
+
+	if user.MaxRAM == 0 {
+		user.MaxRAM = newUserLimits.MaxRAM
+	}
+
+	if user.MaxDisk == 0 {
+		user.MaxDisk = newUserLimits.MaxDisk
+	}
+
+	if user.MaxNets == 0 {
+		user.MaxNets = newUserLimits.MaxNets
+	}
+
 	err := db.Transaction(func(tx *gorm.DB) error {
 		result := tx.Create(user)
 		if result.Error != nil {

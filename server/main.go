@@ -135,7 +135,7 @@ func main() { //nolint:maintidx
 
 	dbLogger := slog.With("module", "db")
 
-	err = db.Init(dbLogger, c.Database)
+	err = db.Init(dbLogger, c.Database, c.Limits.NewUser)
 	if err != nil {
 		slog.Error("Failed to initialize database", "error", err)
 		os.Exit(1)

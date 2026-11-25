@@ -106,3 +106,11 @@ max_port = 40000
 max_groups_per_user = 20
 # Maximum number of wireguard VPN profiles per user
 max_wireguard_profiles_per_user = 2
+
+# Limits given to a user when the account is created. An admin can change
+# them per user afterwards.
+[limits.new_user]
+max_cores = 2
+max_ram = 2048 # MB
+max_disk = 4   # GB
+max_nets = 1

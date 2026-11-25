@@ -18,6 +18,9 @@ var (
 	db     *gorm.DB
 	logger *slog.Logger
 
+	// Limits given to a user by CreateUser when the caller leaves them at zero
+	newUserLimits config.NewUserLimits
+
 	ErrNotFound              = errors.New("record not found")
 	ErrForbidden             = errors.New("forbidden")
 	ErrAlreadyExists         = errors.New("record already exists")
@@ -25,12 +28,15 @@ var (
 	ErrResourcesInUse        = errors.New("resources are in use")
 )
 
-func Init(dbLogger *slog.Logger, c config.Database) error {
+func Init(dbLogger *slog.Logger, c config.Database, newUser config.NewUserLimits) error {
 	logger = dbLogger
 
-	if err := checkConfig(&c); err != nil {
+	if err := checkConfig(&c, &newUser); err != nil {
 		return err
 	}
+
+	// Set before initUsers, which creates the admin user
+	newUserLimits = newUser
 
 	var err error
 
@@ -213,7 +219,7 @@ func applyFixes() error {
 	return err
 }
 
-func checkConfig(c *config.Database) error {
+func checkConfig(c *config.Database, newUser *config.NewUserLimits) error {
 	if c.User == "" {
 		return errors.New("database user is empty")
 	}
@@ -232,6 +238,22 @@ func checkConfig(c *config.Database) error {
 
 	if c.Port == 0 {
 		return errors.New("database port is empty")
+	}
+
+	if newUser.MaxCores == 0 {
+		return errors.New("new user max cores cannot be zero")
+	}
+
+	if newUser.MaxRAM == 0 {
+		return errors.New("new user max RAM cannot be zero")
+	}
+
+	if newUser.MaxDisk == 0 {
+		return errors.New("new user max disk cannot be zero")
+	}
+
+	if newUser.MaxNets == 0 {
+		return errors.New("new user max nets cannot be zero")
 	}
 
 	return nil

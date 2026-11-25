@@ -102,6 +102,16 @@ type PortForwards struct {
 type Limits struct {
 	MaxGroupsPerUser            uint `toml:"max_groups_per_user"`
 	MaxWireguardProfilesPerUser uint `toml:"max_wireguard_profiles_per_user"`
+
+	NewUser NewUserLimits `toml:"new_user"`
+}
+
+// NewUserLimits are the limits given to a user when the account is created
+type NewUserLimits struct {
+	MaxCores uint `toml:"max_cores"`
+	MaxRAM   uint `toml:"max_ram"`
+	MaxDisk  uint `toml:"max_disk"`
+	MaxNets  uint `toml:"max_nets"`
 }
 
 var config Config
