@@ -272,14 +272,15 @@ func GetGroupsWithInvitationByUserID(userID uint) ([]GroupInvitation, error) {
 }
 
 func DeclineGroupInvitation(invitationID, userID uint) error {
-	err := db.Model(&GroupInvitation{}).Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").
-		Update("state", "declined").Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil // No pending invitation found, nothing to do
-		}
+	result := db.Model(&GroupInvitation{}).Where("user_id = ? AND id = ? AND state = ?", userID, invitationID, "pending").
+		Update("state", "declined")
+	if result.Error != nil {
+		return fmt.Errorf("failed to decline invitation: %w", result.Error)
+	}
 
-		return fmt.Errorf("failed to decline invitation: %w", err)
+	// No pending invitation of this user with this id
+	if result.RowsAffected == 0 {
+		return ErrNotFound
 	}
 
 	return nil

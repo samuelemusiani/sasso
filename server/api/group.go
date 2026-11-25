@@ -322,6 +322,12 @@ func manageInvitation(w http.ResponseWriter, r *http.Request) {
 		}
 	case "decline":
 		if err := db.DeclineGroupInvitation(uint(invitationID), userID); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				http.Error(w, "Invitation not found", http.StatusNotFound)
+
+				return
+			}
+
 			http.Error(w, "Failed to decline invitation", http.StatusInternalServerError)
 
 			return
